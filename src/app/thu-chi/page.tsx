@@ -646,7 +646,7 @@ export default function ThuChiPage() {
                   type="text"
                   value={contributionSearch}
                   onChange={(e) => setContributionSearch(e.target.value)}
-                  placeholder="Lọc tên anh em, số phòng (vd: Minh Tuấn, P.101)..."
+                  placeholder="Lọc tên anh em, số phòng (vd: Minh Tuấn, P.1)..."
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low border border-transparent focus:border-primary focus:bg-white text-xs font-medium focus:outline-none transition"
                 />
               </div>

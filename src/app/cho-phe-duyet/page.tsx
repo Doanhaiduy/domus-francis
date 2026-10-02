@@ -57,7 +57,7 @@ export default function ChoPheDuyetPage() {
             <span>Thông tin liên hệ cấp quyền:</span>
           </div>
           <p className="text-xs text-purple-900/80 leading-relaxed">
-            Vui lòng nhắn tin trực tiếp cho <b>Anh Văn Đức</b> (Trưởng nhà · P.101 · 0912 334 782) hoặc <b>Anh Hoàng Long</b> (Phó nhà · P.102) để được kích hoạt ngay nhé!
+            Vui lòng nhắn tin trực tiếp cho <b>Anh Văn Đức</b> (Trưởng nhà · P.1 · 0912 334 782) hoặc <b>Anh Hoàng Long</b> (Phó nhà · P.1) để được kích hoạt ngay nhé!
           </p>
         </div>
 

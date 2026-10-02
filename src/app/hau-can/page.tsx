@@ -33,7 +33,47 @@ import { formatVND } from "@/lib/utils";
 import HauCanLoading from "./loading";
 import { CleaningDuty } from "@/lib/mockData";
 import { copyTextToClipboard } from "@/lib/zaloShare";
-import { ImageUploadDropzone } from "@/components/ui/FormControls";
+import {
+  CustomInput,
+  CustomSelect,
+  CustomTextarea,
+  SelectOption,
+  ImageUploadDropzone,
+} from "@/components/ui/FormControls";
+
+const STATUS_FILTER_OPTIONS: SelectOption[] = [
+  { value: "all", label: "Tất cả trạng thái" },
+  { value: "pending", label: "⏳ Chờ trực" },
+  { value: "submitted", label: "🕒 Chờ nghiệm thu" },
+  { value: "approved", label: "✅ Đã nghiệm thu (Đạt)" },
+  { value: "rejected", label: "⚠️ Yêu cầu dọn lại" },
+];
+
+const WEEKDAY_OPTIONS: SelectOption[] = [
+  { value: "Thứ Hai", label: "Thứ Hai" },
+  { value: "Thứ Ba", label: "Thứ Ba" },
+  { value: "Thứ Tư", label: "Thứ Tư" },
+  { value: "Thứ Năm", label: "Thứ Năm" },
+  { value: "Thứ Sáu", label: "Thứ Sáu" },
+  { value: "Thứ Bảy", label: "Thứ Bảy" },
+  { value: "Chúa Nhật", label: "Chúa Nhật" },
+];
+
+const SHIFT_OPTIONS: SelectOption[] = [
+  { value: "Ca Sáng (06:30)", label: "Ca Sáng (06:30)" },
+  { value: "Ca Chiều (17:30)", label: "Ca Chiều (17:30)" },
+  { value: "Ca Tối (21:00)", label: "Ca Tối (21:00)" },
+];
+
+const AREA_ICON_OPTIONS: SelectOption[] = [
+  { value: "🧹", label: "🧹 Trực nhật & Quét dọn" },
+  { value: "🚿", label: "🚿 Phòng tắm & WC" },
+  { value: "🪜", label: "🪜 Cầu thang & Hành lang" },
+  { value: "🍳", label: "🍳 Bếp & Bàn ăn" },
+  { value: "⛪", label: "⛪ Nguyện đường & SHC" },
+  { value: "🌱", label: "🌱 Sân thượng & Rác" },
+  { value: "✨", label: "✨ Tổng vệ sinh" },
+];
 
 const SLOTS = [
   "06:00 – 08:00",
@@ -107,7 +147,7 @@ export default function HauCanPage() {
   const [newArea, setNewArea] = useState("");
   const [newAreaIcon, setNewAreaIcon] = useState("🧹");
   const [newDay, setNewDay] = useState<CleaningDuty["dayOfWeek"]>("Thứ Hai");
-  const [newRoom, setNewRoom] = useState("Phòng 201");
+  const [newRoom, setNewRoom] = useState("Phòng 1");
   const [newMembersStr, setNewMembersStr] = useState("");
   const [newShift, setNewShift] = useState<CleaningDuty["shift"]>("Ca Sáng (06:30)");
 
@@ -457,19 +497,12 @@ export default function HauCanPage() {
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-bold text-gray-400">Trạng thái:</span>
-              <select
+            <div className="flex items-center gap-1.5 shrink-0 w-44">
+              <CustomSelect
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-surface-container-low border border-purple-100 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="pending">⏳ Chờ trực</option>
-                <option value="submitted">🕒 Chờ nghiệm thu</option>
-                <option value="approved">✅ Đã nghiệm thu (Đạt)</option>
-                <option value="rejected">⚠️ Yêu cầu dọn lại</option>
-              </select>
+                onChange={(val) => setStatusFilter(val as any)}
+                options={STATUS_FILTER_OPTIONS}
+              />
             </div>
           </div>
 
@@ -939,23 +972,24 @@ export default function HauCanPage() {
             </div>
 
             <form onSubmit={handleConfirmCheckIn} className="p-5 space-y-4 overflow-y-auto custom-scroll flex-1">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Người đại diện Check-in *
-                </label>
-                <select
-                  value={checkInMemberName}
-                  onChange={(e) => setCheckInMemberName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {checkInTarget.assignedMembers.map((m) => (
-                    <option key={m} value={m}>{m} (Được phân công)</option>
-                  ))}
-                  {members.map((m) => (
-                    <option key={m.id} value={m.fullName}>{m.fullName}</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                label="Người đại diện Check-in *"
+                value={checkInMemberName}
+                onChange={setCheckInMemberName}
+                options={[
+                  ...checkInTarget.assignedMembers.map((m) => ({
+                    value: m,
+                    label: `${m} (Được phân công)`,
+                  })),
+                  ...members
+                    .filter((m) => !checkInTarget.assignedMembers.includes(m.fullName))
+                    .map((m) => ({
+                      value: m.fullName,
+                      label: m.fullName,
+                      subLabel: m.room ? `Phòng ${m.room}` : undefined,
+                    })),
+                ]}
+              />
 
               {/* Real-time Clock Info */}
               <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 flex items-center justify-between text-xs">
@@ -1022,18 +1056,13 @@ export default function HauCanPage() {
               />
 
               {/* Note */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Ghi chú thêm (Tình trạng khu vực, cần bổ sung đồ...):
-                </label>
-                <textarea
-                  rows={2}
-                  value={checkInNote}
-                  onChange={(e) => setCheckInNote(e.target.value)}
-                  placeholder="Ví dụ: Đã cọ sạch sàn WC T2, đổ rác hành lang và thay túi bóng mới."
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <CustomTextarea
+                label="Ghi chú thêm (Tình trạng khu vực, cần bổ sung đồ...):"
+                rows={2}
+                value={checkInNote}
+                onChange={(e) => setCheckInNote(e.target.value)}
+                placeholder="Ví dụ: Đã cọ sạch sàn WC T2, đổ rác hành lang và thay túi bóng mới."
+              />
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">
                 <button
@@ -1142,17 +1171,13 @@ export default function HauCanPage() {
               </div>
 
               {/* Reviewer Note */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Nhận xét của Ban Quản Lý:
-                </label>
-                <textarea
-                  rows={2}
-                  value={reviewNote}
-                  onChange={(e) => setReviewNote(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <CustomTextarea
+                label="Nhận xét của Ban Quản Lý:"
+                rows={2}
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                placeholder="Nhập nhận xét hoặc lưu ý cho thành viên trực..."
+              />
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">
                 <button
@@ -1205,50 +1230,34 @@ export default function HauCanPage() {
             </div>
 
             <form onSubmit={handleConfirmSwap} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Người xin đổi (Bạn):
-                </label>
-                <select
-                  value={swapFrom}
-                  onChange={(e) => setSwapFrom(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {swapTarget.assignedMembers.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                label="Người xin đổi (Bạn):"
+                value={swapFrom}
+                onChange={setSwapFrom}
+                options={swapTarget.assignedMembers.map((m) => ({
+                  value: m,
+                  label: m,
+                }))}
+              />
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Thành viên muốn đổi ca cùng:
-                </label>
-                <select
-                  value={swapTo}
-                  onChange={(e) => setSwapTo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {members.map((m) => (
-                    <option key={m.id} value={m.fullName}>
-                      {m.fullName} ({m.room})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                label="Thành viên muốn đổi ca cùng:"
+                value={swapTo}
+                onChange={setSwapTo}
+                options={members.map((m) => ({
+                  value: m.fullName,
+                  label: m.fullName,
+                  subLabel: m.room ? `Phòng ${m.room}` : undefined,
+                }))}
+              />
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Lý do xin đổi ca:
-                </label>
-                <textarea
-                  rows={2}
-                  value={swapReason}
-                  onChange={(e) => setSwapReason(e.target.value)}
-                  placeholder="Ví dụ: Bận lịch thi môn Giải tích, thực tập tốt nghiệp..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <CustomTextarea
+                label="Lý do xin đổi ca:"
+                rows={2}
+                value={swapReason}
+                onChange={(e) => setSwapReason(e.target.value)}
+                placeholder="Ví dụ: Bận lịch thi môn Giải tích, thực tập tốt nghiệp..."
+              />
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">
                 <button
@@ -1297,97 +1306,52 @@ export default function HauCanPage() {
             </div>
 
             <form onSubmit={handleConfirmAddDuty} className="p-5 space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Khu vực vệ sinh *:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newArea}
-                  onChange={(e) => setNewArea(e.target.value)}
-                  placeholder="VD: Khu vực WC Tầng 1 - 2, Cầu thang bộ..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+              <CustomInput
+                label="Khu vực vệ sinh *:"
+                required
+                value={newArea}
+                onChange={(e) => setNewArea(e.target.value)}
+                placeholder="VD: Khu vực WC Tầng 1 - 2, Cầu thang bộ..."
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <CustomSelect
+                  label="Ngày trong tuần:"
+                  value={newDay}
+                  onChange={(val) => setNewDay(val as any)}
+                  options={WEEKDAY_OPTIONS}
+                />
+
+                <CustomSelect
+                  label="Ca trực:"
+                  value={newShift}
+                  onChange={(val) => setNewShift(val as any)}
+                  options={SHIFT_OPTIONS}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Ngày trong tuần:
-                  </label>
-                  <select
-                    value={newDay}
-                    onChange={(e) => setNewDay(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    {["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chúa Nhật"].map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
+                <CustomInput
+                  label="Phòng phụ trách:"
+                  value={newRoom}
+                  onChange={(e) => setNewRoom(e.target.value)}
+                  placeholder="Phòng 1"
+                />
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Ca trực:
-                  </label>
-                  <select
-                    value={newShift}
-                    onChange={(e) => setNewShift(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="Ca Sáng (06:30)">Ca Sáng (06:30)</option>
-                    <option value="Ca Chiều (17:30)">Ca Chiều (17:30)</option>
-                    <option value="Ca Tối (21:00)">Ca Tối (21:00)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Phòng phụ trách:
-                  </label>
-                  <input
-                    type="text"
-                    value={newRoom}
-                    onChange={(e) => setNewRoom(e.target.value)}
-                    placeholder="Phòng 201"
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Biểu tượng Icon:
-                  </label>
-                  <select
-                    value={newAreaIcon}
-                    onChange={(e) => setNewAreaIcon(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold"
-                  >
-                    <option value="🚿">🚿 Phòng tắm &amp; WC</option>
-                    <option value="🪜">🪜 Cầu thang &amp; Hành lang</option>
-                    <option value="🍳">🍳 Bếp &amp; Bàn ăn</option>
-                    <option value="⛪">⛪ Nguyện đường &amp; SHC</option>
-                    <option value="🌱">🌱 Sân thượng &amp; Rác</option>
-                    <option value="✨">✨ Tổng vệ sinh</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Thành viên trực (cách nhau bằng dấu phẩy):
-                </label>
-                <input
-                  type="text"
-                  value={newMembersStr}
-                  onChange={(e) => setNewMembersStr(e.target.value)}
-                  placeholder="VD: Trần Văn Đức, Minh Tuấn"
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                <CustomSelect
+                  label="Biểu tượng Icon:"
+                  value={newAreaIcon}
+                  onChange={(val) => setNewAreaIcon(val as any)}
+                  options={AREA_ICON_OPTIONS}
                 />
               </div>
+
+              <CustomInput
+                label="Thành viên trực (cách nhau bằng dấu phẩy):"
+                value={newMembersStr}
+                onChange={(e) => setNewMembersStr(e.target.value)}
+                placeholder="VD: Trần Văn Đức, Minh Tuấn"
+              />
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">
                 <button

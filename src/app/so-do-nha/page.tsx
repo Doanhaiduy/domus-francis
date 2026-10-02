@@ -34,6 +34,7 @@ import {
 import { useApp } from "@/lib/store";
 import { Room, Floor, RoomType, Member } from "@/lib/mockData";
 import { CustomSelect, CustomInput, CustomToggle, CustomTextarea, SelectOption } from "@/components/ui/FormControls";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FloorplanCanvas } from "@/components/FloorplanCanvas";
 import { cn } from "@/lib/utils";
 
@@ -110,6 +111,22 @@ export default function SoDoNhaPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignRoomId, setAssignRoomId] = useState<string>("");
   const [assignMemberId, setAssignMemberId] = useState<string>("");
+
+  // Custom Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: React.ReactNode;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: "danger" | "warning" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   // Room Form State (Add / Edit)
   const [formRoomFloor, setFormRoomFloor] = useState<number>(1);
@@ -378,6 +395,19 @@ export default function SoDoNhaPage() {
       showToast("error", "Vui lòng chọn thành viên và phòng đích.");
       return;
     }
+    const targetRoom = rooms.find((r) => r.id === transferTargetRoomId);
+    if (targetRoom && targetRoom.type === "bedroom") {
+      const currentOccupants = members.filter(
+        (m) => m.room === transferTargetRoomId && m.id !== transferMemberId
+      );
+      if (currentOccupants.length >= targetRoom.capacity) {
+        showToast(
+          "error",
+          `Không thể chuyển! ${targetRoom.name} đã đủ tối đa ${targetRoom.capacity} người (${currentOccupants.map((o) => o.fullName).join(", ")}).`
+        );
+        return;
+      }
+    }
     moveMemberToRoom(transferMemberId, transferTargetRoomId);
     setIsTransferModalOpen(false);
   };
@@ -394,6 +424,19 @@ export default function SoDoNhaPage() {
   const handleConfirmAssign = (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignMemberId || !assignRoomId) return;
+    const targetRoom = rooms.find((r) => r.id === assignRoomId);
+    if (targetRoom && targetRoom.type === "bedroom") {
+      const currentOccupants = members.filter(
+        (m) => m.room === assignRoomId && m.id !== assignMemberId
+      );
+      if (currentOccupants.length >= targetRoom.capacity) {
+        showToast(
+          "error",
+          `Không thể thêm! ${targetRoom.name} đã đủ tối đa ${targetRoom.capacity} người (${currentOccupants.map((o) => o.fullName).join(", ")}).`
+        );
+        return;
+      }
+    }
     moveMemberToRoom(assignMemberId, assignRoomId);
     setIsAssignModalOpen(false);
   };
@@ -690,9 +733,18 @@ export default function SoDoNhaPage() {
                     {floors.length > 1 && (
                       <button
                         onClick={() => {
-                          if (confirm(`Bạn có chắc muốn xóa ${floor.name} và toàn bộ phòng thuộc tầng này?`)) {
-                            deleteFloor(floor.id);
-                          }
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: "Xác nhận xóa tầng",
+                            message: (
+                              <span>
+                                Bạn có chắc muốn xóa <strong className="text-gray-900 font-bold">{floor.name}</strong> và toàn bộ các phòng thuộc tầng này? Thao tác này không thể hoàn tác.
+                              </span>
+                            ),
+                            confirmText: "Xóa tầng",
+                            variant: "danger",
+                            onConfirm: () => deleteFloor(floor.id),
+                          });
                         }}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition-colors"
                       >
@@ -907,13 +959,18 @@ export default function SoDoNhaPage() {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (
-                                      confirm(
-                                        `Bạn có chắc muốn xóa ${room.name}? Các bạn đang ở phòng này sẽ chuyển thành chưa xếp phòng.`
-                                      )
-                                    ) {
-                                      deleteRoom(room.id);
-                                    }
+                                    setConfirmDialog({
+                                      isOpen: true,
+                                      title: "Xác nhận xóa phòng",
+                                      message: (
+                                        <span>
+                                          Bạn có chắc muốn xóa <strong className="text-gray-900 font-bold">{room.name}</strong>? Các thành viên đang ở phòng này sẽ được chuyển về trạng thái "Chưa xếp phòng".
+                                        </span>
+                                      ),
+                                      confirmText: "Xóa phòng",
+                                      variant: "danger",
+                                      onConfirm: () => deleteRoom(room.id),
+                                    });
                                   }}
                                   className="p-1.5 rounded-xl hover:bg-rose-50 text-rose-400 hover:text-rose-600 transition-colors"
                                   title="Xóa phòng này"
@@ -1077,9 +1134,20 @@ export default function SoDoNhaPage() {
                             </button>
                             <button
                               onClick={() => {
-                                if (confirm(`Bạn có chắc muốn hủy xếp phòng cho bạn ${m.fullName}?`)) {
-                                  removeMemberFromRoom(m.id);
-                                }
+                                setConfirmDialog({
+                                  isOpen: true,
+                                  title: "Hủy xếp phòng cho thành viên",
+                                  message: (
+                                    <span>
+                                      Bạn có chắc muốn hủy xếp phòng cho bạn{" "}
+                                      <strong className="text-gray-900 font-bold">{m.fullName}</strong>?
+                                      Thành viên sẽ được đưa về trạng thái "Chưa xếp phòng".
+                                    </span>
+                                  ),
+                                  confirmText: "Hủy gán phòng",
+                                  variant: "warning",
+                                  onConfirm: () => removeMemberFromRoom(m.id),
+                                });
                               }}
                               className="px-2.5 py-1.5 rounded-xl hover:bg-rose-50 text-rose-500 font-bold text-xs transition-colors"
                               title="Rời khỏi phòng này"
@@ -1536,6 +1604,18 @@ export default function SoDoNhaPage() {
         </div>,
         document.body
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+      />
     </div>
   );
 }

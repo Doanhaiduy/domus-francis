@@ -243,6 +243,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetRoom = rooms.find((r) => r.id === targetRoomId);
     if (!member) return;
 
+    if (member.room === targetRoomId) {
+      showToast("info", `${member.fullName} đã ở sẵn trong ${targetRoom?.name || targetRoomId}.`);
+      return;
+    }
+
+    if (targetRoom && targetRoom.type === "bedroom") {
+      const currentOccupants = members.filter((m) => m.room === targetRoomId && m.id !== memberId);
+      if (currentOccupants.length >= targetRoom.capacity) {
+        showToast(
+          "error",
+          `Không thể chuyển! ${targetRoom.name} đã đủ tối đa ${targetRoom.capacity} người (${currentOccupants.map((o) => o.fullName).join(", ")}).`
+        );
+        return;
+      }
+    }
+
     setMembers((prev) =>
       prev.map((m) => (m.id === memberId ? { ...m, room: targetRoomId } : m))
     );

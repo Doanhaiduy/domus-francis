@@ -31,6 +31,7 @@ import {
 import { useApp } from "@/lib/store";
 import CaiDatLoading from "./loading";
 import { CustomToggle, CustomInput, CustomSelect, CustomTimePicker, SelectOption } from "@/components/ui/FormControls";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CategoryItem } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 
@@ -167,6 +168,7 @@ export default function CaiDatPage() {
   const [catSearchTerm, setCatSearchTerm] = useState("");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [deleteTargetCat, setDeleteTargetCat] = useState<CategoryItem | null>(null);
 
   // Category Form State
   const [formCatName, setFormCatName] = useState("");
@@ -252,9 +254,7 @@ export default function CaiDatPage() {
   };
 
   const handleDeleteCategory = (cat: CategoryItem) => {
-    if (confirm(`Bạn có chắc muốn xóa danh mục "${cat.name}"?`)) {
-      deleteCategory(cat.id);
-    }
+    setDeleteTargetCat(cat);
   };
 
   if (isLoadingSkeleton) {
@@ -967,6 +967,30 @@ export default function CaiDatPage() {
           </div>,
           document.body
         )}
+
+      {/* Confirmation Dialog for Category Deletion */}
+      <ConfirmDialog
+        isOpen={!!deleteTargetCat}
+        onClose={() => setDeleteTargetCat(null)}
+        onConfirm={() => {
+          if (deleteTargetCat) {
+            deleteCategory(deleteTargetCat.id);
+            setDeleteTargetCat(null);
+          }
+        }}
+        title="Xác nhận xóa danh mục"
+        message={
+          deleteTargetCat ? (
+            <span>
+              Bạn có chắc chắn muốn xóa danh mục{" "}
+              <strong className="text-gray-900 font-bold">"{deleteTargetCat.name}"</strong>? Thao tác này sẽ xóa danh mục khỏi các bộ lọc và không thể hoàn tác.
+            </span>
+          ) : ""
+        }
+        confirmText="Xóa danh mục"
+        cancelText="Hủy bỏ"
+        variant="danger"
+      />
     </div>
   );
 }

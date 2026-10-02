@@ -1,267 +1,48 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Bed,
   Users,
   Church,
-  UtensilsCrossed,
-  Wind,
-  Package,
-  DoorOpen,
-  Move,
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Grid,
   Sparkles,
   GripVertical,
-  Plus,
   ArrowRightLeft,
   User,
-  Trash2,
-  Edit2,
-  Compass,
-  Copy,
-  X,
-  Check,
   Layers,
-  ChevronDown,
-  Info,
   Maximize2,
+  Minimize2,
   CheckCircle2,
-  AlertCircle,
-  Eye,
+  Search,
+  Compass,
+  Info,
   Sliders,
-  ArrowUpDown,
-  Footprints,
+  Check,
+  ChevronRight,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { Room, RoomType, Member, Floor } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 
-const GRID_SIZE = 20;
-
-export const ROOM_TYPE_THEMES: Record<
-  RoomType,
-  { label: string; icon: any; border: string; bg: string; text: string; lightBg: string }
-> = {
-  bedroom: {
-    label: "Phòng ngủ",
-    icon: Bed,
-    border: "border-purple-300",
-    bg: "bg-purple-600",
-    text: "text-purple-700",
-    lightBg: "bg-purple-50/80",
-  },
-  common: {
-    label: "Sinh hoạt chung",
-    icon: Users,
-    border: "border-emerald-300",
-    bg: "bg-emerald-600",
-    text: "text-emerald-700",
-    lightBg: "bg-emerald-50/80",
-  },
-  chapel: {
-    label: "Nhà nguyện",
-    icon: Church,
-    border: "border-indigo-300",
-    bg: "bg-indigo-600",
-    text: "text-indigo-700",
-    lightBg: "bg-indigo-50/80",
-  },
-  kitchen: {
-    label: "Bếp & Ăn",
-    icon: UtensilsCrossed,
-    border: "border-amber-300",
-    bg: "bg-amber-600",
-    text: "text-amber-700",
-    lightBg: "bg-amber-50/80",
-  },
-  laundry: {
-    label: "Giặt & Phơi",
-    icon: Wind,
-    border: "border-cyan-300",
-    bg: "bg-cyan-600",
-    text: "text-cyan-700",
-    lightBg: "bg-cyan-50/80",
-  },
-  storage: {
-    label: "Kho & Kỹ thuật",
-    icon: Package,
-    border: "border-gray-300",
-    bg: "bg-gray-600",
-    text: "text-gray-700",
-    lightBg: "bg-gray-100",
-  },
-  stairs: {
-    label: "Cầu thang bộ",
-    icon: ArrowUpDown,
-    border: "border-indigo-400",
-    bg: "bg-indigo-600",
-    text: "text-indigo-800",
-    lightBg: "bg-indigo-50/90",
-  },
-  corridor: {
-    label: "Hành lang",
-    icon: Footprints,
-    border: "border-purple-300",
-    bg: "bg-purple-500",
-    text: "text-purple-700",
-    lightBg: "bg-purple-50/60",
-  },
-  other: {
-    label: "Khác",
-    icon: DoorOpen,
-    border: "border-blue-300",
-    bg: "bg-blue-600",
-    text: "text-blue-700",
-    lightBg: "bg-blue-50/80",
-  },
-};
-
-// Preset room templates available in the Shape Palette
-interface ShapeTemplate {
-  id: string;
-  name: string;
-  type: RoomType;
-  capacity: number;
-  areaM2: number;
-  w: number;
-  h: number;
-  description: string;
-  amenities: string[];
-}
-
-const PRESET_SHAPES: ShapeTemplate[] = [
-  {
-    id: "shape-bed-2",
-    name: "Phòng Ngủ Đôi (Chuẩn)",
-    type: "bedroom",
-    capacity: 2,
-    areaM2: 24,
-    w: 230,
-    h: 180,
-    description: "Phòng ngủ tiêu chuẩn 2 giường đơn, ban công thoáng và WC khép kín.",
-    amenities: ["Điều hòa", "WC khép kín", "Bàn học đôi", "Tủ quần áo"],
-  },
-  {
-    id: "shape-bed-4",
-    name: "Phòng Ngủ Lớn (4 Giường)",
-    type: "bedroom",
-    capacity: 4,
-    areaM2: 36,
-    w: 280,
-    h: 210,
-    description: "Phòng rộng 4 giường tầng thông minh cho sinh viên năm nhất.",
-    amenities: ["Điều hòa", "WC khép kín", "4 Bàn học", "Tủ đồ cá nhân"],
-  },
-  {
-    id: "shape-bed-1",
-    name: "Phòng Đơn / Tiếp Khách",
-    type: "bedroom",
-    capacity: 1,
-    areaM2: 18,
-    w: 200,
-    h: 160,
-    description: "Phòng đơn yên tĩnh đón phụ huynh, quý Cha hoặc sinh viên năm cuối.",
-    amenities: ["Điều hòa", "Bàn làm việc", "WC riêng"],
-  },
-  {
-    id: "shape-common",
-    name: "Sinh Hoạt Chung & Tự Học",
-    type: "common",
-    capacity: 0,
-    areaM2: 40,
-    w: 300,
-    h: 220,
-    description: "Không gian học tập nhóm, hội họp huynh đệ và đón khách.",
-    amenities: ["Máy chiếu HD", "Bảng từ trắng", "Bàn họp lớn", "Wifi tốc độ cao"],
-  },
-  {
-    id: "shape-chapel",
-    name: "Nguyện Đường Assisi",
-    type: "chapel",
-    capacity: 0,
-    areaM2: 45,
-    w: 320,
-    h: 240,
-    description: "Không gian thánh thiêng cử hành Kinh Tối và Chầu Thánh Thể.",
-    amenities: ["Bàn thờ gỗ", "Đàn Organ", "Hệ thống âm thanh", "Thảm quỳ"],
-  },
-  {
-    id: "shape-kitchen",
-    name: "Gian Bếp & Phòng Ăn",
-    type: "kitchen",
-    capacity: 0,
-    areaM2: 38,
-    w: 280,
-    h: 200,
-    description: "Gian bếp chung nấu nướng bữa trưa/tối huynh đệ mỗi ngày.",
-    amenities: ["Bếp gas đôi", "Tủ lạnh 4 cánh", "Bàn ăn 16 chỗ", "Máy lọc nước RO"],
-  },
-  {
-    id: "shape-laundry",
-    name: "Khu Giặt & Sân Phơi",
-    type: "laundry",
-    capacity: 0,
-    areaM2: 28,
-    w: 240,
-    h: 170,
-    description: "Khu vực máy giặt và giàn phơi quần áo đón nắng tự nhiên.",
-    amenities: ["2 Máy giặt", "Giàn phơi inox", "Mái che lấy sáng"],
-  },
-  {
-    id: "shape-storage",
-    name: "Kho Kỹ Thuật & Dụng Cụ",
-    type: "storage",
-    capacity: 0,
-    areaM2: 15,
-    w: 180,
-    h: 140,
-    description: "Nơi cất giữ đồ nghề sửa chữa, dụng cụ lao động và vật tư dự phòng.",
-    amenities: ["Kệ sắt chịu lực", "Hộp đồ nghề", "Thang nhôm"],
-  },
-  {
-    id: "shape-stairs",
-    name: "Cầu Thang Bộ (Lên / Xuống)",
-    type: "stairs",
-    capacity: 0,
-    areaM2: 10,
-    w: 110,
-    h: 80,
-    description: "Khối kiến trúc cầu thang bộ kết nối giao thông giữa các tầng lầu.",
-    amenities: ["Tay vịn gỗ", "Đèn cảm ứng ban đêm", "Bình cứu hỏa"],
-  },
-  {
-    id: "shape-corridor",
-    name: "Hành Lang & Lối Đi Chung",
-    type: "corridor",
-    capacity: 0,
-    areaM2: 20,
-    w: 100,
-    h: 260,
-    description: "Lối đi thông thoáng kết nối các phòng trong mặt bằng tầng.",
-    amenities: ["Đèn LED hành lang", "Camera an ninh"],
-  },
-];
-
-interface FloorplanCanvasProps {
+export interface FloorplanCanvasProps {
   floors: Floor[];
   activeFloorId: number;
   onSelectFloor: (floorId: number) => void;
   rooms: Room[];
   members: Member[];
   roomOccupantsMap: Record<string, Member[]>;
-  onUpdateRoomPosition: (roomId: string, x: number, y: number, w: number, h: number) => void;
-  onAddRoomWithShape: (roomData: Omit<Room, "id">) => void;
-  onDuplicateRoom: (room: Room) => void;
   onMoveMember: (memberId: string, targetRoomId: string) => void;
-  onRemoveMember: (memberId: string) => void;
+  onRemoveMember?: (memberId: string) => void;
   onSelectRoom: (room: Room) => void;
-  onEditRoom: (room: Room) => void;
-  onDeleteRoom: (roomId: string) => void;
+  // Optional compatibility handlers
+  onUpdateRoomPosition?: (roomId: string, x: number, y: number, w: number, h: number) => void;
+  onAddRoomWithShape?: (roomData: Omit<Room, "id">) => void;
+  onDuplicateRoom?: (room: Room) => void;
+  onEditRoom?: (room: Room) => void;
+  onDeleteRoom?: (roomId: string) => void;
 }
 
 export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
@@ -271,1056 +52,1734 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
   rooms,
   members,
   roomOccupantsMap,
-  onUpdateRoomPosition,
-  onAddRoomWithShape,
-  onDuplicateRoom,
   onMoveMember,
-  onRemoveMember,
   onSelectRoom,
-  onEditRoom,
-  onDeleteRoom,
 }) => {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const { showToast } = useApp();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMemberDockOpen, setIsMemberDockOpen] = useState(true);
+  const [dockSearch, setDockSearch] = useState("");
+  const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
+  const [dragOverRoomId, setDragOverRoomId] = useState<string | null>(null);
+  const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Active Floor & Rooms
   const currentFloor = floors.find((f) => f.id === activeFloorId) || floors[0];
-  const floorRooms = useMemo(
-    () => rooms.filter((r) => r.floor === activeFloorId),
-    [rooms, activeFloorId]
-  );
 
-  // View & Settings State
-  const [zoom, setZoom] = useState(1);
-  const [snapToGrid, setSnapToGrid] = useState(true);
-  const [showGrid, setShowGrid] = useState(true);
-  const [isShapePaletteOpen, setIsShapePaletteOpen] = useState(true);
-  const [isMemberDockOpen, setIsMemberDockOpen] = useState(true);
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  // Bedrooms on current floor
+  const currentFloorBedrooms = useMemo(() => {
+    return rooms.filter((r) => r.floor === activeFloorId && r.type === "bedroom");
+  }, [rooms, activeFloorId]);
 
-  // Dragging Room (Move or Resize)
-  const [activeDrag, setActiveDrag] = useState<{
-    roomId: string;
-    type: "move" | "resize";
-    resizeHandle?: "nw" | "ne" | "se" | "sw" | "n" | "s" | "e" | "w";
-    startX: number;
-    startY: number;
-    initialRoomX: number;
-    initialRoomY: number;
-    initialRoomW: number;
-    initialRoomH: number;
-    hasMoved: boolean;
-  } | null>(null);
-
-  // Live positions during drag
-  const [livePositions, setLivePositions] = useState<
-    Record<string, { x: number; y: number; w: number; h: number }>
-  >({});
-
-  // Sync rooms into livePositions
-  useEffect(() => {
-    const map: Record<string, { x: number; y: number; w: number; h: number }> = {};
-    floorRooms.forEach((r, idx) => {
-      map[r.id] = {
-        x: r.x ?? 30 + (idx % 3) * 260,
-        y: r.y ?? 30 + Math.floor(idx / 3) * 220,
-        w: r.w ?? 230,
-        h: r.h ?? 180,
-      };
+  // Filtered members in dock
+  const filteredDockMembers = useMemo(() => {
+    return members.filter((m) => {
+      const q = dockSearch.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        m.fullName.toLowerCase().includes(q) ||
+        (m.room && m.room.toLowerCase().includes(q)) ||
+        (m.role && m.role.toLowerCase().includes(q)) ||
+        (m.phone && m.phone.includes(q))
+      );
     });
-    setLivePositions(map);
-  }, [floorRooms]);
+  }, [members, dockSearch]);
 
-  // Global Dragged Member Reference (100% reliable across browsers)
-  const activeDraggedMemberRef = useRef<Member | null>(null);
-  const [draggedMember, setDraggedMember] = useState<Member | null>(null);
-  const [hoveredDropRoomId, setHoveredDropRoomId] = useState<string | null>(null);
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.15, 1.8));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.15, 0.7));
+  const handleResetZoom = () => setZoom(1);
 
-  // Dragging New Shape from Palette onto Canvas
-  const activeDraggedShapeRef = useRef<ShapeTemplate | null>(null);
-  const [draggedShape, setDraggedShape] = useState<ShapeTemplate | null>(null);
-  const [canvasGhostPosition, setCanvasGhostPosition] = useState<{ x: number; y: number } | null>(
-    null
-  );
-
-  // Quick move popover state for dock
-  const [quickMoveMemberId, setQuickMoveMemberId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!quickMoveMemberId) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setQuickMoveMemberId(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [quickMoveMemberId]);
-
-  // -------------------------------------------------------------------------
-  // POINTER DRAG & RESIZE FOR ROOMS
-  // -------------------------------------------------------------------------
-  const handleRoomPointerDown = (
-    e: React.PointerEvent,
-    roomId: string,
-    type: "move" | "resize",
-    resizeHandle?: "nw" | "ne" | "se" | "sw" | "n" | "s" | "e" | "w"
-  ) => {
-    // Only left click
-    if (e.button !== 0) return;
-    e.stopPropagation();
-
-    const current = livePositions[roomId] || { x: 30, y: 30, w: 230, h: 180 };
-    setSelectedRoomId(roomId);
-
-    setActiveDrag({
-      roomId,
-      type,
-      resizeHandle,
-      startX: e.clientX,
-      startY: e.clientY,
-      initialRoomX: current.x,
-      initialRoomY: current.y,
-      initialRoomW: current.w,
-      initialRoomH: current.h,
-      hasMoved: false,
-    });
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
   };
 
   useEffect(() => {
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!activeDrag) return;
-
-      const deltaX = (e.clientX - activeDrag.startX) / zoom;
-      const deltaY = (e.clientY - activeDrag.startY) / zoom;
-
-      if (!activeDrag.hasMoved && Math.hypot(deltaX, deltaY) > 4) {
-        setActiveDrag((prev) => (prev ? { ...prev, hasMoved: true } : null));
-      }
-
-      if (activeDrag.type === "move") {
-        let newX = activeDrag.initialRoomX + deltaX;
-        let newY = activeDrag.initialRoomY + deltaY;
-
-        if (snapToGrid) {
-          newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
-          newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
-        }
-
-        // Clamp inside canvas boundary (1000 x 620)
-        newX = Math.max(10, Math.min(newX, 990 - activeDrag.initialRoomW));
-        newY = Math.max(10, Math.min(newY, 610 - activeDrag.initialRoomH));
-
-        setLivePositions((prev) => ({
-          ...prev,
-          [activeDrag.roomId]: {
-            ...prev[activeDrag.roomId],
-            x: newX,
-            y: newY,
-          },
-        }));
-      } else if (activeDrag.type === "resize") {
-        let newW = activeDrag.initialRoomW;
-        let newH = activeDrag.initialRoomH;
-
-        if (activeDrag.resizeHandle === "se" || !activeDrag.resizeHandle) {
-          newW = activeDrag.initialRoomW + deltaX;
-          newH = activeDrag.initialRoomH + deltaY;
-        } else if (activeDrag.resizeHandle === "e") {
-          newW = activeDrag.initialRoomW + deltaX;
-        } else if (activeDrag.resizeHandle === "s") {
-          newH = activeDrag.initialRoomH + deltaY;
-        }
-
-        if (snapToGrid) {
-          newW = Math.round(newW / GRID_SIZE) * GRID_SIZE;
-          newH = Math.round(newH / GRID_SIZE) * GRID_SIZE;
-        }
-
-        // Room size constraints
-        newW = Math.max(180, Math.min(newW, 480));
-        newH = Math.max(140, Math.min(newH, 560));
-
-        setLivePositions((prev) => ({
-          ...prev,
-          [activeDrag.roomId]: {
-            ...prev[activeDrag.roomId],
-            w: newW,
-            h: newH,
-          },
-        }));
-      }
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
-    const handlePointerUp = () => {
-      if (activeDrag) {
-        if (activeDrag.hasMoved) {
-          const final = livePositions[activeDrag.roomId];
-          if (final) {
-            onUpdateRoomPosition(activeDrag.roomId, final.x, final.y, final.w, final.h);
-          }
-        }
-        setActiveDrag(null);
-      }
-    };
-
-    if (activeDrag) {
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-    }
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, [activeDrag, zoom, snapToGrid, livePositions, onUpdateRoomPosition]);
-
-  // -------------------------------------------------------------------------
-  // MEMBER DRAG & DROP
-  // -------------------------------------------------------------------------
-  const handleMemberDragStart = (
-    e: React.DragEvent,
-    member: Member,
-    fromRoomId: string
-  ) => {
-    e.stopPropagation();
-    activeDraggedMemberRef.current = member;
-    setDraggedMember(member);
-
-    e.dataTransfer.setData("text/plain", member.id);
-    e.dataTransfer.setData(
-      "application/json",
-      JSON.stringify({ memberId: member.id, fromRoomId, fullName: member.fullName })
-    );
+  // Drag and Drop handlers
+  const handleDragStartMember = (memberId: string, e: React.DragEvent) => {
+    setDraggedMemberId(memberId);
+    e.dataTransfer.setData("text/plain", memberId);
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleMemberDragEnd = () => {
-    activeDraggedMemberRef.current = null;
-    setDraggedMember(null);
-    setHoveredDropRoomId(null);
+  const handleDragEnd = () => {
+    setDraggedMemberId(null);
+    setDragOverRoomId(null);
   };
 
-  const handleRoomDragOver = (e: React.DragEvent, roomId: string) => {
+  const handleRoomDragOver = (roomId: string, e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    if (hoveredDropRoomId !== roomId) {
-      setHoveredDropRoomId(roomId);
-    }
-  };
-
-  const handleRoomDrop = (e: React.DragEvent, targetRoomId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setHoveredDropRoomId(null);
-
-    const memberId =
-      activeDraggedMemberRef.current?.id ||
-      e.dataTransfer.getData("text/plain") ||
-      (() => {
-        try {
-          const parsed = JSON.parse(e.dataTransfer.getData("application/json") || "{}");
-          return parsed.memberId;
-        } catch {
-          return null;
+    const targetRoom = rooms.find((r) => r.id === roomId);
+    if (targetRoom && targetRoom.type === "bedroom" && draggedMemberId) {
+      const occs = roomOccupantsMap[roomId] || [];
+      const isAlreadyInRoom = occs.some((m) => m.id === draggedMemberId);
+      if (!isAlreadyInRoom && occs.length >= targetRoom.capacity) {
+        e.dataTransfer.dropEffect = "none";
+        if (dragOverRoomId !== roomId) {
+          setDragOverRoomId(roomId);
         }
-      })();
-
-    if (memberId) {
-      onMoveMember(memberId, targetRoomId);
-    }
-
-    activeDraggedMemberRef.current = null;
-    setDraggedMember(null);
-  };
-
-  // -------------------------------------------------------------------------
-  // SHAPE PALETTE DRAG & DROP ONTO CANVAS
-  // -------------------------------------------------------------------------
-  const handleShapeDragStart = (e: React.DragEvent, shape: ShapeTemplate) => {
-    activeDraggedShapeRef.current = shape;
-    setDraggedShape(shape);
-    e.dataTransfer.setData("text/plain", shape.id);
-    e.dataTransfer.effectAllowed = "copy";
-  };
-
-  const handleShapeDragEnd = () => {
-    activeDraggedShapeRef.current = null;
-    setDraggedShape(null);
-    setCanvasGhostPosition(null);
-  };
-
-  const handleCanvasDragOver = (e: React.DragEvent) => {
-    if (!activeDraggedShapeRef.current) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      let rawX = (e.clientX - rect.left) / zoom;
-      let rawY = (e.clientY - rect.top) / zoom;
-
-      if (snapToGrid) {
-        rawX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
-        rawY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
+        return;
       }
-
-      setCanvasGhostPosition({ x: rawX, y: rawY });
+    }
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverRoomId !== roomId) {
+      setDragOverRoomId(roomId);
     }
   };
 
-  const handleCanvasDrop = (e: React.DragEvent) => {
-    if (!activeDraggedShapeRef.current || !canvasRef.current) return;
+  const handleRoomDragLeave = (roomId: string) => {
+    if (dragOverRoomId === roomId) {
+      setDragOverRoomId(null);
+    }
+  };
+
+  const handleRoomDrop = (roomId: string, e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    const shape = activeDraggedShapeRef.current;
-    const rect = canvasRef.current.getBoundingClientRect();
-    let rawX = (e.clientX - rect.left) / zoom;
-    let rawY = (e.clientY - rect.top) / zoom;
-
-    if (snapToGrid) {
-      rawX = Math.round(rawX / GRID_SIZE) * GRID_SIZE;
-      rawY = Math.round(rawY / GRID_SIZE) * GRID_SIZE;
+    const memberId = e.dataTransfer.getData("text/plain") || draggedMemberId;
+    if (memberId && roomId) {
+      const targetRoom = rooms.find((r) => r.id === roomId);
+      if (targetRoom && targetRoom.type === "bedroom") {
+        const occs = roomOccupantsMap[roomId] || [];
+        const isAlreadyInRoom = occs.some((m) => m.id === memberId);
+        if (!isAlreadyInRoom && occs.length >= targetRoom.capacity) {
+          showToast(
+            "error",
+            `Không thể thêm! ${targetRoom.name} đã đủ tối đa ${targetRoom.capacity} người (${occs.map((o) => o.fullName).join(", ")}).`
+          );
+          setDraggedMemberId(null);
+          setDragOverRoomId(null);
+          return;
+        }
+      }
+      onMoveMember(memberId, roomId);
     }
-
-    // Clamp coordinates
-    const finalX = Math.max(10, Math.min(rawX, 990 - shape.w));
-    const finalY = Math.max(10, Math.min(rawY, 610 - shape.h));
-
-    // Generate room name & ID
-    const countOnFloor = floorRooms.length + 1;
-    const roomName = `${shape.name} ${activeFloorId}0${countOnFloor}`;
-
-    onAddRoomWithShape({
-      name: roomName,
-      floor: activeFloorId,
-      type: shape.type,
-      capacity: shape.capacity,
-      areaM2: shape.areaM2,
-      amenities: shape.amenities,
-      status: "active",
-      x: finalX,
-      y: finalY,
-      w: shape.w,
-      h: shape.h,
-      description: shape.description,
-    });
-
-    activeDraggedShapeRef.current = null;
-    setDraggedShape(null);
-    setCanvasGhostPosition(null);
+    setDraggedMemberId(null);
+    setDragOverRoomId(null);
   };
 
-  // Click to add template instantly
-  const handleQuickAddShape = (shape: ShapeTemplate) => {
-    const countOnFloor = floorRooms.length + 1;
-    const roomName = `${shape.name} ${activeFloorId}0${countOnFloor}`;
-    const staggeredX = 40 + ((countOnFloor * 40) % 400);
-    const staggeredY = 40 + ((countOnFloor * 30) % 300);
-
-    onAddRoomWithShape({
-      name: roomName,
-      floor: activeFloorId,
-      type: shape.type,
-      capacity: shape.capacity,
-      areaM2: shape.areaM2,
-      amenities: shape.amenities,
-      status: "active",
-      x: staggeredX,
-      y: staggeredY,
-      w: shape.w,
-      h: shape.h,
-      description: shape.description,
-    });
-  };
+  if (!mounted) return null;
 
   return (
-    <div className="flex flex-col gap-4 select-none">
-      {/* 1. TOP CANVA BAR: FLOOR SELECTOR TABS & ACTION CONTROLS */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-white rounded-3xl border border-purple-50 shadow-xs">
-        {/* Floor Switcher Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-1 sm:pb-0">
-          <span className="text-xs font-black text-gray-400 mr-1 shrink-0 uppercase tracking-wider">
-            Tầng:
-          </span>
-          {floors.map((fl) => {
-            const count = rooms.filter((r) => r.floor === fl.id).length;
-            const isSelected = activeFloorId === fl.id;
-
-            return (
-              <button
-                key={fl.id}
-                onClick={() => onSelectFloor(fl.id)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all shadow-2xs",
-                  isSelected
-                    ? "bg-primary text-white shadow-purple-200"
-                    : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
-                )}
-              >
-                <span>{fl.name}</span>
-                <span
-                  className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-black",
-                    isSelected ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"
-                  )}
-                >
-                  {count} phòng
-                </span>
-              </button>
-            );
-          })}
+    <div
+      ref={containerRef}
+      className={cn(
+        "bg-white rounded-3xl border border-purple-100 shadow-sm flex flex-col overflow-hidden transition-all duration-300",
+        isFullscreen ? "fixed inset-0 z-50 rounded-none border-0" : "w-full"
+      )}
+    >
+      {/* ========================================================================= */}
+      {/* 1. CANVAS TOOLBAR HEADER                                                  */}
+      {/* ========================================================================= */}
+      <div className="bg-purple-900 text-white px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-purple-800">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-800/80 text-amber-300 flex items-center justify-center font-bold shadow-inner">
+            <Compass className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
+                Sơ Đồ Kiến Trúc Nhà Lưu Xá
+              </h2>
+              <span className="text-[10px] bg-purple-700/80 text-purple-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                Bản vẽ phác thảo chuẩn
+              </span>
+            </div>
+            <p className="text-[11px] text-purple-200/80">
+              {activeFloorId === 1
+                ? "Mặt bằng Tầng 1 (Trệt): Nhà để xe, Phòng 1 - 2 - 3, Sảnh chung, Cụm WC ngoài"
+                : "Mặt bằng Tầng 2 (Lầu 1): Phòng 4 - 5, Sảnh nguyện đọc kinh, NVS khép kín"}
+            </p>
+          </div>
         </div>
 
-        {/* Canvas Toolbar Controls */}
-        <div className="flex items-center gap-2">
-          {/* Toggle Member Dock */}
+        {/* Floor switcher tabs & Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Floor tabs */}
+          <div className="bg-purple-950/70 p-1 rounded-xl flex items-center gap-1 border border-purple-800/60">
+            {floors.map((f) => {
+              const isActive = f.id === activeFloorId;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => onSelectFloor(f.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5",
+                    isActive
+                      ? "bg-amber-400 text-purple-950 shadow-sm"
+                      : "text-purple-200 hover:text-white hover:bg-purple-800/50"
+                  )}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{f.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Zoom & View Controls */}
+          <div className="flex items-center gap-1 bg-purple-950/70 p-1 rounded-xl border border-purple-800/60">
+            <button
+              onClick={handleZoomOut}
+              title="Thu nhỏ"
+              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleResetZoom}
+              title="Tỉ lệ chuẩn 100%"
+              className="px-2 py-1 rounded-lg text-[11px] font-bold text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              title="Phóng to"
+              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-purple-800 mx-0.5" />
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Toggle Dock Button */}
           <button
             onClick={() => setIsMemberDockOpen(!isMemberDockOpen)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border shadow-2xs",
+              "px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border",
               isMemberDockOpen
-                ? "bg-purple-100 text-primary border-purple-200"
-                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                ? "bg-purple-800 text-white border-purple-700"
+                : "bg-purple-950/70 text-purple-200 border-purple-800 hover:text-white"
             )}
-            title="Bật/Tắt khay kéo thả thành viên"
           >
-            <Users className="w-4 h-4 text-primary" />
-            <span>Khay Thành Viên ({members.length})</span>
+            <Users className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Phân phòng ({members.length})</span>
           </button>
-
-          {/* Snap to Grid */}
-          <button
-            onClick={() => setSnapToGrid(!snapToGrid)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border",
-              snapToGrid
-                ? "bg-purple-50 text-primary border-purple-200"
-                : "bg-gray-50 text-gray-500 border-gray-200"
-            )}
-            title="Bật/Tắt hít nam châm theo lưới 20px"
-          >
-            <Grid className="w-4 h-4" />
-            <span className="hidden md:inline">Lưới 20px</span>
-          </button>
-
-          {/* Zoom controls */}
-          <div className="flex items-center bg-gray-50 rounded-xl p-0.5 border border-gray-200">
-            <button
-              onClick={() => setZoom((z) => Math.max(0.7, Number((z - 0.1).toFixed(1))))}
-              className="p-1.5 rounded-lg hover:bg-white text-gray-600 transition-colors"
-              title="Thu nhỏ"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="px-2 text-[11px] font-bold text-gray-700 min-w-[42px] text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(1.3, Number((z + 0.1).toFixed(1))))}
-              className="p-1.5 rounded-lg hover:bg-white text-gray-600 transition-colors"
-              title="Phóng to"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setZoom(1)}
-              className="p-1.5 rounded-lg hover:bg-white text-gray-500 hover:text-gray-900 transition-colors"
-              title="Đặt lại 100%"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* 2. MAIN WORKSPACE: BLUEPRINT CANVAS VIEWPORT */}
-      <div className="w-full overflow-hidden rounded-3xl border border-purple-100 bg-[#faf8ff] shadow-sm relative">
-        {/* Top Compass Banner */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 backdrop-blur-md border border-purple-100 shadow-2xs text-[11px] text-gray-600 font-medium pointer-events-none">
-          <Compass className="w-3.5 h-3.5 text-primary" />
-          <span>
-            {currentFloor.name} · Sơ đồ cố định · Kéo thả thẻ thành viên từ Khay vào phòng để xếp chỗ ở
-          </span>
-        </div>
+      {/* ========================================================================= */}
+      {/* 2. MAIN WORKSPACE AREA: BLUEPRINT CANVAS + MEMBER DOCK                     */}
+      {/* ========================================================================= */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-h-[560px]">
+        {/* BLUEPRINT CANVAS */}
+        <div className="flex-1 bg-stone-50/70 overflow-auto p-4 sm:p-6 flex flex-col items-center justify-center relative">
+          {/* Subtle architectural grid pattern */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.35]"
+            style={{
+              backgroundImage:
+                "radial-gradient(#94a3b8 1px, transparent 1px), radial-gradient(#94a3b8 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+              backgroundPosition: "0 0, 12px 12px",
+            }}
+          />
 
-          <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-xl bg-white/90 backdrop-blur-md border border-purple-100 text-[10px] font-black text-gray-500 uppercase tracking-widest pointer-events-none">
-            BẮC (N) 🧭
+          {/* Helper hint for drag-and-drop */}
+          <div className="absolute top-3 left-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-purple-200/80 shadow-xs text-xs text-purple-950">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+            <span className="font-semibold">Mẹo:</span> Kéo tên thành viên từ danh sách bên phải rồi thả vào phòng ngủ để xếp phòng!
           </div>
 
-          {/* Scrollable Viewport */}
-          <div className="w-full overflow-auto custom-scroll p-4 sm:p-6 min-h-[620px] max-h-[700px]">
-            <div
-              ref={canvasRef}
-              onDragOver={handleCanvasDragOver}
-              onDrop={handleCanvasDrop}
-              onClick={() => setSelectedRoomId(null)}
-              style={{
-                width: "1000px",
-                height: "620px",
-                transform: `scale(${zoom})`,
-                transformOrigin: "top left",
-              }}
-              className="relative rounded-3xl border-2 border-dashed border-purple-200 bg-white shadow-inner select-none transition-transform duration-75"
-            >
-              {/* Dot Grid Background */}
-              {showGrid && (
+          {/* SCALABLE SVG BLUEPRINT CONTAINER */}
+          <div
+            className="w-full max-w-[920px] transition-transform duration-200 ease-out origin-center"
+            style={{ transform: `scale(${zoom})` }}
+          >
+            <div className="relative bg-white rounded-2xl shadow-md border border-stone-200/80 p-2 sm:p-4">
+              {activeFloorId === 1 ? (
+                /* ============================================================= */
+                /* FLOOR 1 SVG BLUEPRINT (Ground Floor)                          */
+                /* ============================================================= */
                 <svg
-                  className="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+                  viewBox="0 0 680 420"
+                  className="w-full h-auto select-none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%">
+                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.1" />
+                    </filter>
+                  </defs>
+
+                  {/* Outer lot boundary */}
+                  <rect
+                    x="20"
+                    y="10"
+                    width="650"
+                    height="395"
+                    rx="6"
+                    fill="#fcfbfa"
+                    stroke="#94a3b8"
+                    strokeWidth="1"
+                    strokeDasharray="6 4"
+                  />
+
+                  {/* Yards labels */}
+                  <text x="290" y="38" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân sau
+                  </text>
+                  <text x="56" y="170" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân trái
+                  </text>
+                  <text x="560" y="215" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân phải
+                  </text>
+                  <text x="330" y="292" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân trước
+                  </text>
+
+                  {/* 1. Nhà để xe (x:107, y:99, w:60, h:150) */}
+                  {(() => {
+                    const rXe = rooms.find((r) => r.id === "P.XE");
+                    return (
+                      <g
+                        className="cursor-pointer group"
+                        onClick={() => rXe && onSelectRoom(rXe)}
+                        onMouseEnter={() => setHoveredRoomId("P.XE")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="107"
+                          y="99"
+                          width="60"
+                          height="150"
+                          fill={hoveredRoomId === "P.XE" ? "#eae6dc" : "#f1efe8"}
+                          stroke="#5f5e5a"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="137"
+                          y="166"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#3f3f3c"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          Nhà để
+                        </text>
+                        <text
+                          x="137"
+                          y="183"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#3f3f3c"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          xe
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* 2. PHÒNG 1 (x:167, y:67, w:76, h:131) - BEDROOM */}
+                  {(() => {
+                    const r1 = rooms.find((r) => r.id === "P.1");
+                    const occs = roomOccupantsMap["P.1"] || [];
+                    const isDragOver = dragOverRoomId === "P.1";
+                    const isHovered = hoveredRoomId === "P.1";
+                    const isDraggingSelf = draggedMemberId ? occs.some((m) => m.id === draggedMemberId) : false;
+                    const isFull = !isDraggingSelf && occs.length >= (r1?.capacity || 2);
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => r1 && onSelectRoom(r1)}
+                        onMouseEnter={() => setHoveredRoomId("P.1")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                        onDragOver={(e) => handleRoomDragOver("P.1", e)}
+                        onDragLeave={() => handleRoomDragLeave("P.1")}
+                        onDrop={(e) => handleRoomDrop("P.1", e)}
+                      >
+                        <rect
+                          x="167"
+                          y="67"
+                          width="76"
+                          height="131"
+                          fill={isDragOver ? (isFull ? "#fee2e2" : "#a7f3d0") : isHovered ? "#ccfbf1" : "#e1f5ee"}
+                          stroke={isDragOver ? (isFull ? "#ef4444" : "#059669") : "#0f6e56"}
+                          strokeWidth={isDragOver ? "3" : "2"}
+                          strokeDasharray={isDragOver && isFull ? "4 2" : undefined}
+                          rx="2"
+                        />
+                        <text
+                          x="205"
+                          y="85"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#085041"
+                          fontSize="14"
+                          fontWeight="800"
+                        >
+                          Phòng 1
+                        </text>
+
+                        {/* Occupancy pill */}
+                        <rect
+                          x="180"
+                          y="98"
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill={occs.length >= (r1?.capacity || 2) ? "#0f6e56" : "#0d9488"}
+                        />
+                        <text
+                          x="205"
+                          y="107"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="700"
+                        >
+                          {occs.length}/{r1?.capacity || 2} chỗ
+                        </text>
+
+                        {/* Drag over indicator */}
+                        {isDragOver && (
+                          <g transform="translate(172, 118)">
+                            <rect
+                              x="0"
+                              y="0"
+                              width="66"
+                              height="20"
+                              rx="6"
+                              fill={isFull ? "#ef4444" : "#059669"}
+                            />
+                            <text
+                              x="33"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {isFull ? "ĐÃ ĐỦ 2/2" : "THẢ VÀO ĐÂY"}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Member avatar chips */}
+                        {occs.map((m, idx) => (
+                          <g key={m.id} transform={`translate(172, ${120 + idx * 22})`}>
+                            <rect
+                              x="0"
+                              y="0"
+                              width="66"
+                              height="18"
+                              rx="9"
+                              fill="#ffffff"
+                              stroke="#0f6e56"
+                              strokeWidth="0.8"
+                              opacity="0.95"
+                            />
+                            <circle cx="9" cy="9" r="6" fill="#0f6e56" />
+                            <text
+                              x="9"
+                              y="10"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {m.fullName.charAt(0)}
+                            </text>
+                            <text
+                              x="20"
+                              y="10"
+                              dominantBaseline="central"
+                              fill="#0f6e56"
+                              fontSize="9"
+                              fontWeight="600"
+                            >
+                              {m.fullName.split(" ").slice(-1)[0]}
+                            </text>
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {/* 3. PHÒNG 2 (x:243, y:67, w:133, h:131) - BEDROOM */}
+                  {(() => {
+                    const r2 = rooms.find((r) => r.id === "P.2");
+                    const occs = roomOccupantsMap["P.2"] || [];
+                    const isDragOver = dragOverRoomId === "P.2";
+                    const isHovered = hoveredRoomId === "P.2";
+                    const isDraggingSelf = draggedMemberId ? occs.some((m) => m.id === draggedMemberId) : false;
+                    const isFull = !isDraggingSelf && occs.length >= (r2?.capacity || 3);
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => r2 && onSelectRoom(r2)}
+                        onMouseEnter={() => setHoveredRoomId("P.2")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                        onDragOver={(e) => handleRoomDragOver("P.2", e)}
+                        onDragLeave={() => handleRoomDragLeave("P.2")}
+                        onDrop={(e) => handleRoomDrop("P.2", e)}
+                      >
+                        <rect
+                          x="243"
+                          y="67"
+                          width="133"
+                          height="131"
+                          fill={isDragOver ? (isFull ? "#fee2e2" : "#a7f3d0") : isHovered ? "#ccfbf1" : "#e1f5ee"}
+                          stroke={isDragOver ? (isFull ? "#ef4444" : "#059669") : "#0f6e56"}
+                          strokeWidth={isDragOver ? "3" : "2"}
+                          strokeDasharray={isDragOver && isFull ? "4 2" : undefined}
+                          rx="2"
+                        />
+                        <text
+                          x="309"
+                          y="85"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#085041"
+                          fontSize="14"
+                          fontWeight="800"
+                        >
+                          Phòng 2
+                        </text>
+
+                        {/* Occupancy pill */}
+                        <rect
+                          x="284"
+                          y="98"
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill={occs.length >= (r2?.capacity || 3) ? "#0f6e56" : "#0d9488"}
+                        />
+                        <text
+                          x="309"
+                          y="107"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="700"
+                        >
+                          {occs.length}/{r2?.capacity || 3} chỗ
+                        </text>
+
+                        {/* Drag over indicator */}
+                        {isDragOver && (
+                          <g transform="translate(268, 118)">
+                            <rect
+                              x="0"
+                              y="0"
+                              width="82"
+                              height="20"
+                              rx="6"
+                              fill={isFull ? "#ef4444" : "#059669"}
+                            />
+                            <text
+                              x="41"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {isFull ? "ĐÃ ĐỦ 3/3" : "THẢ VÀO ĐÂY"}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Member avatar chips */}
+                        {occs.map((m, idx) => (
+                          <g key={m.id} transform={`translate(252, ${120 + idx * 22})`}>
+                            <rect
+                              x="0"
+                              y="0"
+                              width="114"
+                              height="18"
+                              rx="9"
+                              fill="#ffffff"
+                              stroke="#0f6e56"
+                              strokeWidth="0.8"
+                              opacity="0.95"
+                            />
+                            <circle cx="10" cy="9" r="6" fill="#0f6e56" />
+                            <text
+                              x="10"
+                              y="10"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {m.fullName.charAt(0)}
+                            </text>
+                            <text
+                              x="22"
+                              y="10"
+                              dominantBaseline="central"
+                              fill="#0f6e56"
+                              fontSize="9"
+                              fontWeight="600"
+                            >
+                              {m.fullName}
+                            </text>
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {/* 4. NVS + TẮM PHÒNG 2 (x:376, y:67, w:96, h:41) */}
+                  {(() => {
+                    const rWc2 = rooms.find((r) => r.id === "P.WC_P2");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rWc2 && onSelectRoom(rWc2)}
+                        onMouseEnter={() => setHoveredRoomId("P.WC_P2")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="376"
+                          y="67"
+                          width="96"
+                          height="41"
+                          fill={hoveredRoomId === "P.WC_P2" ? "#dbeafe" : "#e6f1fb"}
+                          stroke="#185fa5"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="424"
+                          y="81"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#0c447c"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          NVS + tắm
+                        </text>
+                        <text
+                          x="424"
+                          y="96"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#185fa5"
+                          fontSize="11"
+                          fontWeight="600"
+                        >
+                          phòng 2
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* 5. PHÒNG 3 (x:376, y:108, w:96, h:165) - BEDROOM */}
+                  {(() => {
+                    const r3 = rooms.find((r) => r.id === "P.3");
+                    const occs = roomOccupantsMap["P.3"] || [];
+                    const isDragOver = dragOverRoomId === "P.3";
+                    const isHovered = hoveredRoomId === "P.3";
+                    const isDraggingSelf = draggedMemberId ? occs.some((m) => m.id === draggedMemberId) : false;
+                    const isFull = !isDraggingSelf && occs.length >= (r3?.capacity || 3);
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => r3 && onSelectRoom(r3)}
+                        onMouseEnter={() => setHoveredRoomId("P.3")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                        onDragOver={(e) => handleRoomDragOver("P.3", e)}
+                        onDragLeave={() => handleRoomDragLeave("P.3")}
+                        onDrop={(e) => handleRoomDrop("P.3", e)}
+                      >
+                        <rect
+                          x="376"
+                          y="108"
+                          width="96"
+                          height="165"
+                          fill={isDragOver ? (isFull ? "#fee2e2" : "#a7f3d0") : isHovered ? "#ccfbf1" : "#e1f5ee"}
+                          stroke={isDragOver ? (isFull ? "#ef4444" : "#059669") : "#0f6e56"}
+                          strokeWidth={isDragOver ? "3" : "2"}
+                          strokeDasharray={isDragOver && isFull ? "4 2" : undefined}
+                          rx="2"
+                        />
+                        <text
+                          x="424"
+                          y="126"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#085041"
+                          fontSize="14"
+                          fontWeight="800"
+                        >
+                          Phòng 3
+                        </text>
+
+                        {/* Occupancy pill */}
+                        <rect
+                          x="399"
+                          y="138"
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill={occs.length >= (r3?.capacity || 3) ? "#0f6e56" : "#0d9488"}
+                        />
+                        <text
+                          x="424"
+                          y="147"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="700"
+                        >
+                          {occs.length}/{r3?.capacity || 3} chỗ
+                        </text>
+
+                        {/* Drag over indicator */}
+                        {isDragOver && (
+                          <g transform="translate(383, 160)">
+                            <rect
+                              x="0"
+                              y="0"
+                              width="82"
+                              height="20"
+                              rx="6"
+                              fill={isFull ? "#ef4444" : "#059669"}
+                            />
+                            <text
+                              x="41"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {isFull ? "ĐÃ ĐỦ 3/3" : "THẢ VÀO ĐÂY"}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Member avatar chips */}
+                        {occs.map((m, idx) => (
+                          <g key={m.id} transform={`translate(382, ${164 + idx * 24})`}>
+                            <rect
+                              x="0"
+                              y="0"
+                              width="84"
+                              height="20"
+                              rx="10"
+                              fill="#ffffff"
+                              stroke="#0f6e56"
+                              strokeWidth="0.8"
+                              opacity="0.95"
+                            />
+                            <circle cx="10" cy="10" r="7" fill="#0f6e56" />
+                            <text
+                              x="10"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {m.fullName.charAt(0)}
+                            </text>
+                            <text
+                              x="22"
+                              y="11"
+                              dominantBaseline="central"
+                              fill="#0f6e56"
+                              fontSize="9"
+                              fontWeight="600"
+                            >
+                              {m.fullName.split(" ").slice(-2).join(" ")}
+                            </text>
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {/* 6. SẢNH CHUNG (x:167, y:198, w:209, h:51) */}
+                  {(() => {
+                    const rSanh = rooms.find((r) => r.id === "P.SANH1");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rSanh && onSelectRoom(rSanh)}
+                        onMouseEnter={() => setHoveredRoomId("P.SANH1")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="167"
+                          y="198"
+                          width="209"
+                          height="51"
+                          fill={hoveredRoomId === "P.SANH1" ? "#e9e7e1" : "#f1efe8"}
+                          stroke="#5f5e5a"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="288"
+                          y="220"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#444441"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          Sảnh chung
+                        </text>
+                        <text
+                          x="288"
+                          y="236"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#5f5e5a"
+                          fontSize="11"
+                          fontWeight="500"
+                        >
+                          (đọc kinh tối ngày thường)
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* Bàn thờ T1 (x:256, y:203, w:42, h:10) */}
+                  <rect
+                    x="256"
+                    y="203"
+                    width="42"
+                    height="10"
+                    rx="3"
+                    fill="#eeedfe"
+                    stroke="#534ab7"
+                    strokeWidth="0.8"
+                  />
+                  <text
+                    x="277"
+                    y="208"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="#534ab7"
+                    fontSize="7"
+                    fontWeight="700"
+                  >
+                    BÀN THỜ
+                  </text>
+
+                  {/* Cầu thang T1 (x:170, y:209, w:22, h:38) */}
+                  <rect x="170" y="209" width="22" height="38" fill="#ffffff" stroke="#52514e" strokeWidth="1" />
+                  <line x1="170" y1="215" x2="192" y2="215" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="170" y1="221" x2="192" y2="221" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="170" y1="227" x2="192" y2="227" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="170" y1="233" x2="192" y2="233" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="170" y1="239" x2="192" y2="239" stroke="#52514e" strokeWidth="0.8" />
+
+                  {/* 7. KHU VỆ SINH NGOÀI (x:500..659, y:15, h:77) */}
+                  {(() => {
+                    const rWcNgoai = rooms.find((r) => r.id === "P.WC_NGOAI");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rWcNgoai && onSelectRoom(rWcNgoai)}
+                        onMouseEnter={() => setHoveredRoomId("P.WC_NGOAI")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        {/* Nhà vệ sinh */}
+                        <rect x="500" y="15" width="53" height="77" fill="#e6f1fb" stroke="#185fa5" strokeWidth="2" />
+                        <ellipse cx="526" cy="38" rx="7" ry="9" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <rect x="521" y="22" width="10" height="6" rx="2" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <text x="526" y="62" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          Nhà vệ
+                        </text>
+                        <text x="526" y="78" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          sinh
+                        </text>
+
+                        {/* Nhà tắm */}
+                        <rect x="553" y="15" width="53" height="77" fill="#e6f1fb" stroke="#185fa5" strokeWidth="2" />
+                        <ellipse cx="579" cy="38" rx="7" ry="9" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <rect x="574" y="22" width="10" height="6" rx="2" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <text x="579" y="62" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          Nhà
+                        </text>
+                        <text x="579" y="78" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          tắm
+                        </text>
+
+                        {/* Phòng giặt đồ */}
+                        <rect x="606" y="15" width="53" height="77" fill="#e6f1fb" stroke="#185fa5" strokeWidth="2" />
+                        <ellipse cx="632" cy="38" rx="7" ry="9" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <rect x="627" y="22" width="10" height="6" rx="2" fill="none" stroke="#52514e" strokeWidth="1.2" />
+                        <text x="632" y="62" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          Phòng
+                        </text>
+                        <text x="632" y="78" textAnchor="middle" dominantBaseline="central" fill="#0b0b0b" fontSize="11" fontWeight="700">
+                          giặt đồ
+                        </text>
+
+                        {/* Bồn tiểu */}
+                        <circle cx="640" cy="118" r="6" fill="#e6f1fb" stroke="#185fa5" strokeWidth="1.2" />
+                        <text x="628" y="118" textAnchor="end" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                          Bồn tiểu
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* 8. Nơi để thùng rác (x:300, y:335, w:126, h:34) */}
+                  <rect x="300" y="335" width="126" height="34" rx="4" fill="#fcfcfb" stroke="#94a3b8" strokeWidth="0.8" />
+                  <text x="363" y="352" textAnchor="middle" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Nơi để thùng rác
+                  </text>
+
+                  {/* DOORS (Cam #D85A30 strokeWidth: 5) */}
+                  {/* Doors to WC Ngoài */}
+                  <line x1="512" y1="92" x2="536" y2="92" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="565" y1="92" x2="589" y2="92" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="618" y1="92" x2="642" y2="92" stroke="#D85A30" strokeWidth="5" />
+
+                  {/* Doors around rooms */}
+                  <line x1="167" y1="72" x2="167" y2="94" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="213" y1="198" x2="239" y2="198" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="346" y1="198" x2="372" y2="198" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="376" y1="88" x2="376" y2="107" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="376" y1="225" x2="376" y2="247" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="472" y1="126" x2="472" y2="146" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="472" y1="246" x2="472" y2="266" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="167" y1="201" x2="167" y2="216" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="126" y1="249" x2="158" y2="249" stroke="#D85A30" strokeWidth="5" />
+
+                  {/* MAIN DOUBLE DOOR (Vàng #BA7517 strokeWidth: 6) */}
+                  <line x1="258" y1="249" x2="272" y2="249" stroke="#BA7517" strokeWidth="6" />
+                  <line x1="276" y1="249" x2="290" y2="249" stroke="#BA7517" strokeWidth="6" />
+
+                  {/* WINDOWS (Xanh #378ADD strokeWidth: 5) */}
+                  <line x1="303" y1="67" x2="330" y2="67" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="199" y1="249" x2="221" y2="249" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="318" y1="249" x2="336" y2="249" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="417" y1="273" x2="440" y2="273" stroke="#378ADD" strokeWidth="5" />
+
+                  {/* LEGEND / CHÚ THÍCH TẦNG 1 */}
+                  <line x1="40" y1="330" x2="64" y2="330" stroke="#D85A30" strokeWidth="5" />
+                  <text x="74" y="330" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cửa phòng / cửa thường
+                  </text>
+
+                  <line x1="40" y1="352" x2="51" y2="352" stroke="#BA7517" strokeWidth="6" />
+                  <line x1="53" y1="352" x2="64" y2="352" stroke="#BA7517" strokeWidth="6" />
+                  <text x="74" y="352" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cửa chính (2 cánh)
+                  </text>
+
+                  <line x1="40" y1="374" x2="64" y2="374" stroke="#378ADD" strokeWidth="5" />
+                  <text x="74" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cửa sổ
+                  </text>
+
+                  <rect x="210" y="325" width="26" height="10" rx="3" fill="#eeedfe" stroke="#534ab7" strokeWidth="0.8" />
+                  <text x="246" y="330" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Bàn thờ
+                  </text>
+
+                  <rect x="212" y="345" width="20" height="14" fill="#ffffff" stroke="#52514e" strokeWidth="1" />
+                  <line x1="212" y1="350" x2="232" y2="350" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="212" y1="354" x2="232" y2="354" stroke="#52514e" strokeWidth="0.8" />
+                  <text x="246" y="352" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cầu thang
+                  </text>
+
+                  <ellipse cx="222" cy="376" rx="5" ry="6" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                  <rect x="218" y="366" width="8" height="4" rx="1" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                  <text x="246" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Bồn cầu
+                  </text>
+                </svg>
+              ) : (
+                /* ============================================================= */
+                /* FLOOR 2 SVG BLUEPRINT (First Floor / Lầu 1)                  */
+                /* ============================================================= */
+                <svg
+                  viewBox="0 0 680 420"
+                  className="w-full h-auto select-none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <defs>
                     <pattern
-                      id={`dot-grid-${activeFloorId}`}
-                      width={GRID_SIZE}
-                      height={GRID_SIZE}
+                      id="hatch-canvas"
+                      width="9"
+                      height="9"
                       patternUnits="userSpaceOnUse"
+                      patternTransform="rotate(45)"
                     >
-                      <circle cx="2" cy="2" r="1.2" fill="#d2c9fb" />
+                      <line x1="0" y1="0" x2="0" y2="9" stroke="#94a3b8" strokeWidth="1.2" opacity="0.5" />
                     </pattern>
                   </defs>
-                  <rect width="100%" height="100%" fill={`url(#dot-grid-${activeFloorId})`} />
+
+                  {/* Outer lot boundary */}
+                  <rect
+                    x="20"
+                    y="10"
+                    width="650"
+                    height="395"
+                    rx="6"
+                    fill="#fcfbfa"
+                    stroke="#94a3b8"
+                    strokeWidth="1"
+                    strokeDasharray="6 4"
+                  />
+
+                  {/* Yards labels */}
+                  <text x="290" y="38" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân sau
+                  </text>
+                  <text x="56" y="170" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân trái
+                  </text>
+                  <text x="560" y="215" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân phải
+                  </text>
+                  <text x="330" y="292" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    Sân trước
+                  </text>
+
+                  {/* Hatched Areas (Ground Floor footprint only) */}
+                  {/* Nhà để xe (hatched) */}
+                  <rect
+                    x="107"
+                    y="99"
+                    width="60"
+                    height="150"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="5 3"
+                  />
+                  <text x="137" y="168" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="11" fontWeight="600">
+                    Nhà để
+                  </text>
+                  <text x="137" y="184" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="11" fontWeight="600">
+                    xe
+                  </text>
+
+                  {/* Cụm WC ngoài (hatched) */}
+                  <rect
+                    x="500"
+                    y="15"
+                    width="53"
+                    height="77"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="5 3"
+                  />
+                  <rect
+                    x="553"
+                    y="15"
+                    width="53"
+                    height="77"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="5 3"
+                  />
+                  <rect
+                    x="606"
+                    y="15"
+                    width="53"
+                    height="77"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="5 3"
+                  />
+                  <text x="526" y="46" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    Nhà vệ
+                  </text>
+                  <text x="526" y="62" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    sinh
+                  </text>
+                  <text x="579" y="46" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    Nhà
+                  </text>
+                  <text x="579" y="62" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    tắm
+                  </text>
+                  <text x="632" y="46" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    Phòng
+                  </text>
+                  <text x="632" y="62" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    giặt đồ
+                  </text>
+                  <circle cx="640" cy="118" r="6" fill="url(#hatch-canvas)" stroke="#888780" strokeWidth="1" strokeDasharray="3 2" />
+                  <text x="628" y="118" textAnchor="end" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    Bồn tiểu
+                  </text>
+
+                  {/* Nơi để thùng rác (hatched) */}
+                  <rect
+                    x="300"
+                    y="335"
+                    width="126"
+                    height="34"
+                    rx="4"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="5 3"
+                  />
+                  <text x="363" y="352" textAnchor="middle" dominantBaseline="central" fill="#888780" fontSize="10" fontWeight="600">
+                    Nơi để thùng rác (T1)
+                  </text>
+
+                  {/* 1. PHÒNG 4 (x:167, y:67, w:209, h:78) - BEDROOM */}
+                  {(() => {
+                    const r4 = rooms.find((r) => r.id === "P.4");
+                    const occs = roomOccupantsMap["P.4"] || [];
+                    const isDragOver = dragOverRoomId === "P.4";
+                    const isHovered = hoveredRoomId === "P.4";
+                    const isDraggingSelf = draggedMemberId ? occs.some((m) => m.id === draggedMemberId) : false;
+                    const isFull = !isDraggingSelf && occs.length >= (r4?.capacity || 3);
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => r4 && onSelectRoom(r4)}
+                        onMouseEnter={() => setHoveredRoomId("P.4")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                        onDragOver={(e) => handleRoomDragOver("P.4", e)}
+                        onDragLeave={() => handleRoomDragLeave("P.4")}
+                        onDrop={(e) => handleRoomDrop("P.4", e)}
+                      >
+                        <rect
+                          x="167"
+                          y="67"
+                          width="209"
+                          height="78"
+                          fill={isDragOver ? (isFull ? "#fee2e2" : "#a7f3d0") : isHovered ? "#ccfbf1" : "#e1f5ee"}
+                          stroke={isDragOver ? (isFull ? "#ef4444" : "#059669") : "#0f6e56"}
+                          strokeWidth={isDragOver ? "3" : "2"}
+                          strokeDasharray={isDragOver && isFull ? "4 2" : undefined}
+                          rx="2"
+                        />
+                        <text
+                          x="271"
+                          y="86"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#085041"
+                          fontSize="15"
+                          fontWeight="800"
+                        >
+                          Phòng 4
+                        </text>
+
+                        {/* Occupancy pill */}
+                        <rect
+                          x="246"
+                          y="98"
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill={occs.length >= (r4?.capacity || 3) ? "#0f6e56" : "#0d9488"}
+                        />
+                        <text
+                          x="271"
+                          y="107"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="700"
+                        >
+                          {occs.length}/{r4?.capacity || 3} chỗ
+                        </text>
+
+                        {/* Drag over indicator */}
+                        {isDragOver && (
+                          <g transform="translate(230, 116)">
+                            <rect
+                              x="0"
+                              y="0"
+                              width="82"
+                              height="20"
+                              rx="6"
+                              fill={isFull ? "#ef4444" : "#059669"}
+                            />
+                            <text
+                              x="41"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {isFull ? "ĐÃ ĐỦ 3/3" : "THẢ VÀO ĐÂY"}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Member avatar chips */}
+                        {occs.map((m, idx) => (
+                          <g key={m.id} transform={`translate(${178 + idx * 64}, 118)`}>
+                            <rect
+                              x="0"
+                              y="0"
+                              width="58"
+                              height="20"
+                              rx="10"
+                              fill="#ffffff"
+                              stroke="#0f6e56"
+                              strokeWidth="0.8"
+                              opacity="0.95"
+                            />
+                            <circle cx="10" cy="10" r="7" fill="#0f6e56" />
+                            <text
+                              x="10"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {m.fullName.charAt(0)}
+                            </text>
+                            <text
+                              x="20"
+                              y="11"
+                              dominantBaseline="central"
+                              fill="#0f6e56"
+                              fontSize="9"
+                              fontWeight="600"
+                            >
+                              {m.fullName.split(" ").slice(-1)[0]}
+                            </text>
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {/* 2. NVS + TẮM PHÒNG 4 (x:376, y:67, w:96, h:37) */}
+                  {(() => {
+                    const rWc4 = rooms.find((r) => r.id === "P.WC_P4");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rWc4 && onSelectRoom(rWc4)}
+                        onMouseEnter={() => setHoveredRoomId("P.WC_P4")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="376"
+                          y="67"
+                          width="96"
+                          height="37"
+                          fill={hoveredRoomId === "P.WC_P4" ? "#dbeafe" : "#e6f1fb"}
+                          stroke="#185fa5"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="410"
+                          y="80"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#0c447c"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          NVS + tắm
+                        </text>
+                        <text
+                          x="410"
+                          y="95"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#185fa5"
+                          fontSize="11"
+                          fontWeight="600"
+                        >
+                          phòng 4
+                        </text>
+                        <ellipse cx="456" cy="87" rx="5" ry="6" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                        <rect x="452" y="76" width="8" height="4" rx="1" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                      </g>
+                    );
+                  })()}
+
+                  {/* 3. NVS P5 (x:376, y:104, w:96, h:33) */}
+                  {(() => {
+                    const rWc5 = rooms.find((r) => r.id === "P.WC_P5");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rWc5 && onSelectRoom(rWc5)}
+                        onMouseEnter={() => setHoveredRoomId("P.WC_P5")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="376"
+                          y="104"
+                          width="96"
+                          height="33"
+                          fill={hoveredRoomId === "P.WC_P5" ? "#dbeafe" : "#e6f1fb"}
+                          stroke="#185fa5"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="410"
+                          y="121"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#0c447c"
+                          fontSize="13"
+                          fontWeight="700"
+                        >
+                          NVS p5
+                        </text>
+                        <ellipse cx="456" cy="123" rx="5" ry="6" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                        <rect x="452" y="112" width="8" height="4" rx="1" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                      </g>
+                    );
+                  })()}
+
+                  {/* 4. PHÒNG 5 (x:376, y:137, w:96, h:141) - BEDROOM */}
+                  {(() => {
+                    const r5 = rooms.find((r) => r.id === "P.5");
+                    const occs = roomOccupantsMap["P.5"] || [];
+                    const isDragOver = dragOverRoomId === "P.5";
+                    const isHovered = hoveredRoomId === "P.5";
+                    const isDraggingSelf = draggedMemberId ? occs.some((m) => m.id === draggedMemberId) : false;
+                    const isFull = !isDraggingSelf && occs.length >= (r5?.capacity || 3);
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => r5 && onSelectRoom(r5)}
+                        onMouseEnter={() => setHoveredRoomId("P.5")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                        onDragOver={(e) => handleRoomDragOver("P.5", e)}
+                        onDragLeave={() => handleRoomDragLeave("P.5")}
+                        onDrop={(e) => handleRoomDrop("P.5", e)}
+                      >
+                        <rect
+                          x="376"
+                          y="137"
+                          width="96"
+                          height="141"
+                          fill={isDragOver ? (isFull ? "#fee2e2" : "#a7f3d0") : isHovered ? "#ccfbf1" : "#e1f5ee"}
+                          stroke={isDragOver ? (isFull ? "#ef4444" : "#059669") : "#0f6e56"}
+                          strokeWidth={isDragOver ? "3" : "2"}
+                          strokeDasharray={isDragOver && isFull ? "4 2" : undefined}
+                          rx="2"
+                        />
+                        <text
+                          x="424"
+                          y="158"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#085041"
+                          fontSize="15"
+                          fontWeight="800"
+                        >
+                          Phòng 5
+                        </text>
+
+                        {/* Occupancy pill */}
+                        <rect
+                          x="399"
+                          y="170"
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill={occs.length >= (r5?.capacity || 3) ? "#0f6e56" : "#0d9488"}
+                        />
+                        <text
+                          x="424"
+                          y="179"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#ffffff"
+                          fontSize="10"
+                          fontWeight="700"
+                        >
+                          {occs.length}/{r5?.capacity || 3} chỗ
+                        </text>
+
+                        {/* Drag over indicator */}
+                        {isDragOver && (
+                          <g transform="translate(383, 192)">
+                            <rect
+                              x="0"
+                              y="0"
+                              width="82"
+                              height="20"
+                              rx="6"
+                              fill={isFull ? "#ef4444" : "#059669"}
+                            />
+                            <text
+                              x="41"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {isFull ? "ĐÃ ĐỦ 3/3" : "THẢ VÀO ĐÂY"}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Member avatar chips */}
+                        {occs.map((m, idx) => (
+                          <g key={m.id} transform={`translate(382, ${196 + idx * 24})`}>
+                            <rect
+                              x="0"
+                              y="0"
+                              width="84"
+                              height="20"
+                              rx="10"
+                              fill="#ffffff"
+                              stroke="#0f6e56"
+                              strokeWidth="0.8"
+                              opacity="0.95"
+                            />
+                            <circle cx="10" cy="10" r="7" fill="#0f6e56" />
+                            <text
+                              x="10"
+                              y="11"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#ffffff"
+                              fontSize="8"
+                              fontWeight="bold"
+                            >
+                              {m.fullName.charAt(0)}
+                            </text>
+                            <text
+                              x="22"
+                              y="11"
+                              dominantBaseline="central"
+                              fill="#0f6e56"
+                              fontSize="9"
+                              fontWeight="600"
+                            >
+                              {m.fullName.split(" ").slice(-2).join(" ")}
+                            </text>
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {/* 5. SẢNH NGUYỆN (x:167, y:145, w:209, h:104) */}
+                  {(() => {
+                    const rSanh2 = rooms.find((r) => r.id === "P.SANH2");
+                    return (
+                      <g
+                        className="cursor-pointer"
+                        onClick={() => rSanh2 && onSelectRoom(rSanh2)}
+                        onMouseEnter={() => setHoveredRoomId("P.SANH2")}
+                        onMouseLeave={() => setHoveredRoomId(null)}
+                      >
+                        <rect
+                          x="167"
+                          y="145"
+                          width="209"
+                          height="104"
+                          fill={hoveredRoomId === "P.SANH2" ? "#e9e7e1" : "#f1efe8"}
+                          stroke="#5f5e5a"
+                          strokeWidth="2"
+                          rx="2"
+                        />
+                        <text
+                          x="282"
+                          y="186"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#444441"
+                          fontSize="15"
+                          fontWeight="700"
+                        >
+                          Sảnh nguyện
+                        </text>
+                        <text
+                          x="282"
+                          y="205"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#5f5e5a"
+                          fontSize="12"
+                          fontWeight="500"
+                        >
+                          (sảnh đọc kinh chung)
+                        </text>
+                      </g>
+                    );
+                  })()}
+
+                  {/* Bàn thờ T2 (x:359, y:177, w:12, h:26) */}
+                  <rect
+                    x="359"
+                    y="177"
+                    width="12"
+                    height="26"
+                    rx="3"
+                    fill="#eeedfe"
+                    stroke="#534ab7"
+                    strokeWidth="0.8"
+                  />
+                  <text
+                    x="365"
+                    y="190"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="#534ab7"
+                    fontSize="6"
+                    fontWeight="700"
+                    transform="rotate(90, 365, 190)"
+                  >
+                    BÀN THỜ
+                  </text>
+
+                  {/* Cầu thang thông tầng T2 (x:170, y:169, w:22, h:78 - 12 bậc thang) */}
+                  <rect x="170" y="169" width="22" height="78" fill="#ffffff" stroke="#52514e" strokeWidth="1" />
+                  {[175, 181, 187, 193, 199, 205, 211, 217, 223, 229, 235, 241].map((yVal) => (
+                    <line key={yVal} x1="170" y1={yVal} x2="192" y2={yVal} stroke="#52514e" strokeWidth="0.8" />
+                  ))}
+
+                  {/* DOORS T2 (Cam #D85A30 strokeWidth: 5) */}
+                  <line x1="172" y1="145" x2="198" y2="145" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="376" y1="72" x2="376" y2="92" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="380" y1="137" x2="404" y2="137" stroke="#D85A30" strokeWidth="5" />
+                  <line x1="376" y1="222" x2="376" y2="244" stroke="#D85A30" strokeWidth="5" />
+
+                  {/* WINDOWS T2 (Xanh #378ADD strokeWidth: 5) */}
+                  <line x1="206" y1="67" x2="242" y2="67" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="304" y1="67" x2="329" y2="67" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="214" y1="145" x2="242" y2="145" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="303" y1="145" x2="330" y2="145" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="198" y1="249" x2="221" y2="249" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="260" y1="249" x2="286" y2="249" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="316" y1="249" x2="339" y2="249" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="472" y1="161" x2="472" y2="187" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="472" y1="234" x2="472" y2="265" stroke="#378ADD" strokeWidth="5" />
+                  <line x1="423" y1="278" x2="444" y2="278" stroke="#378ADD" strokeWidth="5" />
+
+                  {/* LEGEND / CHÚ THÍCH TẦNG 2 */}
+                  <line x1="40" y1="330" x2="64" y2="330" stroke="#D85A30" strokeWidth="5" />
+                  <text x="74" y="330" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cửa phòng
+                  </text>
+
+                  <line x1="40" y1="352" x2="64" y2="352" stroke="#378ADD" strokeWidth="5" />
+                  <text x="74" y="352" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cửa sổ
+                  </text>
+
+                  <rect
+                    x="40"
+                    y="367"
+                    width="24"
+                    height="14"
+                    fill="url(#hatch-canvas)"
+                    stroke="#888780"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                  />
+                  <text x="74" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Chỉ có ở tầng 1
+                  </text>
+
+                  <rect x="200" y="325" width="26" height="10" rx="3" fill="#eeedfe" stroke="#534ab7" strokeWidth="0.8" />
+                  <text x="236" y="330" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Bàn thờ
+                  </text>
+
+                  <rect x="202" y="345" width="20" height="14" fill="#ffffff" stroke="#52514e" strokeWidth="1" />
+                  <line x1="202" y1="350" x2="222" y2="350" stroke="#52514e" strokeWidth="0.8" />
+                  <line x1="202" y1="354" x2="222" y2="354" stroke="#52514e" strokeWidth="0.8" />
+                  <text x="236" y="352" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Cầu thang
+                  </text>
+
+                  <ellipse cx="212" cy="376" rx="5" ry="6" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                  <rect x="208" y="366" width="8" height="4" rx="1" fill="#ffffff" stroke="#52514e" strokeWidth="1.2" />
+                  <text x="236" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
+                    Bồn cầu
+                  </text>
                 </svg>
               )}
+            </div>
+          </div>
+        </div>
 
-              {/* Hallway Guideline */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: "290px",
-                  top: "20px",
-                  width: "100px",
-                  height: "580px",
-                }}
-                className="border-2 border-dashed border-purple-200/80 bg-purple-50/20 rounded-2xl flex flex-col items-center justify-center pointer-events-none"
-              >
-                <span className="text-[10px] font-black text-purple-300 tracking-widest [writing-mode:vertical-lr] rotate-180 uppercase opacity-75">
-                  HÀNH LANG TRUNG TÂM · LỐI ĐI CHUNG
+        {/* ========================================================================= */}
+        {/* 3. COLLAPSIBLE MEMBER DOCK & DRAG PALETTE                                 */}
+        {/* ========================================================================= */}
+        {isMemberDockOpen && (
+          <aside className="w-full lg:w-80 bg-stone-50/90 border-t lg:border-t-0 lg:border-l border-purple-100 flex flex-col h-[320px] lg:h-auto overflow-hidden">
+            <div className="p-3.5 bg-white border-b border-stone-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-700" />
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Thành viên lưu xá ({members.length})
+                  </h3>
+                </div>
+                <span className="text-[11px] bg-purple-50 text-purple-700 font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                  {members.filter((m) => !!m.room).length}/{members.length} có phòng
                 </span>
               </div>
 
-              {/* GHOST PREVIEW WHILE DRAGGING SHAPE FROM PALETTE */}
-              {draggedShape && canvasGhostPosition && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${canvasGhostPosition.x}px`,
-                    top: `${canvasGhostPosition.y}px`,
-                    width: `${draggedShape.w}px`,
-                    height: `${draggedShape.h}px`,
-                  }}
-                  className="rounded-2xl border-2 border-dashed border-primary bg-primary/20 backdrop-blur-2xs flex flex-col items-center justify-center text-primary font-bold text-xs pointer-events-none shadow-xl z-40 animate-pulse"
-                >
-                  <Sparkles className="w-5 h-5 mb-1" />
-                  <span>Thả để đặt {draggedShape.name}</span>
-                  <span className="text-[10px] font-mono opacity-80">
-                    ({canvasGhostPosition.x}, {canvasGhostPosition.y})
-                  </span>
-                </div>
-              )}
+              {/* Search bar */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={dockSearch}
+                  onChange={(e) => setDockSearch(e.target.value)}
+                  placeholder="Tìm theo tên, phòng, vai trò..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-stone-100/80 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:bg-white transition"
+                />
+              </div>
+            </div>
 
-              {/* ROOMS RENDERED ON CANVAS */}
-              {floorRooms.map((room) => {
-                const pos = livePositions[room.id] || {
-                  x: 30,
-                  y: 30,
-                  w: 230,
-                  h: 180,
-                };
-                const occupants = roomOccupantsMap[room.id] || [];
-                const theme = ROOM_TYPE_THEMES[room.type] || ROOM_TYPE_THEMES.other;
-                const TypeIcon = theme.icon;
-                const isBedroom = room.type === "bedroom";
-                const isFull = isBedroom && occupants.length >= room.capacity;
-                const isSelected = selectedRoomId === room.id;
-                const isHoveredDrop = hoveredDropRoomId === room.id;
-                const isDraggingThis = activeDrag?.roomId === room.id;
+            {/* Draggable member cards list */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {filteredDockMembers.map((m) => {
+                const assignedRoom = rooms.find((r) => r.id === m.room);
+                const isDragging = draggedMemberId === m.id;
 
                 return (
                   <div
-                    key={room.id}
-                    style={{
-                      position: "absolute",
-                      left: `${pos.x}px`,
-                      top: `${pos.y}px`,
-                      width: `${pos.w}px`,
-                      height: `${pos.h}px`,
-                      zIndex: isHoveredDrop ? 40 : isDraggingThis ? 35 : isSelected ? 30 : 15,
-                    }}
-                    onDragOver={(e) => handleRoomDragOver(e, room.id)}
-                    onDrop={(e) => handleRoomDrop(e, room.id)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedRoomId(room.id);
-                    }}
+                    key={m.id}
+                    draggable
+                    onDragStart={(e) => handleDragStartMember(m.id, e)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
-                      "group rounded-2xl border-2 transition-all flex flex-col justify-between cursor-default select-none relative",
-                      isHoveredDrop
-                        ? "border-emerald-500 bg-emerald-50 shadow-2xl ring-4 ring-emerald-300 scale-[1.02]"
-                        : isSelected
-                        ? "border-primary ring-4 ring-purple-200 shadow-xl bg-white"
-                        : isBedroom
-                        ? isFull
-                          ? "border-purple-200 bg-white hover:border-purple-400 hover:shadow-md"
-                          : occupants.length === 0
-                          ? "border-emerald-200 bg-emerald-50/20 hover:border-emerald-400 hover:shadow-md"
-                          : "border-purple-200 bg-white hover:border-purple-400 hover:shadow-md"
-                        : "border-gray-200 bg-white hover:border-gray-400 hover:shadow-md"
+                      "group bg-white p-2.5 rounded-2xl border border-stone-200 shadow-xs hover:border-purple-300 hover:shadow-sm transition cursor-grab active:cursor-grabbing flex items-center justify-between gap-2.5 select-none",
+                      isDragging && "opacity-40 scale-95 border-purple-400 bg-purple-50"
                     )}
                   >
-                    {/* LIVE DRAGGING HUD BADGE */}
-                    {isDraggingThis && activeDrag?.type === "move" && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-purple-900 text-white text-[10px] font-mono font-bold shadow-xl pointer-events-none whitespace-nowrap z-50 animate-bounce">
-                        📍 X: {pos.x}px · Y: {pos.y}px
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="text-stone-300 group-hover:text-purple-500 transition">
+                        <GripVertical className="w-4 h-4" />
                       </div>
-                    )}
-                    {isDraggingThis && activeDrag?.type === "resize" && (
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-indigo-900 text-white text-[10px] font-mono font-bold shadow-xl pointer-events-none whitespace-nowrap z-50 animate-bounce">
-                        📐 W: {pos.w}px · H: {pos.h}px ({Math.round((pos.w * pos.h) / 2000)}m²)
+                      <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 font-bold text-xs flex items-center justify-center shrink-0 border border-purple-200">
+                        {m.fullName.charAt(0)}
                       </div>
-                    )}
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
+                          <span>{m.fullName}</span>
+                          {m.role !== "Thành viên" && (
+                            <span className="text-[9px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded">
+                              {m.role}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 flex items-center gap-1 truncate">
+                          <span>{assignedRoom ? assignedRoom.name : "Chưa xếp phòng"}</span>
+                          {assignedRoom && <span className="text-stone-300">·</span>}
+                          {assignedRoom && <span>Tầng {assignedRoom.floor}</span>}
+                        </div>
+                      </div>
+                    </div>
 
-                    {/* FLOATING ACTION TOOLBAR ON ROOM SELECTION */}
-                    {isSelected && !activeDrag && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2.5 py-1.5 rounded-2xl bg-gray-900 text-white shadow-2xl border border-gray-700 animate-in fade-in slide-in-from-bottom-2 duration-150"
-                      >
-                        <button
-                          onClick={() => onEditRoom(room)}
-                          className="p-1 rounded-lg hover:bg-white/20 text-gray-200 hover:text-white transition-colors"
-                          title="Chỉnh sửa thông tin phòng"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onDuplicateRoom(room)}
-                          className="p-1 rounded-lg hover:bg-white/20 text-gray-200 hover:text-white transition-colors"
-                          title="Nhân bản phòng này"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onSelectRoom(room)}
-                          className="p-1 rounded-lg hover:bg-white/20 text-gray-200 hover:text-white transition-colors"
-                          title="Xem chi tiết phòng"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="w-px h-3.5 bg-gray-700 mx-0.5" />
-                        <button
-                          onClick={() => {
-                            if (confirm(`Bạn có chắc muốn xóa ${room.name}?`)) {
-                              onDeleteRoom(room.id);
-                            }
-                          }}
-                          className="p-1 rounded-lg hover:bg-rose-500 text-rose-400 hover:text-white transition-colors"
-                          title="Xóa phòng"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setSelectedRoomId(null)}
-                          className="p-1 rounded-lg hover:bg-white/20 text-gray-400 hover:text-white transition-colors"
-                          title="Đóng thanh công cụ"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* DROP HOVER OVERLAY NOTIFICATION */}
-                    {isHoveredDrop && (
-                      <div className="absolute inset-0 z-40 bg-emerald-600/90 backdrop-blur-2xs flex flex-col items-center justify-center p-3 text-white text-center animate-in fade-in duration-100 pointer-events-none">
-                        <Sparkles className="w-6 h-6 mb-1 animate-bounce" />
-                        <span className="text-xs font-black">
-                          Thả để xếp vào {room.name}
-                        </span>
-                        {draggedMember && (
-                          <span className="text-[11px] opacity-90 font-medium">
-                            Bạn: {draggedMember.fullName}
-                          </span>
+                    <div className="shrink-0 flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-lg border",
+                          assignedRoom
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-red-50 text-red-600 border-red-200"
                         )}
-                      </div>
-                    )}
-
-                    {/* ROOM HEADER */}
-                    <div
-                      onClick={() => onSelectRoom(room)}
-                      className={cn(
-                        "flex items-center justify-between px-3 py-2 border-b transition-colors cursor-pointer hover:opacity-90",
-                        theme.lightBg,
-                        "border-gray-100"
-                      )}
-                      title="Bấm để xem chi tiết & danh sách thành viên phòng này"
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className={cn("p-1 rounded-lg text-white font-bold", theme.bg)}>
-                          <TypeIcon className="w-3 h-3" />
-                        </span>
-                        <span className="text-xs font-black text-gray-900 truncate">
-                          {room.name}
-                        </span>
-                        <span className="text-[10px] font-bold text-gray-400">
-                          {room.id}
-                        </span>
-                      </div>
-
-                      {/* Capacity badge */}
-                      {isBedroom ? (
-                        <span
-                          className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-black border pointer-events-none",
-                            isFull
-                              ? "bg-purple-100 text-primary border-purple-200"
-                              : occupants.length === 0
-                              ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                              : "bg-amber-100 text-amber-800 border-amber-300"
-                          )}
-                        >
-                          {occupants.length}/{room.capacity} chỗ
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-gray-500 pointer-events-none">
-                          {room.areaM2 ? `${room.areaM2}m²` : "Tiện ích"}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* ROOM INTERIOR & OCCUPANTS */}
-                    <div
-                      className={cn(
-                        "p-2.5 flex-1 flex flex-col justify-between gap-1 overflow-hidden",
-                        draggedMember && "pointer-events-none"
-                      )}
-                    >
-                      {/* Bed Slots */}
-                      {isBedroom && (
-                        <div className="flex items-center gap-1 mb-1">
-                          {Array.from({ length: room.capacity }).map((_, slotIdx) => {
-                            const isOccupied = slotIdx < occupants.length;
-                            return (
-                              <div
-                                key={slotIdx}
-                                className={cn(
-                                  "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold border transition-colors",
-                                  isOccupied
-                                    ? "bg-purple-50 text-primary border-purple-200"
-                                    : "bg-gray-50 text-gray-400 border-dashed border-gray-300"
-                                )}
-                              >
-                                <Bed className="w-2.5 h-2.5" />
-                                <span>G{slotIdx + 1}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Resident Avatar Tags (DRAGGABLE TO MOVE OUT!) */}
-                      {isBedroom && (
-                        <div className="flex flex-col gap-1 overflow-y-auto max-h-[95px] custom-scroll">
-                          {occupants.length === 0 ? (
-                            <div className="py-2 text-center text-[10px] font-semibold text-emerald-600 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                              ✨ Giường trống - Thả bạn vào đây
-                            </div>
-                          ) : (
-                            occupants.map((occ) => (
-                              <div
-                                key={occ.id}
-                                draggable={true}
-                                onDragStart={(e) => handleMemberDragStart(e, occ, room.id)}
-                                onDragEnd={handleMemberDragEnd}
-                                className="flex items-center justify-between px-2 py-1 rounded-xl bg-purple-50/80 hover:bg-purple-100 border border-purple-100 transition-all cursor-grab active:cursor-grabbing hover:scale-[1.01] shadow-2xs group/member"
-                                title="Kéo bạn này sang phòng khác để chuyển phòng"
-                              >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <span className="w-5 h-5 rounded-md bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white flex items-center justify-center font-bold text-[9px] shrink-0">
-                                    {occ.avatarText}
-                                  </span>
-                                  <span className="text-[11px] font-bold text-gray-800 truncate">
-                                    {occ.fullName}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onRemoveMember(occ.id);
-                                    }}
-                                    className="p-0.5 rounded text-gray-400 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover/member:opacity-100 transition-opacity"
-                                    title="Hủy xếp phòng cho bạn này"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                  <span className="text-gray-400 group-hover/member:text-primary shrink-0">
-                                    <GripVertical className="w-3 h-3" />
-                                  </span>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-
-                      {room.type === "stairs" ? (
-                        <div className="flex flex-col items-center justify-center h-full gap-1 py-1 bg-indigo-50/50 rounded-xl border border-indigo-100/60 p-2">
-                          <div className="flex items-center gap-1.5 text-indigo-700 font-extrabold text-[10px] tracking-wider uppercase">
-                            <ArrowUpDown className="w-3.5 h-3.5" />
-                            <span>CẦU THANG BỘ</span>
-                          </div>
-                          <div className="w-full flex flex-col gap-1 px-2 opacity-70">
-                            <div className="h-0.5 bg-indigo-300 rounded-full w-full" />
-                            <div className="h-0.5 bg-indigo-300 rounded-full w-4/5 mx-auto" />
-                            <div className="h-0.5 bg-indigo-300 rounded-full w-3/5 mx-auto" />
-                          </div>
-                          <span className="text-[9px] text-indigo-600 font-semibold">⬆ Lên / Xuống ⬇</span>
-                        </div>
-                      ) : room.type === "corridor" ? (
-                        <div className="flex flex-col items-center justify-center h-full gap-1 py-1 bg-purple-50/40 rounded-xl border border-dashed border-purple-200 p-2">
-                          <Footprints className="w-4 h-4 text-purple-400" />
-                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-widest text-center">
-                            HÀNH LANG CHUNG
-                          </span>
-                        </div>
-                      ) : !isBedroom ? (
-                        <p className="text-[11px] text-gray-500 font-medium line-clamp-2 italic">
-                          {room.description || "Không gian sinh hoạt và tiện ích chung."}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    {/* ROOM FOOTER */}
-                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50/90 border-t border-gray-100 text-[10px]">
-                      <div className="flex items-center gap-1 text-gray-400 font-bold">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-                        <span>Cửa vào</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectRoom(room);
-                          }}
-                          className="text-primary font-bold hover:underline"
-                        >
-                          Chi tiết →
-                        </button>
-                      </div>
+                      >
+                        {m.room || "Trống"}
+                      </span>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </div>
 
-      {/* 3. BOTTOM MEMBER DOCK ("KHAY THÀNH VIÊN KÉO THẢ") */}
-      {isMemberDockOpen && (
-        <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-3 animate-in fade-in duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-2xl bg-purple-100 text-primary">
-                <Users className="w-5 h-5" />
-              </span>
-              <div>
-                <h4 className="text-xs font-extrabold text-gray-900 leading-tight">
-                  Khay Thành Viên Kéo Thả ({members.length} anh em)
-                </h4>
-                <p className="text-[11px] text-gray-500">
-                  👉 Nắm giữ thẻ của bạn và <b>kéo thả trực tiếp</b> vào bất kỳ phòng nào trên sơ đồ tầng!
-                </p>
+              {filteredDockMembers.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-xs">
+                  Không tìm thấy thành viên phù hợp
+                </div>
+              )}
+            </div>
+
+            {/* Quick overview of rooms on active floor */}
+            <div className="p-3 bg-white border-t border-stone-200 text-xs">
+              <div className="text-[11px] font-bold text-gray-600 mb-1.5 uppercase tracking-wider">
+                Phòng tầng {activeFloorId}:
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {currentFloorBedrooms.map((r) => {
+                  const occs = roomOccupantsMap[r.id] || [];
+                  const isFull = occs.length >= r.capacity;
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => onSelectRoom(r)}
+                      className={cn(
+                        "p-1.5 rounded-xl border text-[11px] cursor-pointer transition flex items-center justify-between",
+                        isFull
+                          ? "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                      )}
+                    >
+                      <span className="font-bold">{r.name}</span>
+                      <span className="font-extrabold text-[10px]">
+                        {occs.length}/{r.capacity}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-purple-50 text-primary border border-purple-200">
-                100% Drag &amp; Drop Ready
-              </span>
-            </div>
-          </div>
-
-          {/* Members Scrollable Row */}
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-2 custom-scroll">
-            {members.map((m) => {
-              const currentRoom = rooms.find((r) => r.id === m.room);
-              const isOnThisFloor = currentRoom && currentRoom.floor === activeFloorId;
-              const hasNoRoom = !m.room || m.room === "Chưa xếp phòng";
-
-              return (
-                <div
-                  key={m.id}
-                  draggable={true}
-                  onDragStart={(e) => handleMemberDragStart(e, m, m.room)}
-                  onDragEnd={handleMemberDragEnd}
-                  className={cn(
-                    "relative flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border transition-all cursor-grab active:cursor-grabbing hover:shadow-md shrink-0 select-none group",
-                    hasNoRoom
-                      ? "bg-amber-50/70 border-amber-300 ring-2 ring-amber-100"
-                      : isOnThisFloor
-                      ? "bg-purple-50/70 border-purple-200"
-                      : "bg-gray-50 border-gray-200 hover:border-purple-300"
-                  )}
-                >
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                    {m.avatarText}
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors">
-                      {m.fullName}
-                    </span>
-                    <span className="text-[10px] text-gray-500 font-medium">
-                      {hasNoRoom ? (
-                        <span className="text-amber-700 font-bold">⚠️ Chưa xếp phòng</span>
-                      ) : (
-                        <span>
-                          {currentRoom?.name} (T{currentRoom?.floor})
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* 1-Click Quick Move Dropdown Trigger */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setQuickMoveMemberId(quickMoveMemberId === m.id ? null : m.id);
-                      }}
-                      className="p-1 rounded-lg hover:bg-purple-100 text-gray-400 hover:text-primary transition-colors"
-                      title="Chuyển nhanh sang phòng khác"
-                    >
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                    </button>
-
-                  </div>
-
-                  <GripVertical className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary shrink-0" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* QUICK MOVE MEMBER MODAL (PORTAL) */}
-      {quickMoveMemberId &&
-        mounted &&
-        createPortal(
-          <div
-            onClick={() => setQuickMoveMemberId(null)}
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-150"
-          >
-            <div className="flex min-h-full items-center justify-center">
-              {(() => {
-                const activeMember = members.find((m) => m.id === quickMoveMemberId);
-                if (!activeMember) return null;
-
-                return (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-purple-100 flex flex-col gap-3 animate-in zoom-in-95 duration-150 my-auto"
-                  >
-                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                        {activeMember.avatarText}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-gray-900 leading-tight">
-                          Xếp phòng cho {activeMember.fullName}
-                        </h4>
-                        <p className="text-[10px] text-gray-500 font-medium">
-                          {activeMember.room && activeMember.room !== "Chưa xếp phòng"
-                            ? `Hiện ở ${activeMember.room}`
-                            : "⚠️ Chưa xếp phòng"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setQuickMoveMemberId(null)}
-                      className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Chọn phòng chuyển đến:
-                  </div>
-
-                  <div className="flex flex-col gap-1 max-h-56 overflow-y-auto custom-scroll pr-1">
-                    {rooms
-                      .filter((r) => r.type === "bedroom")
-                      .map((r) => {
-                        const occ = (roomOccupantsMap[r.id] || []).length;
-                        const free = r.capacity - occ;
-                        const isCurrent = activeMember.room === r.id;
-
-                        return (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => {
-                              onMoveMember(activeMember.id, r.id);
-                              setQuickMoveMemberId(null);
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors border",
-                              isCurrent
-                                ? "bg-purple-100 text-primary border-purple-200 font-bold"
-                                : "bg-white hover:bg-purple-50 hover:text-primary border-gray-100"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Bed className="w-3.5 h-3.5 text-purple-600" />
-                              <span>
-                                {r.name} (Tầng {r.floor})
-                              </span>
-                            </div>
-                            <span
-                              className={cn(
-                                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                                isCurrent
-                                  ? "bg-primary text-white"
-                                  : free > 0
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-gray-100 text-gray-400"
-                              )}
-                            >
-                              {isCurrent ? "Đang ở" : free > 0 ? `Còn ${free} chỗ` : "Đầy"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                  </div>
-
-                  {activeMember.room && activeMember.room !== "Chưa xếp phòng" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onRemoveMember(activeMember.id);
-                        setQuickMoveMemberId(null);
-                      }}
-                      className="w-full py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold transition"
-                    >
-                      Hủy xếp phòng (Chuyển về Chưa xếp phòng)
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
-            </div>
-          </div>,
-          document.body
+          </aside>
         )}
+      </div>
     </div>
   );
 };

@@ -135,7 +135,7 @@ export default function ThanhVienPage() {
             <div className="text-2xl font-extrabold text-gray-900 mt-1">
               12 <span className="text-sm font-semibold text-gray-400">thành viên</span>
             </div>
-            <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">100% phòng kín (P.101 – P.301)</span>
+            <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">12/14 chỗ ở (P.1 – P.5)</span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-purple-100 text-primary flex items-center justify-center font-bold">
             🏠

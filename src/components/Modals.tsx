@@ -89,14 +89,14 @@ export const Modals: React.FC = () => {
   const [eventTitle, setEventTitle] = useState("");
   const [eventDate, setEventDate] = useState("04/10/2026");
   const [eventTime, setEventTime] = useState("19:30 tối");
-  const [eventLocation, setEventLocation] = useState("Phòng sinh hoạt chung T2");
+  const [eventLocation, setEventLocation] = useState("Sảnh chung T1");
   const [eventCategory, setEventCategory] = useState<string>("Họp nhà");
   const [eventOrganizer, setEventOrganizer] = useState("Trần Văn Đức (Trưởng nhà)");
   const [eventDesc, setEventDesc] = useState("");
 
   // State for Add Member
   const [memFullName, setMemFullName] = useState("");
-  const [memRoom, setMemRoom] = useState("P.201");
+  const [memRoom, setMemRoom] = useState("P.1");
   const [memPhone, setMemPhone] = useState("");
   const [memRole, setMemRole] = useState<any>("Thành viên");
   const [memAvatar, setMemAvatar] = useState("");
@@ -404,12 +404,16 @@ export const Modals: React.FC = () => {
                       value={issueLocation}
                       onChange={setIssueLocation}
                       options={[
-                        { value: "Hành lang Tầng 2", label: "Hành lang Tầng 2" },
-                        { value: "Nhà vệ sinh Khu B", label: "Nhà vệ sinh Khu B" },
-                        { value: "Bếp ăn chung", label: "Bếp ăn chung" },
-                        { value: "Phòng sinh hoạt", label: "Phòng sinh hoạt" },
-                        { value: "Nhà nguyện T3", label: "Nhà nguyện T3" },
-                        { value: "Phòng ngủ cá nhân", label: "Phòng ngủ cá nhân" },
+                        { value: "Phòng 1 (Tầng 1)", label: "Phòng 1 (Tầng 1)" },
+                        { value: "Phòng 2 (Tầng 1)", label: "Phòng 2 (Tầng 1)" },
+                        { value: "Phòng 3 (Tầng 1)", label: "Phòng 3 (Tầng 1)" },
+                        { value: "Phòng 4 (Tầng 2)", label: "Phòng 4 (Tầng 2)" },
+                        { value: "Phòng 5 (Tầng 2)", label: "Phòng 5 (Tầng 2)" },
+                        { value: "Sảnh chung T1", label: "Sảnh chung (Tầng 1)" },
+                        { value: "Sảnh nguyện T2", label: "Sảnh nguyện (Tầng 2)" },
+                        { value: "Khu vệ sinh ngoài T1", label: "Khu vệ sinh ngoài & Giặt (T1)" },
+                        { value: "Nhà để xe T1", label: "Nhà để xe (Tầng 1)" },
+                        { value: "Sân trước / Sân sau", label: "Sân trước / Sân sau" },
                       ]}
                     />
 
@@ -639,16 +643,11 @@ export const Modals: React.FC = () => {
                       value={memRoom}
                       onChange={setMemRoom}
                       options={[
-                        { value: "P.101", label: "Phòng 101 (Tầng 1)" },
-                        { value: "P.102", label: "Phòng 102 (Tầng 1)" },
-                        { value: "P.103", label: "Phòng 103 (Tầng 1)" },
-                        { value: "P.104", label: "Phòng 104 (Tầng 1)" },
-                        { value: "P.105", label: "Phòng 105 (Tầng 1)" },
-                        { value: "P.201", label: "Phòng 201 (Tầng 2)" },
-                        { value: "P.202", label: "Phòng 202 (Tầng 2)" },
-                        { value: "P.203", label: "Phòng 203 (Tầng 2)" },
-                        { value: "P.204", label: "Phòng 204 (Tầng 2)" },
-                        { value: "P.301", label: "Phòng 301 (Tầng 3)" },
+                        { value: "P.1", label: "Phòng 1 (Tầng 1 · 2 chỗ)" },
+                        { value: "P.2", label: "Phòng 2 (Tầng 1 · 3 chỗ)" },
+                        { value: "P.3", label: "Phòng 3 (Tầng 1 · 3 chỗ)" },
+                        { value: "P.4", label: "Phòng 4 (Tầng 2 · 3 chỗ)" },
+                        { value: "P.5", label: "Phòng 5 (Tầng 2 · 3 chỗ)" },
                       ]}
                     />
 

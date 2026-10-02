@@ -858,24 +858,20 @@ export default function HocTapPage() {
 
                 <form onSubmit={handleCreateRecordSubmit} className="p-5 space-y-4 overflow-y-auto custom-scroll flex-1">
                   {/* Member selection */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Chọn thành viên sinh viên:
-                    </label>
-                    <select
-                      value={selectedMemberName}
-                      onChange={(e) => setSelectedMemberName(e.target.value)}
-                      required
-                      className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white font-medium"
-                    >
-                      <option value="">-- Chọn thành viên Lưu Xá --</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.fullName}>
-                          {m.fullName} ({m.room || "Chưa xếp phòng"})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <CustomSelect
+                    label="Chọn thành viên sinh viên:"
+                    value={selectedMemberName}
+                    onChange={setSelectedMemberName}
+                    placeholder="-- Chọn thành viên Lưu Xá --"
+                    options={[
+                      { value: "", label: "-- Chọn thành viên Lưu Xá --" },
+                      ...members.map((m) => ({
+                        value: m.fullName,
+                        label: m.fullName,
+                        subLabel: m.room ? `Phòng ${m.room}` : "Chưa xếp phòng",
+                      })),
+                    ]}
+                  />
 
                   <div className="grid grid-cols-2 gap-3">
                     <CustomInput
@@ -904,31 +900,27 @@ export default function HocTapPage() {
                       required
                     />
 
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Niên khóa</label>
-                      <select
-                        value={formAcademicYear}
-                        onChange={(e) => setFormAcademicYear(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white"
-                      >
-                        <option value="2026-2027">2026-2027</option>
-                        <option value="2025-2026">2025-2026</option>
-                        <option value="2024-2025">2024-2025</option>
-                      </select>
-                    </div>
+                    <CustomSelect
+                      label="Niên khóa"
+                      value={formAcademicYear}
+                      onChange={setFormAcademicYear}
+                      options={[
+                        { value: "2026-2027", label: "2026-2027" },
+                        { value: "2025-2026", label: "2025-2026" },
+                        { value: "2024-2025", label: "2024-2025" },
+                      ]}
+                    />
 
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Học kỳ</label>
-                      <select
-                        value={formSemester}
-                        onChange={(e) => setFormSemester(e.target.value as any)}
-                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white"
-                      >
-                        <option value="Học kỳ 1">Học kỳ 1</option>
-                        <option value="Học kỳ 2">Học kỳ 2</option>
-                        <option value="Học kỳ hè">Học kỳ hè</option>
-                      </select>
-                    </div>
+                    <CustomSelect
+                      label="Học kỳ"
+                      value={formSemester}
+                      onChange={(val) => setFormSemester(val as any)}
+                      options={[
+                        { value: "Học kỳ 1", label: "Học kỳ 1" },
+                        { value: "Học kỳ 2", label: "Học kỳ 2" },
+                        { value: "Học kỳ hè", label: "Học kỳ hè" },
+                      ]}
+                    />
                   </div>
 
                   {/* Dynamic Subjects List */}

@@ -32,10 +32,18 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { CalendarEvent } from "@/lib/mockData";
-import { CustomInput, CustomSelect, CustomDatePicker, CustomTextarea, SelectOption } from "@/components/ui/FormControls";
+import { CustomInput, CustomSelect, CustomDatePicker, CustomTextarea, CustomToggle, SelectOption } from "@/components/ui/FormControls";
 import LichSuKienLoading from "./loading";
 import { cn } from "@/lib/utils";
 import { copyTextToClipboard } from "@/lib/zaloShare";
+
+const EVENT_CATEGORY_OPTIONS: SelectOption<CalendarEvent["category"]>[] = [
+  { value: "Họp nhà", label: "Họp nhà" },
+  { value: "Phụng vụ", label: "Phụng vụ" },
+  { value: "Bổn mạng", label: "Bổn mạng" },
+  { value: "Dã ngoại", label: "Dã ngoại" },
+  { value: "Sinh hoạt", label: "Sinh hoạt" },
+];
 
 const MONTH_NAMES = [
   "Tháng 01", "Tháng 02", "Tháng 03", "Tháng 04", "Tháng 05", "Tháng 06",
@@ -1193,24 +1201,19 @@ export default function LichSuKienPage() {
                 </div>
 
                 <form onSubmit={handleCreatePollSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Chọn sự kiện liên kết:
-                    </label>
-                    <select
-                      value={pollSelectedEventId}
-                      onChange={(e) => setPollSelectedEventId(e.target.value)}
-                      required
-                      className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white font-medium"
-                    >
-                      <option value="">-- Chọn sự kiện --</option>
-                      {events.map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.title} ({e.date})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <CustomSelect
+                    label="Chọn sự kiện liên kết:"
+                    value={pollSelectedEventId}
+                    onChange={setPollSelectedEventId}
+                    placeholder="-- Chọn sự kiện liên kết --"
+                    options={[
+                      { value: "", label: "-- Chọn sự kiện --" },
+                      ...events.map((e) => ({
+                        value: e.id,
+                        label: `${e.title} (${e.date})`,
+                      })),
+                    ]}
+                  />
 
                   <CustomInput
                     label="Câu hỏi biểu quyết"
@@ -1337,22 +1340,12 @@ export default function LichSuKienPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Chủ đề sự kiện
-                      </label>
-                      <select
-                        value={newEventCategory}
-                        onChange={(e) => setNewEventCategory(e.target.value as any)}
-                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white font-medium"
-                      >
-                        <option value="Họp nhà">Họp nhà</option>
-                        <option value="Phụng vụ">Phụng vụ</option>
-                        <option value="Bổn mạng">Bổn mạng</option>
-                        <option value="Dã ngoại">Dã ngoại</option>
-                        <option value="Sinh hoạt">Sinh hoạt</option>
-                      </select>
-                    </div>
+                    <CustomSelect
+                      label="Chủ đề sự kiện"
+                      value={newEventCategory}
+                      onChange={(val) => setNewEventCategory(val as CalendarEvent["category"])}
+                      options={EVENT_CATEGORY_OPTIONS}
+                    />
 
                     <CustomInput
                       label="Địa điểm tổ chức"
@@ -1372,7 +1365,7 @@ export default function LichSuKienPage() {
                   />
 
                   <CustomTextarea
-                    label="Mô tả nội dung &amp; chương trình"
+                    label="Mô tả nội dung & chương trình"
                     placeholder="Nêu rõ mục đích cuộc họp hoặc hoạt động..."
                     value={newEventDescription}
                     onChange={(e) => setNewEventDescription(e.target.value)}
@@ -1380,63 +1373,47 @@ export default function LichSuKienPage() {
                   />
 
                   {/* Toggle Check-in */}
-                  <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-gray-900 block">Kích hoạt Điểm danh (Check-in)</span>
-                      <span className="text-[11px] text-gray-500">Cho phép anh em quét QR hoặc check-in 1-chạm</span>
-                    </div>
-                    <input
-                      type="checkbox"
+                  <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-100">
+                    <CustomToggle
+                      label="Kích hoạt Điểm danh (Check-in)"
+                      description="Cho phép anh em quét QR hoặc check-in 1-chạm"
                       checked={newEventHasCheckIn}
-                      onChange={(e) => setNewEventHasCheckIn(e.target.checked)}
-                      className="w-4 h-4 text-primary rounded accent-primary"
+                      onChange={setNewEventHasCheckIn}
                     />
                   </div>
 
                   {/* Toggle Poll */}
-                  <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-bold text-gray-900 block">Tạo cuộc biểu quyết (Vote)</span>
-                        <span className="text-[11px] text-gray-500">Lấy ý kiến tập thể cho cuộc họp</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={newEventHasPoll}
-                        onChange={(e) => setNewEventHasPoll(e.target.checked)}
-                        className="w-4 h-4 text-primary rounded accent-primary"
-                      />
-                    </div>
+                  <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-3">
+                    <CustomToggle
+                      label="Tạo cuộc biểu quyết (Vote)"
+                      description="Lấy ý kiến tập thể cho cuộc họp"
+                      checked={newEventHasPoll}
+                      onChange={setNewEventHasPoll}
+                    />
 
                     {newEventHasPoll && (
-                      <div className="pt-2 space-y-2">
-                        <input
-                          type="text"
+                      <div className="pt-2 space-y-2.5 border-t border-blue-100/80">
+                        <CustomInput
                           placeholder="Câu hỏi biểu quyết..."
                           value={newEventPollQuestion}
                           onChange={(e) => setNewEventPollQuestion(e.target.value)}
-                          className="w-full p-2 rounded-lg border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none"
                         />
                         <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
+                          <CustomInput
                             placeholder="Phương án 1..."
                             value={newEventPollOptions[0]}
                             onChange={(e) => {
                               const val = e.target.value;
                               setNewEventPollOptions((prev) => [val, prev[1]]);
                             }}
-                            className="p-2 rounded-lg border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none"
                           />
-                          <input
-                            type="text"
+                          <CustomInput
                             placeholder="Phương án 2..."
                             value={newEventPollOptions[1]}
                             onChange={(e) => {
                               const val = e.target.value;
                               setNewEventPollOptions((prev) => [prev[0], val]);
                             }}
-                            className="p-2 rounded-lg border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none"
                           />
                         </div>
                       </div>
