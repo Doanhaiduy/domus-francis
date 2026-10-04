@@ -86,6 +86,7 @@ interface AppContextType {
   expenses: Expense[];
   contributions: Contribution[];
   addExpense: (expense: Omit<Expense, "id" | "date" | "status">) => void;
+  approveExpense: (id: string, status: "Đã duyệt" | "Từ chối") => void;
   toggleContribution: (memberId: string) => void;
   
   // Kitchen & Meals
@@ -167,7 +168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoadingSkeleton, setIsLoadingSkeleton] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const toggleMobileMenu = () => setMobileMenuOpen((prev) => !prev);
-  const [currentRole, setCurrentRole] = useState<string>("Phó nhà");
+  const [currentRole, setCurrentRole] = useState<string>("Trưởng nhà");
   const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
   const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
   const [academicRecords, setAcademicRecords] = useState<AcademicRecord[]>(INITIAL_ACADEMIC_RECORDS);
@@ -323,17 +324,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const octExpensesSpent = expenses
     .filter((e) => e.status === "Đã duyệt" && (e.date.includes("10/2026") || e.date.endsWith("/10/2026")))
     .reduce((sum, e) => sum + e.amount, 0);
-  const fundBalance = 8680000 + (totalCollected - 8 * 350000) - (octExpensesSpent - 2870000);
+  const fundBalance = 8680000 + (totalCollected - 8 * 600000) - (octExpensesSpent - 2870000);
 
   const addExpense = (expense: Omit<Expense, "id" | "date" | "status">) => {
     const newExp: Expense = {
       ...expense,
       id: Math.random().toString(36).substring(2, 9),
       date: new Date().toLocaleDateString("vi-VN"),
-      status: "Đã duyệt",
+      status: "Chờ duyệt",
     };
     setExpenses((prev) => [newExp, ...prev]);
-    showToast("success", `Đã ghi nhận khoản chi ${expense.amount.toLocaleString("vi-VN")}đ`);
+    showToast("success", `Đã lập phiếu chi ${expense.amount.toLocaleString("vi-VN")}đ (Chờ Trưởng nhà phê duyệt)`);
+  };
+
+  const approveExpense = (id: string, status: "Đã duyệt" | "Từ chối") => {
+    setExpenses((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status } : e))
+    );
+    showToast(status === "Đã duyệt" ? "success" : "info", `Trưởng nhà đã ${status.toLowerCase()} phiếu chi`);
   };
 
   const toggleContribution = (memberId: string) => {
@@ -840,6 +848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         expenses,
         contributions,
         addExpense,
+        approveExpense,
         toggleContribution,
         mealAttendance,
         toggleMeal,

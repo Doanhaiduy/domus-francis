@@ -252,10 +252,10 @@ export default function ThanhVienPage() {
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                             m.role === "Trưởng nhà"
                               ? "bg-purple-100 text-purple-800"
-                              : m.role === "Phó nhà"
-                              ? "bg-indigo-100 text-indigo-800"
                               : m.role === "Thủ quỹ"
                               ? "bg-emerald-100 text-emerald-800"
+                              : m.role === "Admin"
+                              ? "bg-rose-100 text-rose-800"
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >

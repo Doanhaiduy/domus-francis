@@ -30,7 +30,7 @@ export interface Member {
   holyName?: string; // Tên Thánh: Phanxicô, Giuse, Phaolô...
   room: string;
   phone: string;
-  role: 'Trưởng nhà' | 'Phó nhà' | 'Thủ quỹ' | 'Admin' | 'Thành viên';
+  role: 'Trưởng nhà' | 'Thủ quỹ' | 'Admin' | 'Thành viên';
   joined: string;
   avatarText: string;
   birthDate?: string;
@@ -138,7 +138,7 @@ export const INITIAL_MEMBERS: Member[] = [
     holyName: 'Giuse',
     room: 'P.4',
     phone: '0903 112 451',
-    role: 'Phó nhà',
+    role: 'Thành viên',
     joined: '08/2024',
     avatarText: 'MT',
     birthDate: '14/05/2003',
@@ -157,7 +157,7 @@ export const INITIAL_MEMBERS: Member[] = [
     fatherName: 'Nguyễn Văn Thắng (0912.345.678)',
     motherName: 'Trần Thị Mai (0978.112.334)',
     parentPhone: '0912 345 678',
-    duty: 'Phó nhà – Phụ trách Kỷ luật, Phòng ở & Ban Ẩm thực',
+    duty: 'Thành viên – Phụ trách Kỷ luật, Phòng ở & Ban Ẩm thực',
   },
   {
     id: '2',
@@ -194,7 +194,7 @@ export const INITIAL_MEMBERS: Member[] = [
     holyName: 'Phaolô',
     room: 'P.1',
     phone: '0987 220 119',
-    role: 'Phó nhà',
+    role: 'Thành viên',
     joined: '09/2022',
     avatarText: 'HL',
     birthDate: '18/11/2002',
@@ -470,18 +470,18 @@ export const INITIAL_MEMBERS: Member[] = [
 ];
 
 export const INITIAL_CONTRIBUTIONS: Contribution[] = [
-  { memberId: '1', name: 'Lê Minh Tuấn', room: 'P.4', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '01/10/2026' },
-  { memberId: '2', name: 'Trần Văn Đức', room: 'P.1', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '01/10/2026' },
-  { memberId: '3', name: 'Lê Hoàng Long', room: 'P.1', amount: 350000, status: 'Chưa đóng', deadline: '05/10/2026' },
-  { memberId: '4', name: 'Phạm Gia Bảo', room: 'P.2', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '02/10/2026' },
-  { memberId: '5', name: 'Vũ Quốc Việt', room: 'P.2', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '01/10/2026' },
-  { memberId: '6', name: 'Đặng Thanh Phong', room: 'P.2', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '02/10/2026' },
-  { memberId: '7', name: 'Bùi Văn Hiếu', room: 'P.3', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '03/10/2026' },
-  { memberId: '8', name: 'Hoàng Đình Khôi', room: 'P.3', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '01/10/2026' },
-  { memberId: '9', name: 'Ngô Anh Khoa', room: 'P.3', amount: 350000, status: 'Đã đóng', deadline: '05/10/2026', paidDate: '03/10/2026' },
-  { memberId: '10', name: 'Đỗ Tuấn Kiệt', room: 'P.4', amount: 350000, status: 'Chưa đóng', deadline: '05/10/2026' },
-  { memberId: '11', name: 'Phan Bảo Nam', room: 'P.5', amount: 350000, status: 'Chưa đóng', deadline: '05/10/2026' },
-  { memberId: '12', name: 'Lý Hữu Phước', room: 'P.5', amount: 350000, status: 'Chưa đóng', deadline: '05/10/2026' },
+  { memberId: '1', name: 'Lê Minh Tuấn', room: 'P.4', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '01/10/2026' },
+  { memberId: '2', name: 'Trần Văn Đức', room: 'P.1', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '01/10/2026' },
+  { memberId: '3', name: 'Lê Hoàng Long', room: 'P.1', amount: 600000, status: 'Chưa đóng', deadline: '15/10/2026' },
+  { memberId: '4', name: 'Phạm Gia Bảo', room: 'P.2', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '02/10/2026' },
+  { memberId: '5', name: 'Vũ Quốc Việt', room: 'P.2', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '01/10/2026' },
+  { memberId: '6', name: 'Đặng Thanh Phong', room: 'P.2', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '02/10/2026' },
+  { memberId: '7', name: 'Bùi Văn Hiếu', room: 'P.3', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '03/10/2026' },
+  { memberId: '8', name: 'Hoàng Đình Khôi', room: 'P.3', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '01/10/2026' },
+  { memberId: '9', name: 'Ngô Anh Khoa', room: 'P.3', amount: 600000, status: 'Đã đóng', deadline: '15/10/2026', paidDate: '03/10/2026' },
+  { memberId: '10', name: 'Đỗ Tuấn Kiệt', room: 'P.4', amount: 600000, status: 'Chưa đóng', deadline: '15/10/2026' },
+  { memberId: '11', name: 'Phan Bảo Nam', room: 'P.5', amount: 600000, status: 'Chưa đóng', deadline: '15/10/2026' },
+  { memberId: '12', name: 'Lý Hữu Phước', room: 'P.5', amount: 600000, status: 'Chưa đóng', deadline: '15/10/2026' },
 ];
 
 export const INITIAL_EXPENSES: Expense[] = [

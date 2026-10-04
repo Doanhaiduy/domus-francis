@@ -28,35 +28,28 @@ const ROLE_CONFIGS: Record<
 > = {
   "Trưởng nhà": {
     label: "Trưởng nhà",
-    desc: "Toàn quyền điều hành lưu xá: Duyệt chi tiêu, xếp phòng & sửa sơ đồ nhà, thông báo",
+    desc: "Toàn quyền điều hành: Phê duyệt chi tiêu, quản lý phòng, cấp tài khoản & duyệt trực nhật",
     icon: Crown,
     color: "from-amber-500 to-amber-600 text-white",
     badge: "bg-amber-100 text-amber-800 border-amber-200",
   },
-  "Phó nhà": {
-    label: "Phó nhà",
-    desc: "Quản lý nhân sự & đời sống: Xếp phòng, phân công trực nhật, điều chuyển thành viên",
-    icon: Building2,
-    color: "from-blue-600 to-indigo-600 text-white",
-    badge: "bg-blue-100 text-blue-800 border-blue-200",
-  },
   "Thủ quỹ": {
     label: "Thủ quỹ",
-    desc: "Quản lý ngân quỹ: Ghi phiếu chi, duyệt khoản chi, xuất báo cáo tài chính",
+    desc: "Quản lý ngân quỹ: Lập phiếu chi, thu quỹ 600k/kỳ, xuất báo cáo tài chính minh bạch",
     icon: Wallet,
     color: "from-emerald-600 to-teal-600 text-white",
     badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
   },
   "Thành viên": {
     label: "Thành viên",
-    desc: "Chế độ Thành viên (Chỉ xem): Theo dõi minh bạch thu chi, xem sơ đồ, báo cơm & sinh hoạt",
+    desc: "Thành viên lưu xá: Xem thu chi minh bạch, check-in trực nhật, báo hỏng, sinh hoạt",
     icon: Users,
     color: "from-purple-600 to-violet-600 text-white",
     badge: "bg-purple-100 text-purple-800 border-purple-200",
   },
   "Admin": {
     label: "Admin",
-    desc: "Quản trị viên hệ thống: Toàn quyền cấu hình danh mục, quản trị sơ đồ & thành viên",
+    desc: "Quản trị viên hệ thống: Quản trị kỹ thuật, phân quyền & cấu hình",
     icon: Shield,
     color: "from-rose-600 to-red-600 text-white",
     badge: "bg-rose-100 text-rose-800 border-rose-200",
@@ -203,7 +196,7 @@ export const Header: React.FC = () => {
         {/* Quick Role Switch Buttons */}
         <div className="flex items-center gap-1 shrink-0 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
           <span className="text-gray-400 text-[11px] mr-1 hidden lg:inline">Chuyển sang:</span>
-          {["Trưởng nhà", "Phó nhà", "Thủ quỹ", "Thành viên", "Admin"].map((r) => {
+          {["Trưởng nhà", "Thủ quỹ", "Thành viên", "Admin"].map((r) => {
             const isCur = currentRole === r;
             return (
               <button

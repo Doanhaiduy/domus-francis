@@ -27,6 +27,8 @@ import {
   ChevronRight,
   CalendarRange,
   RotateCcw,
+  Check,
+  X,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { formatVND } from "@/lib/utils";
@@ -82,6 +84,7 @@ export default function ThuChiPage() {
     showToast,
     currentRole,
     isLoadingSkeleton,
+    approveExpense,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<"tong-quan" | "danh-sach" | "bao-cao">("tong-quan");
@@ -102,6 +105,8 @@ export default function ThuChiPage() {
   const [expenseDateFilter, setExpenseDateFilter] = useState("");
 
   const canManageFinances = ["Trưởng nhà", "Thủ quỹ", "Admin"].includes(currentRole);
+  const canApproveExpense = ["Trưởng nhà", "Admin"].includes(currentRole);
+  const canCreateExpense = ["Thủ quỹ", "Trưởng nhà", "Admin"].includes(currentRole);
 
   // PERIOD LABEL
   const periodLabel = useMemo(() => {
@@ -309,13 +314,14 @@ export default function ThuChiPage() {
             <span>Tải Báo Cáo PDF</span>
           </button>
 
-          {canManageFinances ? (
+          {canCreateExpense ? (
             <button
               onClick={() => openModal("addExpense")}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-primary/20 transition active:scale-95"
+              title="Thủ quỹ lập phiếu chi tiêu (chờ Trưởng nhà phê duyệt)"
             >
               <Plus className="w-4 h-4" />
-              <span>Ghi chi tiêu</span>
+              <span>Lập phiếu chi</span>
             </button>
           ) : (
             <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold">
@@ -607,8 +613,8 @@ export default function ThuChiPage() {
             <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900">Đóng quỹ tháng 10</h2>
-                  <p className="text-xs text-gray-500">Mức đóng cố định 350.000đ / thành viên / tháng</p>
+                  <h2 className="text-base font-bold text-gray-900">Đóng quỹ Kỳ 2/2026 (6 tháng)</h2>
+                  <p className="text-xs text-gray-500">Mức đóng quy định 600.000đ / thành viên / 6 tháng</p>
                 </div>
 
                 <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
@@ -879,15 +885,38 @@ export default function ThuChiPage() {
                       -{formatVND(exp.amount)}
                     </td>
                     <td className="py-3 text-center pr-2">
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          exp.status === "Đã duyệt"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {exp.status}
-                      </span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            exp.status === "Đã duyệt"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : exp.status === "Từ chối"
+                              ? "bg-rose-100 text-rose-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {exp.status}
+                        </span>
+
+                        {exp.status === "Chờ duyệt" && canApproveExpense && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => approveExpense(exp.id, "Đã duyệt")}
+                              className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition"
+                              title="Trưởng nhà phê duyệt phiếu chi"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => approveExpense(exp.id, "Từ chối")}
+                              className="p-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 transition"
+                              title="Từ chối phiếu chi"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

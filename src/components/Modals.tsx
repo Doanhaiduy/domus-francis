@@ -657,9 +657,9 @@ export const Modals: React.FC = () => {
                       onChange={setMemRole}
                       options={[
                         { value: "Thành viên", label: "Thành viên" },
-                        { value: "Phó nhà", label: "Phó nhà" },
                         { value: "Thủ quỹ", label: "Thủ quỹ" },
                         { value: "Trưởng nhà", label: "Trưởng nhà" },
+                        { value: "Admin", label: "Admin" },
                       ]}
                     />
                   </div>
@@ -723,8 +723,8 @@ export const Modals: React.FC = () => {
                     title: annTitle,
                     preview: annContent.slice(0, 100) + "...",
                     content: annContent,
-                    author: "Minh Tuấn",
-                    authorRole: "Phó nhà",
+                    author: "Ban Điều Hành",
+                    authorRole: "Trưởng nhà",
                     category: annCategory as any,
                   });
                   setAnnTitle("");
@@ -806,7 +806,7 @@ export const Modals: React.FC = () => {
                     title: threadTitle,
                     content: threadContent,
                     author: "Minh Tuấn",
-                    authorRole: "Phó nhà",
+                    authorRole: "Thành viên",
                     category: threadCategory as any,
                   });
                   setThreadTitle("");

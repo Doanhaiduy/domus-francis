@@ -21,7 +21,10 @@ import {
   Camera,
   Check,
   GraduationCap,
+  LogOut,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Menu, Transition } from "@headlessui/react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
@@ -44,6 +47,7 @@ export const NAV_ITEMS = [
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     currentRole,
     setCurrentRole,
@@ -52,6 +56,17 @@ export const Sidebar: React.FC = () => {
     mobileMenuOpen,
     setMobileMenuOpen,
   } = useApp();
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out error", err);
+    }
+    router.push("/dang-nhap");
+    router.refresh();
+  };
 
   const unreadAnnCount = announcements.filter((a) => a.isUnread).length;
   const pendingIssuesCount = issues.filter((i) => i.status !== "Đã xong").length;
@@ -171,7 +186,7 @@ export const Sidebar: React.FC = () => {
               <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 Chuyển vai trò thử nghiệm
               </div>
-              {["Trưởng nhà", "Phó nhà", "Thủ quỹ", "Thành viên", "Admin"].map((role) => (
+              {["Trưởng nhà", "Thủ quỹ", "Thành viên", "Admin"].map((role) => (
                 <Menu.Item key={role}>
                   {({ active }) => (
                     <button
@@ -189,6 +204,24 @@ export const Sidebar: React.FC = () => {
                   )}
                 </Menu.Item>
               ))}
+
+              <div className="my-1 border-t border-gray-100" />
+
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors text-left text-red-600",
+                      active ? "bg-red-50 text-red-700" : ""
+                    )}
+                  >
+                    <LogOut className="w-3.5 h-3.5 shrink-0" />
+                    <span>Đăng xuất</span>
+                  </button>
+                )}
+              </Menu.Item>
             </Menu.Items>
           </Transition>
         </Menu>

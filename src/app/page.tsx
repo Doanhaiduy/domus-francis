@@ -154,11 +154,9 @@ export default function HomePage() {
               ? "Chào Trưởng nhà Văn Đức 👑 — Chúc bạn một ngày phục vụ cộng đoàn đầy ân sủng!"
               : currentRole === "Thủ quỹ"
               ? "Chào Thủ quỹ Gia Bảo 💰 — Ngân quỹ minh bạch, đang có 1 khoản chi chờ đối soát."
-              : currentRole === "Phó nhà"
-              ? "Chào Phó nhà Minh Tuấn 🏛️ — Lịch trực nhật và sơ đồ 16 phòng đang ổn định."
               : currentRole === "Admin"
-              ? "Chào Admin Quốc Việt 🛡️ — Toàn bộ hệ thống 17 màn hình đang sẵn sàng."
-              : "Chào bạn Minh Tuấn 👋 — Chúc bạn một ngày học tập nhiều niềm vui và bình an!"}
+              ? "Chào Admin Quốc Việt 🛡️ — Toàn bộ hệ thống quản trị đang sẵn sàng."
+              : "Chào bạn 👋 — Chúc bạn một ngày học tập nhiều niềm vui và bình an!"}
           </p>
         </div>
 
