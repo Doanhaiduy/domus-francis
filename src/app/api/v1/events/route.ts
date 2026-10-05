@@ -2,7 +2,7 @@ import { api } from "@/server/http";
 import { badRequest } from "@/server/errors";
 import { createEvent, getEvent, listEvents } from "@/server/modules/events";
 import { EventSchema } from "@/server/modules/events-schema";
-import { postToZaloGroup } from "@/server/integrations/zalo";
+import { postZaloEvent } from "@/server/integrations/zalo";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -27,7 +27,7 @@ export const POST = api({}, async (ctx) => {
         .catch((e) => console.error("[event] thông báo lỗi:", (e as Error).message));
     }
     if (b.notifyZalo) {
-      zalo = await postToZaloGroup(ctx, "event_new", `📅 SỰ KIỆN MỚI: ${ev.title}\n🕒 ${when}${ev.location ? `\n📍 ${ev.location}` : ""}${ev.description ? `\n📝 ${ev.description.slice(0, 200)}` : ""}\nAnh em xem chi tiết và báo tham gia trên web Lưu Xá nhé.`);
+      zalo = await postZaloEvent(ctx, "event_new", { title: ev.title, when, location: ev.location ?? "", description: ev.description?.slice(0, 200) ?? "" });
     }
   }
   return Response.json({ ...ev, zalo }, { status: 201 });

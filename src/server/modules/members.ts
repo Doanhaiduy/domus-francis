@@ -383,7 +383,7 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
         [memberId, uni, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, years ? Number(years[1]) : null, years ? Number(years[2]) : null, stStatus ?? null]
       );
     } else if (stStatus) {
-      const defaultUni = (await tx.query<{ id: string }>("SELECT id FROM universities ORDER BY sort_order, name LIMIT 1")).rows[0]?.id;
+      const defaultUni = (await tx.query<{ id: string }>("SELECT id FROM universities WHERE is_active AND deleted_at IS NULL ORDER BY name LIMIT 1")).rows[0]?.id;
       if (defaultUni) {
         await tx.query(
           `INSERT INTO student_profiles (member_id, university_id, status)

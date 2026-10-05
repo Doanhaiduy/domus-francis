@@ -152,17 +152,14 @@ export const isOpenIssue = (s: IssueStatus) => s === "new" || s === "in_progress
 // ---------------------------------------------------------------------
 // Trực vệ sinh sân nhà theo tuần
 // ---------------------------------------------------------------------
-/** Văn bản lịch trực tuần để gửi Zalo / sao chép. */
-export function buildWeekText(w: DutyWeekEntryDto, houseName?: string | null): string {
-  const d = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const names = w.members.map((m) => m.name).join(" & ") || "—";
-  return [
-    `🧹 LỊCH TRỰC VỆ SINH SÂN NHÀ${houseName ? ` — ${houseName}` : ""}`,
-    `🗓️ Tuần ${d(w.weekStart)} – ${d(w.weekEnd)}/${w.weekEnd.slice(0, 4)}`,
-    `👥 Người trực: ${names}`,
-    ...(w.note ? [`📝 ${w.note}`] : []),
-    "Nhớ dọn dẹp sân nhà trong tuần này nhé. Cảm ơn anh em! 🕊️",
-  ].join("\n");
+/** Biến cho mẫu tin Zalo "duty_week". */
+export function dutyWeekVars(w: DutyWeekEntryDto, houseName?: string | null): Record<string, string> {
+  return {
+    house: houseName ?? "",
+    week: weekRangeLabel(w.weekStart),
+    members: w.members.map((m) => m.name).join(" & ") || "—",
+    note: w.note ?? "",
+  };
 }
 
 /** "05/10 – 11/10/2026" */

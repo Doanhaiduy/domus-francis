@@ -64,7 +64,7 @@ export const dutyWeeksApi = {
   remind: (id: string) => api.post<{ reminded: number }>(`${DUTY_KEY}/weeks/${id}/remind`),
   review: (id: string, body: { score: number; comment?: string | null; redo: boolean; redoNote?: string | null }) =>
     api.post<DutyWeekEntryDto>(`${DUTY_KEY}/weeks/${id}/review`, body),
-  sendZalo: (id: string) => api.post<ZaloPostResultDto>(`${DUTY_KEY}/weeks/${id}/zalo`),
+  sendZalo: (id: string) => api.post<ZaloPostResultDto & { text?: string }>(`${DUTY_KEY}/weeks/${id}/zalo`),
 };
 
 export const dutyApi = {

@@ -1,6 +1,7 @@
 import "server-only";
 import type { Ctx } from "../http";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
+import { renderTemplate, templateFor } from "@/lib/zalo-templates";
 
 // =====================================================================
 // Tích hợp nhóm Zalo qua Zalo Bot (https://bot.zaloplatforms.com) — API dạng Telegram:
@@ -21,6 +22,8 @@ export interface ZaloConfig {
   enabled: boolean;
   chatId: string;
   events: Record<string, boolean>;
+  /** Mẫu tin đã tùy chỉnh theo loại tin (thiếu = dùng mặc định) */
+  templates: Record<string, string>;
 }
 
 const token = () => process.env.ZALO_BOT_TOKEN?.trim() || "";
@@ -35,6 +38,10 @@ export async function readZaloConfig(ctx: Pick<Ctx, "dbAs">): Promise<ZaloConfig
     enabled: v["integration.zalo.group_enabled"] === true,
     chatId: typeof v["integration.zalo.group_chat_id"] === "string" ? (v["integration.zalo.group_chat_id"] as string).trim() : "",
     events: events && typeof events === "object" && !Array.isArray(events) ? (events as Record<string, boolean>) : {},
+    templates:
+      v["integration.zalo.templates"] && typeof v["integration.zalo.templates"] === "object" && !Array.isArray(v["integration.zalo.templates"])
+        ? (v["integration.zalo.templates"] as Record<string, string>)
+        : {},
   };
 }
 
@@ -94,22 +101,53 @@ export interface ZaloPostResult {
   reason?: string;
 }
 
+type PostCtx = Pick<Ctx, "dbAs"> & { userId?: string | null };
+
+/** Dòng ghi chú cuối tin: ai thao tác (tin do người bấm) hoặc tin tự động của hệ thống (cron, không có người dùng). */
+async function senderFooter(ctx: PostCtx): Promise<string> {
+  if (!ctx.userId) return "— 🤖 Tin tự động của hệ thống";
+  const name = await ctx
+    .dbAs("luuxa_worker", async (tx) => (await tx.query<{ n: string }>("SELECT display_name AS n FROM members WHERE user_id = $1 LIMIT 1", [ctx.userId]).then((r) => r.rows[0]?.n)))
+    .catch(() => null);
+  return `— Thao tác bởi ${name ?? "Ban điều hành"}`;
+}
+
+async function deliver(ctx: PostCtx, cfg: ZaloConfig, event: ZaloEventKey | null, text: string): Promise<ZaloPostResult> {
+  if (!cfg.enabled) return { sent: false, reason: "Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo)." };
+  if (!cfg.tokenConfigured) return { sent: false, reason: "Máy chủ chưa có ZALO_BOT_TOKEN." };
+  if (!cfg.chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
+  if (event && !zaloEventOn(cfg.events, event)) return { sent: false, reason: `Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.` };
+  const r = await sendZaloText(cfg.chatId, `${text}
+${await senderFooter(ctx)}`);
+  return r.ok ? { sent: true } : { sent: false, reason: r.error };
+}
+
 /**
- * Đăng một tin vào nhóm Zalo của nhà nếu: công tắc tổng bật, đã có token + chat_id và loại tin `event` đang bật
- * (event = null: tin gửi thủ công, chỉ cần tổng bật + đủ cấu hình). Không ném lỗi.
+ * Đăng một văn bản có sẵn vào nhóm Zalo (kèm dòng "Thao tác bởi …" / "Tin tự động").
+ * event = null: tin gửi thủ công, chỉ cần tổng bật + đủ cấu hình. Không ném lỗi.
  */
-export async function postToZaloGroup(ctx: Pick<Ctx, "dbAs">, event: ZaloEventKey | null, text: string): Promise<ZaloPostResult> {
+export async function postToZaloGroup(ctx: PostCtx, event: ZaloEventKey | null, text: string): Promise<ZaloPostResult> {
   try {
-    const cfg = await readZaloConfig(ctx);
-    if (!cfg.enabled) return { sent: false, reason: "Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo)." };
-    if (!cfg.tokenConfigured) return { sent: false, reason: "Máy chủ chưa có ZALO_BOT_TOKEN." };
-    if (!cfg.chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
-    if (event && !zaloEventOn(cfg.events, event)) return { sent: false, reason: `Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.` };
-    const r = await sendZaloText(cfg.chatId, text);
-    return r.ok ? { sent: true } : { sent: false, reason: r.error };
+    return await deliver(ctx, await readZaloConfig(ctx), event, text);
   } catch (e) {
     return { sent: false, reason: (e as Error).message };
   }
+}
+
+/** Đăng một tin theo MẪU của loại tin (mẫu tùy chỉnh hoặc mặc định) với các biến `vars`. Không ném lỗi. */
+export async function postZaloEvent(ctx: PostCtx, event: ZaloEventKey, vars: Record<string, string | undefined | null>): Promise<ZaloPostResult> {
+  try {
+    const cfg = await readZaloConfig(ctx);
+    return await deliver(ctx, cfg, event, renderTemplate(templateFor(cfg.templates, event), vars));
+  } catch (e) {
+    return { sent: false, reason: (e as Error).message };
+  }
+}
+
+/** Dựng nội dung theo mẫu (không gửi) — để hiện cho người dùng sao chép khi chưa gửi được. */
+export async function renderZaloEvent(ctx: Pick<Ctx, "dbAs">, event: ZaloEventKey, vars: Record<string, string | undefined | null>): Promise<string> {
+  const cfg = await readZaloConfig(ctx);
+  return renderTemplate(templateFor(cfg.templates, event), vars);
 }
 
 /** Thông tin bot (getMe) — kiểm tra token. */

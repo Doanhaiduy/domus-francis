@@ -1,8 +1,8 @@
 import { api } from "@/server/http";
 import { getDutyBoard, saveDutyWeek, dutyWeekEntryById } from "@/server/modules/duty-weeks";
-import { buildWeekText } from "@/lib/duty-format";
+import { dutyWeekVars } from "@/lib/duty-format";
 import { SaveWeekSchema } from "@/server/modules/duty-weeks-schema";
-import { postToZaloGroup } from "@/server/integrations/zalo";
+import { postZaloEvent } from "@/server/integrations/zalo";
 
 /** Bảng trực vệ sinh sân nhà theo tuần (?week=YYYY-MM-DD, mặc định tuần này). */
 export const GET = api({}, (ctx) => ctx.db((tx) => getDutyBoard(tx, ctx.query.get("week"))));
@@ -15,6 +15,6 @@ export const POST = api({}, async (ctx) => {
     const house = (await tx.query<{ v: string }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'org.house_name'")).rows[0]?.v ?? null;
     return { entry: await dutyWeekEntryById(tx, id), house };
   });
-  const zalo = b.notifyZalo === false ? null : await postToZaloGroup(ctx, "duty_week", buildWeekText(entry, house));
+  const zalo = b.notifyZalo === false ? null : await postZaloEvent(ctx, "duty_week", dutyWeekVars(entry, house));
   return { entry, zalo };
 });

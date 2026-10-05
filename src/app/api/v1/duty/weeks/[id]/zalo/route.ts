@@ -1,8 +1,8 @@
 import { api, uuidParam } from "@/server/http";
 import { forbidden } from "@/server/errors";
 import { dutyWeekEntryById } from "@/server/modules/duty-weeks";
-import { buildWeekText } from "@/lib/duty-format";
-import { postToZaloGroup } from "@/server/integrations/zalo";
+import { dutyWeekVars } from "@/lib/duty-format";
+import { postZaloEvent, renderZaloEvent } from "@/server/integrations/zalo";
 
 /** Gửi lịch trực của tuần vào nhóm Zalo (thủ công, người có quyền xếp trực). */
 export const POST = api({}, async (ctx) => {
@@ -13,5 +13,7 @@ export const POST = api({}, async (ctx) => {
     return { entry: await dutyWeekEntryById(tx, id), house, ok };
   });
   if (!ok) throw forbidden("Chỉ Trưởng nhà/Admin mới gửi lịch trực vào nhóm Zalo.");
-  return postToZaloGroup(ctx, null, buildWeekText(entry, house));
+  const vars = dutyWeekVars(entry, house);
+  const r = await postZaloEvent(ctx, "duty_week", vars);
+  return { ...r, text: r.sent ? undefined : await renderZaloEvent(ctx, "duty_week", vars) };
 });

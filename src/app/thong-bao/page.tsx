@@ -16,9 +16,11 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
+  Send,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import HouseRules from "./_components/HouseRules";
+import { useZaloSend } from "@/lib/zalo-client";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import type { AnnouncementDto } from "@/lib/types/community";
@@ -117,6 +119,7 @@ function ThongBaoShell() {
 
 function ThongBaoContent() {
   const { openModal, showToast, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const deepId = useSearchParams().get("id");
   const { can } = useSession();
   const { announcements, isLoading, mutate } = useAnnouncements();
@@ -191,12 +194,7 @@ function ThongBaoContent() {
   const unreadCount = announcements.filter((a) => a.isUnread).length;
 
   const handleCopyZalo = async (a: AnnouncementDto) => {
-    try {
-      await navigator.clipboard.writeText(formatAnnouncementForZalo(a));
-      showToast("success", "Đã sao chép nội dung thông báo — có thể dán ngay vào nhóm Zalo.");
-    } catch {
-      showToast("error", "Không thể sao chép tự động. Vui lòng thử lại!");
-    }
+    await zaloSend(formatAnnouncementForZalo(a), "Đã gửi thông báo vào nhóm Zalo.");
   };
 
   return (
@@ -334,14 +332,17 @@ function ThongBaoContent() {
                     <span>{selectedAnn.isPinned ? "Bỏ ghim" : "Ghim"}</span>
                   </button>
                 )}
-                <button
-                  onClick={() => handleCopyZalo(selectedAnn)}
-                  className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-primary transition"
-                  title="Sao chép nội dung để dán vào nhóm Zalo"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Zalo</span>
-                </button>
+                {canZaloSend && (
+                  <button
+                    onClick={() => handleCopyZalo(selectedAnn)}
+                    disabled={zaloSending}
+                    className="flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-primary transition disabled:opacity-60"
+                    title="Gửi nội dung thông báo vào nhóm Zalo bằng bot"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{zaloSending ? "Đang gửi…" : "Gửi Zalo"}</span>
+                  </button>
+                )}
                 {selectedAnn.canManage && (
                   <button
                     disabled={busy}

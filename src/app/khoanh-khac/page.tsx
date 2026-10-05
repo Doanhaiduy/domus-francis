@@ -43,7 +43,7 @@ import { CustomInput, CustomSelect, SelectOption } from "@/components/ui/FormCon
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import KhoanhKhacLoading from "./loading";
 import { cn } from "@/lib/utils";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { forgetAlbumAndRefresh, momentsApi, refreshMoments, useMomentAlbum, useMoments } from "@/lib/data/moments";
 import { formatAlbumZalo, initials } from "@/lib/moments-format";
 import type { MomentAlbumDetailDto, MomentAlbumDto, MomentListFilter, MomentPhotoDto } from "@/lib/types/moments";
@@ -76,6 +76,7 @@ const monthSelectOptions: SelectOption<number | "all">[] = [
 
 export default function KhoanhKhacPage() {
   const { members, showToast, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const { can, session } = useSession();
   const canCreate = can("album.create");
 
@@ -238,12 +239,7 @@ export default function KhoanhKhacPage() {
     if (typeof window !== "undefined" && !["localhost", "127.0.0.1"].includes(window.location.hostname)) {
       text += `\n🔗 ${window.location.origin}/khoanh-khac?album=${album.id}`;
     }
-    const success = await copyTextToClipboard(text);
-    if (success) {
-      showToast("success", `Đã sao chép tóm tắt album "${album.title}"! Có thể dán ngay vào Zalo.`);
-    } else {
-      showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
-    }
+    await zaloSend(text, `Đã gửi tóm tắt album "${album.title}" vào nhóm Zalo.`);
   };
 
   const toggleFeatured = (album: MomentAlbumDto) =>
@@ -624,10 +620,12 @@ export default function KhoanhKhacPage() {
                     </button>
                   )}
 
-                  <button onClick={() => void handleCopyAlbumZalo(activeAlbum)} className={cn(actionBtn, "bg-surface-container-low hover:bg-purple-100 text-gray-700")}>
-                    <Share2 className="w-4 h-4 text-purple-600" />
-                    <span>Sao chép gửi Zalo</span>
-                  </button>
+                  {canZaloSend && (
+                    <button disabled={zaloSending} onClick={() => void handleCopyAlbumZalo(activeAlbum)} className={cn(actionBtn, "bg-surface-container-low hover:bg-purple-100 text-gray-700 disabled:opacity-60")}>
+                      <Share2 className="w-4 h-4 text-purple-600" />
+                      <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+                    </button>
+                  )}
 
                   {activeAlbum.canEdit && (
                     <button

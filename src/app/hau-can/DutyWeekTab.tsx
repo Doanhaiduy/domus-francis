@@ -21,7 +21,7 @@ import {
 import { useApp } from "@/lib/store";
 import { errorMessage, fileUrl } from "@/lib/api";
 import { copyTextToClipboard } from "@/lib/zaloShare";
-import { addDays, buildWeekText, weekRangeLabel } from "@/lib/duty-format";
+import { addDays, weekRangeLabel } from "@/lib/duty-format";
 import { dutyWeeksApi, refreshDuty, useDutyBoard } from "@/lib/data/duty";
 import { useOrgSettings } from "@/lib/data/settings";
 import { DUTY_WEEK_MAX_MEMBERS, type DutyWeekEntryDto, type DutyWeekMemberDto } from "@/lib/types/duty";
@@ -32,10 +32,38 @@ import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "@/app/thu-chi/_comp
 import { cn } from "@/lib/utils";
 
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+/** Mức điểm: màu, nhãn và mã màu cho vòng tròn điểm (SVG). */
 const scoreTone = (s: number) =>
-  s >= 8 ? { bar: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", label: "Tốt" } :
-  s >= 5 ? { bar: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50 border-amber-200", label: "Đạt" } :
-  { bar: "bg-rose-500", text: "text-rose-700", bg: "bg-rose-50 border-rose-200", label: "Chưa đạt" };
+  s >= 10
+    ? { bar: "bg-emerald-600", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", label: "Xuất sắc", hex: "#059669" }
+    : s >= 8
+      ? { bar: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", label: "Tốt", hex: "#10b981" }
+      : s >= 5
+        ? { bar: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50 border-amber-200", label: "Đạt", hex: "#f59e0b" }
+        : { bar: "bg-rose-500", text: "text-rose-700", bg: "bg-rose-50 border-rose-200", label: "Chưa đạt", hex: "#f43f5e" };
+
+/** Vòng tròn hiển thị điểm 0–10. */
+function ScoreRing({ score, size = 112 }: { score: number | null; size?: number }) {
+  const r = (size - 14) / 2;
+  const c = 2 * Math.PI * r;
+  const tone = score === null ? null : scoreTone(score);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth="10" />
+        {score !== null && (
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={tone!.hex} strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - score / 10)} className="transition-all duration-500" />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn("font-black leading-none tabular-nums", score === null ? "text-gray-300 text-3xl" : `${tone!.text} text-4xl`)}>{score ?? "–"}</span>
+        <span className="text-[10px] font-bold text-gray-400 mt-1">/ 10</span>
+      </div>
+    </div>
+  );
+}
+
+const COMMENT_SUGGESTIONS = ["Sân sạch sẽ, gọn gàng", "Làm đúng giờ, nhiệt tình", "Cần quét kỹ hơn góc sân", "Còn lá khô / rác ở góc vườn", "Quên đổ rác"];
 
 function Avatar({ m, size = "w-14 h-14 text-lg" }: { m: Pick<DutyWeekMemberDto, "name" | "avatarFileId">; size?: string }) {
   const url = fileUrl(m.avatarFileId, "thumb");
@@ -254,7 +282,7 @@ function ReviewCard({
   if (!week.id || week.members.length === 0) return null;
 
   const save = async () => {
-    if (score === null) return setError("Chọn điểm từ 0 đến 10.");
+    if (score === null) return setError("Hãy chọn điểm từ 0 đến 10.");
     setBusy(true);
     setError(null);
     try {
@@ -269,101 +297,149 @@ function ReviewCard({
     }
   };
 
-  const form = (
-    <div className="space-y-3">
-      <div>
-        <label className="block text-xs font-bold text-gray-700 mb-1.5">Điểm (0 – 10)</label>
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: 11 }).map((_, i) => {
-            const t = scoreTone(i);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setScore(i)}
-                className={cn("w-9 h-9 rounded-xl text-xs font-extrabold border transition", score === i ? `${t.bar} text-white border-transparent shadow-xs scale-105` : "bg-white text-gray-700 border-gray-200 hover:border-purple-300")}
-              >
-                {i}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <CustomTextarea label="Nhận xét" rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ví dụ: Sân sạch sẽ, gọn gàng. Góc vườn còn lá khô…" maxLength={1000} />
-      <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
-        <input type="checkbox" checked={redo} onChange={(e) => setRedo(e.target.checked)} className="w-4 h-4 accent-[#e11d48]" />
-        Yêu cầu trực lại
-      </label>
-      {redo && <CustomInput placeholder="Lý do / việc cần làm lại (tùy chọn)" value={redoNote} onChange={(e) => setRedoNote(e.target.value)} maxLength={500} />}
-      <ErrorBox error={error} />
-      <div className="flex justify-end gap-2">
-        {editing && (
-          <button onClick={() => setEditing(false)} className={btnGhost}>
-            Hủy
-          </button>
-        )}
-        <button disabled={busy} onClick={save} className={btnPrimary}>
-          {busy ? "Đang lưu..." : r ? "Cập nhật đánh giá" : "Lưu đánh giá"}
-        </button>
-      </div>
-    </div>
-  );
+  const showForm = canReview && started && (!r || editing);
+  const preview = score;
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-          <Star className="w-4 h-4 text-amber-500" /> Đánh giá tuần trực
-        </h3>
+    <div className="bg-white rounded-3xl border border-purple-50 shadow-xs overflow-hidden">
+      <div className="px-5 sm:px-6 py-4 flex items-center justify-between gap-3 border-b border-gray-100 bg-gradient-to-r from-amber-50/60 to-transparent">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+            <Star className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-extrabold text-gray-900 leading-tight">Đánh giá tuần trực</h3>
+            <p className="text-[11px] text-gray-500">Thang điểm 0 – 10 · Trưởng nhà / Admin chấm</p>
+          </div>
+        </div>
         {r && canReview && !editing && (
-          <button onClick={() => setEditing(true)} className="text-[11px] font-bold text-primary hover:underline">
+          <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold text-primary bg-purple-50 hover:bg-purple-100">
             Sửa đánh giá
           </button>
         )}
       </div>
 
-      {r && !editing ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className={cn("w-20 h-20 rounded-2xl border flex flex-col items-center justify-center shrink-0", scoreTone(r.score).bg)}>
-              <span className={cn("text-3xl font-black leading-none", scoreTone(r.score).text)}>{r.score}</span>
-              <span className="text-[10px] font-bold text-gray-500 mt-1">/ 10 · {scoreTone(r.score).label}</span>
-            </div>
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div className={cn("h-full rounded-full", scoreTone(r.score).bar)} style={{ width: `${r.score * 10}%` }} />
+      <div className="p-5 sm:p-6">
+        {r && !editing ? (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="flex items-center gap-4">
+                <ScoreRing score={r.score} />
+                <div>
+                  <span className={cn("inline-block px-3 py-1 rounded-full border text-xs font-extrabold", scoreTone(r.score).bg, scoreTone(r.score).text)}>{scoreTone(r.score).label}</span>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    {r.reviewerName ? `${r.reviewerName} · ` : ""}
+                    {new Date(r.reviewedAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </p>
+                </div>
               </div>
-              {r.comment ? <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">{r.comment}</p> : <p className="text-xs text-gray-400">Không có nhận xét.</p>}
-              <p className="text-[11px] text-gray-400">
-                {r.reviewerName ? `${r.reviewerName} · ` : ""}
-                {new Date(r.reviewedAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })}
-              </p>
+              <div className="flex-1 min-w-0">
+                {r.comment ? (
+                  <blockquote className="relative pl-4 border-l-4 border-purple-200 text-sm text-gray-700 leading-relaxed whitespace-pre-line">{r.comment}</blockquote>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">Không có nhận xét.</p>
+                )}
+              </div>
             </div>
+            {r.redoRequired && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-start gap-2.5 flex-1 min-w-0 text-xs text-rose-800">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <b>Yêu cầu trực lại.</b> {r.redoNote}
+                  </div>
+                </div>
+                {canReview && (
+                  <button onClick={onRedo} className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-rose-200 text-[11px] font-bold text-rose-700 hover:bg-rose-100">
+                    <RotateCcw className="w-3.5 h-3.5" /> Xếp trực lại tuần sau
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          {r.redoRequired && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <b>Yêu cầu trực lại.</b> {r.redoNote}
+        ) : showForm ? (
+          <div className="flex flex-col gap-5">
+            {!ended && <p className="text-[11px] text-gray-500 p-2.5 rounded-xl bg-surface-container-low/70">Tuần này chưa kết thúc — thường đánh giá sau Chúa Nhật, nhưng bạn có thể chấm sớm.</p>}
+
+            <div className="flex flex-col sm:flex-row gap-5 sm:gap-6">
+              <div className="flex flex-col items-center gap-2 sm:w-36 shrink-0">
+                <ScoreRing score={preview} />
+                <span className={cn("text-xs font-extrabold", preview === null ? "text-gray-400" : scoreTone(preview).text)}>{preview === null ? "Chưa chọn điểm" : scoreTone(preview).label}</span>
               </div>
-              {canReview && (
-                <button onClick={onRedo} className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-rose-200 text-[11px] font-bold text-rose-700 hover:bg-rose-100">
-                  <RotateCcw className="w-3 h-3" /> Xếp trực lại tuần sau
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-bold text-gray-700 mb-2">Chọn điểm</label>
+                <div className="grid grid-cols-6 sm:grid-cols-11 gap-1.5">
+                  {Array.from({ length: 11 }).map((_, i) => {
+                    const t = scoreTone(i);
+                    const on = score === i;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setScore(i)}
+                        aria-pressed={on}
+                        className={cn(
+                          "h-11 rounded-xl text-sm font-extrabold border transition tabular-nums",
+                          on ? `${t.bar} text-white border-transparent shadow-md scale-105` : "bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50/50",
+                        )}
+                      >
+                        {i}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[10.5px] text-gray-500">
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-rose-500" /> 0–4 Chưa đạt</span>
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-amber-500" /> 5–7 Đạt</span>
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-emerald-500" /> 8–9 Tốt</span>
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-full bg-emerald-600" /> 10 Xuất sắc</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <CustomTextarea label="Nhận xét" rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Nhận xét ngắn về kết quả dọn dẹp trong tuần…" maxLength={1000} />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {COMMENT_SUGGESTIONS.map((t) => (
+                  <button key={t} type="button" onClick={() => setComment((c) => (c.trim() ? `${c.trim()}. ${t}` : t))} className="px-2.5 py-1 rounded-full bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-primary text-[11px] font-semibold transition">
+                    + {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={cn("rounded-2xl border p-3.5 transition", redo ? "bg-rose-50/70 border-rose-200" : "bg-gray-50/60 border-gray-100")}>
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <span>
+                  <span className="block text-xs font-bold text-gray-900">Yêu cầu trực lại</span>
+                  <span className="block text-[11px] text-gray-500">Bật nếu kết quả chưa đạt, hai bạn cần trực bù.</span>
+                </span>
+                <input type="checkbox" checked={redo} onChange={(e) => setRedo(e.target.checked)} className="w-5 h-5 accent-[#e11d48] shrink-0" />
+              </label>
+              {redo && <div className="mt-3"><CustomInput placeholder="Việc cần làm lại (tùy chọn)" value={redoNote} onChange={(e) => setRedoNote(e.target.value)} maxLength={500} /></div>}
+            </div>
+
+            <ErrorBox error={error} />
+            <div className="flex justify-end gap-2">
+              {editing && (
+                <button onClick={() => setEditing(false)} className={btnGhost}>
+                  Hủy
                 </button>
               )}
+              <button disabled={busy || score === null} onClick={save} className={btnPrimary}>
+                {busy ? "Đang lưu..." : r ? "Cập nhật đánh giá" : "Lưu đánh giá"}
+              </button>
             </div>
-          )}
-        </div>
-      ) : canReview && started ? (
-        <>
-          {!ended && <p className="text-[11px] text-gray-500">Tuần này chưa kết thúc — thường đánh giá sau Chúa Nhật, nhưng bạn có thể chấm sớm.</p>}
-          {form}
-        </>
-      ) : (
-        <p className="text-xs text-gray-500">
-          {!started ? "Chưa đến tuần trực — chưa có đánh giá." : ended ? "Đang chờ Trưởng nhà đánh giá kết quả tuần này." : "Trưởng nhà sẽ đánh giá sau khi hết tuần."}
-        </p>
-      )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 py-2">
+            <ScoreRing score={null} size={84} />
+            <p className="text-xs text-gray-500">
+              {!started ? "Chưa đến tuần trực — chưa có đánh giá." : ended ? "Đang chờ Trưởng nhà đánh giá kết quả tuần này." : "Trưởng nhà sẽ đánh giá sau khi hết tuần."}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -392,10 +468,6 @@ export default function DutyWeekTab({ week, onWeekChange }: { week: string; onWe
   const reviewed = !!w.review;
   const go = (delta: number) => onWeekChange(addDays(w.weekStart, delta * 7));
 
-  const copy = async () => {
-    const ok = await copyTextToClipboard(buildWeekText(w, org.houseName));
-    showToast(ok ? "success" : "error", ok ? "Đã sao chép lịch trực! Dán (Ctrl+V) vào nhóm Zalo." : "Không thể tự động sao chép. Vui lòng thử lại!");
-  };
   const run = async (key: string, fn: () => Promise<string | void>) => {
     setBusy(key);
     try {
@@ -494,18 +566,14 @@ export default function DutyWeekTab({ week, onWeekChange }: { week: string; onWe
               <BellRing className="w-4 h-4" /> Nhắc người trực
             </button>
           )}
-          {hasMembers && (
-            <button onClick={copy} className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold border border-purple-200 transition active:scale-95">
-              <Copy className="w-4 h-4 text-primary" /> Chép gửi Zalo
-            </button>
-          )}
           {canManage && hasMembers && (
             <button
               onClick={() =>
                 run("zalo", async () => {
                   const r = await dutyWeeksApi.sendZalo(w.id!);
                   if (r.sent) return "Đã gửi lịch trực vào nhóm Zalo.";
-                  showToast("info", `Chưa gửi được: ${r.reason ?? "không rõ lý do"}`);
+                  const copied = r.text ? await copyTextToClipboard(r.text) : false;
+                  showToast("info", `Chưa gửi được qua bot: ${r.reason ?? "không rõ lý do"}.${copied ? " Đã sao chép nội dung — hãy dán vào nhóm." : ""}`);
                 })
               }
               disabled={busy === "zalo"}

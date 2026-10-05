@@ -177,47 +177,65 @@ function SectionEditor({
 // Bản in PDF
 // ---------------------------------------------------------------------
 function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { innerRef: React.RefObject<HTMLDivElement>; houseName: string; sections: HouseRuleSectionDto[]; updatedAt: string | null; timetable: { time: string; text: string; section: string }[] }) {
+  const clauses = sections.reduce((a, x) => a + x.items.length, 0);
   return (
     <div style={{ position: "fixed", left: -10000, top: 0 }} aria-hidden>
-      <div ref={innerRef} style={{ width: 760, padding: 36, background: "#fff", color: "#111827", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 13, lineHeight: 1.5 }}>
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div style={{ fontSize: 12, letterSpacing: 1, color: "#5f3add", fontWeight: 700 }}>{houseName.toUpperCase()}</div>
-          <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>LUẬT NHÀ</div>
-          {updatedAt && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Cập nhật ngày {fmtDate(updatedAt)}</div>}
+      <div ref={innerRef} style={{ width: 760, padding: "34px 40px", background: "#fff", color: "#111827", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 13, lineHeight: 1.55 }}>
+        <div style={{ textAlign: "center", paddingBottom: 14, borderBottom: "3px double #5f3add", marginBottom: 18 }}>
+          <div style={{ fontSize: 12, letterSpacing: 2, color: "#5f3add", fontWeight: 700 }}>✝ {houseName.toUpperCase()}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, marginTop: 6, letterSpacing: 1 }}>LUẬT NHÀ</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+            {sections.length} mục · {clauses} điều khoản{updatedAt ? ` · cập nhật ngày ${fmtDate(updatedAt)}` : ""}
+          </div>
         </div>
+
         {timetable.length > 0 && (
-          <div style={{ marginBottom: 18, border: "1px solid #e9d5ff", borderRadius: 10, padding: 12, background: "#faf5ff" }}>
-            <div style={{ fontWeight: 800, marginBottom: 6 }}>Giờ giấc chung</div>
+          <div style={{ marginBottom: 20, border: "1px solid #d8d1f5", borderRadius: 10, overflow: "hidden", pageBreakInside: "avoid" }}>
+            <div style={{ background: "#5f3add", color: "#fff", padding: "6px 12px", fontWeight: 800, fontSize: 13 }}>GIỜ GIẤC CHUNG</div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <tbody>
                 {timetable.map((t, i) => (
-                  <tr key={i}>
-                    <td style={{ width: 130, padding: "3px 6px", fontWeight: 700, color: "#5f3add", verticalAlign: "top" }}>{t.time}</td>
-                    <td style={{ padding: "3px 6px" }}>{t.text}</td>
+                  <tr key={i} style={{ background: i % 2 ? "#faf5ff" : "#fff" }}>
+                    <td style={{ width: 120, padding: "5px 12px", fontWeight: 800, color: "#5f3add", verticalAlign: "top", whiteSpace: "nowrap" }}>{t.time}</td>
+                    <td style={{ padding: "5px 12px" }}>{t.text}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+
         {sections.map((s, idx) => (
-          <div key={s.id} style={{ marginBottom: 16, pageBreakInside: "avoid" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, borderBottom: "2px solid #e5e7eb", paddingBottom: 4, marginBottom: 6 }}>
-              {idx + 1}. {s.icon ? `${s.icon} ` : ""}
-              {s.title}
+          <div key={s.id} style={{ marginBottom: 18, pageBreakInside: "avoid" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: "2px solid #5f3add", paddingBottom: 4, marginBottom: 8 }}>
+              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "1px 8px", fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
+              <span style={{ fontSize: 16, fontWeight: 800 }}>
+                {s.icon ? `${s.icon} ` : ""}
+                {s.title}
+              </span>
             </div>
-            {s.description && <div style={{ color: "#4b5563", fontStyle: "italic", marginBottom: 4 }}>{s.description}</div>}
-            <ol style={{ margin: 0, paddingLeft: 22 }}>
-              {s.items.map((it, i) => (
-                <li key={i} style={{ marginBottom: 3 }}>
-                  {it.time && <b style={{ color: "#5f3add" }}>[{it.time}] </b>}
-                  {it.text}
-                </li>
-              ))}
-            </ol>
+            {s.description && <div style={{ color: "#4b5563", fontStyle: "italic", marginBottom: 6 }}>{s.description}</div>}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <tbody>
+                {s.items.map((it, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ width: 52, padding: "4px 6px", color: "#6b7280", fontWeight: 700, verticalAlign: "top" }}>
+                      {idx + 1}.{i + 1}
+                    </td>
+                    <td style={{ padding: "4px 6px" }}>
+                      {it.time && <b style={{ color: "#5f3add" }}>[{it.time}] </b>}
+                      {it.text}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ))}
-        <div style={{ marginTop: 22, textAlign: "center", color: "#6b7280", fontSize: 12 }}>Mọi thành viên có trách nhiệm tuân thủ luật nhà. Pax et Bonum! 🕊️</div>
+
+        <div style={{ marginTop: 24, paddingTop: 10, borderTop: "1px solid #e5e7eb", textAlign: "center", color: "#6b7280", fontSize: 12 }}>
+          Mọi thành viên có trách nhiệm tuân thủ luật nhà. Pax et Bonum! 🕊️
+        </div>
       </div>
     </div>
   );
@@ -307,33 +325,49 @@ export default function HouseRules() {
   };
 
   const activeForPdf = sections.filter((s) => s.isActive);
+  const totalClauses = activeForPdf.reduce((a, x) => a + x.items.length, 0);
+
+  const groups: { label: string; icon: string; rows: typeof timetable }[] = [
+    { label: "Buổi sáng", icon: "🌅", rows: timetable.filter((t) => (minutesOf(t.time) ?? 0) < 12 * 60) },
+    { label: "Buổi trưa & chiều", icon: "☀️", rows: timetable.filter((t) => (minutesOf(t.time) ?? 0) >= 12 * 60 && (minutesOf(t.time) ?? 0) < 18 * 60) },
+    { label: "Buổi tối", icon: "🌙", rows: timetable.filter((t) => (minutesOf(t.time) ?? 0) >= 18 * 60) },
+  ].filter((g) => g.rows.length > 0);
+
+  const goTo = (id: string) => document.getElementById(`rule-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-            <ScrollText className="w-4 h-4" />
-            <span>Nội quy cộng đoàn</span>
+    <div className="flex flex-col gap-6">
+      {/* BANNER */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-[#6f4ae6] to-[#8b6cf0] text-white p-6 sm:p-8 shadow-lg shadow-primary/20">
+        <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+        <div className="absolute right-8 bottom-4 text-[110px] leading-none opacity-[0.08] select-none pointer-events-none">✝</div>
+        <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-5">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/80 flex items-center gap-1.5">
+              <ScrollText className="w-4 h-4" /> {rules.houseName ?? "Lưu Xá Phanxicô"}
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-2">Luật nhà</h1>
+            <p className="text-sm text-white/85 mt-1.5 max-w-xl">Giờ giấc và quy định sinh hoạt chung của cộng đoàn. Mọi anh em cùng gìn giữ để nhà luôn bình an, ngăn nắp.</p>
+            <div className="flex flex-wrap items-center gap-2 mt-4 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">{activeForPdf.length} mục</span>
+              <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">{totalClauses} điều khoản</span>
+              {rules.updatedAt && <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">Cập nhật {fmtDate(rules.updatedAt)}</span>}
+            </div>
           </div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Luật nhà</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Giờ giấc và quy định sinh hoạt chung{rules.updatedAt ? ` · cập nhật ${fmtDate(rules.updatedAt)}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={exportPdf}
-            disabled={exporting || activeForPdf.length === 0}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition active:scale-95 disabled:opacity-50"
-          >
-            <Download className="w-4 h-4 text-primary" /> {exporting ? "Đang tạo PDF..." : "Tải PDF"}
-          </button>
-          {canManage && (
-            <button onClick={() => openNew()} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-md shadow-primary/20 transition active:scale-95">
-              <Plus className="w-4 h-4" /> Thêm mục
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={exportPdf}
+              disabled={exporting || activeForPdf.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-primary text-xs font-extrabold shadow-md hover:bg-purple-50 transition active:scale-95 disabled:opacity-60"
+            >
+              <Download className="w-4 h-4" /> {exporting ? "Đang tạo PDF..." : "Tải PDF"}
             </button>
-          )}
+            {canManage && (
+              <button onClick={() => openNew()} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold border border-white/30 transition active:scale-95">
+                <Plus className="w-4 h-4" /> Thêm mục
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -355,69 +389,121 @@ export default function HouseRules() {
         </div>
       )}
 
-      {timetable.length > 0 && (
-        <div className="bg-gradient-to-br from-purple-50 to-white rounded-3xl p-5 sm:p-6 border border-purple-100 shadow-xs">
-          <h2 className="text-sm font-extrabold text-gray-900 flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-primary" /> Giờ giấc chung
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-            {timetable.map((t, i) => (
-              <div key={i} className="flex items-baseline gap-3 text-xs">
-                <span className="w-24 shrink-0 font-extrabold text-primary tabular-nums">{t.time}</span>
-                <span className="text-gray-700">{t.text}</span>
+      {visible.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* MỤC LỤC + GIỜ GIẤC (cột trái, dính khi cuộn) */}
+          <aside className="lg:col-span-4 flex flex-col gap-5 lg:sticky lg:top-20">
+            <nav className="bg-white rounded-3xl border border-purple-50 shadow-xs p-4">
+              <h2 className="px-2 pb-2 text-[11px] font-black uppercase tracking-wider text-gray-400">Mục lục</h2>
+              <ol className="flex flex-col gap-0.5">
+                {visible.map((s, idx) => (
+                  <li key={s.id}>
+                    <button onClick={() => goTo(s.id)} className="w-full flex items-center gap-3 px-2 py-2 rounded-xl text-left hover:bg-purple-50 transition group">
+                      <span className="w-7 h-7 rounded-lg bg-purple-100 text-primary text-xs font-black flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition">{idx + 1}</span>
+                      <span className="flex-1 min-w-0 text-xs font-bold text-gray-800 truncate">
+                        {s.icon ? `${s.icon} ` : ""}
+                        {s.title}
+                      </span>
+                      <span className="text-[10px] text-gray-400 shrink-0">{s.items.length}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+
+            {groups.length > 0 && (
+              <div className="bg-white rounded-3xl border border-purple-50 shadow-xs p-5">
+                <h2 className="text-sm font-extrabold text-gray-900 flex items-center gap-2 mb-4">
+                  <Clock className="w-4 h-4 text-primary" /> Giờ giấc chung
+                </h2>
+                <div className="flex flex-col gap-5">
+                  {groups.map((g) => (
+                    <div key={g.label}>
+                      <div className="text-[11px] font-bold text-gray-500 mb-2">
+                        {g.icon} {g.label}
+                      </div>
+                      <ol className="relative ml-1.5 border-l-2 border-purple-100 flex flex-col gap-3">
+                        {g.rows.map((t, i) => (
+                          <li key={i} className="relative pl-5">
+                            <span className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-white border-[3px] border-primary" />
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-sm font-black text-primary tabular-nums shrink-0">{t.time}</span>
+                              <span className="text-xs text-gray-700 leading-snug">{t.text}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+          </aside>
+
+          {/* CÁC MỤC */}
+          <div className="lg:col-span-8 flex flex-col gap-5">
+            {visible.map((s, idx) => (
+              <section
+                key={s.id}
+                id={`rule-${s.id}`}
+                className={`scroll-mt-24 bg-white rounded-3xl border shadow-xs overflow-hidden ${s.isActive ? "border-purple-50" : "border-dashed border-gray-300 opacity-80"}`}
+              >
+                <header className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 bg-gradient-to-r from-purple-50 to-white border-b border-purple-100/60">
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-purple-100 flex items-center justify-center text-2xl">{s.icon || "📜"}</div>
+                      <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white">{idx + 1}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base sm:text-lg font-extrabold text-gray-900 leading-tight">
+                        {s.title}
+                        {!s.isActive && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded align-middle">
+                            <EyeOff className="w-3 h-3" /> Đang ẩn
+                          </span>
+                        )}
+                      </h2>
+                      {s.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{s.description}</p>}
+                    </div>
+                  </div>
+                  {canManage && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button onClick={() => move(s.id, -1)} disabled={idx === 0} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white disabled:opacity-30" aria-label="Lên">
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => move(s.id, 1)} disabled={idx === visible.length - 1} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white disabled:opacity-30" aria-label="Xuống">
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-500 hover:text-primary hover:bg-white" aria-label="Sửa">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setDeleting(s)} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50" aria-label="Xóa">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </header>
+                <ol className="divide-y divide-gray-50">
+                  {s.items.map((it, i) => (
+                    <li key={i} className="flex items-start gap-4 px-5 sm:px-6 py-3.5 hover:bg-purple-50/30 transition">
+                      <span className="w-10 shrink-0 text-xs font-black text-gray-300 tabular-nums pt-0.5">
+                        {idx + 1}.{i + 1}
+                      </span>
+                      <p className="flex-1 min-w-0 text-sm text-gray-800 leading-relaxed">{it.text}</p>
+                      {it.time && (
+                        <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 text-[11px] font-extrabold tabular-nums">
+                          <Clock className="w-3 h-3" /> {it.time}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </section>
             ))}
+            <p className="text-center text-[11px] text-gray-400 py-2">Mọi thành viên có trách nhiệm tuân thủ luật nhà · Pax et Bonum 🕊️</p>
           </div>
         </div>
       )}
-
-      {visible.map((s, idx) => (
-        <section key={s.id} className={`bg-white rounded-3xl p-5 sm:p-6 border shadow-xs flex flex-col gap-3 ${s.isActive ? "border-purple-50" : "border-dashed border-gray-300 opacity-80"}`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 flex items-center justify-center text-xl shrink-0">{s.icon || "📜"}</div>
-              <div className="min-w-0">
-                <h2 className="text-base font-extrabold text-gray-900">
-                  {idx + 1}. {s.title}
-                  {!s.isActive && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded align-middle">
-                      <EyeOff className="w-3 h-3" /> Đang ẩn
-                    </span>
-                  )}
-                </h2>
-                {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
-              </div>
-            </div>
-            {canManage && (
-              <div className="flex items-center gap-0.5 shrink-0">
-                <button onClick={() => move(s.id, -1)} disabled={idx === 0} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" aria-label="Lên">
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-                <button onClick={() => move(s.id, 1)} disabled={idx === visible.length - 1} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30" aria-label="Xuống">
-                  <ArrowDown className="w-4 h-4" />
-                </button>
-                <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-500 hover:text-primary hover:bg-purple-50" aria-label="Sửa">
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button onClick={() => setDeleting(s)} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50" aria-label="Xóa">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-          <ol className="flex flex-col gap-2">
-            {s.items.map((it, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-gray-800">
-                <span className="w-6 h-6 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                <span className="flex-1 leading-relaxed">
-                  {it.time && <span className="inline-block mr-2 px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[11px] font-extrabold align-middle tabular-nums">{it.time}</span>}
-                  {it.text}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
 
       {canManage && (
         <SectionEditor open={editorOpen} onClose={() => setEditorOpen(false)} section={editing} initial={template} />

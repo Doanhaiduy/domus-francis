@@ -9,6 +9,7 @@ import {
   AlertCircle,
   ThumbsUp,
   Copy,
+  Send,
   ChevronLeft,
   ChevronRight,
   Lock,
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { mealsApi, refreshMeals, useMealsWeek, usePantry, useMealSurveys } from "@/lib/data/kitchen";
 import {
@@ -47,6 +48,7 @@ type Tab = "diem-danh" | "thuc-don" | "kho-do";
 
 export default function BepComPage() {
   const { members, showToast, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const { session } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("diem-danh");
   const [date, setDate] = useState<string | null>(null);
@@ -146,9 +148,7 @@ export default function BepComPage() {
 
   const handleCopyMealZalo = async () => {
     const text = formatMealDayForZalo({ day: sel, roster: week.roster, canSeeNames: canManage, activeMembers: week.activeMembers, today: week.today });
-    const success = await copyTextToClipboard(text);
-    if (success) showToast("success", "Đã sao chép danh sách chốt cơm Zalo! Hãy dán (Ctrl+V) vào nhóm Bếp.");
-    else showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
+    await zaloSend(text, "Đã gửi danh sách chốt cơm vào nhóm Zalo.");
   };
 
   // ------------------------------------------------------------------
@@ -301,14 +301,17 @@ export default function BepComPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleCopyMealZalo}
-            className="px-3.5 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs transition flex items-center gap-1.5 active:scale-95 shadow-2xs"
-            title={`Sao chép danh sách chốt cơm trưa và tối ${selLabel} gửi vào Zalo Bếp Lưu Xá`}
-          >
-            <Copy className="w-3.5 h-3.5 text-primary" />
-            <span>Copy chốt cơm Zalo</span>
-          </button>
+          {canZaloSend && (
+            <button
+              onClick={handleCopyMealZalo}
+              disabled={zaloSending}
+              className="px-3.5 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs transition flex items-center gap-1.5 active:scale-95 shadow-2xs disabled:opacity-60"
+              title={`Gửi danh sách chốt cơm trưa và tối ${selLabel} vào nhóm Zalo bằng bot`}
+            >
+              <Send className="w-3.5 h-3.5 text-primary" />
+              <span>{zaloSending ? "Đang gửi…" : "Gửi chốt cơm Zalo"}</span>
+            </button>
+          )}
 
           {canRegister && (
             <button

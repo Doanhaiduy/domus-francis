@@ -2,9 +2,10 @@ import "server-only";
 import { withTx, type DbRole, type Tx } from "../db";
 import { dutyJobs, housekeeping, lectionaryJob } from "../jobs";
 import { runLiturgyNotices } from "../liturgy/notices";
-import { postToZaloGroup, type ZaloEventKey } from "../integrations/zalo";
-import { buildGroupReminderText } from "../modules/finance-ops";
-import { addDays, buildWeekText } from "@/lib/duty-format";
+import { postToZaloGroup, renderZaloEvent } from "../integrations/zalo";
+import type { ZaloEventKey } from "@/lib/types/settings";
+import { buildGroupReminderVars } from "../modules/finance-ops";
+import { addDays, dutyWeekVars } from "@/lib/duty-format";
 
 // =====================================================================
 // Tác vụ hằng ngày do Vercel Cron gọi (gói miễn phí: mỗi tác vụ cron chạy tối đa 1 lần/ngày, lệch tới ~1 giờ):
@@ -52,13 +53,14 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
   const once = async (key: string) =>
     (await W((tx) => tx.query("INSERT INTO system_post_log (key, kind) VALUES ($1, 'daily') ON CONFLICT (key) DO NOTHING RETURNING key", [key]))).rowCount === 1;
 
-  /** Gửi một tin: (tùy chọn) thông báo trong ứng dụng cho cả nhà + đăng nhóm Zalo (theo công tắc loại tin). */
+  /** Gửi một tin theo MẪU của loại tin: (tùy chọn) thông báo trong ứng dụng cho cả nhà + đăng nhóm Zalo (theo công tắc loại tin). */
   const announce = async (
     key: string,
     event: ZaloEventKey,
-    text: string,
+    vars: Record<string, string | undefined | null>,
     o: { app?: { title: string; body: string; link?: string; type?: string }; zalo?: boolean } = {},
   ) => {
+    const text = await renderZaloEvent(ctxW, event, vars);
     const item: DailyItem = { key, event, text, status: "planned", inApp: !!o.app };
     items.push(item);
     if (dry) return;
@@ -100,7 +102,8 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
   if (!dry) {
     await step("liturgy", async () => {
       const lit = await runLiturgyNotices();
-      for (const text of lit.posts) {
+      for (const post of lit.posts) {
+        const text = await renderZaloEvent(ctxW, "liturgy", post);
         const r = await postToZaloGroup(ctxW, "liturgy", text);
         items.push({ key: `liturgy:${today}`, event: "liturgy", text, status: r.sent ? "sent" : "not_sent", inApp: true, reason: r.reason });
       }
@@ -115,8 +118,8 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
       const plans = (await W((tx) => tx.query<{ r: { planId: string; planName: string; soon: number; overdue: number }[] }>("SELECT app.fn_dues_auto_remind($1) AS r", [dry]))).rows[0].r;
       for (const p of plans) {
         const msg = p.overdue > 0 ? `⚠ ${p.overdue} khoản đã quá hạn${p.soon ? `, ${p.soon} khoản sắp đến hạn` : ""}.` : `⏳ ${p.soon} khoản sắp đến hạn nộp.`;
-        const text = (await W((tx) => buildGroupReminderText(tx, p.planId, null, msg))).text;
-        await announce(`dues:${p.planId}:${today}`, "dues_reminder", text);
+        const { vars } = await W((tx) => buildGroupReminderVars(tx, p.planId, null, msg));
+        await announce(`dues:${p.planId}:${today}`, "dues_reminder", vars);
       }
     });
 
@@ -144,11 +147,31 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
         if (!list.length) continue;
         const lines = list.map((r) => `• ${r.hm} — ${r.title}${r.loc ? ` @ ${r.loc}` : ""}`);
         const wd = WEEKDAY[(new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7 + 1];
-        const text = [`⏰ SỰ KIỆN ${label} (${wd} ${dm(day)})`, ...lines, "Anh em sắp xếp thời gian tham gia nhé. 🕊️"].join("\n");
-        await announce(`evday:${day}:${label === "HÔM NAY" ? "today" : "tomorrow"}`, "event_reminder", text, {
+        await announce(`evday:${day}:${label === "HÔM NAY" ? "today" : "tomorrow"}`, "event_reminder", { day_label: label, date: `${wd} ${dm(day)}`, list: lines.join("\n") }, {
           app: { type: "event.reminder", title: `${label === "HÔM NAY" ? "Hôm nay" : "Ngày mai"} có ${list.length} sự kiện`, body: lines.join("\n"), link: "/lich-su-kien" },
         });
       }
+    });
+
+    // 4b. Sinh nhật thành viên hôm nay (ngày/tháng sinh trong hồ sơ; không nêu năm sinh hay tuổi)
+    await step("birthday", async () => {
+      const names = (
+        await W((tx) =>
+          tx.query<{ n: string }>(
+            `SELECT m.display_name AS n
+               FROM members m JOIN member_private_details d ON d.member_id = m.id
+              WHERE m.deleted_at IS NULL AND m.status IN ('active', 'on_leave') AND d.birth_date IS NOT NULL
+                AND extract(month FROM d.birth_date) = extract(month FROM $1::date) AND extract(day FROM d.birth_date) = extract(day FROM $1::date)
+              ORDER BY m.display_name`,
+            [today],
+          ),
+        )
+      ).rows.map((r) => r.n);
+      if (!names.length) return;
+      const list = names.join(" & ");
+      await announce(`birthday:${today}`, "birthday", { names: list, them: names.length > 1 ? "các bạn" : "bạn" }, {
+        app: { title: `🎂 Hôm nay sinh nhật ${list}`, body: "Anh em gửi lời chúc mừng nhé!", link: "/thanh-vien" },
+      });
     });
 
     // 5. Đầu tuần: đăng lịch trực vệ sinh của tuần
@@ -166,11 +189,11 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
         ).rows[0];
         if (!w || !w.names.length) return;
         const house = (await W((tx) => tx.query<{ v: string }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'org.house_name'"))).rows[0]?.v ?? null;
-        const text = buildWeekText(
+        const vars = dutyWeekVars(
           { id: null, weekStart: today, weekEnd: addDays(today, 6), members: w.names.map((n) => ({ id: n, name: n, fullName: n, room: null, avatarFileId: null })), note: w.note, review: null, isMine: false },
           house,
         );
-        await announce(`dutyweek:${today}`, "duty_week", text);
+        await announce(`dutyweek:${today}`, "duty_week", vars);
       });
     }
   }
@@ -186,9 +209,8 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
       )
     ).rows;
     for (const r of rows) {
-      const head = `📢 ${r.title}${r.time_label ? ` — ${r.time_label}` : ""} (${slot === "morning" ? "hôm nay" : "tối nay"})`;
-      const text = r.message ? `${head}\n${r.message}` : head;
-      await announce(`rem:${r.id}:${today}:${slot}`, "reminder_schedule", text, {
+      const head = `${r.title}${r.time_label ? ` — ${r.time_label}` : ""} (${slot === "morning" ? "hôm nay" : "tối nay"})`;
+      await announce(`rem:${r.id}:${today}:${slot}`, "reminder_schedule", { headline: head, title: r.title, time: r.time_label ?? "", message: r.message ?? "" }, {
         zalo: r.send_zalo,
         app: r.send_app ? { title: head, body: r.message ?? "", link: "/lich-su-kien" } : undefined,
       });

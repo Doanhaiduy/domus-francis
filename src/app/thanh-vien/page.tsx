@@ -12,7 +12,7 @@ import {
   CheckCircle,
   Plus,
   FileDown,
-  Copy,
+  Send,
   FileText,
   GraduationCap,
   HeartHandshake,
@@ -30,10 +30,12 @@ import EditMemberModal from "@/components/members/EditMemberModal";
 import MemberContributionHistory from "@/components/members/MemberContributionHistory";
 import ThanhVienLoading from "./loading";
 import MemberCVModal from "@/components/MemberCVModal";
-import { formatMemberCVForZalo, copyTextToClipboard } from "@/lib/zaloShare";
+import { formatMemberCVForZalo } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 
 export default function ThanhVienPage() {
   const { members: activeMembers, rooms, floors, showToast, openModal, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, send: zaloSend } = useZaloSend();
   const { can } = useSession();
   const [tab, setTab] = useState<"directory" | "applications" | "former">("directory");
   const { members: allMembers } = useMembers({ includeFormer: tab === "former" });
@@ -73,13 +75,9 @@ export default function ThanhVienPage() {
 
   const handleCopyZalo = async (m: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const text = formatMemberCVForZalo(m);
-    const success = await copyTextToClipboard(text);
-    if (success) {
-      showToast("success", `Đã sao chép lý lịch ${m.fullName}! Có thể dán ngay vào Zalo.`);
-    } else {
-      showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
-    }
+    // Lý lịch có số điện thoại, giáo xứ… ⇒ hỏi lại trước khi đăng vào nhóm
+    if (!window.confirm(`Gửi lý lịch của ${m.fullName} (có số điện thoại và thông tin liên hệ) vào nhóm Zalo?`)) return;
+    await zaloSend(formatMemberCVForZalo(m), `Đã gửi lý lịch ${m.fullName} vào nhóm Zalo.`);
   };
 
   if (isLoadingSkeleton) {
@@ -349,13 +347,15 @@ export default function ThanhVienPage() {
                     <div className="mt-4 pt-3 border-t border-purple-50/70 flex items-center justify-between text-[11px]">
                       <span className="text-gray-400">Vào: {m.joined}</span>
                       <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={(e) => handleCopyZalo(m, e)}
-                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-primary transition"
-                          title="Sao chép lý lịch gửi Zalo"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
+                        {canZaloSend && (
+                          <button
+                            onClick={(e) => handleCopyZalo(m, e)}
+                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-primary transition"
+                            title="Gửi lý lịch vào nhóm Zalo bằng bot"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => handleOpenCV(m, e)}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-primary font-bold text-[11px] transition"
@@ -404,13 +404,15 @@ export default function ThanhVienPage() {
                       <td className="py-3 text-gray-400">{m.joined}</td>
                       <td className="py-3 text-right pr-2">
                         <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => handleCopyZalo(m, e)}
-                            className="p-1.5 rounded-lg hover:bg-purple-100 text-gray-500 hover:text-primary transition"
-                            title="Sao chép thông tin để gửi Zalo"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
+                          {canZaloSend && (
+                            <button
+                              onClick={(e) => handleCopyZalo(m, e)}
+                              className="p-1.5 rounded-lg hover:bg-purple-100 text-gray-500 hover:text-primary transition"
+                              title="Gửi lý lịch vào nhóm Zalo bằng bot"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => handleOpenCV(m, e)}
                             className="p-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-primary transition"
@@ -456,6 +458,7 @@ export default function ThanhVienPage() {
 }
 
 function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Member; onOpenCV: (m: Member) => void; onCopyZalo: (m: Member) => void; onEdit: () => void }) {
+  const { canSend: canZaloSend } = useZaloSend();
   const { member: detail } = useMemberDetail(member.id);
   const { session, can } = useSession();
   const m: Member = detail ? { ...member, ...detail } : member;
@@ -539,13 +542,17 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
           <span>Xem &amp; Tải Sơ Yếu Lý Lịch (PDF)</span>
         </button>
         <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => onCopyZalo(m)}
-            className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition flex items-center justify-center gap-1.5"
-          >
-            <Copy className="w-3.5 h-3.5 text-primary" />
-            <span>Chép gửi Zalo</span>
-          </button>
+          {canZaloSend ? (
+            <button
+              onClick={() => onCopyZalo(m)}
+              className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <Send className="w-3.5 h-3.5 text-primary" />
+              <span>Gửi nhóm Zalo</span>
+            </button>
+          ) : (
+            <span />
+          )}
           <a
             href={m.phone ? "tel:" + m.phone.split(" ").join("") : undefined}
             className={"py-2 px-3 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 " + (m.phone ? "hover:bg-gray-50" : "opacity-40 pointer-events-none")}

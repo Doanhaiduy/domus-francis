@@ -13,11 +13,11 @@ const vnNow = () => new Date(Date.now() + 7 * 3600e3);
 const dm = (iso: string) => `${+iso.slice(8)}/${+iso.slice(5, 7)}`;
 
 /** Trả về số thông báo đã tạo và các tin MỚI gửi (báo trước / hôm trước) để đăng thêm vào nhóm Zalo. */
-export async function runLiturgyNotices(): Promise<{ sent: number; posts: string[] }> {
+export async function runLiturgyNotices(): Promise<{ sent: number; posts: { title: string; body: string }[] }> {
   const now = vnNow();
   const hm = now.toISOString().slice(11, 16);
   if (hm < "07:00") return { sent: 0, posts: [] };
-  const posts: string[] = [];
+  const posts: { title: string; body: string }[] = [];
   const sent = await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
     const conf = await loadLiturgyConf(tx);
     const s = (
@@ -43,7 +43,7 @@ export async function runLiturgyNotices(): Promise<{ sent: number; posts: string
         ])
       ).rows[0].n;
       sent += n;
-      if (n > 0 && forGroup) posts.push(`⛪ ${title}\n${body}`);
+      if (n > 0 && forGroup) posts.push({ title, body });
     };
 
     for (const u of upcomingFrom(conf, Math.max(before, 1))) {

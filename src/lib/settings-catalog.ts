@@ -174,6 +174,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   },
   "integration.zalo.group_enabled": { label: "Gửi tin tự động vào nhóm Zalo" },
   "integration.zalo.group_events": { label: "Các loại tin gửi vào nhóm Zalo" },
+  "integration.zalo.templates": { label: "Mẫu tin nhắn gửi nhóm Zalo" },
 
   // --- Đặt lịch giặt ---
   "laundry.cancel_min_minutes": { label: "Tự hủy lượt giặt trước giờ ít nhất", help: "Chỉ được tự hủy lượt trước giờ bắt đầu ít nhất số phút này." },

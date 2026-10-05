@@ -5,7 +5,7 @@ import { Vote, Share2, Lock, EyeOff, ListChecks, Clock, Trash2, CheckCircle } fr
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { formatPollForZalo, isoToVnDateTime } from "@/lib/events-format";
 import { pollsApi, refreshEvents } from "@/lib/data/events";
 import type { PollDto } from "@/lib/types/events";
@@ -20,6 +20,7 @@ interface Props {
 
 export default function PollCard({ poll, variant, canManage, canVote }: Props) {
   const { showToast } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<"close" | "delete" | null>(null);
 
@@ -60,8 +61,7 @@ export default function PollCard({ poll, variant, canManage, canVote }: Props) {
   };
 
   const copyZalo = async () => {
-    const ok = await copyTextToClipboard(formatPollForZalo(poll));
-    showToast(ok ? "success" : "error", ok ? "Đã sao chép kết quả biểu quyết! Có thể dán ngay vào Zalo." : "Không thể tự động sao chép. Vui lòng thử lại!");
+    await zaloSend(formatPollForZalo(poll), "Đã gửi kết quả biểu quyết vào nhóm Zalo.");
   };
 
   const doConfirm = async () => {
@@ -245,13 +245,16 @@ export default function PollCard({ poll, variant, canManage, canVote }: Props) {
               <Trash2 className="w-4 h-4" />
             </button>
           )}
-          <button
-            onClick={copyZalo}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold transition active:scale-95"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Copy Zalo</span>
-          </button>
+          {canZaloSend && (
+            <button
+              onClick={copyZalo}
+              disabled={zaloSending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold transition active:scale-95 disabled:opacity-60"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+            </button>
+          )}
         </div>
       </div>
       {dialogs}

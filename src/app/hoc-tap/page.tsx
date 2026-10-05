@@ -28,7 +28,7 @@ import { errorMessage } from "@/lib/api";
 import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { academicApi, refreshAcademic, useAcademicMeta, useAcademicRecords } from "@/lib/data/academic";
 import { RANK_ORDER, STATUS_META, computeStats, fmtGpa, formatAcademicZalo, rankBadge, semesterLabel } from "@/lib/academic-format";
 import type { AcademicAction, AcademicRecordDto, AcademicStatus } from "@/lib/types/academic";
@@ -42,6 +42,7 @@ const initialOf = (r: AcademicRecordDto) => (r.displayName.split(/\s+/).pop() ||
 
 export default function HocTapPage() {
   const { showToast, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const { can, session } = useSession();
   const canWrite = can("academic.write_own") && !!session?.member;
   const leaderView = can(["academic.read_all", "academic.verify"]);
@@ -103,9 +104,7 @@ export default function HocTapPage() {
 
   const handleCopyZaloSummary = async () => {
     const text = formatAcademicZalo({ records: leaderView ? filteredRecords.filter(official) : filteredRecords, scopeLabel, personal: !leaderView });
-    const success = await copyTextToClipboard(text);
-    if (success) showToast("success", "Đã sao chép tổng hợp học lực! Có thể dán ngay vào Zalo Lưu Xá.");
-    else showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
+    await zaloSend(text, "Đã gửi tổng hợp học lực vào nhóm Zalo.");
   };
 
   const openCreate = () => {
@@ -196,13 +195,16 @@ export default function HocTapPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleCopyZaloSummary}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold border border-purple-200 transition active:scale-95"
-          >
-            <Share2 className="w-4 h-4 text-purple-600" />
-            <span>Sao chép Zalo</span>
-          </button>
+          {canZaloSend && (
+            <button
+              onClick={handleCopyZaloSummary}
+              disabled={zaloSending}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold border border-purple-200 transition active:scale-95 disabled:opacity-60"
+            >
+              <Share2 className="w-4 h-4 text-purple-600" />
+              <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+            </button>
+          )}
           {can(["academic.scale.manage", "term.manage"]) && (
             <Link
               href="/cai-dat?tab=academic"

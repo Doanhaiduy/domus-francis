@@ -109,16 +109,16 @@ interface FieldProps {
   className?: string;
 }
 
-/** Vòng viền ô đã sửa — chỉ bao quanh ô nhập (không bao nhãn / dòng lỗi). */
-const dirtyInput = (draft: SettingsDraft, k: string) => (draft.isDirty(k) ? "ring-2 ring-purple-200" : "");
-const dirtyRing = (draft: SettingsDraft, k: string) => (draft.isDirty(k) ? "ring-2 ring-purple-200 rounded-xl" : "");
+/** Ô đã sửa nhưng chưa lưu: một vạch tím mảnh bên trái (không dùng vòng viền bao cả nhãn / nhiều ô). */
+const dirtyRing = (draft: SettingsDraft, k: string) =>
+  draft.isDirty(k) ? "relative before:content-[''] before:absolute before:-left-2.5 before:top-6 before:bottom-1 before:w-[3px] before:rounded-full before:bg-primary/60" : "";
 
 export function TextSetting({ draft, k, label, placeholder, className }: FieldProps) {
   const m = draft.meta(k);
   const v = draft.value<string>(k);
   return (
     <div className={className}>
-      <div>
+      <div className={dirtyRing(draft, k)}>
         <CustomInput
           label={label}
           value={typeof v === "string" ? v : ""}
@@ -126,7 +126,7 @@ export function TextSetting({ draft, k, label, placeholder, className }: FieldPr
           placeholder={m ? placeholder : "Không có quyền xem"}
           disabled={!m?.canWrite}
           error={draft.errorOf(k)}
-          className={cn(dirtyInput(draft, k), !m?.canWrite && "bg-gray-50 text-gray-500 cursor-not-allowed")}
+          className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
         />
       </div>
       <FieldHint draft={draft} k={k} showBounds={false} />
@@ -154,7 +154,7 @@ export function NumberSetting({ draft, k, label, suffix, className }: FieldProps
   const v = draft.value<number | string>(k);
   return (
     <div className={className}>
-      <div>
+      <div className={dirtyRing(draft, k)}>
         <CustomInput
           label={label}
           type="number"
@@ -168,7 +168,7 @@ export function NumberSetting({ draft, k, label, suffix, className }: FieldProps
           disabled={!m?.canWrite}
           rightSuffix={suffix ?? (m?.valueType === "vnd" ? "VNĐ" : undefined)}
           error={draft.errorOf(k)}
-          className={cn(dirtyInput(draft, k), !m?.canWrite && "bg-gray-50 text-gray-500 cursor-not-allowed")}
+          className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
         />
       </div>
       <FieldHint draft={draft} k={k} />
@@ -244,7 +244,7 @@ export function FeastSetting({ draft, k, label, className }: FieldProps) {
   }, [v]);
   return (
     <div className={className}>
-      <div>
+      <div className={dirtyRing(draft, k)}>
         <CustomInput
           label={label}
           value={text}
@@ -255,7 +255,7 @@ export function FeastSetting({ draft, k, label, className }: FieldProps) {
           placeholder="DD/MM — VD: 04/10"
           disabled={!m?.canWrite}
           error={draft.errorOf(k)}
-          className={cn(dirtyInput(draft, k), !m?.canWrite && "bg-gray-50 text-gray-500 cursor-not-allowed")}
+          className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
         />
       </div>
       <FieldHint draft={draft} k={k} />

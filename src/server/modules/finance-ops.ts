@@ -3,7 +3,7 @@ import type { Tx } from "../db";
 import type { Ctx } from "../http";
 import { ApiError, badRequest, forbidden, notFound } from "../errors";
 import { FINANCE_CALLER_SQL, financeCallerFrom, getReceivingAccount, monthEnd } from "./finance";
-import { postToZaloGroup } from "../integrations/zalo";
+import { postZaloEvent, renderZaloEvent } from "../integrations/zalo";
 import { formatVND } from "@/lib/utils";
 import type {
   ContributionClaimDto,
@@ -136,28 +136,31 @@ async function planDebts(tx: Tx, planId: string, only: string[] | null): Promise
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
-/** Tin nhắc cho nhóm (Zalo / sao chép): danh sách chưa đóng + hạn + tài khoản nhận quỹ. */
-export async function buildGroupReminderText(tx: Tx, planId: string, only: string[] | null, message: string | null): Promise<{ text: string; count: number }> {
+/** Biến cho mẫu tin Zalo "dues_reminder": danh sách chưa đóng + hạn + tài khoản nhận quỹ. */
+export async function buildGroupReminderVars(
+  tx: Tx,
+  planId: string,
+  only: string[] | null,
+  message: string | null,
+): Promise<{ vars: Record<string, string>; count: number }> {
   const { plan, rows } = await planDebts(tx, planId, only);
-  const house = (await tx.query<{ v: string }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'org.house_name'")).rows[0]?.v ?? null;
+  const house = (await tx.query<{ v: string }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'org.house_name'")).rows[0]?.v ?? "";
   const acc = await getReceivingAccount(tx).catch(() => null);
-  const lines: string[] = [`💰 NHẮC ĐÓNG QUỸ${house ? ` — ${house}` : ""}`, `📌 ${plan.name} · hạn ${dmy(plan.due)}`];
-  if (rows.length === 0) {
-    lines.push("✅ Tất cả anh em đã hoàn tất khoản này. Cảm ơn cả nhà! 🎉");
-  } else {
-    lines.push(`🔴 Còn ${rows.length} bạn chưa đóng:`);
-    rows.forEach((r, i) => lines.push(`${i + 1}. ${r.name}${r.room ? ` (${r.room})` : ""} — ${formatVND(r.remaining)}${r.overdue ? " ⚠ quá hạn" : ""}`));
-    if (acc?.account) {
-      lines.push(`💳 Chuyển khoản: ${acc.account.bankName} · ${acc.account.accountNo} · ${acc.account.accountName}`);
-      lines.push(`📝 Nội dung: ${plan.code} <tên bạn>`);
-    } else if (acc?.legacyText) {
-      lines.push(`💳 Tài khoản nhận quỹ: ${acc.legacyText}`);
-    }
-    lines.push("Đóng tiền mặt cho Thủ quỹ hoặc chuyển khoản rồi bấm “Tôi đã đóng” trên web Lưu Xá nhé.");
-  }
-  if (message) lines.push(`📣 ${message}`);
-  lines.push("Pax et Bonum! 🕊️");
-  return { text: lines.join("\n"), count: rows.length };
+  const paidAll = rows.length === 0;
+  return {
+    count: rows.length,
+    vars: {
+      house,
+      plan: plan.name,
+      due: dmy(plan.due),
+      status: paidAll ? "✅ Tất cả anh em đã hoàn tất khoản này. Cảm ơn cả nhà! 🎉" : `🔴 Còn ${rows.length} bạn chưa đóng:`,
+      list: rows.map((r, i) => `${i + 1}. ${r.name}${r.room ? ` (${r.room})` : ""} — ${formatVND(r.remaining)}${r.overdue ? " ⚠ quá hạn" : ""}`).join("\n"),
+      account: paidAll ? "" : acc?.account ? `${acc.account.bankName} · ${acc.account.accountNo} · ${acc.account.accountName}` : acc?.legacyText ?? "",
+      transfer_note: paidAll || !acc?.account ? "" : `${plan.code} <tên bạn>`,
+      instruction: paidAll ? "" : "Đóng tiền mặt cho Thủ quỹ hoặc chuyển khoản rồi bấm “Tôi đã đóng” trên web Lưu Xá nhé.",
+      message: message ?? "",
+    },
+  };
 }
 
 export async function remindPlan(
@@ -179,15 +182,16 @@ export async function remindPlan(
       sent = r.sent;
       skipped = r.skipped;
     }
-    const group = b.zalo || !b.app ? await buildGroupReminderText(tx, planId, only, msg) : null;
+    const group = b.zalo || !b.app ? await buildGroupReminderVars(tx, planId, only, msg) : null;
     return { sent, skipped, ids, group };
   });
   let zalo: RemindResultDto["zalo"] = null;
   if (b.zalo && out.group && out.ids.length) {
-    zalo = await postToZaloGroup(ctx, "dues_reminder", out.group.text);
+    zalo = await postZaloEvent(ctx, "dues_reminder", out.group.vars);
     if (zalo.sent) await ctx.db((tx) => guarded(tx, 0, async () => (await tx.query<{ n: number }>("SELECT app.fn_contribution_remind_log_group($1::uuid[]) AS n", [out.ids])).rows[0].n));
   }
-  return { sent: out.sent, skipped: out.skipped, groupText: out.group?.text ?? null, zalo };
+  const groupText = out.group && !(zalo && zalo.sent) ? await renderZaloEvent(ctx, "dues_reminder", out.group.vars) : null;
+  return { sent: out.sent, skipped: out.skipped, groupText, zalo };
 }
 
 // ---------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import "server-only";
 import type { Ctx } from "../http";
-import { postToZaloGroup, type ZaloPostResult } from "./zalo";
+import { postZaloEvent, type ZaloPostResult } from "./zalo";
 
 // Thông báo khi có thay đổi chỗ ở: chuyển / xếp phòng, thành viên mới. Lỗi gửi không làm hỏng thao tác chính.
 
@@ -13,23 +13,23 @@ async function names(ctx: Pick<Ctx, "dbAs">, memberId: string, roomCode: string 
 }
 
 /** Xếp / chuyển phòng: báo riêng người được chuyển (trong ứng dụng) + (nếu bật) đăng nhóm Zalo. */
-export async function announceRoomChange(ctx: Pick<Ctx, "dbAs">, memberId: string, roomCode: string): Promise<ZaloPostResult | null> {
+export async function announceRoomChange(ctx: Pick<Ctx, "dbAs"> & { userId?: string | null }, memberId: string, roomCode: string): Promise<ZaloPostResult | null> {
   try {
     const { member, room } = await names(ctx, memberId, roomCode);
     await ctx.dbAs("luuxa_worker", (tx) =>
       tx.query("SELECT app.fn_system_notify_member($1, 'system.room_changed', $2, $3, '/so-do-nha')", [memberId, `Bạn được xếp vào ${room}`, "Trưởng nhà vừa cập nhật phòng ở của bạn."]),
     );
-    return await postToZaloGroup(ctx, "room_change", `🚪 ${member} chuyển sang ${room}.`);
+    return await postZaloEvent(ctx, "room_change", { member, room: room ?? "" });
   } catch (e) {
     console.error("[notice] chuyển phòng lỗi:", (e as Error).message);
     return null;
   }
 }
 
-export async function announceMemberJoined(ctx: Pick<Ctx, "dbAs">, memberId: string, roomCode: string | null): Promise<ZaloPostResult | null> {
+export async function announceMemberJoined(ctx: Pick<Ctx, "dbAs"> & { userId?: string | null }, memberId: string, roomCode: string | null): Promise<ZaloPostResult | null> {
   try {
     const { member, room } = await names(ctx, memberId, roomCode);
-    return await postToZaloGroup(ctx, "member_joined", `👋 Chào mừng ${member} vào nhà${room ? `, ở ${room}` : ""}! Anh em giúp đỡ bạn làm quen nhé. 🕊️`);
+    return await postZaloEvent(ctx, "member_joined", { member, room_part: room ? `, ở ${room}` : "" });
   } catch (e) {
     console.error("[notice] thành viên mới lỗi:", (e as Error).message);
     return null;

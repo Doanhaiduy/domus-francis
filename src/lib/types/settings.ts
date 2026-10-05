@@ -1,3 +1,4 @@
+import { validateTemplate } from "../zalo-templates";
 // Kiểu dữ liệu + luật kiểm tra dùng chung client/server cho phân hệ Cài đặt (settings, categories, RBAC).
 // File thuần TypeScript (không React, không server-only) để màn hình và API kiểm cùng một bộ luật.
 
@@ -229,6 +230,7 @@ export const ZALO_EVENT_KEYS = [
   "reminder_schedule",
   "room_change",
   "member_joined",
+  "birthday",
 ] as const;
 export type ZaloEventKey = (typeof ZALO_EVENT_KEYS)[number];
 export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
@@ -242,6 +244,7 @@ export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
   reminder_schedule: "Lịch nhắc lặp (họp nhà, sinh hoạt…)",
   room_change: "Chuyển / xếp phòng",
   member_joined: "Thành viên mới vào nhà",
+  birthday: "Chúc mừng sinh nhật thành viên",
 };
 /** Loại tin mặc định TẮT (liên quan chỗ ở của từng người) — Trưởng nhà tự bật nếu muốn. */
 export const ZALO_EVENT_DEFAULT_OFF: readonly ZaloEventKey[] = ["room_change", "member_joined"];
@@ -280,6 +283,16 @@ const STRING_RULES: Record<string, { required?: boolean; max?: number; re?: RegE
 
 /** Khóa json được sửa qua màn hình Cài đặt và cách kiểm tra cấu trúc. */
 const JSON_RULES: Record<string, (v: unknown, roles?: string[]) => string | null> = {
+  "integration.zalo.templates": (v) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return "Mẫu tin Zalo phải là một đối tượng.";
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (!(ZALO_EVENT_KEYS as readonly string[]).includes(k)) return `Loại tin Zalo không hợp lệ: ${k}.`;
+      if (typeof x !== "string") return `Mẫu “${ZALO_EVENT_LABEL[k as ZaloEventKey]}” phải là văn bản.`;
+      const err = validateTemplate(k as ZaloEventKey, x);
+      if (err) return `Mẫu “${ZALO_EVENT_LABEL[k as ZaloEventKey]}”: ${err}`;
+    }
+    return null;
+  },
   "integration.zalo.group_events": (v) => {
     if (!v || typeof v !== "object" || Array.isArray(v)) return "Cấu hình loại tin Zalo phải là một đối tượng.";
     for (const [k, x] of Object.entries(v as Record<string, unknown>)) {

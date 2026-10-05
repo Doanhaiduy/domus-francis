@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Copy, Download } from "lucide-react";
+import { X, Send, Download } from "lucide-react";
 import { formatVND } from "@/lib/utils";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
 import { exportElementToPdf } from "@/lib/pdfExport";
@@ -73,6 +73,7 @@ export function buildFinanceReport(p: Omit<FinancialReportModalProps, "isOpen" |
 export default function FinancialReportModal(props: FinancialReportModalProps) {
   const { isOpen, onClose, periodLabel, overview: o, plan } = props;
   const { showToast } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const printableRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const report = useMemo(() => buildFinanceReport(props), [props]);
@@ -109,8 +110,7 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
   };
 
   const handleCopyZalo = async () => {
-    const ok = await copyTextToClipboard(formatFinanceReportForZalo(report));
-    showToast(ok ? "success" : "error", ok ? "Đã sao chép báo cáo tài chính Zalo! Hãy dán (Ctrl+V) vào nhóm chat." : "Không thể sao chép tự động. Vui lòng thử lại!");
+    await zaloSend(formatFinanceReportForZalo(report), "Đã gửi báo cáo tài chính vào nhóm Zalo.");
   };
 
   const handleDownloadTxt = () => {
@@ -146,14 +146,17 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopyZalo}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold transition active:scale-95"
-                  title="Sao chép báo cáo dạng text kèm icon để gửi vào Zalo Lưu Xá"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Zalo</span>
-                </button>
+                {canZaloSend && (
+                  <button
+                    onClick={handleCopyZalo}
+                    disabled={zaloSending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold transition active:scale-95 disabled:opacity-60"
+                    title="Gửi báo cáo dạng text vào nhóm Zalo bằng bot"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+                  </button>
+                )}
                 <button
                   onClick={handleDownloadTxt}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition active:scale-95"

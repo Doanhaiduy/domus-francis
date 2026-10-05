@@ -21,6 +21,7 @@ import {
   Lock,
   AlertCircle,
   Ban,
+  Send,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -32,7 +33,7 @@ import { Portal } from "@/components/ui/Portal";
 import { FinancialBarChart, ExpenseDonutChart, AreaTrendChart, DonutDataPoint } from "@/components/ui/Charts";
 import FinancialReportModal, { buildFinanceReport } from "@/components/FinancialReportModal";
 import { ExpenseFormCard } from "@/components/modals/AddExpenseModal";
-import { copyTextToClipboard } from "@/lib/zaloShare";
+import { useZaloSend } from "@/lib/zalo-client";
 import { dmy, formatFinanceReportForZalo, monthEndOf, shiftMonth, vnToday } from "@/lib/finance-format";
 import {
   financeApi,
@@ -84,6 +85,7 @@ type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao" | "thong-ke";
 
 export default function ThuChiPage() {
   const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
+  const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
   const { can, session } = useSession();
   const today = useMemo(() => vnToday(), []);
   const current = today.slice(0, 7);
@@ -232,9 +234,7 @@ export default function ThuChiPage() {
   // QUICK COPY ZALO ACTION
   const handleCopyZalo = async () => {
     if (!o) return;
-    const success = await copyTextToClipboard(formatFinanceReportForZalo(buildFinanceReport(reportProps)));
-    if (success) showToast("success", "Đã sao chép báo cáo Zalo! Bạn có thể dán (Ctrl+V) ngay vào nhóm chat.");
-    else showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
+    await zaloSend(formatFinanceReportForZalo(buildFinanceReport(reportProps)), "Đã gửi báo cáo thu chi vào nhóm Zalo.");
   };
 
   // STEPPING MONTHS
@@ -303,14 +303,17 @@ export default function ThuChiPage() {
 
         {/* TOP QUICK ACTIONS */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handleCopyZalo}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs transition active:scale-95 shadow-2xs"
-            title="Sao chép báo cáo thu chi đầy đủ gửi nhóm Zalo Lưu Xá"
-          >
-            <Copy className="w-3.5 h-3.5 text-primary" />
-            <span>Copy Zalo</span>
-          </button>
+          {canZaloSend && (
+            <button
+              onClick={handleCopyZalo}
+              disabled={zaloSending}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs transition active:scale-95 shadow-2xs disabled:opacity-60"
+              title="Gửi báo cáo thu chi vào nhóm Zalo bằng bot"
+            >
+              <Send className="w-3.5 h-3.5 text-primary" />
+              <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+            </button>
+          )}
 
           <button
             onClick={() => setIsReportModalOpen(true)}
@@ -936,13 +939,16 @@ export default function ThuChiPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopyZalo}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold transition"
-              >
-                <Copy className="w-3.5 h-3.5 text-primary" />
-                <span>Copy Zalo</span>
-              </button>
+              {canZaloSend && (
+                <button
+                  onClick={handleCopyZalo}
+                  disabled={zaloSending}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold transition disabled:opacity-60"
+                >
+                  <Send className="w-3.5 h-3.5 text-primary" />
+                  <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+                </button>
+              )}
               <button
                 onClick={() => setIsReportModalOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold transition shadow-xs active:scale-95"

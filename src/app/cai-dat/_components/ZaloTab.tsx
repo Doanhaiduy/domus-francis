@@ -2,7 +2,7 @@
 
 // Tích hợp nhóm Zalo (thay cho Telegram): gửi tin tự động vào nhóm Zalo chung qua Zalo Bot.
 // Bot Token nằm ở biến môi trường máy chủ ZALO_BOT_TOKEN — không lưu CSDL, không hiện ở trình duyệt.
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import useSWR from "swr";
 import { MessageCircle, Lock, CheckCircle2, AlertTriangle, Search, Send, ExternalLink, Info } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -11,12 +11,15 @@ import type { SettingsDraft } from "./useSettingsDraft";
 import { TextSetting, ToggleSetting } from "./SettingFields";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
 import { FormCardsSkeleton } from "./TabSkeletons";
+import { ZALO_TEMPLATES, renderTemplate, sampleVars, templateFor, validateTemplate } from "@/lib/zalo-templates";
+import { ChevronDown, RotateCcw } from "lucide-react";
 
 const CHAT_RE = /^[A-Za-z0-9._:-]{3,100}$/;
 const EVENTS_KEY = "integration.zalo.group_events";
 const ENABLED_KEY = "integration.zalo.group_enabled";
 const CHAT_KEY = "integration.zalo.group_chat_id";
-export const ZALO_KEYS = [ENABLED_KEY, CHAT_KEY, EVENTS_KEY];
+const TEMPLATES_KEY = "integration.zalo.templates";
+export const ZALO_KEYS = [ENABLED_KEY, CHAT_KEY, EVENTS_KEY, TEMPLATES_KEY];
 
 interface ZaloStatus {
   tokenConfigured: boolean;
@@ -52,7 +55,108 @@ const EVENT_DESC: Record<ZaloEventKey, string> = {
   reminder_schedule: "Các lịch nhắc lặp hằng tuần bạn tạo ở tab “Nhắc lịch”",
   room_change: "Khi Trưởng nhà chuyển / xếp phòng cho một thành viên (mặc định tắt)",
   member_joined: "Khi đơn xin vào nhà được duyệt (mặc định tắt)",
+  birthday: "7h sáng ngày sinh nhật của thành viên (theo ngày/tháng sinh trong hồ sơ, không nêu tuổi)",
 };
+
+/** Một mẫu tin: sửa văn bản, chèn biến, xem trước bằng dữ liệu mẫu, khôi phục mặc định. */
+function TemplateRow({ draft, k }: { draft: SettingsDraft; k: ZaloEventKey }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const templates = (draft.value<Record<string, string>>(TEMPLATES_KEY) ?? {}) as Record<string, string>;
+  const def = ZALO_TEMPLATES[k];
+  const current = templateFor(templates, k);
+  const custom = typeof templates[k] === "string" && templates[k].trim() !== "" && templates[k] !== def.default;
+  const error = validateTemplate(k, current);
+  const writable = !!draft.meta(TEMPLATES_KEY)?.canWrite;
+
+  const set = (text: string) => {
+    const next = { ...templates };
+    if (text.trim() === "" || text === def.default) delete next[k];
+    else next[k] = text;
+    draft.set(TEMPLATES_KEY, next);
+  };
+  const insert = (name: string) => {
+    const el = ref.current;
+    const token = `{${name}}`;
+    if (!el) return set(current + token);
+    const a = el.selectionStart ?? current.length;
+    const b = el.selectionEnd ?? current.length;
+    set(current.slice(0, a) + token + current.slice(b));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(a + token.length, a + token.length);
+    });
+  };
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50">
+        <span className="min-w-0">
+          <span className="block text-xs font-bold text-gray-900 truncate">{ZALO_EVENT_LABEL[k]}</span>
+          <span className="block text-[11px] text-gray-400 truncate">{current.split("\n")[0]}</span>
+        </span>
+        <span className="flex items-center gap-2 shrink-0">
+          {custom && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">Đã tùy chỉnh</span>}
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-50">
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold text-gray-700">Mẫu tin</label>
+            <textarea
+              ref={ref}
+              value={current}
+              disabled={!writable}
+              onChange={(e) => set(e.target.value)}
+              rows={Math.min(14, Math.max(5, current.split("\n").length + 1))}
+              spellCheck={false}
+              className="w-full rounded-xl border border-gray-200 bg-white p-3 text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary disabled:bg-gray-50"
+            />
+            {error && <p className="text-[11px] text-rose-600">{error}</p>}
+            <div>
+              <p className="text-[11px] font-bold text-gray-700 mb-1.5">Biến có thể chèn (bấm để thêm vào chỗ con trỏ)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {def.placeholders.map((p) => (
+                  <button
+                    type="button"
+                    key={p.name}
+                    disabled={!writable}
+                    onClick={() => insert(p.name)}
+                    title={p.desc}
+                    className="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-primary text-[11px] font-mono font-bold disabled:opacity-50"
+                  >
+                    {`{${p.name}}`}
+                  </button>
+                ))}
+              </div>
+              <ul className="mt-2 space-y-0.5">
+                {def.placeholders.map((p) => (
+                  <li key={p.name} className="text-[10.5px] text-gray-500">
+                    <code className="font-bold text-gray-700">{`{${p.name}}`}</code> — {p.desc}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10.5px] text-gray-400 mt-2">Dòng nào chỉ có biến rỗng sẽ tự bị bỏ. Cuối mỗi tin hệ thống tự thêm “— Thao tác bởi &lt;tên&gt;” hoặc “— 🤖 Tin tự động của hệ thống”.</p>
+            </div>
+            {custom && (
+              <button type="button" onClick={() => set(def.default)} disabled={!writable} className="self-start inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline">
+                <RotateCcw className="w-3 h-3" /> Khôi phục mẫu mặc định
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-bold text-gray-700">Xem trước (dữ liệu mẫu)</label>
+            <pre className="text-[11.5px] leading-relaxed whitespace-pre-wrap bg-sky-50/50 border border-sky-100 rounded-xl p-3 font-sans text-gray-800">
+              {renderTemplate(current, sampleVars(k))}
+              {"\n— Thao tác bởi Văn Đức"}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
   const { showToast } = useApp();
@@ -164,7 +268,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
             <li>Bấm <b>“Gửi tin thử”</b> để kiểm tra.</li>
           </ol>
           <p className="text-[11px] text-sky-800/80">
-            Lưu ý: Zalo Bot Platform còn mới, khả năng gửi vào <i>nhóm</i> có thể bị giới hạn theo từng bot. Nếu không gửi được, các nút “Chép gửi Zalo” trong hệ thống vẫn
+            Lưu ý: Zalo Bot Platform còn mới, khả năng gửi vào <i>nhóm</i> có thể bị giới hạn theo từng bot. Nếu không gửi được, các nút “Gửi nhóm Zalo” trong hệ thống tự
             sao chép sẵn nội dung để bạn dán vào nhóm bằng tay.
           </p>
         </div>
@@ -245,6 +349,17 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
           ))}
         </div>
         {enabled && !chatId && <p className="text-xs text-amber-700">Đã bật nhưng chưa có mã nhóm — bot chưa thể gửi.</p>}
+
+        <div className="p-4 rounded-2xl bg-surface-container-low/60 flex flex-col gap-3">
+          <div>
+            <h3 className="text-xs font-bold text-gray-800">Mẫu tin nhắn</h3>
+            <p className="text-[11px] text-gray-500 mt-0.5">Chỉnh nội dung từng loại tin gửi vào nhóm. Chọn một loại để sửa; thay đổi có hiệu lực sau khi bấm “Lưu tất cả thay đổi”.</p>
+          </div>
+          {draft.errorOf(TEMPLATES_KEY) && <p className="text-[11px] text-rose-600">{draft.errorOf(TEMPLATES_KEY)}</p>}
+          {ZALO_EVENT_KEYS.map((k) => (
+            <TemplateRow key={k} draft={draft} k={k} />
+          ))}
+        </div>
 
         <div className="p-4 rounded-2xl border border-amber-100 bg-amber-50/40 flex flex-col gap-3">
           <div>
