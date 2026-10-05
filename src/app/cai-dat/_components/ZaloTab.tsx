@@ -149,7 +149,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
               disabled={finding || !status?.tokenConfigured}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 shadow-2xs transition disabled:opacity-50"
             >
-              <Search className="w-3.5 h-3.5" /> {finding ? "Đang dò..." : "Dò nhóm"}
+              <Search className="w-3.5 h-3.5" /> {finding ? "Đang nghe 15 giây…" : "Dò nhóm"}
             </button>
             <button
               onClick={sendTest}
@@ -168,7 +168,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
             {!chats.ok ? (
               <p className="text-xs text-rose-700">Không dò được: {chats.error}</p>
             ) : chats.chats.length === 0 ? (
-              <p className="text-xs text-gray-600">Chưa thấy cuộc trò chuyện nào. Hãy nhắn một câu trong nhóm có bot rồi bấm “Dò nhóm” lại.</p>
+              <p className="text-xs text-gray-600">Chưa thấy tin nào. Bấm “Dò nhóm”, rồi <b>trong vòng 15 giây</b> nhắn một câu trong nhóm có bot (ví dụ “@tên bot xin chào”, nhắc đúng tên bot). Nếu bot không nhận được tin của nhóm, hãy thử nhắn riêng cho bot để kiểm tra kết nối.</p>
             ) : (
               chats.chats.map((c) => (
                 <div key={c.chatId} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-gray-100">

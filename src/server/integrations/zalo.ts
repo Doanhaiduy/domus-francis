@@ -133,8 +133,12 @@ export interface ZaloChatDto {
 
 /** Các cuộc trò chuyện bot vừa nhận tin (getUpdates) — để lấy chat_id của nhóm: thêm bot vào nhóm, nhắn một câu, rồi bấm "Dò nhóm". */
 export async function zaloRecentChats(): Promise<{ ok: boolean; chats: ZaloChatDto[]; error?: string }> {
-  const r = await call("getUpdates", { timeout: "1" }, 8_000);
-  if (!r.ok) return { ok: false, chats: [], error: r.error };
+  // Long-polling: Zalo giữ yêu cầu tối đa `timeout` giây chờ tin mới; không có tin nào thì trả lỗi "Request timeout" (không phải lỗi thật).
+  const r = await call("getUpdates", { timeout: "15" }, 22_000);
+  if (!r.ok) {
+    if (/time-?out/i.test(r.error ?? "")) return { ok: true, chats: [] };
+    return { ok: false, chats: [], error: r.error };
+  }
   const list: unknown[] = Array.isArray(r.result) ? r.result : r.result ? [r.result] : [];
   const seen = new Map<string, ZaloChatDto>();
   for (const u of list) {
