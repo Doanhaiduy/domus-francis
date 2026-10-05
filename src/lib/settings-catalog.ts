@@ -167,13 +167,13 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   },
   "finance.utility_due_day": { label: "Hạn nộp tiền điện nước", help: "Ngày trong tháng sau tháng hóa đơn phải nộp (1–28)." },
 
-  // --- Telegram ---
-  "integration.telegram.group_chat_id": {
-    label: "Mã nhóm Telegram (Chat ID)",
-    help: "Mã của nhóm chung nhận tin tự động, thường bắt đầu bằng -100…",
+  // --- Zalo ---
+  "integration.zalo.group_chat_id": {
+    label: "Mã nhóm Zalo (chat_id)",
+    help: "Mã cuộc trò chuyện của nhóm Zalo chung nhận tin tự động. Dùng nút “Dò nhóm” để lấy.",
   },
-  "integration.telegram.group_enabled": { label: "Gửi tin tự động vào nhóm Telegram" },
-  "integration.telegram.group_events": { label: "Các loại tin gửi vào nhóm Telegram" },
+  "integration.zalo.group_enabled": { label: "Gửi tin tự động vào nhóm Zalo" },
+  "integration.zalo.group_events": { label: "Các loại tin gửi vào nhóm Zalo" },
 
   // --- Đặt lịch giặt ---
   "laundry.cancel_min_minutes": { label: "Tự hủy lượt giặt trước giờ ít nhất", help: "Chỉ được tự hủy lượt trước giờ bắt đầu ít nhất số phút này." },

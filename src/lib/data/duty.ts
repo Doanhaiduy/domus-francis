@@ -3,8 +3,9 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
 import type {
-  AssetDto,
   DutyAssignmentDto,
+  DutyBoardDto,
+  DutyWeekEntryDto,
   DutySummaryDto,
   DutySwapsDto,
   DutyWeekDto,
@@ -12,26 +13,28 @@ import type {
   IssuesDto,
   IssueStatus,
   IssueUrgency,
-  LaundryWeekDto,
 } from "../types/duty";
 
 export const DUTY_KEY = "/api/v1/duty";
 export const ISSUES_KEY = "/api/v1/issues";
-export const LAUNDRY_KEY = "/api/v1/laundry";
-export const ASSETS_KEY = "/api/v1/assets";
 
 const startsWith = (prefix: string) => (key: unknown) => typeof key === "string" && key.startsWith(prefix);
 
 /** Làm mới mọi dữ liệu trực nhật (roster tuần, đơn đổi ca, tóm tắt Tổng quan). */
 export const refreshDuty = () => globalMutate(startsWith(DUTY_KEY));
 export const refreshIssues = () => Promise.all([globalMutate(startsWith(ISSUES_KEY)), globalMutate(`${DUTY_KEY}/summary`)]);
-export const refreshLaundry = () => globalMutate(startsWith(LAUNDRY_KEY));
-export const refreshAssets = () => globalMutate(startsWith(ASSETS_KEY));
 
 export function useDutyWeek(week: string | null, enabled = true) {
   const key = enabled ? `${DUTY_KEY}${week ? `?week=${week}` : ""}` : null;
   const { data, error, isLoading, mutate } = useSWR<DutyWeekDto>(key, swrFetcher, { keepPreviousData: true });
   return { week: data, error, isLoading, mutate };
+}
+
+/** Bảng trực vệ sinh sân nhà theo tuần (week = một ngày bất kỳ trong tuần; bỏ trống = tuần này). */
+export function useDutyBoard(week: string | null, enabled = true) {
+  const key = enabled ? `${DUTY_KEY}/weeks${week ? `?week=${week}` : ""}` : null;
+  const { data, error, isLoading, mutate } = useSWR<DutyBoardDto>(key, swrFetcher, { keepPreviousData: true });
+  return { board: data, error, isLoading, mutate };
 }
 
 export function useDutySummary(enabled = true) {
@@ -49,16 +52,20 @@ export function useIssues(enabled = true) {
   return { issues: data?.issues ?? [], categories: data?.categories ?? [], areas: data?.areas ?? [], loaded: !!data, error, isLoading, mutate };
 }
 
-export function useLaundry(week: string | null, enabled = true) {
-  const key = enabled ? `${LAUNDRY_KEY}${week ? `?week=${week}` : ""}` : null;
-  const { data, error, isLoading, mutate } = useSWR<LaundryWeekDto>(key, swrFetcher, { keepPreviousData: true });
-  return { laundry: data, error, isLoading, mutate };
+export interface ZaloPostResultDto {
+  sent: boolean;
+  reason?: string;
 }
 
-export function useAssets(enabled = true) {
-  const { data, error, isLoading, mutate } = useSWR<AssetDto[]>(enabled ? ASSETS_KEY : null, swrFetcher, { keepPreviousData: true });
-  return { assets: data ?? [], loaded: !!data, error, isLoading, mutate };
-}
+export const dutyWeeksApi = {
+  save: (body: { weekStart: string; memberIds: string[]; note?: string | null; notifyZalo?: boolean }) =>
+    api.post<{ entry: DutyWeekEntryDto; zalo: ZaloPostResultDto | null }>(`${DUTY_KEY}/weeks`, body),
+  remove: (id: string) => api.del(`${DUTY_KEY}/weeks/${id}`),
+  remind: (id: string) => api.post<{ reminded: number }>(`${DUTY_KEY}/weeks/${id}/remind`),
+  review: (id: string, body: { score: number; comment?: string | null; redo: boolean; redoNote?: string | null }) =>
+    api.post<DutyWeekEntryDto>(`${DUTY_KEY}/weeks/${id}/review`, body),
+  sendZalo: (id: string) => api.post<ZaloPostResultDto>(`${DUTY_KEY}/weeks/${id}/zalo`),
+};
 
 export const dutyApi = {
   createRoster: (weekStart: string, copyFromWeek?: string | null, notes?: string | null) =>
@@ -101,18 +108,4 @@ export const issuesApi = {
   deleteCost: (id: string, costId: string) => api.del<IssueDto>(`${ISSUES_KEY}/${id}/costs/${costId}`),
   verify: (id: string) => api.post<IssueDto>(`${ISSUES_KEY}/${id}/verify`),
   addPhoto: (id: string, fileId: string, purpose: "before_photo" | "after_photo") => api.post<IssueDto>(`${ISSUES_KEY}/${id}/photos`, { fileId, purpose }),
-};
-
-export const laundryApi = {
-  book: (machineId: string, date: string, slotIndex: number) => api.post<{ id: string }>(`${LAUNDRY_KEY}/bookings`, { machineId, date, slotIndex }),
-  cancel: (id: string) => api.del(`${LAUNDRY_KEY}/bookings/${id}`),
-  checkin: (id: string) => api.patch(`${LAUNDRY_KEY}/bookings/${id}`, { action: "checkin" }),
-  complete: (id: string) => api.patch(`${LAUNDRY_KEY}/bookings/${id}`, { action: "complete" }),
-};
-
-export const assetsApi = {
-  borrow: (assetId: string, dueAt: string) => api.post<{ id: string }>(`${ASSETS_KEY}/${assetId}/borrow`, { dueAt }),
-  giveBack: (loanId: string, note?: string | null) => api.post(`${ASSETS_KEY}/loans/${loanId}/return`, { note: note ?? null }),
-  create: (body: { name: string; type: string; locationText?: string | null; roomCode?: string | null; isLoanable: boolean; notes?: string | null }) =>
-    api.post<{ id: string }>(ASSETS_KEY, body),
 };

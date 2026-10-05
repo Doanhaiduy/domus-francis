@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { mutate as globalMutate } from "swr";
 import { Sparkles, KeyRound, CheckCircle2, CircleSlash, PauseCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { ToggleListSkeleton } from "./TabSkeletons";
 import { errorMessage } from "@/lib/api";
 import { aiApi, refreshAi, useAiStatus, useAiUsage } from "@/lib/data/ai";
 import { SETTINGS_KEY, settingsApi } from "@/lib/data/settings";
@@ -100,7 +101,7 @@ export default function AiTab() {
     }
   }, [usage?.budget?.limitVnd, usage?.budget?.alertThresholdPct]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!status) return <div className="p-8 text-center text-xs text-gray-400">Đang tải…</div>;
+  if (!status) return <ToggleListSkeleton rows={7} />;
   if (!status.canManage) {
     return <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">Chỉ người có quyền quản lý AI (Trưởng nhà, Admin) mới xem và cấu hình được mục này.</div>;
   }

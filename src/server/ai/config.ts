@@ -75,6 +75,9 @@ export const AI_LIMITS = {
   perUserPerHour: 20,
   /** Cache theo nội dung: cùng đầu vào trong 24 giờ thì trả gợi ý cũ. */
   cacheHours: 24,
+  /** Các thẻ "AI nhận xét" (thu chi, học tập): giữ kết quả 60 phút theo phạm vi (tháng / cá nhân / toàn nhà), bất kể số liệu có đổi;
+   *  muốn có nhận xét mới trước hạn thì bấm "Tạo lại" (force). */
+  insightCacheMinutes: 60,
   maxOutputTokens: 900,
 } as const;
 

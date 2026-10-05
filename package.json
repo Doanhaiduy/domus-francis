@@ -42,6 +42,7 @@
     "sharp": "^0.35.5",
     "swr": "^2.5.1",
     "tailwind-merge": "^3.7.0",
+    "write-excel-file": "^4.1.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

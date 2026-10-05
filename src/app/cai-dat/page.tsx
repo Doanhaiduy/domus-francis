@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, Send, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
+import { Settings, Building, MessageCircle, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -11,20 +11,21 @@ import { settingLabel } from "@/lib/settings-catalog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import CaiDatLoading from "./loading";
+import { FormCardsSkeleton } from "./_components/TabSkeletons";
 import { useSettingsDraft } from "./_components/useSettingsDraft";
 import ProfileTab from "./_components/ProfileTab";
 import GeneralTab, { isGeneralKey } from "./_components/GeneralTab";
 import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
-import TelegramTab from "./_components/TelegramTab";
+import ZaloTab from "./_components/ZaloTab";
 import AiTab from "./_components/AiTab";
 import ModulesTab from "./_components/ModulesTab";
 import AccountsTab from "./_components/AccountsTab";
 import AcademicConfigTab from "./_components/AcademicConfigTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "telegram" | "ai" | "modules";
-const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "telegram", "ai", "modules"];
+type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "ai" | "modules";
+const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "ai", "modules"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -57,8 +58,8 @@ export default function CaiDatPage() {
     return () => window.removeEventListener("beforeunload", h);
   }, [dirtyCount]);
 
-  // "Khôi phục mặc định": mọi khóa của tab hiện tại (chung hoặc Telegram) mà người dùng được sửa và đang khác mặc định
-  const resetScope = activeTab === "telegram" ? "telegram" : "general";
+  // "Khôi phục mặc định": mọi khóa của tab hiện tại (chung hoặc Zalo) mà người dùng được sửa và đang khác mặc định
+  const resetScope = activeTab === "zalo" ? "zalo" : "general";
   const resettable = useMemo(
     () =>
       [...draft.byKey.values()].filter(
@@ -66,7 +67,7 @@ export default function CaiDatPage() {
           m.canWrite &&
           m.defaultValue !== null &&
           m.defaultValue !== "" && // khóa không có mặc định thật (hotline, STK…) không bị xóa trắng hàng loạt
-          (resetScope === "telegram" ? !isGeneralKey(m.key) : isGeneralKey(m.key)) &&
+          (resetScope === "zalo" ? !isGeneralKey(m.key) : isGeneralKey(m.key)) &&
           !sameSettingValue(m.value, m.defaultValue),
       ),
     [draft.byKey, resetScope],
@@ -77,9 +78,11 @@ export default function CaiDatPage() {
     el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [activeTab, draft.isLoading]);
 
-  if (isLoadingSkeleton || draft.isLoading) {
+  if (isLoadingSkeleton) {
     return <CaiDatLoading />;
   }
+  // Cấu hình hệ thống tải lần đầu: vẫn dựng khung trang + các tab, chỉ phần nội dung tab dùng skeleton riêng
+  const settingsLoading = draft.isLoading;
 
   const handleSave = async () => {
     const r = await draft.save();
@@ -91,7 +94,7 @@ export default function CaiDatPage() {
     showToast(r.ok ? "info" : "error", r.message);
   };
 
-  const readOnly = !draft.anyWritable;
+  const readOnly = !settingsLoading && !draft.anyWritable;
   const tabBtn = (tab: ActiveTab) =>
     cn(
       "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all",
@@ -127,7 +130,7 @@ export default function CaiDatPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {activeTab !== "profile" ? (
+          {activeTab !== "profile" && !settingsLoading ? (
             !readOnly ? (
               <>
                 {dirtyCount > 0 && (
@@ -170,7 +173,7 @@ export default function CaiDatPage() {
       </div>
 
       {/* Thông báo quyền hệ thống (chỉ hiện khi xem các tab cấu hình hệ thống) */}
-      {activeTab !== "profile" && (
+      {activeTab !== "profile" && !settingsLoading && (
         readOnly ? (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
             <div className="flex items-center gap-2.5">
@@ -231,9 +234,9 @@ export default function CaiDatPage() {
             <span>Tài khoản</span>
           </button>
         )}
-        <button onClick={() => setActiveTab("telegram")} className={tabBtn("telegram")}>
-          <Send className="w-4 h-4" />
-          <span>Tích hợp Telegram</span>
+        <button onClick={() => setActiveTab("zalo")} className={tabBtn("zalo")}>
+          <MessageCircle className="w-4 h-4" />
+          <span>Tích hợp Zalo</span>
           {dirtyIn((k) => !isGeneralKey(k)) > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </button>
         <button onClick={() => setActiveTab("modules")} className={tabBtn("modules")}>
@@ -250,10 +253,10 @@ export default function CaiDatPage() {
       </div>
 
       {activeTab === "profile" && <ProfileTab />}
-      {activeTab === "general" && <GeneralTab draft={draft} roles={matrix?.roles ?? []} />}
+      {activeTab === "general" && (settingsLoading ? <FormCardsSkeleton cards={4} /> : <GeneralTab draft={draft} roles={matrix?.roles ?? []} />)}
       {activeTab === "categories" && <CategoriesTab />}
       {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}
-      {activeTab === "telegram" && <TelegramTab draft={draft} />}
+      {activeTab === "zalo" && (settingsLoading ? <FormCardsSkeleton cards={2} /> : <ZaloTab draft={draft} />)}
       {activeTab === "ai" && <AiTab />}
       {activeTab === "modules" && <ModulesTab />}
       {activeTab === "accounts" && <AccountsTab />}
@@ -279,7 +282,7 @@ export default function CaiDatPage() {
         title="Khôi phục giá trị mặc định"
         message={
           <span>
-            Đưa <b>{resettable.length}</b> cấu hình bạn được quyền sửa trong tab {resetScope === "telegram" ? "Tích hợp Telegram" : "Cấu hình chung"}{" "}
+            Đưa <b>{resettable.length}</b> cấu hình bạn được quyền sửa trong tab {resetScope === "zalo" ? "Tích hợp Zalo" : "Cấu hình chung"}{" "}
             về giá trị mặc định và lưu ngay:
             <span className="block mt-2 max-h-40 overflow-y-auto text-[11px] text-gray-500">
               {resettable.map((m) => (

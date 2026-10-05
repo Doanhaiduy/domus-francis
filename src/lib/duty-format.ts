@@ -1,5 +1,5 @@
 // Tiện ích định dạng dùng chung (client + server) cho phân hệ Hậu cần & Trực nhật.
-import type { AssetDto, DutyAssignmentDto, DutyRosterDto, DutyStatus, IssueStatus, IssueUrgency, SwapStatus } from "./types/duty";
+import type { DutyAssignmentDto, DutyRosterDto, DutyWeekEntryDto, DutyStatus, IssueStatus, IssueUrgency, SwapStatus } from "./types/duty";
 
 // ---------------------------------------------------------------------
 // Ngày (chuỗi 'YYYY-MM-DD', không phụ thuộc múi giờ máy)
@@ -150,37 +150,23 @@ export const issueCode = (n: number) => `LOG-${String(n).padStart(3, "0")}`;
 export const isOpenIssue = (s: IssueStatus) => s === "new" || s === "in_progress" || s === "waiting_parts";
 
 // ---------------------------------------------------------------------
-// Mượn đồ
+// Trực vệ sinh sân nhà theo tuần
 // ---------------------------------------------------------------------
-const ASSET_TYPE_ICON: Record<string, string> = {
-  audio_visual: "📽️",
-  tool: "🔧",
-  electrical: "⚡",
-  appliance: "🔌",
-  furniture: "🪑",
-  plumbing: "🚰",
-  safety: "🧯",
-  kitchenware: "🍳",
-  other: "📦",
-};
-export function assetIcon(a: Pick<AssetDto, "name" | "type">): string {
-  const n = a.name.toLowerCase();
-  if (n.includes("máy chiếu")) return "📽️";
-  if (n.includes("khoan")) return "🔩";
-  if (n.includes("thang")) return "🪜";
-  if (n.includes("ổ cắm") || n.includes("dây điện")) return "⚡";
-  if (n.includes("loa") || n.includes("mic")) return "🎤";
-  if (n.includes("tua vít") || n.includes("kìm")) return "🛠️";
-  return ASSET_TYPE_ICON[a.type] ?? "📦";
+/** Văn bản lịch trực tuần để gửi Zalo / sao chép. */
+export function buildWeekText(w: DutyWeekEntryDto, houseName?: string | null): string {
+  const d = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const names = w.members.map((m) => m.name).join(" & ") || "—";
+  return [
+    `🧹 LỊCH TRỰC VỆ SINH SÂN NHÀ${houseName ? ` — ${houseName}` : ""}`,
+    `🗓️ Tuần ${d(w.weekStart)} – ${d(w.weekEnd)}/${w.weekEnd.slice(0, 4)}`,
+    `👥 Người trực: ${names}`,
+    ...(w.note ? [`📝 ${w.note}`] : []),
+    "Nhớ dọn dẹp sân nhà trong tuần này nhé. Cảm ơn anh em! 🕊️",
+  ].join("\n");
 }
-export const ASSET_TYPE_LABEL: Record<string, string> = {
-  audio_visual: "Âm thanh / Trình chiếu",
-  tool: "Dụng cụ sửa chữa",
-  electrical: "Thiết bị điện",
-  appliance: "Đồ gia dụng",
-  furniture: "Nội thất",
-  plumbing: "Điện nước",
-  safety: "An toàn / PCCC",
-  kitchenware: "Đồ bếp",
-  other: "Khác",
+
+/** "05/10 – 11/10/2026" */
+export const weekRangeLabel = (weekStart: string) => {
+  const end = addDays(weekStart, 6);
+  return `${weekStart.slice(8, 10)}/${weekStart.slice(5, 7)} – ${end.slice(8, 10)}/${end.slice(5, 7)}/${end.slice(0, 4)}`;
 };

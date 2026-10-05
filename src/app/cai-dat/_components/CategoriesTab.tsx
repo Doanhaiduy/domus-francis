@@ -6,6 +6,7 @@ import { Tag, Plus, Edit2, Trash2, Search, X, Check, Lock, AlertCircle } from "l
 import { CustomInput, CustomSelect, CustomToggle, type SelectOption } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useApp } from "@/lib/store";
+import { CardGridSkeleton } from "./TabSkeletons";
 import { useSession } from "@/lib/session";
 import { errorMessage, ApiClientError } from "@/lib/api";
 import { categoriesApi, useCategories } from "@/lib/data/settings";
@@ -207,6 +208,8 @@ export default function CategoriesTab() {
 
   const editingSystem = !!editingCategory?.isSystem;
   const kindLocked = editingSystem || (!!editingCategory && editingCategory.usageCount > 0);
+
+  if (isLoading && categories.length === 0) return <CardGridSkeleton cards={9} />;
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">

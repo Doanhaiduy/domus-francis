@@ -414,3 +414,59 @@ export interface PlanSummaryDto {
   collectedVnd: number;
   expectedVnd: number;
 }
+
+// ---------------------------------------------------------------------
+// Báo "đã đóng" (chờ xác nhận), nhắc nợ và thống kê thu chi theo tháng / quý / năm
+// ---------------------------------------------------------------------
+export interface ContributionClaimDto {
+  id: string;
+  contributionId: string;
+  memberId: string;
+  planId: string;
+  method: PaymentMethod;
+  referenceCode: string | null;
+  note: string | null;
+  createdAt: string; // ISO
+}
+
+export interface RemindResultDto {
+  /** Số người được nhắc trong ứng dụng */
+  sent: number;
+  /** Số khoản bỏ qua vì vừa được nhắc trong 1 giờ qua */
+  skipped: number;
+  /** Nội dung tin nhắc nhóm (để sao chép khi không gửi được vào nhóm Zalo) */
+  groupText: string | null;
+  /** Kết quả gửi nhóm Zalo (null = không yêu cầu) */
+  zalo: { sent: boolean; reason?: string } | null;
+}
+
+export type StatsGranularity = "month" | "quarter" | "year";
+
+export interface FinanceStatsPeriodDto {
+  key: string; // 2026-10 | 2026-Q4 | 2026
+  label: string; // "Tháng 10/2026" | "Quý 4/2026" | "Năm 2026"
+  from: string;
+  to: string;
+  openingVnd: number;
+  incomeVnd: number;
+  expenseVnd: number;
+  netVnd: number;
+  closingVnd: number;
+  duesExpectedVnd: number;
+  duesCollectedVnd: number;
+  collectionRatePct: number | null;
+  expenseByCategory: { code: string; name: string; color: string; amountVnd: number; count: number }[];
+  /** Thu theo loại khoản (chỉ người xem được toàn bộ khoản thu); null nếu không có quyền */
+  incomeByType: { type: string; label: string; amountVnd: number }[] | null;
+}
+
+export interface FinanceStatsDto {
+  granularity: StatsGranularity;
+  periods: FinanceStatsPeriodDto[];
+  /** adjustmentVnd = số dư cuối − số dư đầu − (thu − chi): phần "số dư đầu kỳ nhập tay" nằm giữa các kỳ (không phải thu/chi) */
+  totals: { incomeVnd: number; expenseVnd: number; netVnd: number; openingVnd: number; closingVnd: number; adjustmentVnd: number };
+  expenseByCategory: { code: string; name: string; color: string; amountVnd: number; count: number }[];
+  incomeByType: { type: string; label: string; amountVnd: number }[] | null;
+  houseName: string | null;
+  generatedAt: string;
+}

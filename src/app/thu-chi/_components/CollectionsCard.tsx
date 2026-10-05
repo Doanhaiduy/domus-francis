@@ -3,10 +3,10 @@
 // Thẻ "Các khoản thu" (trang Thu chi → Tổng quan): chọn kế hoạch thu (mặc định kỳ quỹ hiện tại; chip tiền điện nước các tháng gần nhất),
 // tiến độ đã thu / phải thu, danh sách thành viên (thẻ trên điện thoại, bảng trên máy tính) với Thu tiền / Nộp qua QR / Chi tiết.
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban } from "lucide-react";
+import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban, BellRing, Undo2, Check, X as XIcon, Hourglass } from "lucide-react";
 import { formatVND } from "@/lib/utils";
 import { dm, dmy } from "@/lib/finance-format";
-import { FEE_TYPE_LABEL, type ContributionCellDto, type ContributionPlanDto, type ContributionRowDto } from "@/lib/types/finance";
+import { FEE_TYPE_LABEL, type ContributionCellDto, type ContributionClaimDto, type ContributionPlanDto, type ContributionRowDto } from "@/lib/types/finance";
 import { ContributionBadge } from "./ContributionDialogs";
 
 type Filter = "unpaid" | "paid" | "all";
@@ -49,6 +49,15 @@ export default function CollectionsCard({
   onCreateDues,
   onCreateUtility,
   onCancelPlan,
+  claims,
+  canRemind,
+  onQuickPay,
+  onClaim,
+  onUndo,
+  onRemindOne,
+  onRemindPlan,
+  onDecideClaim,
+  onCancelClaim,
 }: {
   plans: ContributionPlanDto[] | undefined;
   plan: ContributionPlanDto | null;
@@ -67,6 +76,19 @@ export default function CollectionsCard({
   onCreateDues: () => void;
   onCreateUtility: () => void;
   onCancelPlan: (plan: ContributionPlanDto) => void;
+  /** Yêu cầu "đã đóng" đang chờ xác nhận của kế hoạch đang xem */
+  claims: ContributionClaimDto[];
+  canRemind: boolean;
+  /** Người có quyền ghi thu xác nhận thay thành viên đã đóng */
+  onQuickPay: (row: ContributionRowDto, cell: ContributionCellDto) => void;
+  /** Thành viên tự báo "Tôi đã đóng" */
+  onClaim: (row: ContributionRowDto, cell: ContributionCellDto) => void;
+  /** Hoàn tác phiếu thu gần nhất của khoản (báo nhầm) */
+  onUndo: (row: ContributionRowDto, cell: ContributionCellDto) => void;
+  onRemindOne: (row: ContributionRowDto, cell: ContributionCellDto) => void;
+  onRemindPlan: () => void;
+  onDecideClaim: (claim: ContributionClaimDto, approve: boolean) => void;
+  onCancelClaim: (claim: ContributionClaimDto) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("unpaid");
   const [search, setSearch] = useState("");
@@ -75,9 +97,11 @@ export default function CollectionsCard({
     if (!canReadAll) setFilter("all");
   }, [canReadAll]);
 
+  const claimOf = useMemo(() => new Map(claims.map((c) => [c.contributionId, c])), [claims]);
   const chips = useMemo(() => chipOrder(plans ?? []), [plans]);
   const planRows = useMemo(() => (plan ? rows.filter((r) => r.cells[plan.id]) : []), [plan, rows]);
   const cellOf = (r: ContributionRowDto) => r.cells[plan!.id];
+  const owingList = useMemo(() => (canReadAll ? planRows.filter((r) => owingOf(r.cells[plan!.id])) : []), [planRows, canReadAll, plan]); // eslint-disable-line react-hooks/exhaustive-deps
   const unpaidList = useMemo(() => planRows.filter((r) => owingOf(r.cells[plan!.id])), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
   const paidList = useMemo(() => planRows.filter((r) => !owingOf(r.cells[plan!.id])), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
   const displayed = useMemo(() => {
@@ -109,14 +133,66 @@ export default function CollectionsCard({
   const actionsFor = (r: ContributionRowDto, c: ContributionCellDto, compact: boolean) => {
     const owing = owingOf(c);
     const mine = r.memberId === myMemberId;
+    const claim = claimOf.get(c.contributionId);
+    const btn = compact ? "px-3 py-1.5" : "px-2.5 py-1";
     return (
-      <div className="flex items-center justify-end gap-1 shrink-0">
-        {canRecord && owing && (
+      <div className="flex flex-wrap items-center justify-end gap-1 shrink-0">
+        {owing && claim && (
+          <>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold" title={claim.note ?? undefined}>
+              <Hourglass className="w-3 h-3" /> Chờ xác nhận
+            </span>
+            {canRecord && (
+              <>
+                <button onClick={() => onDecideClaim(claim, true)} className={`${btn} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition`}>
+                  <Check className="w-3.5 h-3.5" /> Xác nhận
+                </button>
+                <button onClick={() => onDecideClaim(claim, false)} className={`${btn} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 transition`}>
+                  <XIcon className="w-3.5 h-3.5" /> Từ chối
+                </button>
+              </>
+            )}
+            {mine && !canRecord && (
+              <button onClick={() => onCancelClaim(claim)} className={`${btn} rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95 transition`}>
+                Hủy báo
+              </button>
+            )}
+          </>
+        )}
+        {canRecord && owing && !claim && (
           <button
-            onClick={() => onRecord(r.memberId, c.contributionId)}
-            className={`${compact ? "px-3 py-1.5" : "px-2.5 py-1"} rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 transition`}
+            onClick={() => onQuickPay(r, c)}
+            className={`${btn} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition shadow-2xs`}
+            title="Xác nhận thành viên đã đóng (tiền mặt hoặc chuyển khoản) — nhầm thì Hoàn tác"
           >
-            Thu tiền
+            <Check className="w-3.5 h-3.5" /> Đã đóng
+          </button>
+        )}
+        {mine && owing && !claim && !canRecord && (
+          <button
+            onClick={() => onClaim(r, c)}
+            className={`${btn} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 transition`}
+            title="Báo bạn đã đóng (tiền mặt / chuyển khoản) để Thủ quỹ xác nhận"
+          >
+            <Check className="w-3.5 h-3.5" /> Tôi đã đóng
+          </button>
+        )}
+        {canRecord && !owing && c.payments.length > 0 && (
+          <button
+            onClick={() => onUndo(r, c)}
+            className={`${btn} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 transition`}
+            title="Hủy phiếu thu gần nhất của khoản này (báo thu nhầm)"
+          >
+            <Undo2 className="w-3.5 h-3.5" /> Hoàn tác
+          </button>
+        )}
+        {canRemind && owing && !mine && (
+          <button
+            onClick={() => onRemindOne(r, c)}
+            className={`${compact ? "px-2.5 py-1.5" : "px-2 py-1"} inline-flex items-center gap-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95 transition`}
+            title="Nhắc người này đóng quỹ"
+          >
+            <BellRing className="w-3.5 h-3.5" /> Nhắc
           </button>
         )}
         {mine && owing && (
@@ -220,6 +296,15 @@ export default function CollectionsCard({
                 </div>
                 {plan.note && <div className="text-[11px] text-gray-400 italic">{plan.note}</div>}
               </div>
+              {canRemind && owingList.length > 0 && (
+                <button
+                  onClick={onRemindPlan}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-[11px] font-bold text-amber-800"
+                  title="Nhắc tất cả người chưa đóng — trong ứng dụng và/hoặc nhóm Zalo"
+                >
+                  <BellRing className="w-3.5 h-3.5" /> Nhắc người chưa đóng ({owingList.length})
+                </button>
+              )}
               {canPlan && plan.stats.collectedVnd === 0 && (plan.feeType === "utility" || plan.feeType === "periodic_dues") && (
                 <button
                   onClick={() => onCancelPlan(plan)}

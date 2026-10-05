@@ -20,6 +20,7 @@ import {
   Building2,
   Camera,
   GraduationCap,
+  ScrollText,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -43,7 +44,8 @@ export const CommandPalette: React.FC = () => {
 
   const NAV_ITEMS = [
     { label: "Tổng quan", href: "/", icon: LayoutDashboard, category: "Điều hướng" },
-    { label: "Hậu cần, Trực nhật & Báo hỏng", href: "/hau-can", icon: Wrench, category: "Điều hướng" },
+    { label: "Hậu cần, Trực vệ sinh & Báo hỏng", href: "/hau-can", icon: Wrench, category: "Điều hướng" },
+    { label: "Luật nhà (nội quy, giờ giấc)", href: "/thong-bao?tab=luat", icon: ScrollText, category: "Điều hướng" },
     { label: "Bếp & Điểm danh cơm", href: "/bep-com", icon: UtensilsCrossed, category: "Điều hướng" },
     { label: "Thu Chi & Tài Chính", href: "/thu-chi", icon: Wallet, category: "Điều hướng" },
     { label: "Lịch & Sự kiện", href: "/lich-su-kien", icon: Calendar, category: "Điều hướng" },
@@ -62,7 +64,6 @@ export const CommandPalette: React.FC = () => {
     { label: "Ghi chi tiêu quỹ mới", action: () => openModal("addExpense"), icon: Plus, category: "Hành động nhanh", perm: "finance.expense.create" },
     { label: "Báo hỏng thiết bị & cơ sở", action: () => openModal("reportIssue"), icon: Wrench, category: "Hành động nhanh", perm: "issue.create" },
     { label: "Đăng thông báo cộng đoàn", action: () => openModal("createAnnouncement"), icon: Plus, category: "Hành động nhanh", perm: "announcement.create" },
-    { label: "Yêu cầu đổi ca trực", action: () => openModal("swapDuty"), icon: Calendar, category: "Hành động nhanh", perm: "duty.swap.request" },
     { label: "Thêm sự kiện mới", action: () => openModal("addEvent"), icon: Plus, category: "Hành động nhanh", perm: "event.manage" },
     { label: "Thêm thành viên mới", action: () => openModal("addMember"), icon: User, category: "Hành động nhanh", perm: "member.create" },
     { label: "Đổi mật khẩu", action: () => openModal("changePassword"), icon: User, category: "Hành động nhanh" },

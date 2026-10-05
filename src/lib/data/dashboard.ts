@@ -28,6 +28,18 @@ export interface DutySummary {
   myNext: { assignmentId: string; date: string; area: string; shift: string } | null;
   openIssuesCount: number;
   pendingReviewsCount: number;
+  /** Tuần trực vệ sinh sân nhà hiện tại (null nếu chưa xếp) */
+  thisWeek?: DutyWeekBrief | null;
+  /** Lần trực sắp tới của tôi (tuần này hoặc tuần sau) */
+  myNextWeek?: DutyWeekBrief | null;
+}
+export interface DutyWeekBrief {
+  weekStart: string;
+  weekEnd: string;
+  members: string[];
+  isMine: boolean;
+  score: number | null;
+  redoRequired: boolean;
 }
 
 export interface UpcomingEvent {
@@ -62,17 +74,23 @@ export interface UnreadCount {
 
 const opts = { shouldRetryOnError: false, revalidateOnFocus: true, dedupingInterval: 20_000 };
 
+// Bản "Q" trả về cả trạng thái tải (isLoading chỉ true ở lần tải đầu, khi chưa có dữ liệu) để trang Tổng quan hiển thị skeleton
+export const useFinanceSummaryQ = (enabled = true) => useSWR<FinanceSummary>(enabled ? "/api/v1/finance/summary" : null, swrFetcher, opts);
+export const useDutySummaryQ = (enabled = true) => useSWR<DutySummary>(enabled ? "/api/v1/duty/summary" : null, swrFetcher, opts);
+export const useUpcomingEventsQ = (limit = 5, enabled = true) => useSWR<UpcomingEvent[]>(enabled ? `/api/v1/events/upcoming?limit=${limit}` : null, swrFetcher, opts);
+export const useLatestAnnouncementsQ = (limit = 5, enabled = true) => useSWR<AnnouncementBrief[]>(enabled ? `/api/v1/announcements?limit=${limit}` : null, swrFetcher, opts);
+
 export function useFinanceSummary(enabled = true) {
-  return useSWR<FinanceSummary>(enabled ? "/api/v1/finance/summary" : null, swrFetcher, opts).data;
+  return useFinanceSummaryQ(enabled).data;
 }
 export function useDutySummary(enabled = true) {
-  return useSWR<DutySummary>(enabled ? "/api/v1/duty/summary" : null, swrFetcher, opts).data;
+  return useDutySummaryQ(enabled).data;
 }
 export function useUpcomingEvents(limit = 5, enabled = true) {
-  return useSWR<UpcomingEvent[]>(enabled ? `/api/v1/events/upcoming?limit=${limit}` : null, swrFetcher, opts).data;
+  return useUpcomingEventsQ(limit, enabled).data;
 }
 export function useLatestAnnouncements(limit = 5, enabled = true) {
-  return useSWR<AnnouncementBrief[]>(enabled ? `/api/v1/announcements?limit=${limit}` : null, swrFetcher, opts).data;
+  return useLatestAnnouncementsQ(limit, enabled).data;
 }
 export function useUnreadCount(enabled = true) {
   return useSWR<UnreadCount>(enabled ? "/api/v1/notifications/unread-count" : null, swrFetcher, { ...opts, refreshInterval: 60_000 }).data;

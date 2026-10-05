@@ -58,7 +58,8 @@ interface CachedRow {
   created_at: Date;
 }
 
-export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInput: unknown): Promise<AiResultDto<C>> {
+/** `force`: bỏ qua cache (nút "Tạo lại") — vẫn chịu giới hạn tốc độ và ngân sách. */
+export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInput: unknown, opts: { force?: boolean } = {}): Promise<AiResultDto<C>> {
   const def = TASKS[code];
   const input = parseInput(code, rawInput);
 
@@ -74,18 +75,24 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     const p = await (def.prepare as (t: Tx, i: unknown) => Promise<Prepared<C>>)(tx, input);
 
     const hash = sha256(`${code}|${PROMPT_VERSION}|${p.hashInput}`);
+    const scope = p.cacheScope ?? null;
     // Gộp 3 truy vấn độc lập (giới hạn tốc độ, cache, mã thành viên + còn đồng ý không): 1 vòng mạng thay vì 3.
     // Cache chỉ dùng khi người gọi vẫn còn đồng ý mục đích tác vụ yêu cầu (rút đồng ý ⇒ không trả lại kết quả cũ, đi qua cổng DB).
     const [rateR, cachedR, whoR] = await batch(tx, [
       ["SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour'"],
-      [
-        `SELECT s.id AS suggestion_id, s.job_id, s.payload, j.provider, j.model, s.created_at
-           FROM ai_suggestions s JOIN ai_jobs j ON j.id = s.job_id
-          WHERE j.requested_by = app.current_user_id() AND j.task_code = $1 AND j.input_hash = $2 AND j.status = 'succeeded'
-            AND s.status IN ('pending','accepted') AND s.created_at > now() - make_interval(hours => $3)
-          ORDER BY s.created_at DESC LIMIT 1`,
-        [code, hash, AI_LIMITS.cacheHours],
-      ],
+      opts.force
+        ? ["SELECT NULL::uuid AS suggestion_id WHERE false"]
+        : [
+            `SELECT s.id AS suggestion_id, s.job_id, s.payload, j.provider, j.model, s.created_at
+               FROM ai_suggestions s JOIN ai_jobs j ON j.id = s.job_id
+              WHERE j.requested_by = app.current_user_id() AND j.task_code = $1 AND j.status = 'succeeded'
+                AND s.status IN ('pending','accepted')
+                AND (CASE WHEN $4::text IS NOT NULL
+                          THEN j.input_ref ->> 'scope' = $4::text AND s.created_at > now() - make_interval(mins => $5::int)
+                          ELSE j.input_hash = $2 AND s.created_at > now() - make_interval(hours => $3::int) END)
+              ORDER BY s.created_at DESC LIMIT 1`,
+            [code, hash, AI_LIMITS.cacheHours, scope, AI_LIMITS.insightCacheMinutes],
+          ],
       [
         `SELECT app.current_member_id() AS id,
                 COALESCE((SELECT t.required_consent_purpose IS NULL OR app.has_active_consent(app.current_member_id(), t.required_consent_purpose)
@@ -129,7 +136,17 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
       `INSERT INTO ai_jobs (task_code, requested_by, subject_member_id, entity_table, entity_id, input_hash, input_ref, provider, model, prompt_version)
        VALUES ($1, app.current_user_id(), $2, $3, $4, $5, $6::jsonb, $7, $8, $9)
        RETURNING id, status, blocked_reason`,
-      [code, prep.me, entity?.table ?? null, entity?.id ?? null, prep.hash, JSON.stringify(prep.p.inputRef), first.id, first.model, PROMPT_VERSION],
+      [
+        code,
+        prep.me,
+        entity?.table ?? null,
+        entity?.id ?? null,
+        prep.hash,
+        JSON.stringify(prep.p.cacheScope ? { ...prep.p.inputRef, scope: prep.p.cacheScope } : prep.p.inputRef),
+        first.id,
+        first.model,
+        PROMPT_VERSION,
+      ],
     );
     return r.rows[0];
   });

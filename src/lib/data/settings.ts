@@ -11,7 +11,6 @@ import type {
   RoleInput,
   SettingChange,
   SettingsListDto,
-  TelegramTestDto,
 } from "../types/settings";
 
 export const SETTINGS_KEY = "/api/v1/settings";
@@ -101,7 +100,6 @@ export const settingsApi = {
   save: (changes: SettingChange[]) => api.patch<SettingsListDto & { changed: string[] }>(SETTINGS_KEY, { changes }),
   reset: (keys: string[]) => api.post<SettingsListDto & { reset: string[]; skipped: string[] }>(`${SETTINGS_KEY}/reset`, { keys }),
   resetOne: (key: string) => api.post(`${SETTINGS_KEY}/${enc(key)}/reset`),
-  telegramTest: () => api.post<TelegramTestDto>(`${SETTINGS_KEY}/telegram/test`),
 };
 
 export const categoriesApi = {

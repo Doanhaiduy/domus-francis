@@ -93,7 +93,7 @@ Một người có thể giữ nhiều vai trò (ví dụ Trưởng nhà + Thàn
 - Xem **ca trực** của mình; đến giờ bấm **Check-in** và chụp ảnh khu vực đã làm sạch.
 - Bận đột xuất: **Đổi ca** với một anh em khác (người nhận đồng ý, Ban điều hành duyệt), xin trước ít nhất 12 giờ.
 - **Báo hỏng**: nút “Báo hỏng” — mô tả, chọn vị trí, chụp ảnh. Theo dõi trạng thái sửa chữa.
-- **Giặt đồ**: đặt lượt máy giặt theo khung giờ, đến đúng giờ.
+
 
 ### Phụng vụ
 - Lịch phụng vụ tuần, phân công đọc sách/giúp lễ/hát; xác nhận nhiệm vụ của mình.

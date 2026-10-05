@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Fragment, useState, useRef, useEffect } from "react";
-import { Listbox, Transition, Switch } from "@headlessui/react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Switch } from "@headlessui/react";
 import {
   Check,
   ChevronDown,
@@ -12,6 +12,7 @@ import {
   X,
   RotateCcw,
 } from "lucide-react";
+import { FloatingPanel } from "./FloatingPanel";
 
 export interface SelectOption<T = string> {
   value: T;
@@ -39,69 +40,107 @@ export function CustomSelect<T = string>({
   className = "",
   disabled = false,
 }: CustomSelectProps<T>) {
-  const selectedOption = options.find((o) => o.value === value);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const selectedIdx = options.findIndex((o) => o.value === value);
+  const selectedOption = selectedIdx >= 0 ? options[selectedIdx] : undefined;
+  const close = useCallback(() => setOpen(false), []);
+
+  const openList = () => {
+    if (disabled) return;
+    setActive(selectedIdx >= 0 ? selectedIdx : 0);
+    setOpen(true);
+  };
+  const pick = (i: number) => {
+    const o = options[i];
+    if (!o) return;
+    onChange(o.value);
+    setOpen(false);
+    btnRef.current?.focus();
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openList();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(options.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(0, i - 1));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      pick(active);
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
 
   return (
     <div className={`w-full ${className}`}>
-      {label && (
-        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-          {label}
-        </label>
-      )}
-      <Listbox value={value} onChange={onChange} disabled={disabled}>
-        <div className="relative">
-          <Listbox.Button className="relative w-full cursor-pointer rounded-xl bg-white py-2.5 pl-3.5 pr-10 text-left text-xs font-semibold text-gray-900 border border-gray-200 shadow-2xs hover:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-            <span className="flex items-center gap-2 truncate">
-              {selectedOption?.icon && <span className="shrink-0">{selectedOption.icon}</span>}
-              <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-            </span>
-            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
-            </span>
-          </Listbox.Button>
-          <Transition
-            as={Fragment}
-            leave="transition ease-in duration-100"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <Listbox.Options className="absolute z-50 mt-1.5 max-h-60 w-full overflow-auto rounded-2xl bg-white p-1 text-xs shadow-xl ring-1 ring-black/5 focus:outline-none border border-purple-50">
-              {options.map((option, idx) => (
-                <Listbox.Option
-                  key={idx}
-                  value={option.value}
-                  className={({ active, selected }) =>
-                    `relative cursor-pointer select-none py-2 pl-8 pr-4 rounded-xl transition-colors ${
-                      active ? "bg-purple-50 text-primary font-bold" : "text-gray-800"
-                    } ${selected ? "font-bold text-primary bg-purple-50/60" : ""}`
-                  }
-                >
-                  {({ selected }) => (
-                    <>
-                      <div className="flex items-center gap-2 truncate">
-                        {option.icon && <span className="shrink-0">{option.icon}</span>}
-                        <div className="flex flex-col">
-                          <span className="truncate">{option.label}</span>
-                          {option.subLabel && (
-                            <span className="text-[10px] text-gray-400 font-normal">
-                              {option.subLabel}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {selected ? (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-primary">
-                          <Check className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </Listbox.Option>
-              ))}
-            </Listbox.Options>
-          </Transition>
+      {label && <label className="block text-xs font-bold text-gray-700 mb-1.5">{label}</label>}
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => (open ? close() : openList())}
+        onKeyDown={onKeyDown}
+        className={`relative w-full cursor-pointer rounded-xl bg-white py-2.5 pl-3.5 pr-10 text-left text-xs font-semibold text-gray-900 border shadow-2xs hover:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+          open ? "border-primary ring-2 ring-purple-200" : "border-gray-200"
+        }`}
+      >
+        <span className="flex items-center gap-2 truncate">
+          {selectedOption?.icon && <span className="shrink-0">{selectedOption.icon}</span>}
+          <span className={`truncate ${selectedOption ? "" : "text-gray-400 font-normal"}`}>{selectedOption ? selectedOption.label : placeholder}</span>
+        </span>
+        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180 text-primary" : "text-gray-400"}`} aria-hidden="true" />
+        </span>
+      </button>
+      <FloatingPanel open={open} onClose={close} anchorRef={btnRef} maxHeight={260} className="p-1 text-xs">
+        <div role="listbox">
+          {options.length === 0 && <div className="px-3 py-2 text-gray-400">Không có lựa chọn</div>}
+          {options.map((option, idx) => {
+            const selected = idx === selectedIdx;
+            return (
+              <div
+                key={idx}
+                role="option"
+                aria-selected={selected}
+                ref={(el) => {
+                  if (el && idx === active) el.scrollIntoView({ block: "nearest" });
+                }}
+                onMouseEnter={() => setActive(idx)}
+                onClick={() => pick(idx)}
+                className={`relative cursor-pointer select-none py-2 pl-8 pr-4 rounded-xl transition-colors ${
+                  idx === active ? "bg-purple-50 text-primary font-bold" : "text-gray-800"
+                } ${selected ? "font-bold text-primary bg-purple-50/60" : ""}`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {option.icon && <span className="shrink-0">{option.icon}</span>}
+                  <div className="flex flex-col min-w-0">
+                    <span className="truncate">{option.label}</span>
+                    {option.subLabel && <span className="text-[10px] text-gray-400 font-normal">{option.subLabel}</span>}
+                  </div>
+                </div>
+                {selected && (
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-primary">
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
-      </Listbox>
+      </FloatingPanel>
     </div>
   );
 }
@@ -257,7 +296,9 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   required = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const closePanel = useCallback(() => setIsOpen(false), []);
+  const todayDate = new Date();
 
   // Parse initial date value
   const parseDateValue = (str: string): Date | null => {
@@ -280,12 +321,12 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   const selectedDate = parseDateValue(value);
 
-  // Calendar navigation state: default to selected date or October 2026
+  // Calendar navigation state: default to selected date or current month
   const [navYear, setNavYear] = useState<number>(() => {
-    return selectedDate ? selectedDate.getFullYear() : 2026;
+    return selectedDate ? selectedDate.getFullYear() : todayDate.getFullYear();
   });
   const [navMonth, setNavMonth] = useState<number>(() => {
-    return selectedDate ? selectedDate.getMonth() : 9; // 9 = October
+    return selectedDate ? selectedDate.getMonth() : todayDate.getMonth();
   });
 
   // Sync nav month/year when selectedDate changes
@@ -295,21 +336,6 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       setNavMonth(selectedDate.getMonth());
     }
   }, [value]);
-
-  // Click outside listener
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen]);
 
   // Format date helper
   const formatDateOutput = (d: Date): string => {
@@ -354,7 +380,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   const handleSelectToday = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const today = new Date(2026, 9, 2); // 02/10/2026
+    const today = new Date();
     setNavYear(today.getFullYear());
     setNavMonth(today.getMonth());
     onChange(formatDateOutput(today));
@@ -389,7 +415,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   ];
 
   return (
-    <div className={`w-full relative ${className}`} ref={containerRef}>
+    <div className={`w-full relative ${className}`}>
       {label && (
         <label className="block text-xs font-bold text-gray-700 mb-1.5">
           {label} {required && <span className="text-rose-500">*</span>}
@@ -398,6 +424,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
       {/* Input button */}
       <div
+        ref={triggerRef}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-xs text-gray-900 cursor-pointer shadow-2xs hover:border-purple-300 focus:ring-2 focus:ring-purple-200 transition-all ${
           disabled ? "opacity-50 cursor-not-allowed" : ""
@@ -432,8 +459,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       {error && <p className="mt-1 text-[11px] text-rose-500">{error}</p>}
 
       {/* CALENDAR POPOVER */}
-      {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-72 rounded-2xl bg-white p-3.5 shadow-2xl border border-purple-100 animate-in fade-in zoom-in-95 duration-100">
+      <FloatingPanel open={isOpen} onClose={closePanel} anchorRef={triggerRef} width={288} maxHeight={420}>
+        <div className="p-3.5">
           {/* Calendar Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
             <button
@@ -484,7 +511,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                 selectedDate.getFullYear() === navYear;
 
               const isToday =
-                navYear === 2026 && navMonth === 9 && day === 2; // Simulated today: 02/10/2026
+                navYear === todayDate.getFullYear() && navMonth === todayDate.getMonth() && day === todayDate.getDate();
 
               return (
                 <button
@@ -525,7 +552,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
             </button>
           </div>
         </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 };
@@ -599,7 +626,8 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
   required = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const closePanel = useCallback(() => setIsOpen(false), []);
 
   const PRESET_TIMES = [
     "05:30 sáng",
@@ -616,22 +644,8 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
     "22:00 đêm",
   ];
 
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [isOpen]);
-
   return (
-    <div className={`w-full relative ${className}`} ref={containerRef}>
+    <div className={`w-full relative ${className}`}>
       {label && (
         <label className="block text-xs font-bold text-gray-700 mb-1.5">
           {label} {required && <span className="text-rose-500">*</span>}
@@ -639,6 +653,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
       )}
 
       <div
+        ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-xs text-gray-900 cursor-pointer shadow-2xs hover:border-purple-300 focus:ring-2 focus:ring-purple-200 transition-all ${
           error ? "border-rose-400" : ""
@@ -659,12 +674,12 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
 
       {error && <p className="mt-1 text-[11px] text-rose-500">{error}</p>}
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-2xl bg-white p-2.5 shadow-2xl border border-purple-100 animate-in fade-in zoom-in-95 duration-100">
+      <FloatingPanel open={isOpen} onClose={closePanel} anchorRef={triggerRef} minWidth={240} maxHeight={360}>
+        <div className="p-2.5">
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
             Khung giờ sinh hoạt:
           </div>
-          <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-1.5">
             {PRESET_TIMES.map((time) => (
               <button
                 key={time}
@@ -701,7 +716,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
             </button>
           </div>
         </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 };

@@ -16,9 +16,28 @@ declare global {
   var __luuxaPool: Pool | undefined;
 }
 
+/**
+ * Supabase Supavisor: cổng 5432 = "session mode" (mỗi client chiếm một kết nối thật tới khi đóng; giới hạn pool_size ≈ 15 ⇒
+ * lỗi EMAXCONNSESSION khi nhiều hàm serverless cùng mở), cổng 6543 = "transaction mode" (kết nối chỉ bị giữ trong một transaction).
+ * Ứng dụng chỉ dùng transaction (BEGIN … COMMIT, SET LOCAL ROLE) nên luôn dùng cổng 6543 — tự đổi nếu cấu hình nhầm 5432.
+ */
+export function normalizeDatabaseUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    if (u.hostname.endsWith(".pooler.supabase.com") && (u.port === "" || u.port === "5432")) {
+      u.port = "6543";
+      return u.toString();
+    }
+  } catch {
+    // giữ nguyên nếu không phân tích được
+  }
+  return raw;
+}
+
 function createPool() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("Chưa cấu hình biến môi trường DATABASE_URL trên Vercel / server.");
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) throw new Error("Chưa cấu hình biến môi trường DATABASE_URL trên Vercel / server.");
+  const url = normalizeDatabaseUrl(rawUrl);
   let host = "";
   try {
     host = new URL(url).hostname;
@@ -31,12 +50,16 @@ function createPool() {
     // Ràng buộc an toàn: cảnh báo nếu chưa cho phép kết nối DB từ xa ở môi trường local.
     throw new Error(`DATABASE_URL đang trỏ tới host từ xa (${host}). Đặt ALLOW_REMOTE_DB=true trong .env.local để cho phép.`);
   }
+  // Serverless: mỗi instance chỉ giữ vài kết nối (nhiều instance chạy song song); đóng sớm kết nối nhàn rỗi để trả lại pooler.
+  const serverless = Boolean(process.env.VERCEL);
+  const envMax = Number(process.env.DB_POOL_MAX);
   const pool = new Pool({
     connectionString: url,
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
-    max: process.env.VERCEL ? 5 : 20,
-    idleTimeoutMillis: 30_000,
+    max: Number.isInteger(envMax) && envMax > 0 ? envMax : serverless ? 3 : 20,
+    idleTimeoutMillis: serverless ? 10_000 : 30_000,
     connectionTimeoutMillis: 15_000,
+    allowExitOnIdle: serverless,
     application_name: "luuxa-web",
   });
   pool.on("error", (e) => console.error("[db] lỗi kết nối nhàn rỗi:", e.message));
@@ -59,6 +82,20 @@ export type Tx = PoolClient;
 
 const RETRYABLE = new Set(["40001", "40P01"]);
 
+/** Pooler báo hết chỗ tạm thời (EMAXCONNSESSION / "max clients reached") ⇒ chờ một chút rồi thử lại thay vì lỗi ngay. */
+async function connectWithRetry(): Promise<PoolClient> {
+  for (let i = 0; ; i++) {
+    try {
+      return await pool.connect();
+    } catch (e) {
+      const msg = String((e as Error)?.message ?? "");
+      const saturated = /EMAXCONNSESSION|max clients reached|too many clients|remaining connection slots/i.test(msg);
+      if (!saturated || i >= 4) throw e;
+      await new Promise((r) => setTimeout(r, 250 * (i + 1) + Math.random() * 150));
+    }
+  }
+}
+
 function escapeSqlLiteral(val: string | null | undefined): string {
   if (val === null || val === undefined) return "''";
   return "'" + String(val).replace(/'/g, "''") + "'";
@@ -73,7 +110,7 @@ function escapeSqlLiteral(val: string | null | undefined): string {
 export async function withTx<T>(ctx: TxContext, role: DbRole, fn: (tx: Tx) => Promise<T>): Promise<T> {
   if (!ROLES.has(role)) throw new Error(`Vai trò DB không hợp lệ: ${role}`);
   for (let attempt = 0; ; attempt++) {
-    const client = await pool.connect();
+    const client = await connectWithRetry();
     try {
       await client.query(
         `BEGIN;

@@ -58,11 +58,11 @@ export const FINANCE_CONTROL_KEYS = [
 const HIDDEN_FINANCE_KEYS = ["finance.monthly_dues_vnd", "finance.dues_due_day", "finance.dues_bank_account", "finance.receiving_account"];
 /** Khóa có tab riêng (Phân hệ) — không lặp lại ở tham số nâng cao. */
 const MANAGED_ELSEWHERE = ["ui.disabled_modules"];
-const TELEGRAM_PREFIX = "integration.telegram.";
-const EVENTS_KEY = "integration.telegram.group_events";
+const INTEGRATION_PREFIX = "integration.";
+const EVENTS_KEY = "integration.zalo.group_events";
 
-/** Khóa thuộc tab Cấu hình chung (mọi khóa trừ nhóm Telegram). */
-export const isGeneralKey = (k: string) => !k.startsWith(TELEGRAM_PREFIX);
+/** Khóa thuộc tab Cấu hình chung (mọi khóa trừ nhóm tích hợp Zalo/Telegram và lịch giặt đã bỏ). */
+export const isGeneralKey = (k: string) => !k.startsWith(INTEGRATION_PREFIX) && !k.startsWith("laundry.") && !k.startsWith("duty.");
 
 const GROUP_LABEL: Record<string, string> = {
   duty: "Trực nhật & Vệ sinh",
@@ -109,7 +109,7 @@ export default function GeneralTab({ draft, roles }: Props) {
   }, [draft]);
 
   const events = (draft.value<Record<string, boolean>>(EVENTS_KEY) ?? {}) as Record<string, boolean>;
-  const groupEnabled = draft.value<boolean>("integration.telegram.group_enabled") === true;
+  const groupEnabled = draft.value<boolean>("integration.zalo.group_enabled") === true;
   const financeVisible = FINANCE_CONTROL_KEYS.filter((k) => draft.meta(k));
   const shown = (k: string) => !!draft.meta(k);
   // Cả trang chỉ đọc ⇒ băng đầu trang đã giải thích; một thẻ khóa cùng một lý do ⇒ nêu một lần ở đầu thẻ
@@ -256,12 +256,12 @@ export default function GeneralTab({ draft, roles }: Props) {
                 k={EVENTS_KEY}
                 checked={events.dues_reminder === true}
                 onChange={(x) => draft.set(EVENTS_KEY, { ...events, dues_reminder: x })}
-                label="Tự động gửi thông báo nhắc đóng quỹ qua Telegram"
-                description={`Bot gửi kèm thông tin tài khoản nhận quỹ và hạn nộp (quỹ kỳ: ngày ${draft.value<number>("finance.dues_cycle_due_day") ?? 15} tháng đầu kỳ; điện nước: ngày ${draft.value<number>("finance.utility_due_day") ?? 10} tháng sau)`}
+                label="Cho phép nhắc đóng quỹ qua nhóm Zalo"
+                description={`Khi Thủ quỹ/Trưởng nhà bấm “Nhắc nhóm Zalo” ở trang Thu chi, bot gửi kèm thông tin tài khoản nhận quỹ và hạn nộp (quỹ kỳ: ngày ${draft.value<number>("finance.dues_cycle_due_day") ?? 15} tháng đầu kỳ; điện nước: ngày ${draft.value<number>("finance.utility_due_day") ?? 10} tháng sau)`}
               />
               {draft.meta(EVENTS_KEY) && !groupEnabled && (
                 <p className="mt-1 text-[10.5px] text-amber-700">
-                  Lưu ý: “Gửi tin tự động vào nhóm” đang tắt ở tab Tích hợp Telegram, và hệ thống đang chạy chế độ local (không gửi ra ngoài).
+                  Lưu ý: “Gửi tin tự động vào nhóm” đang tắt ở tab Tích hợp Zalo nên tin nhắc sẽ chưa được gửi vào nhóm.
                 </p>
               )}
             </div>

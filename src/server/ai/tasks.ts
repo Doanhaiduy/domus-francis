@@ -21,6 +21,8 @@ export interface Prepared<C extends AiTaskCode> {
   hashInput: string;
   /** Con trỏ đầu vào lưu ở ai_jobs.input_ref — KHÔNG chứa nội dung. */
   inputRef: Record<string, unknown>;
+  /** Khóa phạm vi để cache theo THỜI GIAN (AI_LIMITS.insightCacheMinutes) thay vì theo nội dung: cùng người + cùng phạm vi ⇒ dùng lại kết quả. */
+  cacheScope?: string;
   entity?: { table: string; id: string };
   /** Có đủ ngữ cảnh để trả lời mà không cần mô hình (ví dụ không tìm thấy tài liệu liên quan). */
   shortCircuit?: AiOutputMap[C];
@@ -551,6 +553,7 @@ const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
       user,
       hashInput: JSON.stringify({ month, partial, today: partial ? p.today : null, rows, catList, contrib, titles, top: top.map((t) => t.amount_vnd), pending: pending ?? null, ex: p.exp_all, ca: p.contrib_all }),
       inputRef: { kind: "finance_monthly_insight", month },
+      cacheScope: `finance:${month}`,
       shortCircuit: noData ? NONE : undefined,
       parse(raw) {
         const o = finOut.parse(raw);
@@ -759,6 +762,7 @@ const academicSelfTask: TaskDef<"academic.insight"> = {
       user,
       hashInput: JSON.stringify({ sems, cur: cur?.id ?? null, prev: prev?.id ?? null, cum: lastCum ? [lastCum.cum_g4, lastCum.cum_g10, lastCum.cum_rank] : null }),
       inputRef: { kind: "academic_insight", semesters: sems.length },
+      cacheScope: "academic:self",
       shortCircuit: sems.length ? undefined : NONE,
       parse: (raw) => acadParse(raw, trend, compare),
     };
@@ -871,6 +875,7 @@ const academicHouseTask: TaskDef<"academic.house_insight"> = {
       user,
       hashInput: JSON.stringify({ sems, cur: cur?.id ?? null, prev: prev?.id ?? null }),
       inputRef: { kind: "academic_house_insight", semesters: sems.length },
+      cacheScope: "academic:house",
       shortCircuit: sems.length ? undefined : NONE,
       parse: (raw) => acadParse(raw, trend, compare),
     };

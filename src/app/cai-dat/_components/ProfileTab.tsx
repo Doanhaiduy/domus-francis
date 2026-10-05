@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, ShieldCheck, Mail, Phone, MapPin, Sparkles } from "lucide-react";
-import { CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
+import { CustomInput, CustomSelect, CustomToggle, uploadFile } from "@/components/ui/FormControls";
+import { ProfileSkeleton } from "./TabSkeletons";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -26,6 +27,8 @@ export default function ProfileTab() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   const canManageDues = can("member.update") || can("finance.contribution.plan.manage") || can("finance.settings.write");
 
@@ -83,13 +86,7 @@ export default function ProfileTab() {
     );
   }
 
-  if (isLoading || !member) {
-    return (
-      <div className="bg-white rounded-3xl p-12 border border-purple-50 shadow-xs text-center text-sm text-gray-400">
-        Đang tải thông tin hồ sơ của bạn…
-      </div>
-    );
-  }
+  if (isLoading || !member) return <ProfileSkeleton />;
 
   const set = (k: string) => (v: any) => {
     setIsSaved(false);
@@ -160,19 +157,67 @@ export default function ProfileTab() {
 
   const avatar = fileUrl(f.avatarFileId || member.avatarFileId, "thumb");
 
+  // Bấm vào ảnh đại diện → chọn ảnh → tải lên và lưu ngay (giống Facebook / Zalo), không cần bấm "Lưu"
+  const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      showToast("warning", "Chỉ chọn ảnh JPG, PNG hoặc WEBP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("warning", "Ảnh quá lớn (tối đa 10MB).");
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      const up = await uploadFile(file, "avatars");
+      await membersApi.update(member.id, { avatarFileId: up.id });
+      setF((p) => ({ ...p, avatarFileId: up.id }));
+      await mutate();
+      await refreshPeople();
+      showToast("success", "Đã cập nhật ảnh đại diện.");
+    } catch (err) {
+      showToast("error", errorMessage(err));
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* 1. PROFILE HERO HEADER */}
       <div className="bg-gradient-to-r from-purple-50 via-purple-50/40 to-transparent p-5 sm:p-6 rounded-3xl border border-purple-100/80 flex flex-col sm:flex-row items-center sm:items-start gap-5">
-        <div className="relative group shrink-0">
-          {avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt="" className="w-20 h-20 rounded-2xl object-cover shadow-sm ring-4 ring-white" />
-          ) : (
-            <div className="w-20 h-20 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-2xl font-bold shadow-sm ring-4 ring-white">
-              {f.displayName?.[0] || f.fullName?.[0] || "U"}
-            </div>
-          )}
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={avatarBusy}
+            title="Đổi ảnh đại diện"
+            aria-label="Đổi ảnh đại diện"
+            className="group relative block w-24 h-24 rounded-full overflow-hidden shadow-sm ring-4 ring-white focus:outline-none focus-visible:ring-primary disabled:cursor-wait"
+          >
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="w-full h-full bg-purple-600 text-white flex items-center justify-center text-3xl font-bold">
+                {f.displayName?.[0] || f.fullName?.[0] || "U"}
+              </span>
+            )}
+            <span
+              className={`absolute inset-0 flex items-center justify-center bg-black/45 text-white transition-opacity ${
+                avatarBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+              }`}
+            >
+              {avatarBusy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
+            </span>
+          </button>
+          <span className="absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-primary pointer-events-none">
+            <Camera className="w-4 h-4" />
+          </span>
+          <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarPick} />
         </div>
 
         <div className="flex-1 text-center sm:text-left space-y-1">
@@ -195,7 +240,7 @@ export default function ProfileTab() {
           </p>
 
           <p className="text-[11px] text-gray-400 pt-1">
-            Mọi thành viên đều có thể tự cập nhật thông tin cá nhân, ảnh đại diện, quê quán, số điện thoại cha mẹ và giáo xứ tại đây.
+            Bấm vào ảnh để đổi ảnh đại diện. Mọi thành viên đều có thể tự cập nhật thông tin cá nhân, quê quán, số điện thoại cha mẹ và giáo xứ tại đây.
           </p>
         </div>
 
@@ -278,14 +323,6 @@ export default function ProfileTab() {
               </div>
             </div>
 
-            <div className="pt-2">
-              <ImageUploadDropzone
-                label="Ảnh đại diện đại biểu"
-                bucket="avatars"
-                value={f.avatarFileId ?? ""}
-                onChange={set("avatarFileId")}
-              />
-            </div>
           </div>
         </div>
 

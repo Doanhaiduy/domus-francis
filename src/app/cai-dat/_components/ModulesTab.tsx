@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { LayoutPanelLeft, Wrench, Save, Undo2 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { ToggleListSkeleton } from "./TabSkeletons";
 import { errorMessage } from "@/lib/api";
 import { modulesApi, useModules } from "@/lib/data/modules";
 import { DEFAULT_MAINTENANCE_MESSAGE, TOGGLEABLE_MODULES, type DisabledModules } from "@/lib/modules";
@@ -12,7 +13,7 @@ import { sameSettingValue } from "@/lib/types/settings";
 
 export default function ModulesTab() {
   const { showToast } = useApp();
-  const { disabled, canManage } = useModules();
+  const { disabled, canManage, isLoading } = useModules();
   const [draft, setDraft] = useState<DisabledModules>({});
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +41,8 @@ export default function ModulesTab() {
       setSaving(false);
     }
   };
+
+  if (isLoading) return <ToggleListSkeleton rows={9} />;
 
   return (
     <div className="flex flex-col gap-5 animate-in fade-in duration-200">

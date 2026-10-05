@@ -29,12 +29,11 @@ async function housekeeping() {
   }
 }
 
-/** Mỗi 10 phút: đánh dấu ca trực bỏ lỡ + lượt giặt không đến (thiết kế giao cho worker). */
+/** Mỗi 10 phút: đánh dấu ca trực bỏ lỡ (thiết kế giao cho worker). */
 async function dutyJobs() {
   try {
     await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
       await tx.query("SELECT app.fn_mark_missed_duties()");
-      await tx.query("SELECT app.fn_expire_laundry_noshows()");
       // Job AI treo (tiến trình dừng giữa chừng) quá 5 phút ⇒ đánh dấu lỗi để không kẹt ở 'running'.
       await tx.query(
         `UPDATE ai_jobs SET status = 'failed', error_message = 'Quá thời gian xử lý', finished_at = now()

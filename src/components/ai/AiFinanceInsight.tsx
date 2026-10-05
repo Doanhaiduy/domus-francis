@@ -65,9 +65,9 @@ export default function AiFinanceInsight({ month }: { month?: string }) {
   const rerun = async () => {
     setRefreshing(true);
     try {
-      const r = await aiApi.run(TASK, month ? { month } : {});
+      const r = await aiApi.run(TASK, month ? { month } : {}, { force: true });
       await mutate(r, { revalidate: false });
-      if (r.cached) showToast("info", "Số liệu chưa thay đổi so với lần phân tích trước — đang dùng nhận xét đã lưu.");
+      showToast("success", "Đã tạo lại nhận xét AI.");
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {

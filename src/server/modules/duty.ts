@@ -3,6 +3,7 @@ import type { Tx } from "../db";
 import type { Ctx } from "../http";
 import { ApiError, conflict, forbidden, notFound } from "../errors";
 import { addDays, mondayOf } from "@/lib/duty-format";
+import { dutyWeekBriefs } from "./duty-weeks";
 import type {
   CleaningAreaDto,
   ChecklistItemDto,
@@ -386,12 +387,15 @@ export async function getDutySummary(tx: Tx): Promise<DutySummaryDto> {
       [v.review, v.me]
     )
   ).rows[0];
+  const weekly = await dutyWeekBriefs(tx);
   return {
     today: rows.filter((r) => r.duty_date === v.today).map(item),
     tomorrow: rows.filter((r) => r.duty_date === tomorrow).map(item),
     myNext: next ? { assignmentId: next.id, date: next.duty_date, area: next.area, shift: shiftLabel(next.shift_name, next.shift_start) } : null,
     openIssuesCount: counts.open_issues,
-    pendingReviewsCount: counts.pending_reviews,
+    pendingReviewsCount: weekly.pendingReviews ?? counts.pending_reviews,
+    thisWeek: weekly.thisWeek,
+    myNextWeek: weekly.myNextWeek,
   };
 }
 
@@ -858,8 +862,8 @@ declare global {
 }
 
 /**
- * Thiết kế giao cho worker chạy định kỳ app.fn_mark_missed_duties() (bỏ ca quá hạn) và app.fn_expire_laundry_noshows()
- * (lượt giặt không đến). src/server/jobs.ts hiện chưa gọi hai hàm này nên phân hệ chạy chúng tối đa 10 phút/lần khi có người mở trang.
+ * Thiết kế giao cho worker chạy định kỳ app.fn_mark_missed_duties() (bỏ ca quá hạn). Trên Vercel không có tiến trình nền
+ * nên phân hệ chạy hàm này tối đa 10 phút/lần khi có người mở trang.
  */
 export async function runDutyJobs(ctx: Ctx) {
   const now = Date.now();
@@ -869,7 +873,6 @@ export async function runDutyJobs(ctx: Ctx) {
     await ctx.dbAs("luuxa_worker", async (tx) => {
       await tx.query("SELECT set_config('app.current_user_id', '', true)"); // tiến trình hệ thống, không mạo danh người đang xem
       await tx.query("SELECT app.fn_mark_missed_duties()");
-      await tx.query("SELECT app.fn_expire_laundry_noshows()");
     });
   } catch (e) {
     console.error("[duty] tác vụ nền lỗi:", (e as Error).message);

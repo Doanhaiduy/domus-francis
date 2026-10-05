@@ -21,6 +21,7 @@ import { CustomInput } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Portal } from "@/components/ui/Portal";
 import { useApp } from "@/lib/store";
+import { ListSkeleton } from "./TabSkeletons";
 import { errorMessage, fileUrl } from "@/lib/api";
 import { accountsApi, refreshAccounts, useAccounts } from "@/lib/data/accounts";
 import {
@@ -103,7 +104,7 @@ export default function AccountsTab() {
   const selected = selectedKey ? items.find((a) => keyOf(a) === selectedKey) ?? null : null;
 
   if (isLoading && !data) {
-    return <div className="bg-white rounded-3xl p-10 border border-purple-50 text-center text-xs text-gray-400">Đang tải danh sách tài khoản…</div>;
+    return <ListSkeleton />;
   }
   if (error && !data) {
     return (

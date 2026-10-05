@@ -83,18 +83,3 @@ export const IssueCostSchema = z.object({
 });
 export const IssuePhotoSchema = z.object({ fileId: zUuid, purpose: z.enum(["before_photo", "after_photo"]).default("after_photo") });
 
-// ---- Máy giặt ----
-export const LaundryBookSchema = z.object({ machineId: zUuid, date: zDate, slotIndex: z.number().int().min(0).max(23) });
-export const LaundryActionSchema = z.object({ action: z.enum(["checkin", "complete"]) });
-
-// ---- Mượn đồ ----
-export const BorrowSchema = z.object({ dueAt: z.string().datetime({ offset: true, message: "Hạn trả không hợp lệ." }) });
-export const ReturnSchema = z.object({ note: optText(300) });
-export const AssetCreateSchema = z.object({
-  name: z.string().trim().min(2, "Tên thiết bị tối thiểu 2 ký tự.").max(150),
-  type: z.enum(["furniture", "electrical", "appliance", "plumbing", "audio_visual", "tool", "safety", "kitchenware", "other"]),
-  locationText: optText(200),
-  roomCode: z.string().trim().max(14).nullable().optional(),
-  isLoanable: z.boolean().default(true),
-  notes: optText(500),
-});

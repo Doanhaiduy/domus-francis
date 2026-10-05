@@ -21,9 +21,10 @@ import {
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { formatVND } from "@/lib/utils";
-import { DashboardSkeleton } from "@/components/ui/Skeleton";
+import { vnTodayIso } from "@/lib/events-format";
+import { DashboardSkeleton, FeedItemSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { FinancialBarChart, ExpenseDonutChart, BarChartDataPoint, DonutDataPoint } from "@/components/ui/Charts";
-import { useDutySummary, useFinanceSummary, useLatestAnnouncements, useUnreadCount, useUpcomingEvents } from "@/lib/data/dashboard";
+import { useDutySummaryQ, useFinanceSummaryQ, useLatestAnnouncementsQ, useUnreadCount, useUpcomingEventsQ } from "@/lib/data/dashboard";
 import { useOrgSettings } from "@/lib/data/settings";
 import LiturgyTodayCard from "@/components/LiturgyTodayCard";
 import type { FinanceSummaryDto, PlanSummaryDto } from "@/lib/types/finance";
@@ -47,13 +48,21 @@ const relTime = (iso: string) => {
 };
 
 export default function HomePage() {
-  const { openModal, isLoadingSkeleton, members, rooms } = useApp();
+  const { isLoadingSkeleton, members, rooms, peopleLoading } = useApp();
   const { session, can } = useSession();
   const ready = !!session?.member;
-  const finance = useFinanceSummary(ready);
-  const duty = useDutySummary(ready);
-  const events = useUpcomingEvents(5, ready);
-  const announcements = useLatestAnnouncements(5, ready);
+  const financeQ = useFinanceSummaryQ(ready);
+  const dutyQ = useDutySummaryQ(ready);
+  const eventsQ = useUpcomingEventsQ(5, ready);
+  const announcementsQ = useLatestAnnouncementsQ(5, ready);
+  const finance = financeQ.data;
+  const duty = dutyQ.data;
+  const events = eventsQ.data;
+  const announcements = announcementsQ.data;
+  // Đang tải lần đầu (chưa có dữ liệu): hiện skeleton thay vì ô trống / "—"
+  const finLoading = !ready || (financeQ.isLoading && !finance);
+  const dutyLoading = !ready || (dutyQ.isLoading && !duty);
+  const feedLoading = !ready || (announcementsQ.isLoading && !announcements) || (eventsQ.isLoading && !events);
   const unread = useUnreadCount(ready);
   const { org } = useOrgSettings();
 
@@ -110,10 +119,10 @@ export default function HomePage() {
       : null
     : null;
   const mineLine = mine && duesOwing === null ? (mine.items > 0 ? `Bạn còn ${mine.items} khoản chưa đóng (${formatVND(mine.outstandingVnd)})` : "Bạn đã đóng đủ các khoản") : null;
-  const todayDuties = duty?.today ?? [];
-  const doneDutiesCount = todayDuties.filter((d) => d.status === "approved" || d.status === "submitted" || d.status === "checked_in").length;
-  const myDutyToday = todayDuties.find((d) => session?.member && d.members.includes(session.member.displayName));
-  const firstDuty = myDutyToday ?? todayDuties[0];
+  // Trực vệ sinh sân nhà theo TUẦN (mỗi tuần 1–2 người)
+  const thisWeek = duty?.thisWeek ?? null;
+  const myNextWeek = duty?.myNextWeek ?? null;
+  const weekRange = (w: { weekStart: string; weekEnd: string }) => `${w.weekStart.slice(8, 10)}/${w.weekStart.slice(5, 7)} – ${w.weekEnd.slice(8, 10)}/${w.weekEnd.slice(5, 7)}`;
   const bedTotal = rooms.filter((r) => r.type === "bedroom").reduce((a, r) => a + r.capacity, 0);
   const housed = members.filter((m) => rooms.some((r) => r.id === m.room && r.type === "bedroom")).length;
   const name = session?.member?.displayName ?? "";
@@ -165,7 +174,7 @@ export default function HomePage() {
       {/* ROW 1: 3 STATISTIC METRIC CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        {/* Card 1: Duty Today */}
+        {/* Card 1: Trực vệ sinh tuần này */}
         <div className="bg-white rounded-2xl p-5 shadow-xs hover:shadow-md transition-all border border-purple-50 flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-100/60 rounded-full blur-2xl group-hover:bg-purple-200/80 transition-all pointer-events-none" />
           <div>
@@ -174,26 +183,32 @@ export default function HomePage() {
                 <Calendar className="w-5 h-5" />
               </div>
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-surface-container-low px-2 py-0.5 rounded-md">
-                Hôm nay
+                Tuần này
               </span>
             </div>
             <div className="mt-4">
-              <span className="text-xs text-gray-500 font-medium block">{myDutyToday ? "Ca trực của bạn hôm nay" : "Phân công nhiệm vụ"}</span>
-              <div className="text-xl font-bold text-gray-900 tracking-tight mt-0.5 truncate">
-                {firstDuty ? `Trực: ${firstDuty.members.join(" & ") || "—"}` : duty ? "Hôm nay không có ca trực" : "—"}
-              </div>
+              <span className="text-xs text-gray-500 font-medium block">{thisWeek?.isMine ? "Tuần này bạn trực vệ sinh sân nhà" : "Trực vệ sinh sân nhà"}</span>
+              {dutyLoading ? (
+                <Skeleton className="w-44 h-7 mt-1.5" />
+              ) : (
+                <div className="text-xl font-bold text-gray-900 tracking-tight mt-0.5 truncate">
+                  {thisWeek ? `Trực: ${thisWeek.members.join(" & ") || "—"}` : duty ? "Tuần này chưa xếp người trực" : "—"}
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
-            <span className="text-xs text-gray-600 flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-              {firstDuty ? `${firstDuty.area} · ${firstDuty.shift}` : "Xem lịch phân công tuần"}
-            </span>
-            {can("duty.swap.request") && duty?.myNext && (
-              <button onClick={() => openModal("swapDuty")} className="text-[11px] font-bold text-primary hover:underline">
-                Đổi ca
-              </button>
+            {dutyLoading ? (
+              <Skeleton className="w-32 h-3.5" />
+            ) : (
+              <span className="text-xs text-gray-600 flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                {thisWeek ? `Tuần ${weekRange(thisWeek)}` : "Xem lịch trực các tuần"}
+              </span>
             )}
+            <Link href="/hau-can" className="text-[11px] font-bold text-primary hover:underline">
+              Xem lịch
+            </Link>
           </div>
         </div>
 
@@ -208,6 +223,7 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-secondary shadow-xs">
                 <Wallet className="w-5 h-5" />
               </div>
+              {finLoading && <Skeleton className="w-28 h-5 rounded-md" />}
               {finance?.month && (
                 <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/50 px-2 py-0.5 rounded-md flex items-center gap-1">
                   <TrendingUp className="w-3.5 h-3.5" />
@@ -218,16 +234,24 @@ export default function HomePage() {
             </div>
             <div className="mt-4">
               <span className="text-xs text-gray-500 font-medium block">Quỹ hiện tại</span>
-              <div className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5">
-                {finance?.fundBalanceVnd != null ? formatVND(finance.fundBalanceVnd) : "—"}
-              </div>
+              {finLoading ? (
+                <Skeleton className="w-40 h-8 mt-1" />
+              ) : (
+                <div className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5">
+                  {finance?.fundBalanceVnd != null ? formatVND(finance.fundBalanceVnd) : "—"}
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
-            <span className="text-xs text-secondary font-semibold min-w-0">
-              {mineLine ?? duesLine ?? utilityLine ?? "Xem sổ quỹ"}
-              {!mineLine && duesLine && utilityLine && <span className="block text-[10px] font-medium text-gray-500">{utilityLine}</span>}
-            </span>
+            {finLoading ? (
+              <Skeleton className="w-40 h-3.5" />
+            ) : (
+              <span className="text-xs text-secondary font-semibold min-w-0">
+                {mineLine ?? duesLine ?? utilityLine ?? "Xem sổ quỹ"}
+                {!mineLine && duesLine && utilityLine && <span className="block text-[10px] font-medium text-gray-500">{utilityLine}</span>}
+              </span>
+            )}
             <svg className="w-16 h-5 text-primary" fill="none" viewBox="0 0 64 20">
               <path d="M1 16L13 13L24 15L35 8L46 11L55 4L63 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -245,23 +269,35 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-2xl bg-cyan-100 flex items-center justify-center text-cyan-700 shadow-xs">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <span className="text-[11px] text-cyan-800 font-bold bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-200">
-                {doneDutiesCount}/{todayDuties.length} ca hoàn thành
-              </span>
+              {dutyLoading ? (
+                <Skeleton className="w-24 h-5 rounded-md" />
+              ) : (
+                <span className="text-[11px] text-cyan-800 font-bold bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-200">
+                  {thisWeek?.score != null ? `Đã chấm ${thisWeek.score}/10` : thisWeek ? "Chưa đánh giá" : "Chưa xếp lịch"}
+                </span>
+              )}
             </div>
             <div className="mt-4">
               <span className="text-xs text-gray-500 font-medium block">Trực nhật &amp; Vệ sinh</span>
-              <div className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5">
-                Hôm nay <span className="text-base font-semibold text-gray-500">· {todayDuties.length} ca trực</span>
-              </div>
+              {dutyLoading ? (
+                <Skeleton className="w-44 h-8 mt-1" />
+              ) : (
+                <div className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5">
+                  Tuần này <span className="text-base font-semibold text-gray-500">· {thisWeek?.members.length ?? 0} người trực</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
-            <span className="text-xs text-gray-600 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              {duty ? `${duty.pendingReviewsCount} ca chờ nghiệm thu` : "—"}
-            </span>
-            <span className="text-xs text-primary font-bold">{myDutyToday ? "Check-in ngay →" : "Xem lịch trực →"}</span>
+            {dutyLoading ? (
+              <Skeleton className="w-32 h-3.5" />
+            ) : (
+              <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                {!duty ? "—" : can("duty.review") && duty.pendingReviewsCount > 0 ? `${duty.pendingReviewsCount} tuần chờ đánh giá` : thisWeek?.redoRequired ? "Được yêu cầu trực lại" : "Vệ sinh sân nhà hằng tuần"}
+              </span>
+            )}
+            <span className="text-xs text-primary font-bold">Xem lịch trực →</span>
           </div>
         </Link>
 
@@ -271,20 +307,28 @@ export default function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left: 6-Month Cashflow Bar Chart */}
         <div className="lg:col-span-7 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
-          <FinancialBarChart
-            data={chartData}
-            height={220}
-            title="Biểu Đồ Thu - Chi Quỹ Lưu Xá (6 Tháng)"
-            subtitle="So sánh tiền thu quỹ, điện nước và chi tiêu thực tế"
-          />
+          {finLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="w-64 h-5" />
+              <Skeleton className="w-80 max-w-full h-3.5" />
+              <Skeleton className="w-full h-[220px] rounded-2xl" />
+            </div>
+          ) : (
+            <FinancialBarChart
+              data={chartData}
+              height={220}
+              title="Biểu Đồ Thu - Chi Quỹ Lưu Xá (6 Tháng)"
+              subtitle="So sánh tiền thu quỹ, điện nước và chi tiêu thực tế"
+            />
+          )}
           <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Tổng thu 6T: <b className="text-gray-900 font-mono">{formatVND(total6.thu)}</b>
+              Tổng thu 6T: {finLoading ? <Skeleton className="w-20 h-3.5" /> : <b className="text-gray-900 font-mono">{formatVND(total6.thu)}</b>}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-purple-600" />
-              Tổng chi 6T: <b className="text-gray-900 font-mono">{formatVND(total6.chi)}</b>
+              Tổng chi 6T: {finLoading ? <Skeleton className="w-20 h-3.5" /> : <b className="text-gray-900 font-mono">{formatVND(total6.chi)}</b>}
             </span>
             <Link href="/thu-chi" className="text-primary font-bold hover:underline">
               Xem sổ quỹ →
@@ -294,14 +338,29 @@ export default function HomePage() {
 
         {/* Right: Expense Breakdown Donut Chart */}
         <div className="lg:col-span-5 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
-          <ExpenseDonutChart
-            data={donutData}
-            size={160}
-            title={`Cơ Cấu Chi Tiêu ${finance?.month?.label ?? "Tháng Này"}`}
-            subtitle="Phân bổ hạng mục chi phí cộng đoàn"
-          />
+          {finLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="w-48 h-5" />
+              <Skeleton className="w-56 max-w-full h-3.5" />
+              <div className="flex items-center gap-5 pt-2">
+                <Skeleton className="w-40 h-40 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2.5">
+                  <Skeleton className="w-full h-3.5" />
+                  <Skeleton className="w-5/6 h-3.5" />
+                  <Skeleton className="w-4/6 h-3.5" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ExpenseDonutChart
+              data={donutData}
+              size={160}
+              title={`Cơ Cấu Chi Tiêu ${finance?.month?.label ?? "Tháng Này"}`}
+              subtitle="Phân bổ hạng mục chi phí cộng đoàn"
+            />
+          )}
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500">Đã chi trong tháng: <b className="text-gray-900">{finance?.month ? formatVND(finance.month.expenseVnd) : "—"}</b></span>
+            <span className="text-gray-500 flex items-center gap-1.5">Đã chi trong tháng: {finLoading ? <Skeleton className="w-20 h-3.5" /> : <b className="text-gray-900">{finance?.month ? formatVND(finance.month.expenseVnd) : "—"}</b>}</span>
             <Link href="/thu-chi" className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
               Chi tiết sổ quỹ
             </Link>
@@ -355,9 +414,13 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Thu Chi
                   </h3>
-                  <p className="text-xs text-rose-600 font-semibold">
-                    {mine && mine.items > 0 ? `Bạn còn ${mine.items} khoản chưa đóng` : duesOwing ? `Còn ${duesOwing} bạn chưa đóng quỹ kỳ` : "Sổ quỹ minh bạch"}
-                  </p>
+                  {finLoading ? (
+                    <Skeleton className="w-36 h-3 mt-1" />
+                  ) : (
+                    <p className="text-xs text-rose-600 font-semibold">
+                      {mine && mine.items > 0 ? `Bạn còn ${mine.items} khoản chưa đóng` : duesOwing ? `Còn ${duesOwing} bạn chưa đóng quỹ kỳ` : "Sổ quỹ minh bạch"}
+                    </p>
+                  )}
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -376,9 +439,13 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Lịch &amp; Sự Kiện
                   </h3>
-                  <p className="text-xs text-gray-500 truncate">
-                    {events?.[0] ? `Sắp tới: ${events[0].title}` : "Chưa có sự kiện sắp tới"}
-                  </p>
+                  {feedLoading ? (
+                    <Skeleton className="w-36 h-3 mt-1" />
+                  ) : (
+                    <p className="text-xs text-gray-500 truncate">
+                      {events?.[0] ? `Sắp tới: ${events[0].title}` : "Chưa có sự kiện sắp tới"}
+                    </p>
+                  )}
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -397,7 +464,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Báo Hỏng
                   </h3>
-                  <p className="text-xs text-orange-600 font-semibold">{duty ? `${duty.openIssuesCount} sự cố đang xử lý` : "Báo hỏng thiết bị"}</p>
+                  {dutyLoading ? <Skeleton className="w-32 h-3 mt-1" /> : <p className="text-xs text-orange-600 font-semibold">{duty ? `${duty.openIssuesCount} sự cố đang xử lý` : "Báo hỏng thiết bị"}</p>}
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -447,9 +514,13 @@ export default function HomePage() {
           <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-center justify-between text-xs text-gray-700">
             <Link href="/so-do-nha" className="flex items-center gap-2 hover:text-primary">
               <Building2 className="w-4 h-4 text-primary shrink-0" />
-              <span>
-                Sĩ số: <b>{members.length} thành viên</b> · Chỗ ở: <b>{housed}/{bedTotal}</b> giường
-              </span>
+              {peopleLoading ? (
+                <Skeleton className="w-56 h-4" />
+              ) : (
+                <span>
+                  Sĩ số: <b>{members.length} thành viên</b> · Chỗ ở: <b>{housed}/{bedTotal}</b> giường
+                </span>
+              )}
             </Link>
             <div className="flex -space-x-1.5">
               {members.slice(0, 3).map((m) => (
@@ -475,7 +546,14 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-3.5">
-            {feed.length > 0 ? (
+            {feedLoading && feed.length === 0 ? (
+              <>
+                <FeedItemSkeleton />
+                <FeedItemSkeleton />
+                <FeedItemSkeleton />
+                <FeedItemSkeleton />
+              </>
+            ) : feed.length > 0 ? (
               feed.map((f) => (
                 <Link key={f.key} href={f.href} className="flex items-start gap-3 group">
                   <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xs shrink-0 mt-0.5">{f.icon}</div>
@@ -503,27 +581,22 @@ export default function HomePage() {
 
       </div>
 
-      {/* NHẮC CA TRỰC SẮP TỚI CỦA BẠN */}
-      {duty?.myNext && (
+      {/* NHẮC TUẦN TRỰC SẮP TỚI CỦA BẠN */}
+      {myNextWeek && (
         <div className="p-4 sm:p-5 rounded-2xl bg-purple-100/60 border border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-bold shrink-0 shadow-sm shadow-purple-300">🔔</div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-gray-900">Ca trực sắp tới của bạn</span>
+                <span className="font-bold text-sm text-gray-900">{myNextWeek.weekStart <= vnTodayIso() ? "Tuần này bạn trực vệ sinh sân nhà" : "Tuần trực sắp tới của bạn"}</span>
                 <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-extrabold rounded-md">Nhắc nhở</span>
               </div>
               <p className="text-xs text-gray-600 mt-0.5">
-                <b>{duty.myNext.area}</b> · {duty.myNext.shift} · {new Date(duty.myNext.date + "T00:00:00").toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit" })}
+                <b>Tuần {weekRange(myNextWeek)}</b> · cùng {myNextWeek.members.filter((n) => n !== session?.member?.displayName).join(" & ") || "—"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-center">
-            {can("duty.swap.request") && (
-              <button onClick={() => openModal("swapDuty")} className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 transition">
-                Báo đổi ca
-              </button>
-            )}
             <Link href="/hau-can" className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-xs font-bold text-white transition shadow-sm shadow-purple-200 flex items-center gap-1">
               <span>Xem phân công</span>
               <ArrowRight className="w-3.5 h-3.5" />

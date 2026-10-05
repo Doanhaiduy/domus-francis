@@ -19,6 +19,8 @@ interface AppContextType {
   /** Nhãn vai trò chính (đọc từ DB) — chỉ để hiển thị; kiểm quyền dùng useSession().can() */
   currentRole: string;
   members: Member[];
+  /** true trong lúc danh bạ / sơ đồ nhà tải lần đầu */
+  peopleLoading: boolean;
   refreshMembers: () => Promise<unknown>;
 
   floors: Floor[];
@@ -85,8 +87,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTimeout(() => removeToast(id), 4000);
   };
 
-  const { members } = useMembers({ enabled: dataReady });
-  const { floors, rooms, mutate: mutateHouse } = useHouse(dataReady);
+  const { members, isLoading: membersLoading } = useMembers({ enabled: dataReady });
+  const { floors, rooms, mutate: mutateHouse, isLoading: houseLoading } = useHouse(dataReady);
 
   /** Chạy một thao tác API: báo thành công/lỗi bằng toast, làm mới dữ liệu liên quan; trả về true nếu thành công. */
   const runHouseOp = async (op: () => Promise<unknown>, okMsg: string, okType: ToastMessage["type"] = "success") => {
@@ -137,6 +139,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         currentRole,
         members,
+        peopleLoading: !dataReady || membersLoading || houseLoading,
         refreshMembers: refreshPeople,
         floors,
         rooms,

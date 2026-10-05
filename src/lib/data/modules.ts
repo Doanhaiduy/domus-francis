@@ -7,13 +7,14 @@ export const MODULES_KEY = "/api/v1/ui/modules";
 
 /** Phân hệ đang ẩn (bảo trì). Lỗi/chưa tải ⇒ coi như không ẩn gì (không chặn người dùng). */
 export function useModules(enabled = true) {
-  const { data } = useSWR<ModulesStateDto>(enabled ? MODULES_KEY : null, swrFetcher, {
+  const { data, isLoading } = useSWR<ModulesStateDto>(enabled ? MODULES_KEY : null, swrFetcher, {
     shouldRetryOnError: false,
     revalidateOnFocus: true,
     dedupingInterval: 60_000,
   });
   const disabled = data?.disabled ?? {};
   return {
+    isLoading: isLoading && !data,
     disabled,
     canManage: !!data?.canManage,
     isDisabled: (href: string) => !!disabled[href],

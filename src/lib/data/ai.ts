@@ -55,7 +55,9 @@ export function useAiSuggestions(status: string | null, enabled: boolean) {
 }
 
 export const aiApi = {
-  run: <C extends AiTaskCode>(task: C, input: AiInputMap[C]) => api.post<AiResultDto<C>>("/api/v1/ai/run", { task, input }),
+  /** `force`: tạo lại nhận xét mới (bỏ qua bản đã lưu 60 phút). */
+  run: <C extends AiTaskCode>(task: C, input: AiInputMap[C], opts: { force?: boolean } = {}) =>
+    api.post<AiResultDto<C>>("/api/v1/ai/run", { task, input, ...(opts.force ? { force: true } : {}) }),
   setConsent: (granted: boolean, purpose: AiConsentPurpose = "ai_processing") =>
     api.put<{ purpose: AiConsentPurpose; consented: boolean }>("/api/v1/ai/consent", { granted, purpose }),
   updateTask: (code: string, patch: { enabled?: boolean; monthlyBudgetVnd?: number | null }) =>

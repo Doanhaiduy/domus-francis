@@ -4,6 +4,7 @@ import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher, inBackground } from "../api";
 import type {
   BankAccountDto,
+  ContributionClaimDto,
   ContributionMatrixDto,
   ContributionPlanDto,
   CreatePlanResultDto,
@@ -11,10 +12,13 @@ import type {
   ExpenseDto,
   FinanceOptionsDto,
   FinanceOverviewDto,
+  FinanceStatsDto,
   MemberPaymentAccountDto,
   PaymentMethod,
   PlanPreviewDto,
   ReceivingAccountDto,
+  RemindResultDto,
+  StatsGranularity,
 } from "../types/finance";
 
 export const FINANCE_KEY = "/api/v1/finance";
@@ -96,6 +100,20 @@ export function usePlanPreview(q: PlanPreviewQuery | null) {
   return { preview: data, error, isLoading };
 }
 
+/** Yêu cầu "đã đóng" đang chờ xác nhận (của một kế hoạch, hoặc tất cả). Người thường chỉ thấy yêu cầu của mình. */
+export function usePendingClaims(planId: string | null | undefined, enabled = true) {
+  const key = enabled ? `${FINANCE_KEY}/claims${planId ? `?plan=${planId}` : ""}` : null;
+  const { data, error, isLoading, mutate } = useSWR<ContributionClaimDto[]>(key, swrFetcher, { keepPreviousData: true, shouldRetryOnError: false });
+  return { claims: data ?? [], error, isLoading, mutate };
+}
+
+/** Thống kê thu chi theo tháng / quý / năm. */
+export function useFinanceStats(granularity: StatsGranularity, count: number | undefined, enabled = true) {
+  const key = enabled ? `${FINANCE_KEY}/stats?granularity=${granularity}${count ? `&count=${count}` : ""}` : null;
+  const { data, error, isLoading, mutate } = useSWR<FinanceStatsDto>(key, swrFetcher, { keepPreviousData: true, revalidateOnFocus: false });
+  return { stats: data, error, isLoading, mutate };
+}
+
 /** Tài khoản nhận quỹ của nhà (STK + ảnh QR của Thủ quỹ). */
 export function useReceivingAccount(enabled = true) {
   const { data, error, isLoading, mutate } = useSWR<ReceivingAccountDto>(enabled ? `${FINANCE_KEY}/receiving-account` : null, swrFetcher, {
@@ -163,6 +181,13 @@ export const financeApi = {
     allocations: { contributionId: string; amountVnd: number }[];
     clientRequestId?: string;
   }) => api.post<{ id: string }>(`${FINANCE_KEY}/payments`, body),
+  claimPaid: (body: { contributionId: string; method: PaymentMethod; referenceCode?: string | null; note?: string | null }) =>
+    api.post<{ id: string }>(`${FINANCE_KEY}/claims`, body),
+  cancelClaim: (claimId: string) => api.post(`${FINANCE_KEY}/claims/${claimId}/cancel`),
+  decideClaim: (claimId: string, approve: boolean, note?: string | null) =>
+    api.post<{ paymentId: string | null }>(`${FINANCE_KEY}/claims/${claimId}/decide`, { approve, note: note ?? null }),
+  remind: (planId: string, body: { contributionIds?: string[] | null; app: boolean; zalo: boolean; message?: string | null }) =>
+    api.post<RemindResultDto>(`${FINANCE_KEY}/contribution-plans/${planId}/remind`, body),
   voidPayment: (paymentId: string, reason: string) => api.post(`${FINANCE_KEY}/payments/${paymentId}/void`, { reason }),
   waive: (contributionId: string, discountVnd: number, reason?: string | null) =>
     api.post(`${FINANCE_KEY}/contributions/${contributionId}/waive`, { discountVnd, reason: reason ?? null }),

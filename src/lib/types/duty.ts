@@ -1,4 +1,4 @@
-// DTO phân hệ Hậu cần & Trực nhật (trực nhật, báo hỏng, máy giặt, mượn đồ) — dùng chung client/server.
+// DTO phân hệ Hậu cần & Trực nhật (trực nhật, báo hỏng) — dùng chung client/server.
 
 // ---------------------------------------------------------------------
 // Trực nhật
@@ -174,6 +174,10 @@ export interface DutySummaryDto {
   myNext: { assignmentId: string; date: string; area: string; shift: string } | null;
   openIssuesCount: number;
   pendingReviewsCount: number;
+  /** Tuần trực vệ sinh hiện tại (null nếu chưa xếp hoặc chưa cập nhật CSDL) */
+  thisWeek?: DutyWeekBriefDto | null;
+  /** Lần trực sắp tới của tôi (tuần hiện tại hoặc tuần sau) */
+  myNextWeek?: DutyWeekBriefDto | null;
 }
 
 // ---------------------------------------------------------------------
@@ -218,68 +222,68 @@ export interface IssuesDto {
 }
 
 // ---------------------------------------------------------------------
-// Máy giặt
+// Trực vệ sinh sân nhà THEO TUẦN (mỗi tuần 1–2 người; Trưởng nhà/Admin xếp lịch, hết tuần chấm điểm + nhận xét)
 // ---------------------------------------------------------------------
-export type LaundryStatus = "booked" | "checked_in" | "completed" | "cancelled" | "no_show";
+export const DUTY_WEEK_MAX_MEMBERS = 2;
 
-export interface LaundryMachineDto {
+export interface DutyWeekMemberDto {
   id: string;
-  code: string;
   name: string;
-  brand: string | null;
-  capacityKg: number | null;
-  status: "active" | "maintenance" | "retired";
+  fullName: string;
+  room: string | null;
+  avatarFileId: string | null;
 }
 
-export interface LaundryBookingDto {
-  id: string;
-  machineId: string;
-  member: DutyPersonDto;
-  date: string; // YYYY-MM-DD (giờ VN)
-  slotIndex: number; // -1 nếu không khớp khung giờ cấu hình
-  startsAt: string;
-  endsAt: string;
-  status: LaundryStatus;
+export interface DutyWeekReviewDto {
+  score: number; // 0–10
+  comment: string | null;
+  redoRequired: boolean;
+  redoNote: string | null;
+  reviewedAt: string; // ISO
+  reviewerName: string | null;
+}
+
+export interface DutyWeekEntryDto {
+  /** null = tuần chưa có lịch */
+  id: string | null;
+  weekStart: string; // Thứ Hai YYYY-MM-DD
+  weekEnd: string; // Chúa Nhật
+  members: DutyWeekMemberDto[];
+  note: string | null;
+  review: DutyWeekReviewDto | null;
   isMine: boolean;
 }
 
-export interface LaundryWeekDto {
-  weekStart: string; // ngày đầu của dải 7 ngày đang xem (mặc định hôm nay)
-  days: string[]; // 7 ngày liên tiếp YYYY-MM-DD
+export interface DutyCandidateDto {
+  id: string;
+  name: string;
+  fullName: string;
+  room: string | null;
+  /** Số tuần đã trực trong 26 tuần gần nhất (để xếp luân phiên công bằng) */
+  recentCount: number;
+  lastWeek: string | null;
+}
+
+export interface DutyBoardDto {
   today: string;
-  now: string;
-  slots: [string, string][];
-  machines: LaundryMachineDto[];
-  bookings: LaundryBookingDto[];
-  maxPerWeek: number;
-  maxDaysAhead: number;
-  cancelMinMinutes: number;
-  /** Số lượt của tôi trong tuần ISO hiện tại */
-  myCountThisWeek: number;
-  /** Thứ Hai của tuần ISO → số lượt của tôi (hạn mức tính theo tuần) */
-  myWeekCounts: Record<string, number>;
+  thisWeekStart: string;
+  /** Tuần đang xem */
+  week: DutyWeekEntryDto;
+  /** Các tuần đã có lịch gần đây (mới → cũ), gồm cả tuần sắp tới */
+  timeline: DutyWeekEntryDto[];
+  canManage: boolean;
+  canReview: boolean;
+  /** Danh sách thành viên đang ở kèm số lần trực gần đây — chỉ trả khi canManage */
+  candidates: DutyCandidateDto[];
+  peoplePerWeek: number;
 }
 
-// ---------------------------------------------------------------------
-// Mượn đồ dùng chung
-// ---------------------------------------------------------------------
-export interface AssetLoanDto {
-  id: string;
-  borrower: DutyPersonDto;
-  borrowedAt: string;
-  dueAt: string;
+/** Trực tuần của tôi / của nhà cho Tổng quan */
+export interface DutyWeekBriefDto {
+  weekStart: string;
+  weekEnd: string;
+  members: string[];
   isMine: boolean;
-  isOverdue: boolean;
-}
-
-export interface AssetDto {
-  id: string;
-  tag: string;
-  name: string;
-  type: string;
-  location: string;
-  status: "in_service" | "under_repair" | "retired" | "lost";
-  isLoanable: boolean;
-  notes: string | null;
-  currentLoan: AssetLoanDto | null;
+  score: number | null;
+  redoRequired: boolean;
 }

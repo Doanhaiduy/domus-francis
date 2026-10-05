@@ -58,8 +58,9 @@ export default function AiAcademicInsight({ scope }: { scope: Scope }) {
   // Chỉ tự chạy khi tác vụ dùng được VÀ (phạm vi toàn nhà hoặc đã đồng ý) — chưa đồng ý thì không gửi gì đi.
   const ready = allowed && available && (scope === "house" || !needsConsent);
   const key = ready ? ["ai-insight", task, scope === "self" ? session?.member?.id ?? "" : "house"] : null;
-  const run = () => (scope === "self" ? aiApi.run("academic.insight", { scope: "self" }) : aiApi.run("academic.house_insight", {}));
-  const { data, error, mutate } = useSWR<AiResultDto<typeof task>>(key, run, {
+  const run = (force = false) =>
+    scope === "self" ? aiApi.run("academic.insight", { scope: "self" }, { force }) : aiApi.run("academic.house_insight", {}, { force });
+  const { data, error, mutate } = useSWR<AiResultDto<typeof task>>(key, () => run(), {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,
@@ -112,9 +113,9 @@ export default function AiAcademicInsight({ scope }: { scope: Scope }) {
   const rerun = async () => {
     setRefreshing(true);
     try {
-      const r = await run();
+      const r = await run(true);
       await mutate(r as AiResultDto<typeof task>, { revalidate: false });
-      if (r.cached) showToast("info", "Điểm chưa thay đổi so với lần phân tích trước — đang dùng nhận xét đã lưu.");
+      showToast("success", "Đã tạo lại nhận xét AI.");
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {

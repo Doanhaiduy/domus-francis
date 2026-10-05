@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Portal } from "@/components/ui/Portal";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/lib/store";
+import { RolesSkeleton } from "./TabSkeletons";
 import { fileUrl, errorMessage } from "@/lib/api";
 import { rbacApi, refreshRbac } from "@/lib/data/settings";
 import {
@@ -81,7 +82,7 @@ export default function RolesTab({ matrix, isLoading, error }: Props) {
   const customRoles = roles.filter((r) => !r.isSystem);
 
   if (isLoading && !matrix) {
-    return <div className="bg-white rounded-3xl p-10 border border-purple-50 text-center text-xs text-gray-400">Đang tải phân quyền…</div>;
+    return <RolesSkeleton />;
   }
   if (error && !matrix) {
     return (

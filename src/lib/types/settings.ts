@@ -68,17 +68,6 @@ export interface OrgSettingsDto {
   values: Record<string, unknown>;
 }
 
-export interface TelegramTestDto {
-  sent: false;
-  mode: "local";
-  reason: string;
-  enabled: boolean;
-  chatId: string;
-  activeEvents: string[];
-  problems: string[];
-  preview: string;
-}
-
 // ---------------------------------------------------------------------
 // Danh mục
 // ---------------------------------------------------------------------
@@ -229,14 +218,12 @@ export const PERMISSION_MODULE_LABEL: Record<string, string> = {
 // Luật kiểm tra giá trị cấu hình (client hiển thị lỗi theo ô; server kiểm lại trước khi ghi — DB còn trigger
 // app.tg_settings_validate cho min/max/kiểu và trg_settings__finance_invariants cho ngưỡng chi).
 // ---------------------------------------------------------------------
-export const TELEGRAM_EVENT_KEYS = ["dues_reminder", "duty_morning", "meal_summary", "facility_new", "night_prayer"] as const;
-export type TelegramEventKey = (typeof TELEGRAM_EVENT_KEYS)[number];
-export const TELEGRAM_EVENT_LABEL: Record<TelegramEventKey, string> = {
-  dues_reminder: "Nhắc đóng quỹ hàng tháng",
-  duty_morning: "Nhắc ca trực buổi sáng",
-  meal_summary: "Báo cáo chốt suất cơm trưa/tối",
-  facility_new: "Cảnh báo sự cố cơ sở vật chất mới",
-  night_prayer: "Nhắc giờ Kinh Tối chung",
+export const ZALO_EVENT_KEYS = ["duty_week", "dues_reminder", "facility_new"] as const;
+export type ZaloEventKey = (typeof ZALO_EVENT_KEYS)[number];
+export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
+  duty_week: "Lịch trực vệ sinh sân nhà hằng tuần",
+  dues_reminder: "Nhắc đóng quỹ / điện nước",
+  facility_new: "Có báo hỏng cơ sở vật chất mới",
 };
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -263,19 +250,19 @@ const STRING_RULES: Record<string, { required?: boolean; max?: number; re?: RegE
     },
   },
   "finance.dues_bank_account": { max: 160 },
-  "integration.telegram.group_chat_id": {
-    max: 40,
-    re: /^(-?\d{5,20}|@[A-Za-z][A-Za-z0-9_]{4,31})$/,
-    hint: "Chat ID là số (nhóm thường bắt đầu bằng -100…) hoặc @tên_kênh.",
+  "integration.zalo.group_chat_id": {
+    max: 100,
+    re: /^[A-Za-z0-9._:-]{3,100}$/,
+    hint: "Mã cuộc trò chuyện (chat_id) gồm chữ, số và các ký tự . _ : - (3–100 ký tự). Dùng nút “Dò nhóm” để lấy.",
   },
 };
 
 /** Khóa json được sửa qua màn hình Cài đặt và cách kiểm tra cấu trúc. */
 const JSON_RULES: Record<string, (v: unknown, roles?: string[]) => string | null> = {
-  "integration.telegram.group_events": (v) => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return "Cấu hình loại tin Telegram phải là một đối tượng.";
+  "integration.zalo.group_events": (v) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return "Cấu hình loại tin Zalo phải là một đối tượng.";
     for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
-      if (!(TELEGRAM_EVENT_KEYS as readonly string[]).includes(k)) return `Loại tin Telegram không hợp lệ: ${k}.`;
+      if (!(ZALO_EVENT_KEYS as readonly string[]).includes(k)) return `Loại tin Zalo không hợp lệ: ${k}.`;
       if (typeof x !== "boolean") return `Công tắc "${k}" phải là bật/tắt.`;
     }
     return null;

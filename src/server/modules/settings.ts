@@ -2,8 +2,6 @@ import "server-only";
 import type { Tx } from "../db";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../errors";
 import {
-  TELEGRAM_EVENT_KEYS,
-  TELEGRAM_EVENT_LABEL,
   feastToLabel,
   sameSettingValue,
   validateSettingValue,
@@ -12,7 +10,6 @@ import {
   type SettingDto,
   type SettingValueType,
   type SettingsListDto,
-  type TelegramTestDto,
 } from "@/lib/types/settings";
 import { saintsOn } from "@/lib/liturgy/saints";
 import { settingLabel } from "@/lib/settings-catalog";
@@ -178,54 +175,6 @@ export async function getPublicSettings(tx: Tx): Promise<OrgSettingsDto> {
     nightPrayerTime: str(values["liturgy.night_prayer_time"]) || null,
     mealsEnabled: values["feature.meals.enabled"] === true,
     values,
-  };
-}
-
-/**
- * "Gửi thử" Telegram: hệ thống chạy LOCAL nên KHÔNG gọi Telegram API. Kiểm cấu hình đã lưu và trả về bản xem trước
- * tin nhắn sẽ gửi, kèm các vấn đề cấu hình cần xử lý.
- */
-export async function telegramDryRun(tx: Tx): Promise<TelegramTestDto> {
-  const rows = (
-    await tx.query<{ key: string; value: unknown; can_write: boolean }>(
-      `SELECT key, value, app.has_permission(write_permission) AS can_write FROM settings
-        WHERE key LIKE 'integration.telegram.%' OR key IN ('org.house_name', 'meal.lunch_cutoff_time', 'meal.dinner_cutoff_time', 'liturgy.night_prayer_time')`,
-    )
-  ).rows;
-  const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  const tgRow = rows.find((r) => r.key === "integration.telegram.group_chat_id");
-  if (!tgRow) throw forbidden("Chỉ người được quyền sửa cấu hình hệ thống (Ban điều hành, Admin) mới xem và thử được cấu hình Telegram.");
-  if (!tgRow.can_write) throw forbidden("Bạn không có quyền cấu hình Telegram.");
-
-  const enabled = v["integration.telegram.group_enabled"] === true;
-  const chatId = str(v["integration.telegram.group_chat_id"]);
-  const events = (v["integration.telegram.group_events"] ?? {}) as Record<string, boolean>;
-  const active = TELEGRAM_EVENT_KEYS.filter((k) => events[k] === true);
-  const problems: string[] = [];
-  if (!enabled) problems.push("Công tắc “Gửi tin tự động vào nhóm” đang TẮT — dù có kết nối mạng, hệ thống cũng sẽ không gửi tin nào.");
-  if (!chatId) problems.push("Chưa nhập mã nhóm Telegram (Chat ID).");
-  if (!active.length) problems.push("Chưa bật loại tin tự động nào.");
-  problems.push("Mã bí mật của bot (Bot Token) không lưu trong hệ thống mà cấu hình riêng trên máy chủ; bản cài đặt nội bộ hiện không dùng mã này.");
-
-  const now = (await tx.query<{ t: string }>("SELECT to_char(now() AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI') AS t")).rows[0].t;
-  const preview = [
-    `🔔 ${str(v["org.house_name"]) || "Lưu xá"} — tin nhắn thử`,
-    `Thời điểm: ${now}`,
-    `Nhóm nhận: ${chatId || "(chưa cấu hình)"}`,
-    "Tin tự động đang bật:",
-    ...(active.length ? active.map((k) => `  • ${TELEGRAM_EVENT_LABEL[k]}`) : ["  (không có)"]),
-  ].join("\n");
-
-  return {
-    sent: false,
-    mode: "local",
-    reason:
-      "Hệ thống đang chạy ở chế độ LOCAL: mọi kết nối ra Internet (Telegram Bot API) đều bị tắt, nên không có tin nhắn nào được gửi. Dưới đây là bản xem trước nội dung sẽ gửi khi triển khai thật.",
-    enabled,
-    chatId,
-    activeEvents: active,
-    problems,
-    preview,
   };
 }
 

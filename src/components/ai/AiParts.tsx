@@ -161,7 +161,7 @@ export function AiInsightCard({
   icon: React.ReactNode;
   title: string;
   subtitle?: React.ReactNode;
-  result?: Pick<AiResultDto, "provider" | "model" | "cached"> | null;
+  result?: Pick<AiResultDto, "provider" | "model" | "cached" | "createdAt"> | null;
   onRefresh?: () => void;
   refreshing?: boolean;
   footer?: string;
@@ -182,12 +182,12 @@ export function AiInsightCard({
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            title="Phân tích lại theo số liệu mới nhất"
-            aria-label="Phân tích lại"
+            title="Tạo lại nhận xét mới (tốn một lượt AI). Nhận xét hiện tại được lưu 1 giờ."
+            aria-label="Tạo lại nhận xét"
             className="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-100 text-violet-700 text-xs font-bold transition disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{refreshing ? "Đang phân tích…" : "Phân tích lại"}</span>
+            <span className="hidden sm:inline">{refreshing ? "Đang tạo…" : "Tạo lại"}</span>
           </button>
         )}
       </div>
@@ -196,6 +196,11 @@ export function AiInsightCard({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400">
           <AiLabel result={result} />
           <span>{footer}</span>
+          {result.createdAt && (
+            <span className="text-gray-400">
+              · Tạo lúc {new Date(result.createdAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })} — lưu tạm 1 giờ, bấm “Tạo lại” để làm mới
+            </span>
+          )}
         </div>
       )}
     </section>

@@ -10,7 +10,6 @@ import AddEventModal from "./modals/AddEventModal";
 import AddMemberModal from "./modals/AddMemberModal";
 import CreateAnnouncementModal from "./modals/CreateAnnouncementModal";
 import CreateThreadModal from "./modals/CreateThreadModal";
-import SwapDutyModal from "./modals/SwapDutyModal";
 import ChangePasswordModal from "./modals/ChangePasswordModal";
 import AiAssistantModal from "./modals/AiAssistantModal";
 
@@ -23,7 +22,6 @@ const REGISTRY: Record<string, React.ComponentType> = {
   addMember: AddMemberModal,
   createAnnouncement: CreateAnnouncementModal,
   createThread: CreateThreadModal,
-  swapDuty: SwapDutyModal,
   changePassword: ChangePasswordModal,
   aiAssistant: AiAssistantModal,
 };

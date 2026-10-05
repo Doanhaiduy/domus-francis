@@ -244,12 +244,6 @@ export default function LichSuKienPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => openModal("swapDuty")}
-            className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 transition shadow-2xs"
-          >
-            Đổi ca trực nhật
-          </button>
-          <button
             onClick={() => setCheckInEvent(null)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 transition active:scale-95"
           >

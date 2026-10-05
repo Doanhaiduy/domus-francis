@@ -18,6 +18,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import HouseRules from "./_components/HouseRules";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import type { AnnouncementDto } from "@/lib/types/community";
@@ -78,8 +79,39 @@ function ReadersPanel({ id }: { id: string }) {
 export default function ThongBaoPage() {
   return (
     <Suspense fallback={<ThongBaoLoading />}>
-      <ThongBaoContent />
+      <ThongBaoShell />
     </Suspense>
+  );
+}
+
+/** Hai mục của trang: Bảng tin (thông báo) và Luật nhà (?tab=luat). */
+function ThongBaoShell() {
+  const sp = useSearchParams();
+  const [view, setView] = useState<"tin" | "luat">(sp.get("tab") === "luat" ? "luat" : "tin");
+  const switchView = (v: "tin" | "luat") => {
+    setView(v);
+    try {
+      window.history.replaceState(null, "", v === "luat" ? "/thong-bao?tab=luat" : "/thong-bao");
+    } catch {
+      /* bỏ qua */
+    }
+  };
+  const btn = (v: "tin" | "luat") =>
+    `flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition whitespace-nowrap ${
+      view === v ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:bg-purple-50 hover:text-primary"
+    }`;
+  return (
+    <div className="flex flex-col w-full gap-5">
+      <div className="flex gap-2 border-b border-purple-100 pb-2 overflow-x-auto custom-scroll">
+        <button onClick={() => switchView("tin")} className={btn("tin")}>
+          📢 Bảng tin
+        </button>
+        <button onClick={() => switchView("luat")} className={btn("luat")}>
+          📜 Luật nhà
+        </button>
+      </div>
+      {view === "luat" ? <HouseRules /> : <ThongBaoContent />}
+    </div>
   );
 }
 

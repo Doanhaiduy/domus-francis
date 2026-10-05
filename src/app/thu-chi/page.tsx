@@ -42,11 +42,13 @@ import {
   useExpenses,
   useFinanceOptions,
   useFinanceOverview,
+  usePendingClaims,
   type PeriodQuery,
 } from "@/lib/data/finance";
 import {
   PERIOD_STATUS_LABEL,
   type ContributionCellDto,
+  type ContributionClaimDto,
   type ContributionPlanDto,
   type ContributionRowDto,
   type ExpenseDetailDto,
@@ -62,6 +64,8 @@ import ContributionMatrix from "./_components/ContributionMatrix";
 import CollectionsCard, { defaultPlanOf } from "./_components/CollectionsCard";
 import { CellDialog, DuesCycleModal, PayModal, UtilityModal } from "./_components/ContributionDialogs";
 import { ReasonDialog } from "./_components/dialogs";
+import { ClaimDialog, QuickPayDialog, RemindDialog } from "./_components/CollectionDialogs";
+import StatsPanel from "./_components/StatsPanel";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
   { label: "Tất cả", statuses: null },
@@ -76,7 +80,7 @@ const NOT_COUNTED: ExpenseStatus[] = ["cancelled", "rejected", "reversed"];
 const CATEGORY_EMOJI: Record<string, string> = { FOOD: "🛒", UTILITY: "⚡", CLEAN: "🧴", REPAIR: "🔧", LITURGY: "✝", GUEST: "🤝", OTHER: "📦" };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao";
+type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao" | "thong-ke";
 
 export default function ThuChiPage() {
   const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
@@ -111,6 +115,13 @@ export default function ThuChiPage() {
   const [cancelPlanFor, setCancelPlanFor] = useState<ContributionPlanDto | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Thu quỹ nhanh: đã đóng / tôi đã đóng / hoàn tác / nhắc nợ / xác nhận báo đóng
+  const [quickPayFor, setQuickPayFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [claimFor, setClaimFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [undoFor, setUndoFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [remindOne, setRemindOne] = useState<{ contributionId: string; name: string } | null>(null);
+  const [rejectClaim, setRejectClaim] = useState<ContributionClaimDto | null>(null);
 
   const canManageFinances = can(["finance.expense.read_all", "finance.ledger.read", "finance.contribution.read_all"]);
   const canSeeAllExpenses = can("finance.expense.read_all");
@@ -119,6 +130,7 @@ export default function ThuChiPage() {
   const canRecord = can("finance.contribution.record");
   const canWaive = can("finance.contribution.waive");
   const canPlan = can("finance.contribution.plan.manage");
+  const canRemind = canRecord || canPlan;
 
   // KỲ ĐANG XEM → tham số truy vấn
   const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => shiftMonth(current, -i)), [current]);
@@ -149,6 +161,8 @@ export default function ThuChiPage() {
   );
   const { matrix: planMatrix, isLoading: planRowsLoading } = useContributionMatrix({ plan: plan?.id }, !!plan);
   const planRows = useMemo(() => (plan && planMatrix ? planMatrix.rows.filter((r) => r.cells[plan.id]) : []), [plan, planMatrix]);
+  const { claims: planClaims } = usePendingClaims(plan?.id, !!plan);
+  const owingInPlan = useMemo(() => planRows.filter((r) => r.cells[plan!.id] && (r.cells[plan!.id].status === "unpaid" || r.cells[plan!.id].status === "partial")).length, [planRows, plan]);
 
   // PERIOD LABEL
   const periodLabel = useMemo(() => {
@@ -232,6 +246,28 @@ export default function ThuChiPage() {
     }
     const nextIndex = currentIndex + direction;
     if (nextIndex >= 0 && nextIndex < MONTH_ORDER.length) setSelectedMonth(MONTH_ORDER[nextIndex]);
+  };
+
+  const approveClaim = async (claim: ContributionClaimDto) => {
+    setBusyId(claim.id);
+    try {
+      await financeApi.decideClaim(claim.id, true);
+      await refreshFinance();
+      showToast("success", "Đã xác nhận khoản đóng và ghi phiếu thu.");
+    } catch (x) {
+      showToast("error", errorMessage(x));
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const cancelClaim = async (claim: ContributionClaimDto) => {
+    try {
+      await financeApi.cancelClaim(claim.id);
+      await refreshFinance();
+      showToast("info", "Đã hủy báo đã đóng.");
+    } catch (x) {
+      showToast("error", errorMessage(x));
+    }
   };
 
   const quickApprove = async (e: ExpenseDto) => {
@@ -467,6 +503,7 @@ export default function ThuChiPage() {
             ["danh-sach", `Danh sách chi tiêu (${expenses.length})`],
             ["dong-quy", "Ma trận đóng quỹ"],
             ["bao-cao", "Báo cáo & Biểu đồ"],
+            ["thong-ke", "Thống kê & Xuất file"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <button
@@ -611,6 +648,15 @@ export default function ThuChiPage() {
                 onCreateDues={() => setDuesOpen(true)}
                 onCreateUtility={() => setUtilityOpen(true)}
                 onCancelPlan={setCancelPlanFor}
+                claims={planClaims}
+                canRemind={canRemind}
+                onQuickPay={(row, cell) => setQuickPayFor({ row, cell })}
+                onClaim={(row, cell) => setClaimFor({ row, cell })}
+                onUndo={(row, cell) => setUndoFor({ row, cell })}
+                onRemindOne={(row, cell) => setRemindOne({ contributionId: cell.contributionId, name: row.name })}
+                onRemindPlan={() => setRemindOpen(true)}
+                onDecideClaim={(claim, approve) => (approve ? approveClaim(claim) : setRejectClaim(claim))}
+                onCancelClaim={cancelClaim}
               />
             </div>
 
@@ -963,6 +1009,11 @@ export default function ThuChiPage() {
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* TAB: THỐNG KÊ THEO THÁNG / QUÝ / NĂM + XUẤT EXCEL / PDF */}
+      {/* ========================================================================= */}
+      {activeTab === "thong-ke" && <StatsPanel />}
+
       {/* FINANCIAL REPORT MODAL */}
       <FinancialReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} {...reportProps} />
 
@@ -1016,6 +1067,57 @@ export default function ThuChiPage() {
         amountVnd={payQrFor?.cell.remainingVnd ?? 0}
         content={payQrFor ? duesTransferContent(payQrFor.cell.planCode, payQrFor.row.fullName, payQrFor.row.name) : ""}
         subtitle={payQrFor ? `${payQrFor.cell.planName} · ${formatVND(payQrFor.cell.remainingVnd)}` : undefined}
+      />
+      <QuickPayDialog target={quickPayFor} onClose={() => setQuickPayFor(null)} />
+      <ClaimDialog target={claimFor} onClose={() => setClaimFor(null)} />
+      <RemindDialog
+        open={remindOpen || !!remindOne}
+        onClose={() => {
+          setRemindOpen(false);
+          setRemindOne(null);
+        }}
+        plan={plan}
+        owingCount={owingInPlan}
+        only={remindOne}
+      />
+      <ReasonDialog
+        open={!!undoFor}
+        onClose={() => setUndoFor(null)}
+        icon={<RotateCcw className="w-5 h-5" />}
+        title="Hoàn tác “đã đóng”"
+        message={
+          undoFor
+            ? (() => {
+                const last = undoFor.cell.payments[undoFor.cell.payments.length - 1];
+                return `Hủy phiếu thu ${last ? formatVND(last.totalVnd) : ""} của ${undoFor.row.fullName} (${undoFor.cell.planName}) bằng bút toán đảo — không xóa sổ cái. Khoản sẽ trở về “chưa đóng”.${
+                  last && last.monthsCovered > 1 ? ` Phiếu này đóng gộp ${last.monthsCovered} khoản — mọi khoản trong phiếu đều trở về chưa đóng.` : ""
+                }`;
+              })()
+            : null
+        }
+        confirmText="Hoàn tác"
+        placeholder="Ví dụ: Báo nhầm người, chưa nhận được tiền…"
+        onConfirm={async (reason) => {
+          const last = undoFor!.cell.payments[undoFor!.cell.payments.length - 1];
+          if (!last) throw new Error("Không tìm thấy phiếu thu để hoàn tác.");
+          await financeApi.voidPayment(last.paymentId, reason);
+          await refreshFinance();
+          showToast("success", `Đã hoàn tác khoản đóng của ${undoFor!.row.name}.`);
+        }}
+      />
+      <ReasonDialog
+        open={!!rejectClaim}
+        onClose={() => setRejectClaim(null)}
+        icon={<X className="w-5 h-5" />}
+        title="Từ chối báo đã đóng"
+        message="Người báo sẽ nhận thông báo kèm lý do; khoản vẫn là chưa đóng."
+        confirmText="Từ chối"
+        placeholder="Ví dụ: Chưa nhận được tiền / chưa thấy chuyển khoản"
+        onConfirm={async (reason) => {
+          await financeApi.decideClaim(rejectClaim!.id, false, reason);
+          await refreshFinance();
+          showToast("success", "Đã từ chối yêu cầu.");
+        }}
       />
       <DuesCycleModal open={duesOpen} onClose={() => setDuesOpen(false)} />
       <UtilityModal open={utilityOpen} onClose={() => setUtilityOpen(false)} />

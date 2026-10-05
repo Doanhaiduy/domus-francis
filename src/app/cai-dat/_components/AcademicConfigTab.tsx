@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { FormCardsSkeleton } from "./TabSkeletons";
 import { useSession } from "@/lib/session";
 import { ApiClientError, errorMessage } from "@/lib/api";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
@@ -786,13 +787,7 @@ export default function AcademicConfigTab() {
   };
 
   if (isLoading && !config) {
-    return (
-      <div className="flex flex-col gap-4">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-40 rounded-3xl bg-white border border-purple-50 animate-pulse" />
-        ))}
-      </div>
-    );
+    return <FormCardsSkeleton cards={3} />;
   }
   if (error && !config) {
     return <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800">Không tải được danh mục học tập: {errorMessage(error)}</div>;

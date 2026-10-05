@@ -22,7 +22,7 @@ export const GUIDE_AUDIENCE_LABEL: Record<GuideAudience, string> = {
 
 export const GUIDE_INTRO = `Ứng dụng quản lý sinh hoạt của Lưu Xá Phanxicô. Mỗi người thấy và làm được những việc theo **vai trò** của mình:
 
-- **Thành viên** — mọi anh em trong nhà: xem thông báo, lịch, đăng ký cơm, trực nhật, đóng quỹ, nhập bảng điểm…
+- **Thành viên** — mọi anh em trong nhà: xem thông báo, lịch, đăng ký cơm, lịch trực vệ sinh, luật nhà, đóng quỹ, nhập bảng điểm…
 - **Thủ quỹ** — giữ quỹ: lập kỳ thu quỹ, nhập tiền điện nước, ghi thu, lập/duyệt phiếu chi, sổ quỹ.
 - **Trưởng nhà** — điều hành: duyệt đơn vào nhà, thành viên & phòng ở, trực nhật, đồng ký chi, thông báo, cấu hình chung.
 - **Admin** — quản trị hệ thống: tài khoản, vai trò & quyền, ẩn/hiện phân hệ, danh mục, năm học, trợ lý AI. Admin **không** duyệt chi, không đổi tài khoản nhận quỹ và không xem dữ liệu nhạy cảm của thành viên.
@@ -80,11 +80,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 - Đăng ký/nghỉ ăn trưa, tối **trước giờ chốt** (mặc định 09:00 cho bữa trưa, 15:00 cho bữa tối). Sau giờ chốt chỉ Ban Ẩm thực sửa được.
 - Có thể chấm điểm, góp ý món ăn.
 
-## Hậu cần & Trực nhật
-- Xem **ca trực** của mình; đến giờ bấm **Check-in** và chụp ảnh khu vực đã làm sạch.
-- Bận đột xuất: **Đổi ca** với một anh em khác (người nhận đồng ý, Ban điều hành duyệt), xin trước ít nhất 12 giờ.
+## Hậu cần & Trực vệ sinh
+- **Trực vệ sinh sân nhà**: mỗi tuần có **2 bạn** trực dọn dẹp sân nhà. Trưởng nhà xếp lịch và bạn nhận **thông báo** khi được xếp. Hết tuần Trưởng nhà chấm điểm (0–10), nhận xét và có thể yêu cầu trực lại.
 - **Báo hỏng**: nút “Báo hỏng” — mô tả, chọn vị trí, chụp ảnh. Theo dõi trạng thái sửa chữa.
-- **Giặt đồ**: đặt lượt máy giặt theo khung giờ, đến đúng giờ.
+
+## Luật nhà
+- **Thông báo → tab Luật nhà**: nội quy chia theo mục (giờ giấc, vệ sinh, khách…), có bảng **giờ giấc chung**. Bấm **Tải PDF** để lưu hoặc in. Trưởng nhà/Admin soạn, sửa, sắp xếp từng mục.
 
 ## Phụng vụ
 - Lịch phụng vụ tuần, phân công đọc sách/giúp lễ/hát; xác nhận nhiệm vụ của mình.
@@ -117,7 +118,9 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 3. Khoản chi trả cho công ty điện/nước vẫn lập **phiếu chi** như bình thường (hạng mục Điện nước).
 
 ## Ghi thu
-- Trong danh sách khoản thu, bấm **Thu tiền** ở dòng thành viên: chọn hình thức (tiền mặt/chuyển khoản), túi quỹ, ngày; một phiếu thu có thể trả nhiều khoản. Nhầm thì **Hủy phiếu thu** (có lý do — hệ thống ghi bút toán đảo, không xóa dữ liệu).
+- **Tôi đã đóng**: đã đưa tiền mặt hoặc chuyển khoản? Bấm nút này ở khoản của bạn để báo — Thủ quỹ/Trưởng nhà đối chiếu rồi **Xác nhận** (hoặc từ chối kèm lý do); bạn nhận thông báo kết quả.
+- Thủ quỹ, Trưởng nhà, Admin: bấm **Đã đóng** ở dòng thành viên (chọn tiền mặt/chuyển khoản) để ghi thay; nhầm hoặc chưa thu thật thì bấm **Hoàn tác** (có lý do — hệ thống ghi bút toán đảo, không xóa dữ liệu). Đóng một phần/gộp nhiều khoản: **Chi tiết → Ghi thu**.
+- **Nhắc nợ**: nút **Nhắc** ở từng người hoặc **Nhắc người chưa đóng** cho cả khoản — gửi thông báo trong ứng dụng và (tùy chọn) vào **nhóm Zalo**.
 - **Miễn/giảm** cần lý do và quyền của Trưởng nhà.
 
 ## Phiếu chi
@@ -126,9 +129,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 - Phiếu đã duyệt có người ứng tiền: phần chi tiết phiếu hiện **mã QR hoàn ứng** của người đó (có sẵn số tiền + nội dung).
 - Khi chi xong bấm **Đã chi**; sổ quỹ tự ghi.
 
-## Báo cáo & nhắc quỹ
+## Báo cáo, thống kê & nhắc quỹ
+- Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.
 - **Tải báo cáo PDF**, **Copy Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.
-- Thẻ **AI nhận xét thu chi tháng** tự so sánh tháng này với tháng trước (khi Admin đã bật AI).`,
+- Thẻ **AI nhận xét thu chi tháng** tự so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét được lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn nhận xét mới.`,
   },
   {
     id: "truong-nha",
@@ -139,8 +143,9 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 - **Thêm thành viên** (có thể cấp tài khoản ngay — mật khẩu tạm hiện một lần, hãy gửi riêng cho người đó).
 - **Sơ đồ nhà**: xếp/chuyển phòng (máy tính: kéo thả; điện thoại: danh sách thẻ), sửa cấu trúc phòng.
 
-## Trực nhật & hậu cần
-- **Hậu Cần & Trực** → **Phân công ca mới** hoặc sao chép roster tuần trước; công bố roster; nghiệm thu ca đã check-in; duyệt đơn đổi ca; tiếp nhận báo hỏng.
+## Trực vệ sinh & hậu cần
+- **Hậu Cần & Trực** → **Xếp người trực**: chọn 2 bạn cho mỗi tuần (có nút **Gợi ý luân phiên**), nhắc người trực, gửi lịch vào nhóm Zalo. Hết tuần: **Đánh giá** (điểm 0–10, nhận xét, yêu cầu trực lại). Tiếp nhận báo hỏng.
+- **Luật nhà** (Thông báo → Luật nhà): soạn từng mục, thêm giờ giấc, sắp xếp, tải PDF.
 
 ## Tài chính
 - Đồng ký phiếu chi lớn, xác nhận chốt sổ tháng, duyệt miễn/giảm quỹ.
