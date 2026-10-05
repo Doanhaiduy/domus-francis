@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, MessageCircle, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
+import { Settings, Building, MessageCircle, BellRing, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -18,14 +18,15 @@ import GeneralTab, { isGeneralKey } from "./_components/GeneralTab";
 import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
 import ZaloTab from "./_components/ZaloTab";
+import RemindersTab from "./_components/RemindersTab";
 import AiTab from "./_components/AiTab";
 import ModulesTab from "./_components/ModulesTab";
 import AccountsTab from "./_components/AccountsTab";
 import AcademicConfigTab from "./_components/AcademicConfigTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "ai" | "modules";
-const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "ai", "modules"];
+type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules";
+const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -239,6 +240,12 @@ export default function CaiDatPage() {
           <span>Tích hợp Zalo</span>
           {dirtyIn((k) => !isGeneralKey(k)) > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </button>
+        {session && can("event.manage") && (
+          <button onClick={() => setActiveTab("reminders")} className={tabBtn("reminders")}>
+            <BellRing className="w-4 h-4" />
+            <span>Nhắc lịch</span>
+          </button>
+        )}
         <button onClick={() => setActiveTab("modules")} className={tabBtn("modules")}>
           <LayoutPanelLeft className="w-4 h-4" />
           <span>Phân hệ</span>
@@ -257,6 +264,7 @@ export default function CaiDatPage() {
       {activeTab === "categories" && <CategoriesTab />}
       {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}
       {activeTab === "zalo" && (settingsLoading ? <FormCardsSkeleton cards={2} /> : <ZaloTab draft={draft} />)}
+      {activeTab === "reminders" && <RemindersTab />}
       {activeTab === "ai" && <AiTab />}
       {activeTab === "modules" && <ModulesTab />}
       {activeTab === "accounts" && <AccountsTab />}

@@ -9,7 +9,7 @@ import { useApp } from "@/lib/store";
 import { api, errorMessage, swrFetcher } from "@/lib/api";
 import type { SettingsDraft } from "./useSettingsDraft";
 import { TextSetting, ToggleSetting } from "./SettingFields";
-import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, type ZaloEventKey } from "@/lib/types/settings";
+import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
 import { FormCardsSkeleton } from "./TabSkeletons";
 
 const CHAT_RE = /^[A-Za-z0-9._:-]{3,100}$/;
@@ -24,6 +24,15 @@ interface ZaloStatus {
   chatId: string;
   bot: { ok: boolean; name?: string; error?: string } | null;
 }
+interface DailyPreview {
+  slot: "morning" | "evening";
+  date: string;
+  dry: boolean;
+  items: { key: string; event: string; text: string; status: string; inApp: boolean; reason?: string }[];
+  notes: string[];
+}
+const STATUS_TEXT: Record<string, string> = { planned: "Sẽ gửi", sent: "Đã gửi", not_sent: "Chưa gửi được", duplicate: "Đã gửi trước đó" };
+
 interface ZaloChats {
   ok: boolean;
   chats: { chatId: string; type: string | null; title: string | null; lastText: string | null }[];
@@ -36,6 +45,13 @@ const EVENT_DESC: Record<ZaloEventKey, string> = {
   duty_week: "Khi Trưởng nhà xếp / sửa người trực của một tuần, bot gửi lịch vào nhóm",
   dues_reminder: "Khi Thủ quỹ/Trưởng nhà bấm “Nhắc nhóm Zalo” ở trang Thu chi, bot gửi danh sách chưa đóng + tài khoản nhận quỹ",
   facility_new: "Chuyển tiếp báo hỏng cơ sở vật chất mới vào nhóm ngay khi có người gửi",
+  liturgy: "Báo trước lễ trọng, Bổn mạng, ngày đặc biệt của nhà (7h sáng hằng ngày)",
+  announcement: "Khi đăng thông báo, tick “Đăng cả vào nhóm Zalo” để gửi kèm",
+  event_new: "Khi tạo sự kiện, tick “Báo cả nhà” để gửi kèm vào nhóm",
+  event_reminder: "7h sáng: nhắc các sự kiện diễn ra hôm nay và ngày mai",
+  reminder_schedule: "Các lịch nhắc lặp hằng tuần bạn tạo ở tab “Nhắc lịch”",
+  room_change: "Khi Trưởng nhà chuyển / xếp phòng cho một thành viên (mặc định tắt)",
+  member_joined: "Khi đơn xin vào nhà được duyệt (mặc định tắt)",
 };
 
 export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
@@ -45,6 +61,19 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
   const [testing, setTesting] = useState(false);
   const [finding, setFinding] = useState(false);
   const [chats, setChats] = useState<ZaloChats | null>(null);
+  const [daily, setDaily] = useState<DailyPreview | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
+
+  const runDaily = async (slot: "morning" | "evening", dry: boolean) => {
+    setRunning(`${slot}:${dry}`);
+    try {
+      setDaily(await api.post<DailyPreview>("/api/v1/integrations/cron/run", { slot, dry }));
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setRunning(null);
+    }
+  };
 
   const enabled = draft.value<boolean>(ENABLED_KEY) === true;
   const chatId = draft.value<string>(CHAT_KEY) ?? "";
@@ -208,7 +237,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
               key={k}
               draft={draft}
               k={EVENTS_KEY}
-              checked={events[k] !== false}
+              checked={zaloEventOn(events, k)}
               onChange={(x) => draft.set(EVENTS_KEY, { ...events, [k]: x })}
               label={ZALO_EVENT_LABEL[k]}
               description={EVENT_DESC[k]}
@@ -216,6 +245,52 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
           ))}
         </div>
         {enabled && !chatId && <p className="text-xs text-amber-700">Đã bật nhưng chưa có mã nhóm — bot chưa thể gửi.</p>}
+
+        <div className="p-4 rounded-2xl border border-amber-100 bg-amber-50/40 flex flex-col gap-3">
+          <div>
+            <h3 className="text-xs font-bold text-gray-800">Tác vụ tự động hằng ngày</h3>
+            <p className="text-[11px] text-gray-600 leading-relaxed mt-0.5">
+              Vercel chạy hai tác vụ mỗi ngày: <b>7:00 sáng</b> (nhắc lễ, nhắc quỹ sắp/quá hạn, sự kiện hôm nay &amp; ngày mai, lịch nhắc lặp, đầu tuần đăng lịch trực) và <b>19:00 tối</b>
+              (nhắc check-in đi lễ, lịch nhắc lặp buổi tối). Cần biến môi trường <code className="px-1 rounded bg-white border">CRON_SECRET</code> trên Vercel. Bấm “Xem trước” để biết hôm nay sẽ gửi những gì (không gửi thật).
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => runDaily("morning", true)} disabled={!!running} className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 disabled:opacity-50">
+              {running === "morning:true" ? "Đang xem…" : "Xem trước buổi sáng"}
+            </button>
+            <button onClick={() => runDaily("evening", true)} disabled={!!running} className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 disabled:opacity-50">
+              {running === "evening:true" ? "Đang xem…" : "Xem trước buổi tối"}
+            </button>
+            <button
+              onClick={() => confirm("Chạy thật tác vụ buổi sáng ngay bây giờ? Các tin đã gửi hôm nay sẽ không gửi lại.") && runDaily("morning", false)}
+              disabled={!!running}
+              className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-50"
+            >
+              {running === "morning:false" ? "Đang chạy…" : "Chạy thật ngay (sáng)"}
+            </button>
+          </div>
+          {daily && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-bold text-gray-700">
+                {daily.dry ? "Xem trước" : "Kết quả chạy"} · {daily.slot === "morning" ? "buổi sáng" : "buổi tối"} · {daily.date}
+              </p>
+              {daily.items.length === 0 && <p className="text-xs text-gray-500">Hôm nay không có tin nào cần gửi.</p>}
+              {daily.items.map((it, i) => (
+                <div key={i} className="p-3 rounded-xl bg-white border border-gray-100">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">{ZALO_EVENT_LABEL[it.event as ZaloEventKey] ?? it.event}</span>
+                    <span className="text-[10px] font-semibold text-gray-500">{STATUS_TEXT[it.status] ?? it.status}{it.inApp ? " · kèm thông báo trong ứng dụng" : ""}</span>
+                  </div>
+                  <pre className="text-[11px] leading-relaxed whitespace-pre-wrap font-sans text-gray-800">{it.text}</pre>
+                  {it.reason && <p className="text-[10.5px] text-amber-700 mt-1">{it.reason}</p>}
+                </div>
+              ))}
+              {daily.notes.map((n, i) => (
+                <p key={i} className="text-[10.5px] text-gray-500">• {n}</p>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Ctx } from "../http";
+import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
 
 // =====================================================================
 // Tích hợp nhóm Zalo qua Zalo Bot (https://bot.zaloplatforms.com) — API dạng Telegram:
@@ -12,13 +13,8 @@ import type { Ctx } from "../http";
 const API = "https://bot-api.zaloplatforms.com";
 const TEXT_LIMIT = 2000;
 
-export const ZALO_EVENT_KEYS = ["duty_week", "dues_reminder", "facility_new"] as const;
-export type ZaloEventKey = (typeof ZALO_EVENT_KEYS)[number];
-export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
-  duty_week: "Lịch trực vệ sinh sân nhà hằng tuần",
-  dues_reminder: "Nhắc đóng quỹ / điện nước",
-  facility_new: "Có báo hỏng cơ sở vật chất mới",
-};
+export { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL };
+export type { ZaloEventKey };
 
 export interface ZaloConfig {
   tokenConfigured: boolean;
@@ -108,7 +104,7 @@ export async function postToZaloGroup(ctx: Pick<Ctx, "dbAs">, event: ZaloEventKe
     if (!cfg.enabled) return { sent: false, reason: "Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo)." };
     if (!cfg.tokenConfigured) return { sent: false, reason: "Máy chủ chưa có ZALO_BOT_TOKEN." };
     if (!cfg.chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
-    if (event && cfg.events[event] === false) return { sent: false, reason: `Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.` };
+    if (event && !zaloEventOn(cfg.events, event)) return { sent: false, reason: `Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.` };
     const r = await sendZaloText(cfg.chatId, text);
     return r.ok ? { sent: true } : { sent: false, reason: r.error };
   } catch (e) {

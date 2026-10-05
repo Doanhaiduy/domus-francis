@@ -16,6 +16,8 @@ export const CreateAnnouncementSchema = z.object({
   eventId: zUuid.nullable().optional(),
   attachmentFileId: zUuid.nullable().optional(),
   notify: z.boolean().optional(),
+  /** Đăng cả vào nhóm Zalo của nhà (nếu đã bật tích hợp) */
+  notifyZalo: z.boolean().optional(),
 });
 
 export const PinSchema = z.object({ pinned: z.boolean() });

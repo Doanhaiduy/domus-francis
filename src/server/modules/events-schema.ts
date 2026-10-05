@@ -40,6 +40,9 @@ export const EventSchema = z.object({
   description: optText(2000),
   hasCheckIn: z.boolean().optional(),
   poll: PollCreateSchema.omit({ eventId: true }).nullable().optional(),
+  /** Báo cả nhà: thông báo trong ứng dụng / đăng nhóm Zalo (chỉ khi tạo mới) */
+  notifyApp: z.boolean().optional(),
+  notifyZalo: z.boolean().optional(),
 });
 export type EventInput = z.infer<typeof EventSchema>;
 

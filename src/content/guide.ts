@@ -146,6 +146,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
 ## Trực vệ sinh & hậu cần
 - **Hậu Cần & Trực** → **Xếp người trực**: chọn 2 bạn cho mỗi tuần (có nút **Gợi ý luân phiên**), nhắc người trực, gửi lịch vào nhóm Zalo. Hết tuần: **Đánh giá** (điểm 0–10, nhận xét, yêu cầu trực lại). Tiếp nhận báo hỏng.
 - **Luật nhà** (Thông báo → Luật nhà): soạn từng mục, thêm giờ giấc, sắp xếp, tải PDF.
+- **Nhắc tự động & nhóm Zalo** (Cài đặt → Tích hợp Zalo, Nhắc lịch): mỗi sáng 7:00 hệ thống nhắc lễ trọng/Bổn mạng, khoản quỹ sắp hoặc quá hạn, sự kiện hôm nay/ngày mai và các **lịch nhắc lặp** bạn tạo (vd. “Họp nhà tối thứ 4”); chiều 19:00 nhắc check-in đi lễ. Khi đăng thông báo hoặc tạo sự kiện có thể tick đăng cả vào nhóm Zalo.
 
 ## Tài chính
 - Đồng ký phiếu chi lớn, xác nhận chốt sổ tháng, duyệt miễn/giảm quỹ.

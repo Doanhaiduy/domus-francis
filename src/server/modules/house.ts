@@ -208,7 +208,7 @@ export async function deleteFloor(tx: Tx, level: number) {
  * mới tạo trong hôm nay (xếp nhầm/hủy trong ngày) thì sửa thẳng dòng đó. Không xóa dòng nào — lịch sử được giữ.
  * Sức chứa/giới tính/loại phòng do trigger trg_room_assignments__rules kiểm (khóa advisory theo phòng — G-04).
  */
-export async function assignRoom(tx: Tx, memberId: string, roomCode: string, reason?: string | null) {
+export async function assignRoom(tx: Tx, memberId: string, roomCode: string, reason?: string | null): Promise<boolean> {
   const roomId = await roomIdByCode(tx, roomCode);
   const cur = (
     await tx.query<{ id: string; room_id: string; starts_on: string; ends_on: string | null; today: string }>(
@@ -219,7 +219,7 @@ export async function assignRoom(tx: Tx, memberId: string, roomCode: string, rea
     )
   ).rows[0];
   const active = cur && (cur.ends_on === null || cur.ends_on > cur.today);
-  if (active && cur.room_id === roomId) return;
+  if (active && cur.room_id === roomId) return false;
   if (cur && cur.starts_on >= cur.today) {
     const r = await tx.query(
       `UPDATE room_assignments SET room_id = $2, ends_on = NULL, end_reason = NULL, ended_by = NULL,
@@ -227,7 +227,7 @@ export async function assignRoom(tx: Tx, memberId: string, roomCode: string, rea
       [cur.id, roomId, reason ?? "Xếp lại phòng trong ngày"]
     );
     if (!r.rowCount) throw new ApiError(403, "FORBIDDEN", "Bạn không có quyền xếp phòng.");
-    return;
+    return true;
   }
   if (cur) {
     const r = await tx.query(
@@ -243,6 +243,7 @@ export async function assignRoom(tx: Tx, memberId: string, roomCode: string, rea
      VALUES ($1, $2, $3, app.local_today(), $4, app.current_user_id())`,
     [memberId, roomId, year, reason ?? (active ? "Chuyển phòng" : "Xếp phòng")]
   );
+  return true;
 }
 
 export async function unassignRoom(tx: Tx, memberId: string, reason?: string | null) {

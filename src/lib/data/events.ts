@@ -103,6 +103,9 @@ export interface EventPayload {
   description?: string | null;
   hasCheckIn?: boolean;
   poll?: PollPayload | null;
+  /** Báo cả nhà khi tạo mới */
+  notifyApp?: boolean;
+  notifyZalo?: boolean;
 }
 
 export interface PollPayload {

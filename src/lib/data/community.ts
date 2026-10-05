@@ -110,10 +110,11 @@ export interface CreateAnnouncementBody {
   eventId?: string | null;
   attachmentFileId?: string | null;
   notify?: boolean;
+  notifyZalo?: boolean;
 }
 
 export const announcementsApi = {
-  create: (b: CreateAnnouncementBody) => api.post<{ id: string; notified: number }>(ANNOUNCEMENTS_KEY, b),
+  create: (b: CreateAnnouncementBody) => api.post<{ id: string; notified: number; zalo?: { sent: boolean; reason?: string } | null }>(ANNOUNCEMENTS_KEY, b),
   remove: (id: string) => api.del(`${ANNOUNCEMENTS_KEY}/${id}`),
   pin: (id: string, pinned: boolean) => api.post<AnnouncementDto>(`${ANNOUNCEMENTS_KEY}/${id}/pin`, { pinned }),
   read: (id: string, acknowledge = false) => api.post(`${ANNOUNCEMENTS_KEY}/${id}/read`, { acknowledge }),

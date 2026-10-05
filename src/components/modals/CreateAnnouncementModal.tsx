@@ -52,6 +52,7 @@ export default function CreateAnnouncementModal() {
   const [requiresAck, setRequiresAck] = useState(false);
   const [ackDate, setAckDate] = useState(plusDays(7));
   const [notify, setNotify] = useState(true);
+  const [notifyZalo, setNotifyZalo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -90,12 +91,14 @@ export default function CreateAnnouncementModal() {
         eventId: eventId || null,
         attachmentFileId: fileId || null,
         notify: canNotify ? notify : false,
+        notifyZalo,
       });
       await refreshAnnouncements();
       showToast(
         "success",
         res.notified > 0 ? `Đã đăng thông báo và gửi tới hộp thư của ${res.notified} thành viên.` : "Đã đăng thông báo lên bảng tin."
       );
+      if (notifyZalo && res.zalo && !res.zalo.sent && res.zalo.reason) showToast("info", `Chưa đăng được vào nhóm Zalo: ${res.zalo.reason}`);
       closeModal();
     } catch (err) {
       showToast("error", errorMessage(err));
@@ -223,6 +226,7 @@ export default function CreateAnnouncementModal() {
 
           {(canPin || canNotify) && (
             <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3 space-y-2">
+              <CustomToggle checked={notifyZalo} onChange={setNotifyZalo} label="Đăng cả vào nhóm Zalo" description="Gửi tiêu đề + phần đầu nội dung vào nhóm Zalo của nhà (cần bật ở Cài đặt → Tích hợp Zalo)" />
               {canPin && (
                 <CustomToggle checked={pinned} onChange={setPinned} label="Ghim lên đầu bảng tin" description="Tự bỏ ghim sau 14 ngày" />
               )}

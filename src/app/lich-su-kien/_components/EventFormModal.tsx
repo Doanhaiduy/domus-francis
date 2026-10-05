@@ -47,6 +47,8 @@ export default function EventFormModal({ open, onClose, categories, event, prese
   const [organizerIds, setOrganizerIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [hasCheckIn, setHasCheckIn] = useState(true);
+  const [notifyAll, setNotifyAll] = useState(true);
+  const [notifyZalo, setNotifyZalo] = useState(false);
   const [hasPoll, setHasPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
@@ -134,7 +136,7 @@ export default function EventFormModal({ open, onClose, categories, event, prese
     };
     setSaving(true);
     try {
-      const saved = isEdit ? await eventsApi.update(event!.id, body) : await eventsApi.create({ ...body, poll });
+      const saved = isEdit ? await eventsApi.update(event!.id, body) : await eventsApi.create({ ...body, poll, notifyApp: notifyAll, notifyZalo });
       await refreshEvents();
       showToast("success", isEdit ? `Đã cập nhật sự kiện "${saved.title}".` : `Đã tạo sự kiện "${saved.title}" ngày ${saved.date}.`);
       onSaved?.(saved);
@@ -258,6 +260,13 @@ export default function EventFormModal({ open, onClose, categories, event, prese
                 onChange={setHasCheckIn}
               />
             </div>
+
+            {!isEdit && (
+              <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-1">
+                <CustomToggle label="Báo cả nhà trong ứng dụng" description="Mỗi thành viên nhận một thông báo về sự kiện này" checked={notifyAll} onChange={setNotifyAll} />
+                <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Cài đặt → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
+              </div>
+            )}
 
             {!isEdit && canPoll && (
               <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-3">

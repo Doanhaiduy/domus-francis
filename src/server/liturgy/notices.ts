@@ -12,11 +12,13 @@ import { loadLiturgyConf, requirementFor, upcomingFrom } from "../modules/liturg
 const vnNow = () => new Date(Date.now() + 7 * 3600e3);
 const dm = (iso: string) => `${+iso.slice(8)}/${+iso.slice(5, 7)}`;
 
-export async function runLiturgyNotices(): Promise<number> {
+/** Trả về số thông báo đã tạo và các tin MỚI gửi (báo trước / hôm trước) để đăng thêm vào nhóm Zalo. */
+export async function runLiturgyNotices(): Promise<{ sent: number; posts: string[] }> {
   const now = vnNow();
   const hm = now.toISOString().slice(11, 16);
-  if (hm < "07:00") return 0;
-  return withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
+  if (hm < "07:00") return { sent: 0, posts: [] };
+  const posts: string[] = [];
+  const sent = await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
     const conf = await loadLiturgyConf(tx);
     const s = (
       await tx.query(
@@ -28,7 +30,7 @@ export async function runLiturgyNotices(): Promise<number> {
     const dayBefore = s.day_before !== false;
     const remindAt = typeof s.remind_at === "string" ? s.remind_at : "19:00";
     let sent = 0;
-    const send = async (day: string, occasion: string, kind: string, title: string, body: string, onlyMissing = false) => {
+    const send = async (day: string, occasion: string, kind: string, title: string, body: string, onlyMissing = false, forGroup = false) => {
       const n = (
         await tx.query<{ n: number }>("SELECT app.fn_liturgy_notice($1, $2, $3, $4, $5, $6::jsonb, $7) AS n", [
           day,
@@ -41,6 +43,7 @@ export async function runLiturgyNotices(): Promise<number> {
         ])
       ).rows[0].n;
       sent += n;
+      if (n > 0 && forGroup) posts.push(`⛪ ${title}\n${body}`);
     };
 
     for (const u of upcomingFrom(conf, Math.max(before, 1))) {
@@ -51,8 +54,8 @@ export async function runLiturgyNotices(): Promise<number> {
       const tail = u.requiresCheckin ? " Anh em nhớ tham dự Thánh lễ và check-in trên ứng dụng." : "";
       // Báo trước: lần đầu job chạy trong khoảng [N ngày … 2 ngày] trước lễ (job tạm dừng vài hôm vẫn không bỏ sót)
       if (before > 1 && u.daysLeft <= before && u.daysLeft >= 2)
-        await send(u.date, occasion, "week_before", `Còn ${u.daysLeft} ngày: ${u.title}`, `${u.title} vào ${when}.${tail}`);
-      if (dayBefore && u.daysLeft === 1) await send(u.date, occasion, "day_before", `Ngày mai: ${u.title}`, `${u.title} — ${when}.${tail}`);
+        await send(u.date, occasion, "week_before", `Còn ${u.daysLeft} ngày: ${u.title}`, `${u.title} vào ${when}.${tail}`, false, true);
+      if (dayBefore && u.daysLeft === 1) await send(u.date, occasion, "day_before", `Ngày mai: ${u.title}`, `${u.title} — ${when}.${tail}`, false, true);
     }
 
     // Nhắc check-in tối ngày lễ bắt buộc
@@ -71,4 +74,5 @@ export async function runLiturgyNotices(): Promise<number> {
     }
     return sent;
   });
+  return { sent, posts };
 }

@@ -218,13 +218,34 @@ export const PERMISSION_MODULE_LABEL: Record<string, string> = {
 // Luật kiểm tra giá trị cấu hình (client hiển thị lỗi theo ô; server kiểm lại trước khi ghi — DB còn trigger
 // app.tg_settings_validate cho min/max/kiểu và trg_settings__finance_invariants cho ngưỡng chi).
 // ---------------------------------------------------------------------
-export const ZALO_EVENT_KEYS = ["duty_week", "dues_reminder", "facility_new"] as const;
+export const ZALO_EVENT_KEYS = [
+  "duty_week",
+  "dues_reminder",
+  "facility_new",
+  "liturgy",
+  "announcement",
+  "event_new",
+  "event_reminder",
+  "reminder_schedule",
+  "room_change",
+  "member_joined",
+] as const;
 export type ZaloEventKey = (typeof ZALO_EVENT_KEYS)[number];
 export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
   duty_week: "Lịch trực vệ sinh sân nhà hằng tuần",
   dues_reminder: "Nhắc đóng quỹ / điện nước",
   facility_new: "Có báo hỏng cơ sở vật chất mới",
+  liturgy: "Nhắc lễ trọng, Bổn mạng, ngày đặc biệt",
+  announcement: "Thông báo của Ban điều hành",
+  event_new: "Sự kiện mới",
+  event_reminder: "Nhắc sự kiện hôm nay / ngày mai",
+  reminder_schedule: "Lịch nhắc lặp (họp nhà, sinh hoạt…)",
+  room_change: "Chuyển / xếp phòng",
+  member_joined: "Thành viên mới vào nhà",
 };
+/** Loại tin mặc định TẮT (liên quan chỗ ở của từng người) — Trưởng nhà tự bật nếu muốn. */
+export const ZALO_EVENT_DEFAULT_OFF: readonly ZaloEventKey[] = ["room_change", "member_joined"];
+export const zaloEventOn = (events: Record<string, boolean> | undefined, k: ZaloEventKey) => events?.[k] ?? !ZALO_EVENT_DEFAULT_OFF.includes(k);
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MAX_TEXT = 300;

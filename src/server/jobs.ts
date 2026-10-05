@@ -8,7 +8,7 @@ declare global {
   var __luuxaJobs: NodeJS.Timeout | undefined;
 }
 
-async function housekeeping() {
+export async function housekeeping() {
   try {
     const r = await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
       const out = (await tx.query("SELECT app.fn_housekeeping() AS r")).rows[0].r;
@@ -30,7 +30,7 @@ async function housekeeping() {
 }
 
 /** Mỗi 10 phút: đánh dấu ca trực bỏ lỡ (thiết kế giao cho worker). */
-async function dutyJobs() {
+export async function dutyJobs() {
   try {
     await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
       await tx.query("SELECT app.fn_mark_missed_duties()");
@@ -48,7 +48,7 @@ async function dutyJobs() {
 /** Mỗi 30 phút: nhắc lễ trọng / Bổn mạng / ngày đặc biệt và nhắc check-in đi lễ (chống gửi trùng bằng liturgy_notice_log). */
 async function liturgyJobs() {
   try {
-    const n = await runLiturgyNotices();
+    const { sent: n } = await runLiturgyNotices();
     if (n && process.env.NODE_ENV !== "production") console.log("[jobs] nhắc lễ:", n, "thông báo");
   } catch (e) {
     console.error("[jobs] nhắc lễ lỗi:", (e as Error).message);
@@ -56,7 +56,7 @@ async function liturgyJobs() {
 }
 
 /** Lời Chúa chưa nạp ⇒ thử nạp từ nguồn mở (một lần lúc khởi động + mỗi ngày); lỗi mạng thì để lần sau. */
-async function lectionaryJob() {
+export async function lectionaryJob() {
   try {
     await autoImportLectionary();
   } catch (e) {

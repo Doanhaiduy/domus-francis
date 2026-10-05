@@ -36,6 +36,8 @@ export default function AddEventModal() {
   );
   const [eventDesc, setEventDesc] = useState("");
   const [hasCheckIn, setHasCheckIn] = useState(true);
+  const [notifyAll, setNotifyAll] = useState(true);
+  const [notifyZalo, setNotifyZalo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -63,6 +65,8 @@ export default function AddEventModal() {
         organizerIds: session?.member ? [session.member.id] : [],
         description: eventDesc.trim() || null,
         hasCheckIn,
+        notifyApp: notifyAll,
+        notifyZalo,
       });
       await refreshEvents();
       showToast("success", `Đã thêm sự kiện "${ev.title}" ngày ${ev.date}.`);
@@ -167,6 +171,11 @@ export default function AddEventModal() {
                 checked={hasCheckIn}
                 onChange={setHasCheckIn}
               />
+            </div>
+
+            <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-1">
+              <CustomToggle label="Báo cả nhà trong ứng dụng" description="Mỗi thành viên nhận một thông báo về sự kiện này" checked={notifyAll} onChange={setNotifyAll} />
+              <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Cài đặt → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
             </div>
           </div>
 
