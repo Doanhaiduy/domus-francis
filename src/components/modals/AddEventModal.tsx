@@ -97,7 +97,7 @@ export default function AddEventModal() {
             <Lock className="w-6 h-6" />
           </div>
           <p className="text-sm font-bold text-gray-800">Bạn chưa có quyền tạo sự kiện</p>
-          <p className="text-xs text-gray-500">Chỉ Trưởng nhà, Phó nhà và Trưởng ban Phụng vụ được lên lịch sự kiện chung.</p>
+          <p className="text-xs text-gray-500">Chỉ người có quyền quản lý sự kiện (Trưởng nhà, Admin hoặc vai trò được cấp quyền) mới lên lịch sự kiện chung.</p>
           <button onClick={closeModal} className="mt-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
             Đóng
           </button>

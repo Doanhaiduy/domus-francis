@@ -2,7 +2,7 @@
 // Hook dữ liệu + thao tác phân hệ AI hỗ trợ. AI chỉ gợi ý; mọi chỗ dùng đều có đường làm thủ công khi AI tắt/lỗi.
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
-import type { AiInputMap, AiResultDto, AiStatusDto, AiSuggestionDto, AiTaskCode, AiUsageDto } from "../types/ai";
+import type { AiConsentPurpose, AiInputMap, AiResultDto, AiStatusDto, AiSuggestionDto, AiTaskCode, AiUsageDto } from "../types/ai";
 
 export const AI_STATUS_KEY = "/api/v1/ai/status";
 export const AI_USAGE_KEY = "/api/v1/ai/usage";
@@ -32,8 +32,15 @@ export function useAiTask(code: AiTaskCode) {
     : !task?.enabled
     ? "Tác vụ này đang tắt."
     : null;
-  const needsConsent = available && !!task?.requiredConsent && !status?.consented;
-  return { status, task, available, reason, needsConsent, refresh: mutate };
+  // Đúng mục đích đồng ý mà tác vụ yêu cầu (ai_processing, ai_academic_summary…); máy chủ cũ chưa trả `consents` ⇒ dùng `consented`.
+  const consentPurpose = (task?.requiredConsent ?? null) as AiConsentPurpose | null;
+  const hasConsent = !consentPurpose
+    ? true
+    : status?.consents && consentPurpose in status.consents
+    ? !!status.consents[consentPurpose]
+    : consentPurpose === "ai_processing" && !!status?.consented;
+  const needsConsent = available && !hasConsent;
+  return { status, task, available, reason, needsConsent, consentPurpose, refresh: mutate };
 }
 
 export function useAiUsage(enabled: boolean) {
@@ -49,7 +56,8 @@ export function useAiSuggestions(status: string | null, enabled: boolean) {
 
 export const aiApi = {
   run: <C extends AiTaskCode>(task: C, input: AiInputMap[C]) => api.post<AiResultDto<C>>("/api/v1/ai/run", { task, input }),
-  setConsent: (granted: boolean) => api.put<{ consented: boolean }>("/api/v1/ai/consent", { granted }),
+  setConsent: (granted: boolean, purpose: AiConsentPurpose = "ai_processing") =>
+    api.put<{ purpose: AiConsentPurpose; consented: boolean }>("/api/v1/ai/consent", { granted, purpose }),
   updateTask: (code: string, patch: { enabled?: boolean; monthlyBudgetVnd?: number | null }) =>
     api.patch(`/api/v1/ai/tasks/${encodeURIComponent(code)}`, patch),
   updateBudget: (patch: { limitVnd?: number; alertThresholdPct?: number; hardStop?: boolean }) => api.put<AiUsageDto>("/api/v1/ai/budget", patch),

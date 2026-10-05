@@ -1,5 +1,5 @@
 import "server-only";
-import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
+import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 
 // ---------------------------------------------------------------------
 // Kiểu dữ liệu trả về từ PostgreSQL
@@ -102,3 +102,18 @@ export async function rows<R extends QueryResultRow = Record<string, unknown>>(t
 export async function one<R extends QueryResultRow = Record<string, unknown>>(tx: Tx, sql: string, params: unknown[] = []): Promise<R | null> {
   return (await tx.query<R>(sql, params)).rows[0] ?? null;
 }
+
+export type BatchItem = readonly [sql: string, params?: readonly unknown[]];
+
+/** Chạy một loạt truy vấn tuần tự trong cùng transaction `tx`. */
+export async function batch<R extends QueryResultRow = Record<string, any>>(
+  tx: Tx,
+  items: readonly BatchItem[]
+): Promise<QueryResult<R>[]> {
+  const results: QueryResult<R>[] = [];
+  for (const [sql, params] of items) {
+    results.push(await tx.query<R>(sql, params ? (params as unknown[]) : []));
+  }
+  return results;
+}
+

@@ -10,7 +10,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { loadEnvLocal, ROOT } from "../env.mjs";
 
-// Đội trực (mock id thành viên). Trưởng nhà (2) và Phó nhà (3) ở hai đội khác nhau để luôn có người nghiệm thu chéo.
+// Đội trực (mock id thành viên). Trưởng nhà (2) là người nghiệm thu; ca của đội Trưởng nhà để chờ nghiệm thu (không tự nghiệm thu).
 const TEAMS = [
   { ids: ["3", "6"], room: "P.1" }, // Hoàng Long + Thanh Phong
   { ids: ["1", "10"], room: "P.4" }, // Minh Tuấn + Tuấn Kiệt
@@ -59,7 +59,8 @@ export async function seed(ctx) {
   const U = ids.user;
   const M = ids.member;
   const HEAD = U["2"];
-  const VICE = U["3"];
+  // Người điều phối trực nhật / hậu cần (lập roster, phân loại sự cố, thiết bị): Trưởng nhà — đã bỏ vai trò Phó nhà
+  const MANAGER = HEAD;
 
   const areas = Object.fromEntries((await q("SELECT code, id, name FROM cleaning_areas")).map((r) => [r.code, r]));
   const shifts = Object.fromEntries((await q("SELECT code, id, name FROM duty_shifts")).map((r) => [r.code, r]));
@@ -73,11 +74,11 @@ export async function seed(ctx) {
   const already = await q("SELECT 1 FROM duty_rosters WHERE week_start = ANY($1::date[])", [weeks]);
   const created = []; // { id, date, area, shift, members: [mockId], room }
   if (!already.length) {
-    await ctx.as(VICE);
+    await ctx.as(MANAGER);
     for (const wk of weeks) {
       const [ro] = await q(
         `INSERT INTO duty_rosters (academic_year_id, week_start, notes, created_by) VALUES ($1, $2, $3, $4) RETURNING id`,
-        [year, wk, wk === thisMonday ? "Roster tuần này — đổi ca qua mục Đơn đổi ca, không tự đổi miệng." : null, VICE]
+        [year, wk, wk === thisMonday ? "Roster tuần này — đổi ca qua mục Đơn đổi ca, không tự đổi miệng." : null, MANAGER]
       );
       for (let i = 0; i < 7; i++) {
         const date = addDays(wk, i);
@@ -102,14 +103,14 @@ export async function seed(ctx) {
           const [a] = await q(
             `INSERT INTO duty_assignments (roster_id, area_id, shift_id, duty_date, room_id, created_by)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [ro.id, areas[p.area].id, shifts[p.shift].id, date, p.room ? rooms[p.room] ?? null : null, VICE]
+            [ro.id, areas[p.area].id, shifts[p.shift].id, date, p.room ? rooms[p.room] ?? null : null, MANAGER]
           );
           let k = 0;
           for (const mid of p.members) {
             await q(
               `INSERT INTO duty_assignment_members (assignment_id, duty_date, shift_id, member_id, member_role, added_by)
                VALUES ($1, $2, $3, $4, $5, $6)`,
-              [a.id, date, shifts[p.shift].id, M[mid], k++ === 0 ? "lead" : "member", VICE]
+              [a.id, date, shifts[p.shift].id, M[mid], k++ === 0 ? "lead" : "member", MANAGER]
             );
           }
           created.push({ id: a.id, date, area: p.area, shift: p.shift, members: p.members });
@@ -194,8 +195,10 @@ export async function seed(ctx) {
         [fileId, ckId, checkerUser, checkedAt]
       );
 
-      if (outcome === "approved" || outcome === "rework") {
-        const reviewerMock = a.members.includes("3") || (n % 3 === 0 && !a.members.includes("2")) ? "2" : "3";
+      // Người nghiệm thu: Trưởng nhà (duy nhất có duty.review sau khi bỏ vai trò Phó nhà). Ca có chính Trưởng nhà trực thì
+      // không ai khác được nghiệm thu (BR-DUTY-02) ⇒ để ở trạng thái chờ nghiệm thu.
+      if ((outcome === "approved" || outcome === "rework") && !a.members.includes("2")) {
+        const reviewerMock = "2";
         await ctx.as(U[reviewerMock]);
         const reviewedAt = new Date(checkedAt.getTime() + (30 + (n % 4) * 20) * 60e3);
         if (outcome === "approved") {
@@ -235,7 +238,7 @@ export async function seed(ctx) {
       await ctx.as(U["7"]);
       await q("SELECT app.fn_request_duty_swap($1, $2, $3)", [s1.id, M["9"], "Trùng lịch thi giữa kỳ môn Kết cấu thép, nhờ anh Khoa trực giúp."]);
     }
-    // (b) Gia Bảo nhờ Bảo Nam, Bảo Nam đã đồng ý (chờ Phó nhà/Trưởng nhà duyệt)
+    // (b) Gia Bảo nhờ Bảo Nam, Bảo Nam đã đồng ý (chờ Trưởng nhà duyệt)
     const s2 = memberOf("4").find((c) => daysBetween(c.date, today) >= 3 && c.area !== "WHOLE_HOUSE" && !busyAt("11", c.date, c.shift));
     if (s2) {
       await ctx.as(U["4"]);
@@ -288,16 +291,16 @@ export async function seed(ctx) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::urgency_t, now() - make_interval(hours => $9)) RETURNING id`,
         [no, it.title, cat[ex.category] ?? null, ex.room ? rooms[ex.room] ?? null : null, ex.room ? (it.location ?? null) : loc, reporter, it.description, ex.urgency, ex.ageH]
       );
-      await ctx.as(VICE);
+      await ctx.as(MANAGER);
       if (it.cost) {
         await q(`INSERT INTO repair_costs (issue_id, cost_kind, amount_vnd, description, created_by) VALUES ($1, 'estimate', $2, $3, $4)`, [
-          row.id, it.cost, status === "done" ? "Bộ bản lề cối inox thay mới" : "Bóng LED tuýp 1m2 + tăng phô", VICE,
+          row.id, it.cost, status === "done" ? "Bộ bản lề cối inox thay mới" : "Bóng LED tuýp 1m2 + tăng phô", MANAGER,
         ]);
       }
       const assignee = ex.assignee ?? byName(it.assignee);
       if (assignee && status !== "new") {
         const note = it.id === "LOG-107" ? "Đã khảo sát, đang ra tiệm điện nước mua gioăng cao su 21mm" : it.id === "LOG-109" ? "Đã gọi thợ, chờ giảm xóc thay thế" : null;
-        await q(`INSERT INTO issue_assignments (issue_id, assignee_member_id, role_label, note, assigned_by) VALUES ($1, $2, 'lead', $3, $4)`, [row.id, assignee, note, VICE]);
+        await q(`INSERT INTO issue_assignments (issue_id, assignee_member_id, role_label, note, assigned_by) VALUES ($1, $2, 'lead', $3, $4)`, [row.id, assignee, note, MANAGER]);
       }
       if (status !== "new") {
         await q("SELECT set_config('app.status_reason', $1, true)", ["Đã tiếp nhận và phân công xử lý"]);
@@ -353,7 +356,7 @@ export async function seed(ctx) {
   // 6) Thiết bị dùng chung + một lượt mượn đang mở
   // ------------------------------------------------------------------
   if (!(await q("SELECT 1 FROM assets LIMIT 1")).length) {
-    await ctx.as(VICE);
+    await ctx.as(MANAGER);
     const ASSETS = [
       ["AV-001", "Máy chiếu Full HD Epson", "audio_visual", "P.SANH1", "Tủ thiết bị phòng sinh hoạt", 6500000],
       ["DC-001", "Máy khoan cầm tay & bộ mũi khoan", "tool", null, "Tủ đồ nghề tầng 1", 1200000],
@@ -367,7 +370,7 @@ export async function seed(ctx) {
       const [a] = await q(
         `INSERT INTO assets (asset_tag, name, asset_type, room_id, location_text, status, purchase_cost_vnd, is_loanable, created_by)
          VALUES ($1, $2, $3, $4, $5, 'in_service', $6, true, $7) RETURNING id`,
-        [tag, name, type, room ? rooms[room] ?? null : null, loc, cost, VICE]
+        [tag, name, type, room ? rooms[room] ?? null : null, loc, cost, MANAGER]
       );
       assetIds[tag] = a.id;
     }

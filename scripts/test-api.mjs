@@ -125,10 +125,14 @@ async function startServer() {
   await buildDatabase(DB, "app", { verbose: false });
   const seed = spawnSync(process.execPath, ["--no-warnings", path.join(ROOT, "scripts/db/seed/index.mjs"), "--db", DB], { stdio: "inherit", cwd: ROOT });
   if (seed.status !== 0) throw new Error("seed lỗi");
+  // Dữ liệu nghiệp vụ hiện hành (db/data: bỏ Phó nhà, quyền Admin…) giống DB thật
+  const mig = spawnSync(process.execPath, [path.join(ROOT, "scripts/db/migrate.mjs"), "--db", DB], { stdio: "inherit", cwd: ROOT });
+  if (mig.status !== 0) throw new Error("migrate lỗi");
   const require = createRequire(import.meta.url);
   const nextBin = require.resolve("next/dist/bin/next");
   const port = process.env.PGPORT_LOCAL || env.PGPORT_LOCAL || 54329;
-  const pw = env.LUUXA_API_PASSWORD || "mc1GPKCTrD5c8wcyhAQ5Cf6X";
+  const pw = env.LUUXA_API_PASSWORD;
+  if (!pw) throw new Error("Thiếu LUUXA_API_PASSWORD trong .env.local (chạy pnpm setup:local).");
   const testDbUrl = `postgresql://luuxa_api:${pw}@127.0.0.1:${port}/${DB}`;
   console.log(`▶ Khởi động Next.js thử nghiệm tại ${BASE} (DB ${DB})…`);
   mkdirSync(path.join(ROOT, ".local"), { recursive: true });
@@ -276,17 +280,18 @@ async function suiteRegistration() {
     ok((r.headers.get("location") || "").endsWith("/cho-phe-duyet"), "phải về trang chờ duyệt");
   });
   const member = await as("tuan.nguyen@luuxa.local");
-  const vice = await as("long.le@luuxa.local");
+  // Không còn vai trò Phó nhà (db/data/2026-10-05-01_roles.sql): Trưởng nhà duyệt đơn (application.review)
+  const head = await as("duc.tran@luuxa.local");
   let appId;
   await test("Thành viên thường không xem được danh sách đơn", async () => eq((await member.get("/api/v1/applications")).status, 403));
-  await test("Phó nhà thấy đơn mới", async () => {
-    const list = (await vice.get("/api/v1/applications")).json;
+  await test("Trưởng nhà thấy đơn mới", async () => {
+    const list = (await head.get("/api/v1/applications")).json;
     appId = list.find((a) => a.email === email)?.id;
     ok(appId, "không thấy đơn vừa nộp");
   });
-  await test("Từ chối phải có lý do ≥ 5 ký tự", async () => eq((await vice.post(`/api/v1/applications/${appId}/reject`, { note: "x" })).status, 400));
-  await test("Phó nhà duyệt đơn + xếp phòng P.5 → tạo hồ sơ thành viên", async () => {
-    const r = await vice.post(`/api/v1/applications/${appId}/approve`, { roomCode: "P.5" });
+  await test("Từ chối phải có lý do ≥ 5 ký tự", async () => eq((await head.post(`/api/v1/applications/${appId}/reject`, { note: "x" })).status, 400));
+  await test("Trưởng nhà duyệt đơn + xếp phòng P.5 → tạo hồ sơ thành viên", async () => {
+    const r = await head.post(`/api/v1/applications/${appId}/approve`, { roomCode: "P.5" });
     eq(r.status, 200, JSON.stringify(r.json));
     ok(r.json.memberId, "phải trả memberId");
   });
@@ -295,7 +300,7 @@ async function suiteRegistration() {
     eq(r.json.pending, false);
     eq((await applicant.get("/api/v1/members")).status, 200);
   });
-  await test("Duyệt lại đơn đã duyệt → 422", async () => eq((await vice.post(`/api/v1/applications/${appId}/approve`, {})).status, 422));
+  await test("Duyệt lại đơn đã duyệt → 422", async () => eq((await head.post(`/api/v1/applications/${appId}/approve`, {})).status, 422));
 }
 
 async function suiteMembers() {
@@ -361,22 +366,23 @@ async function suiteMembers() {
 
 async function suiteAccountLink() {
   section("Cấp tài khoản cho hồ sơ đã có");
-  const vice = await as("long.le@luuxa.local");
+  const head = await as("duc.tran@luuxa.local");
+  const admin = await as("viet.vu@luuxa.local");
   let id;
-  await test("Phó nhà tạo hồ sơ chưa có tài khoản", async () => {
-    const r = await vice.post("/api/v1/members", { fullName: "Đaminh Phạm Văn Hồ Sơ", phone: "0901 234 567" });
+  await test("Trưởng nhà tạo hồ sơ chưa có tài khoản", async () => {
+    const r = await head.post("/api/v1/members", { fullName: "Đaminh Phạm Văn Hồ Sơ", phone: "0901 234 567" });
     eq(r.status, 201, JSON.stringify(r.json));
     id = r.json.id;
     eq(r.json.account, null);
   });
   const email = `hoso.${Date.now()}@luuxa.local`;
   let pw;
-  await test("Phó nhà cấp tài khoản (application.review) → mật khẩu tạm", async () => {
-    const r = await vice.post(`/api/v1/members/${id}/account`, { email });
+  await test("Admin cấp tài khoản (auth.user.manage) → mật khẩu tạm", async () => {
+    const r = await admin.post(`/api/v1/members/${id}/account`, { email });
     eq(r.status, 200, JSON.stringify(r.json));
     pw = r.json.temporaryPassword;
   });
-  await test("Cấp lần hai → 409", async () => eq((await vice.post(`/api/v1/members/${id}/account`, { email: "khac@luuxa.local" })).status, 409));
+  await test("Cấp lần hai → 409", async () => eq((await head.post(`/api/v1/members/${id}/account`, { email: "khac@luuxa.local" })).status, 409));
   await test("Đăng nhập bằng tài khoản mới → đã gắn hồ sơ, vai trò Thành viên, phải đổi mật khẩu", async () => {
     const c = await new Client("linked").login(email, pw);
     const me = (await c.get("/api/v1/auth/me")).json;
@@ -390,39 +396,40 @@ async function suiteAccountLink() {
 
 async function suiteHouse() {
   section("Sơ đồ nhà & phân phòng");
-  const vice = await as("long.le@luuxa.local");
+  // Trưởng nhà xếp phòng / sửa cấu trúc nhà (house.assign, house.structure.manage) — không còn vai trò Phó nhà
+  const head = await as("duc.tran@luuxa.local");
   const member = await as("tuan.nguyen@luuxa.local");
-  const list = (await vice.get("/api/v1/members")).json;
+  const list = (await head.get("/api/v1/members")).json;
   const kiet = list.find((m) => m.fullName === "Đỗ Tuấn Kiệt");
   const p1Count = list.filter((m) => m.room === "P.1").length;
   await test("Thành viên không xếp phòng được (403)", async () => eq((await member.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.3" })).status, 403));
   await test("Không xếp người vào phòng không phải phòng ngủ (P.SANH1) → 422", async () =>
-    eq((await vice.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.SANH1" })).status, 422));
+    eq((await head.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.SANH1" })).status, 422));
   await test(`Vượt sức chứa P.1 (đang ${p1Count}/2) → 422`, async () => {
-    const r = await vice.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.1" });
+    const r = await head.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.1" });
     eq(r.status, 422, JSON.stringify(r.json));
     ok(/đủ/.test(r.json.detail), "thông điệp phải nói phòng đã đủ chỗ");
   });
-  await test("Phó nhà chuyển Kiệt sang phòng mới P.7 rồi hủy gán trong ngày, rồi xếp lại phòng cũ", async () => {
-    const before = (await vice.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room;
-    eq((await vice.post("/api/v1/house/rooms", { id: "P.7", name: "Phòng 7 (thử)", floor: 2, type: "bedroom", capacity: 2 })).status, 200);
-    eq((await vice.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.7" })).status, 200);
-    eq((await vice.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room, "P.7");
-    eq((await vice.del(`/api/v1/house/assignments/${kiet.id}`)).status, 200);
-    eq((await vice.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room, "Chưa xếp phòng");
-    const back = await vice.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: before });
+  await test("Trưởng nhà chuyển Kiệt sang phòng mới P.7 rồi hủy gán trong ngày, rồi xếp lại phòng cũ", async () => {
+    const before = (await head.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room;
+    eq((await head.post("/api/v1/house/rooms", { id: "P.7", name: "Phòng 7 (thử)", floor: 2, type: "bedroom", capacity: 2 })).status, 200);
+    eq((await head.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: "P.7" })).status, 200);
+    eq((await head.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room, "P.7");
+    eq((await head.del(`/api/v1/house/assignments/${kiet.id}`)).status, 200);
+    eq((await head.get("/api/v1/members")).json.find((m) => m.id === kiet.id).room, "Chưa xếp phòng");
+    const back = await head.post("/api/v1/house/assignments", { memberId: kiet.id, roomCode: before });
     eq(back.status, 200, JSON.stringify(back.json));
-    eq((await vice.del("/api/v1/house/rooms/P.7")).status, 200);
+    eq((await head.del("/api/v1/house/rooms/P.7")).status, 200);
   });
-  await test("Không xóa được phòng đang có người (409)", async () => eq((await vice.del("/api/v1/house/rooms/P.2")).status, 409));
-  await test("Phó nhà thêm/sửa/xóa phòng mới P.6 (tầng 2)", async () => {
-    eq((await vice.post("/api/v1/house/rooms", { id: "P.6", name: "Phòng 6", floor: 2, type: "bedroom", capacity: 2, amenities: ["Quạt trần", "Bàn học cá nhân (gỗ)"] })).status, 200);
-    eq((await vice.patch("/api/v1/house/rooms/P.6", { capacity: 3, x: 400, y: 300, w: 80, h: 60 })).status, 200);
-    const h = (await vice.get("/api/v1/house")).json;
+  await test("Không xóa được phòng đang có người (409)", async () => eq((await head.del("/api/v1/house/rooms/P.2")).status, 409));
+  await test("Trưởng nhà thêm/sửa/xóa phòng mới P.6 (tầng 2)", async () => {
+    eq((await head.post("/api/v1/house/rooms", { id: "P.6", name: "Phòng 6", floor: 2, type: "bedroom", capacity: 2, amenities: ["Quạt trần", "Bàn học cá nhân (gỗ)"] })).status, 200);
+    eq((await head.patch("/api/v1/house/rooms/P.6", { capacity: 3, x: 400, y: 300, w: 80, h: 60 })).status, 200);
+    const h = (await head.get("/api/v1/house")).json;
     const p6 = h.rooms.find((r) => r.id === "P.6");
     eq(p6.capacity, 3);
     ok(p6.amenities.some((a) => a.startsWith("Bàn học cá nhân")), "tiện ích phải lưu");
-    eq((await vice.del("/api/v1/house/rooms/P.6")).status, 200);
+    eq((await head.del("/api/v1/house/rooms/P.6")).status, 200);
   });
   await test("Thành viên không sửa được cấu trúc nhà (403)", async () => eq((await member.patch("/api/v1/house/rooms/P.1", { name: "Hack" })).status, 403));
 }

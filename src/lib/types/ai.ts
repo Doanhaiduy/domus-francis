@@ -7,8 +7,15 @@ export const AI_TASK_CODES = [
   "community.moderation",
   "facility.issue_triage",
   "community.minutes",
+  "finance.monthly_insight",
+  "academic.insight",
+  "academic.house_insight",
 ] as const;
 export type AiTaskCode = (typeof AI_TASK_CODES)[number];
+
+/** Mục đích đồng ý mà người dùng tự bật/tắt được cho AI (consent_purposes). */
+export const AI_CONSENT_PURPOSES = ["ai_processing", "ai_academic_summary"] as const;
+export type AiConsentPurpose = (typeof AI_CONSENT_PURPOSES)[number];
 
 export type AiProviderId = "groq" | "gemini";
 
@@ -42,8 +49,10 @@ export interface AiStatusDto {
   /** Có ít nhất một nhà cung cấp có khóa API. */
   configured: boolean;
   providers: AiProviderDto[];
-  /** Người dùng hiện tại đã đồng ý mục đích ai_processing chưa. */
+  /** Người dùng hiện tại đã đồng ý mục đích ai_processing chưa (giữ để tương thích — xem thêm `consents`). */
   consented: boolean;
+  /** Trạng thái đồng ý theo từng mục đích AI của người dùng hiện tại. */
+  consents: Record<AiConsentPurpose, boolean>;
   canUse: boolean;
   canReview: boolean;
   canManage: boolean;
@@ -106,12 +115,68 @@ export interface MinutesOutput {
   actions: { task: string; owner: string }[];
 }
 
+// Nhận xét thu chi theo tháng: mọi con số do MÁY CHỦ tính từ sổ quỹ; mô hình chỉ viết lời nhận xét.
+export interface FinanceInsightInput {
+  /** 'YYYY-MM' — mặc định tháng hiện tại. */
+  month?: string;
+}
+export interface FinanceInsightComparison {
+  label: string;
+  /** Số nguyên VND của tháng đang xem / tháng trước (máy chủ tính). */
+  current: number;
+  previous: number;
+  /** % thay đổi so với tháng trước; null khi tháng trước bằng 0. */
+  changePct: number | null;
+  /** Chiều được coi là tốt (thu, số dư: tăng là tốt; chi: giảm là tốt). */
+  better: "up" | "down";
+  comment: string;
+}
+export interface FinanceInsightOutput {
+  month: string;
+  previousMonth: string;
+  /** Tháng đang xem chưa kết thúc (số liệu tính đến hôm nay). */
+  partial: boolean;
+  headline: string;
+  summary: string;
+  comparisons: FinanceInsightComparison[];
+  highlights: string[];
+  warnings: string[];
+  suggestions: string[];
+}
+
+// Nhận xét học tập: của chính mình (academic.insight, cần đồng ý ai_academic_summary) hoặc toàn nhà (academic.house_insight).
+export interface AcademicInsightInput {
+  scope?: "self";
+}
+export type AcademicHouseInsightInput = Record<string, never>;
+export interface AcademicInsightRow {
+  label: string;
+  current: number | null;
+  previous: number | null;
+  better: "up" | "down";
+  /** Số lẻ khi hiển thị (GPA: 2, số đếm: 0). */
+  decimals: number;
+}
+export interface AcademicInsightOutput {
+  headline: string;
+  summary: string;
+  /** Xu hướng do máy chủ tính từ GPA hệ 4 (không lấy từ mô hình). */
+  trend: "up" | "down" | "stable" | "unknown";
+  points: string[];
+  suggestions: string[];
+  /** Bảng so sánh do máy chủ tính (null khi không đủ dữ liệu). */
+  compare: { currentLabel: string; previousLabel: string | null; rows: AcademicInsightRow[] } | null;
+}
+
 export interface AiInputMap {
   "finance.dues_message": DuesMessageInput;
   "community.policy_rag": PolicyRagInput;
   "community.moderation": ModerationInput;
   "facility.issue_triage": IssueTriageInput;
   "community.minutes": MinutesInput;
+  "finance.monthly_insight": FinanceInsightInput;
+  "academic.insight": AcademicInsightInput;
+  "academic.house_insight": AcademicHouseInsightInput;
 }
 export interface AiOutputMap {
   "finance.dues_message": DuesMessageOutput;
@@ -119,6 +184,9 @@ export interface AiOutputMap {
   "community.moderation": ModerationOutput;
   "facility.issue_triage": IssueTriageOutput;
   "community.minutes": MinutesOutput;
+  "finance.monthly_insight": FinanceInsightOutput;
+  "academic.insight": AcademicInsightOutput;
+  "academic.house_insight": AcademicInsightOutput;
 }
 
 export interface AiResultDto<C extends AiTaskCode = AiTaskCode> {

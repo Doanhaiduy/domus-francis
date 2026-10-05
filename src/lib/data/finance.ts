@@ -1,14 +1,20 @@
 "use client";
 // Hook dữ liệu + thao tác phân hệ Thu Chi (SWR — làm mới sau mỗi thao tác ghi bằng refreshFinance()).
 import useSWR, { mutate as globalMutate } from "swr";
-import { api, swrFetcher } from "../api";
+import { api, swrFetcher, inBackground } from "../api";
 import type {
+  BankAccountDto,
   ContributionMatrixDto,
+  ContributionPlanDto,
+  CreatePlanResultDto,
   ExpenseDetailDto,
   ExpenseDto,
   FinanceOptionsDto,
   FinanceOverviewDto,
+  MemberPaymentAccountDto,
   PaymentMethod,
+  PlanPreviewDto,
+  ReceivingAccountDto,
 } from "../types/finance";
 
 export const FINANCE_KEY = "/api/v1/finance";
@@ -44,14 +50,74 @@ export function useFinanceOptions(enabled = true) {
   return data;
 }
 
-export function useContributionMatrix(toMonth: string | undefined, months = 12, enabled = true) {
-  const key = enabled ? `${FINANCE_KEY}/contributions?months=${months}${toMonth ? `&to=${toMonth}` : ""}` : null;
+export interface MatrixQuery {
+  /** Tháng cuối của khoảng xem ('YYYY-MM', mặc định tháng hiện tại) */
+  to?: string;
+  /** Số tháng của khoảng xem (1–24, mặc định 12) */
+  months?: number;
+  /** Chỉ một kế hoạch thu */
+  plan?: string;
+  /** Chỉ một thành viên */
+  member?: string;
+}
+
+/** Ma trận đóng quỹ thành viên × kế hoạch thu (cột = kế hoạch có thời gian giao với khoảng xem). */
+export function useContributionMatrix(q: MatrixQuery, enabled = true) {
+  const params = [`months=${q.months ?? 12}`, q.to && `to=${q.to}`, q.plan && `plan=${q.plan}`, q.member && `member=${q.member}`].filter(Boolean).join("&");
+  const key = enabled ? `${FINANCE_KEY}/contributions?${params}` : null;
   const { data, error, isLoading, mutate } = useSWR<ContributionMatrixDto>(key, swrFetcher, { keepPreviousData: true });
   return { matrix: data, error, isLoading, mutate };
 }
 
+/** Kế hoạch thu gần đây (mặc định 12 tháng qua + 6 tháng tới) kèm thống kê đã thu / phải thu. */
+export function useContributionPlans(from?: string, to?: string, enabled = true) {
+  const params = [from && `from=${from}`, to && `to=${to}`].filter(Boolean).join("&");
+  const { data, error, isLoading, mutate } = useSWR<ContributionPlanDto[]>(
+    enabled ? `${FINANCE_KEY}/contribution-plans${params ? `?${params}` : ""}` : null,
+    swrFetcher,
+    { keepPreviousData: true }
+  );
+  return { plans: data, error, isLoading, mutate };
+}
+
+export type PlanPreviewQuery =
+  | { kind: "periodic_dues"; startMonth?: string; dueDate?: string }
+  | { kind: "utility"; month: string; billTotalVnd: number; dueDate?: string };
+
+/** Xem trước kế hoạch thu (số người chia, mỗi người, phần dư) — null để tắt. */
+export function usePlanPreview(q: PlanPreviewQuery | null) {
+  const key = q
+    ? `${FINANCE_KEY}/contribution-plans/preview?${Object.entries(q)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+        .join("&")}`
+    : null;
+  const { data, error, isLoading } = useSWR<PlanPreviewDto>(key, swrFetcher, { keepPreviousData: true, revalidateOnFocus: false });
+  return { preview: data, error, isLoading };
+}
+
+/** Tài khoản nhận quỹ của nhà (STK + ảnh QR của Thủ quỹ). */
+export function useReceivingAccount(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR<ReceivingAccountDto>(enabled ? `${FINANCE_KEY}/receiving-account` : null, swrFetcher, {
+    revalidateOnFocus: false,
+  });
+  return { receiving: data, error, isLoading, mutate };
+}
+
+export const paymentAccountKey = (memberId: string) => `/api/v1/members/${memberId}/payment-account`;
+
+/** Tài khoản nhận tiền của một thành viên. */
+export function useMemberPaymentAccount(memberId: string | null | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<MemberPaymentAccountDto>(memberId ? paymentAccountKey(memberId) : null, swrFetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
+  return { paymentAccount: data, error, isLoading, mutate };
+}
+
 /** Làm mới mọi dữ liệu tài chính đang hiển thị (tổng quan, danh sách phiếu, ma trận, chi tiết). */
-export const refreshFinance = () => globalMutate((key) => typeof key === "string" && key.startsWith(FINANCE_KEY));
+export const refreshFinance = (): Promise<void> =>
+  inBackground(globalMutate((key) => typeof key === "string" && key.startsWith(FINANCE_KEY)));
 
 export interface ExpenseInput {
   title: string;
@@ -80,8 +146,13 @@ export const financeApi = {
     api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/pay`, body),
   cancel: (id: string, reason: string) => api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/cancel`, { reason }),
   reverse: (id: string, reason: string) => api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/reverse`, { reason }),
-  createPlan: (body: { month: string; amountVnd: number; dueDate: string; fundId?: string }) =>
-    api.post<{ id: string; generated: number; label: string }>(`${FINANCE_KEY}/contribution-plans`, body),
+  createPlan: (
+    body:
+      | { kind: "periodic_dues"; startMonth?: string; dueDate?: string; fundId?: string }
+      | { kind: "utility"; month: string; billTotalVnd: number; dueDate?: string; fundId?: string; note?: string | null }
+  ) => api.post<CreatePlanResultDto>(`${FINANCE_KEY}/contribution-plans`, body),
+  cancelPlan: (planId: string, reason: string) => api.post<{ cancelled: number }>(`${FINANCE_KEY}/contribution-plans/${planId}/cancel`, { reason }),
+  saveReceivingAccount: (body: BankAccountDto) => api.put<ReceivingAccountDto>(`${FINANCE_KEY}/receiving-account`, body),
   recordPayment: (body: {
     memberId: string;
     fundId: string;
@@ -95,6 +166,13 @@ export const financeApi = {
   voidPayment: (paymentId: string, reason: string) => api.post(`${FINANCE_KEY}/payments/${paymentId}/void`, { reason }),
   waive: (contributionId: string, discountVnd: number, reason?: string | null) =>
     api.post(`${FINANCE_KEY}/contributions/${contributionId}/waive`, { discountVnd, reason: reason ?? null }),
+};
+
+/** Tài khoản nhận tiền của thành viên: khai báo / sửa / xóa (chính chủ hoặc người có quyền sửa hồ sơ). */
+export const paymentAccountApi = {
+  save: (memberId: string, body: BankAccountDto & { note?: string | null }) =>
+    api.put<MemberPaymentAccountDto>(paymentAccountKey(memberId), body),
+  remove: (memberId: string) => api.del<{ ok: true }>(paymentAccountKey(memberId)),
 };
 
 /** Mã yêu cầu chống ghi trùng khi bấm đúp / thử lại. */

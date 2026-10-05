@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SRC = path.join(ROOT, "TAI_LIEU_THIET_KE_BACKEND_PGSQL_LUU_XA_PHANXICO.md");
-const OUT = path.join(ROOT, "db", "migrations");
+const argv = process.argv.slice(2);
+// --out <thư mục>: trích ra nơi khác (bộ kiểm định dùng để có DDL NGUYÊN VĂN tài liệu, kể cả khi db/migrations đã chỉnh cho Supabase)
+const OUT = argv.includes("--out") ? path.resolve(argv[argv.indexOf("--out") + 1]) : path.join(ROOT, "db", "migrations");
 
 const NAMES = [
   "01_foundation", "02_types", "03_tables_identity", "04_tables_people", "05_tables_house",

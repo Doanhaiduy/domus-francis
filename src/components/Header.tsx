@@ -50,13 +50,6 @@ const ROLE_CONFIGS: Record<
     color: "from-purple-600 to-violet-600 text-white",
     badge: "bg-purple-100 text-purple-800 border-purple-200",
   },
-  "Phó nhà": {
-    label: "Phó nhà",
-    desc: "Hỗ trợ điều hành: phân công & nghiệm thu trực nhật, xếp phòng, lịch sự kiện, xử lý sự cố",
-    icon: Building2,
-    color: "from-sky-500 to-indigo-600 text-white",
-    badge: "bg-sky-100 text-sky-800 border-sky-200",
-  },
   "Trưởng ban Phụng vụ": {
     label: "Trưởng ban Phụng vụ",
     desc: "Lịch phụng vụ, phân công đọc sách/giúp lễ, kiểm duyệt ý chỉ cầu nguyện",
@@ -87,12 +80,25 @@ const ROLE_CONFIGS: Record<
   },
 };
 
+const CUSTOM_ROLE_CONFIG = {
+  label: "",
+  desc: "",
+  icon: Building2,
+  color: "from-sky-500 to-indigo-600 text-white",
+  badge: "bg-sky-100 text-sky-800 border-sky-200",
+};
+
 export const Header: React.FC = () => {
   const { openModal, currentRole, toggleMobileMenu, toggleCommandPalette } = useApp();
   const { session, can } = useSession();
   const unread = useUnreadCount(!!session?.member);
   const unreadCount = (unread?.announcementsUnread ?? 0) + (unread?.notificationsUnread ?? 0);
-  const roleCfg = ROLE_CONFIGS[currentRole] || ROLE_CONFIGS["Thành viên"];
+  // Vai trò tự tạo do Admin thêm (không có cấu hình riêng): biểu tượng chung, mô tả theo tên vai trò
+  const roleCfg =
+    ROLE_CONFIGS[currentRole] ||
+    (currentRole && currentRole !== "Thành viên"
+      ? { ...CUSTOM_ROLE_CONFIG, label: currentRole, desc: `${currentRole}: quyền theo vai trò do Admin cấu hình` }
+      : ROLE_CONFIGS["Thành viên"]);
   const RoleIcon = roleCfg.icon;
   const displayName = session?.member?.displayName ?? session?.user.email ?? "…";
   const roomLabel = session?.member?.roomCode ?? null;

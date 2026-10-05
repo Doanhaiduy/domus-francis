@@ -76,9 +76,22 @@ function nodeScript(script, env = {}, cwd = TESTS) {
 // ---------------------------------------------------------------------
 // A. DB gốc
 // ---------------------------------------------------------------------
+// "DB gốc" (bước A + đối chứng bước C) phải là DDL NGUYÊN VĂN của tài liệu thiết kế. db/migrations có thể đã được chỉnh
+// cho môi trường chạy thật (vd. tương thích Supabase: schema extensions, quyền) — những chỉnh đó vô tình vá vài lỗi mà bước
+// đối chứng cố ý giữ lại, nên trích lại một bản sạch vào .local/audit/pristine-ddl cho hai bước này.
+let PRISTINE = null;
+function pristineDdl() {
+  if (PRISTINE) return PRISTINE;
+  const dir = path.join(OUT, "pristine-ddl");
+  const r = spawnSync(process.execPath, [path.join(ROOT, "scripts", "db", "extract-ddl.mjs"), "--out", dir], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error("Không trích được DDL nguyên văn từ tài liệu: " + (r.stderr || r.stdout));
+  PRISTINE = dir;
+  return dir;
+}
+
 async function stageA() {
   section("A. DDL gốc của tài liệu (01…52) + smoke test nguyên văn");
-  await buildDatabase("luuxa_audit_base", "base", { verbose: false });
+  await buildDatabase("luuxa_audit_base", "base", { verbose: false, migrationsDir: pristineDdl() });
   record("A", "37 file 01…52 chạy sạch trên PostgreSQL 16.14", true);
   const s = await runCapture("luuxa_audit_base", path.join(MIGRATIONS, "60_smoke_tests.sql"));
   const ok = s.notices.filter((n) => /^S\d+\w* OK/.test(n)).length;
@@ -168,7 +181,7 @@ function concurrency(db) {
 async function stageC() {
   section("C. 80_concurrency_tests.js — 13 ca đa phiên (mỗi request một kết nối mới)");
   if (!QUICK) {
-    await buildDatabase("luuxa_audit_conc_base", "base", { verbose: false });
+    await buildDatabase("luuxa_audit_conc_base", "base", { verbose: false, migrationsDir: pristineDdl() });
     const b = concurrency("luuxa_audit_conc_base");
     record("C", "Đối chứng: DB gốc thất bại đủ 13/13 (bộ test có tác dụng)", b.code === 1 && b.fail === 13, `PASS=${b.pass} FAIL=${b.fail}`);
   }

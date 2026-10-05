@@ -9,6 +9,24 @@ const MOCK_PORT = 3199;
 function startMock() {
   const state = { groq: "down", gemini: "down", calls: [] };
   const answerFor = (user) => {
+    // Nhận xét thu chi: cố tình trả số liệu BỊA + nhãn lạ + HTML/liên kết ⇒ máy chủ phải bỏ số của mô hình, chỉ ghép lời nhận xét.
+    if (user.includes("Nhận xét tình hình thu chi quỹ"))
+      return {
+        headline: "Thu chi tháng này <b>ổn định</b> https://evil.example/x",
+        summary: "Tổng thu và tổng chi biến động nhẹ so với tháng trước.",
+        comparisons: [
+          { label: "Tổng thu", current: 123456789, previous: 987654321, changePct: 999, comment: "Thu quỹ đều đặn." },
+          { label: "[Tổng chi]", current: 1, previous: 2, comment: "Chi giảm nhẹ so với tháng trước." },
+          { label: "Nhãn bịa", current: 5, comment: "Không thuộc bảng." },
+        ],
+        highlights: ["Thu quỹ đúng hạn", "Số dư dương", "Chi đúng hạng mục", "Không có phiếu treo", "Ý thứ năm bị cắt"],
+        warnings: ["Còn vài khoản chưa đóng"],
+        suggestions: ["Nhắc đóng quỹ trước ngày 10"],
+      };
+    if (user.includes("nhận xét kết quả học tập cho CHÍNH"))
+      return { headline: "Bạn đang giữ phong độ tốt", summary: "Kết quả học kỳ gần nhất khá vững.", trend: "rocket", points: ["Không nợ môn"], suggestions: ["Lập kế hoạch ôn tập sớm"] };
+    if (user.includes("Nhận xét tình hình học tập CHUNG"))
+      return { headline: "Học tập chung của nhà khá ổn", summary: "Phần lớn anh em đạt kết quả tốt.", trend: "down", points: ["GPA trung bình ổn định"], suggestions: ["Duy trì nhóm học tối thứ Ba"] };
     if (user.includes("nhắc đóng quỹ")) return { message: "Chào cả nhà, nhắc nhẹ quỹ tháng này nhé. https://evil.example <b>hạn 05/11</b>." };
     if (user.includes("Trả lời câu hỏi của thành viên")) return { answer: "Giờ giới nghiêm là 22:30.", confident: true, sources: ["S1", "S9"] };
     if (user.includes("Đánh giá nội dung dưới đây")) return { flagged: true, categories: ["insult", "personal_info", "bogus"], reason: "Có lời lẽ không phù hợp." };
@@ -132,7 +150,8 @@ export async function run({ as, test, eq, ok, section, Client }) {
       reset("ok", "ok");
       const r = await member.post("/api/v1/ai/run", rag("Giờ giới nghiêm của nhà là mấy giờ?"));
       eq(r.status, 409, JSON.stringify(r.json));
-      ok(/BR-AI-03/.test(detail(r)), "phải nêu BR-AI-03");
+      eq(r.json.errors?.[0]?.message, "BR-AI-03", "mã quy tắc BR-AI-03 trong errors[]");
+      ok(/đồng ý/.test(detail(r)) && !/BR-AI|ai_processing/.test(detail(r)), "thông báo tiếng Việt, không lộ mã kỹ thuật: " + detail(r));
       eq(mock.calls.length, 0);
     });
 
@@ -316,7 +335,8 @@ export async function run({ as, test, eq, ok, section, Client }) {
       eq((await admin.req("PUT", "/api/v1/ai/budget", { limitVnd: 0, hardStop: true })).status, 200);
       const r = await treasurer.post("/api/v1/ai/run", { task: "finance.dues_message", input: { amountVnd: 430000, dueDate: "2026-12-05" } });
       eq(r.status, 409, JSON.stringify(r.json));
-      ok(/BR-AI-04/.test(detail(r)), "phải nêu BR-AI-04");
+      eq(r.json.errors?.[0]?.message, "BR-AI-04", "mã quy tắc BR-AI-04 trong errors[]");
+      ok(/ngân sách/.test(detail(r)) && !/BR-AI/.test(detail(r)), "thông báo tiếng Việt: " + detail(r));
       eq(mock.calls.length, 0);
       eq((await admin.req("PUT", "/api/v1/ai/budget", { limitVnd: limit })).status, 200);
       eq((await treasurer.post("/api/v1/ai/run", { task: "finance.dues_message", input: { amountVnd: 431000, dueDate: "2026-12-05" } })).status, 200);
@@ -329,6 +349,160 @@ export async function run({ as, test, eq, ok, section, Client }) {
         last = (await treasurer.post("/api/v1/ai/run", { task: "finance.dues_message", input: { amountVnd: 500000 + i * 1000, dueDate: "2027-01-05" } })).status;
       }
       eq(last, 429, "phải chạm giới hạn tốc độ");
+    });
+
+    section("AI — nhận xét thu chi theo tháng & học tập");
+
+    const INSIGHT = ["finance.monthly_insight", "academic.insight", "academic.house_insight"];
+    const monthEnd = (m) => {
+      const [y, mo] = m.split("-").map(Number);
+      return `${m}-${String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, "0")}`;
+    };
+    const nextMonth = (m) => {
+      const [y, mo] = m.split("-").map(Number);
+      return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
+    };
+    const namesOf = async (c) => {
+      const m = (await c.get("/api/v1/auth/me")).json.member ?? {};
+      return [m.fullName, m.displayName].filter((x) => x && x.length >= 3);
+    };
+    const peopleNames = [...(await namesOf(member)), ...(await namesOf(head)), ...(await namesOf(treasurer)), ...(await namesOf(admin))];
+
+    await test("3 tác vụ nhận xét mặc định tắt; admin bật được; academic.insight cần đồng ý riêng ai_academic_summary", async () => {
+      const st0 = await admin.get("/api/v1/ai/status");
+      for (const c of INSIGHT) {
+        const t = st0.json.tasks.find((x) => x.code === c);
+        ok(t && t.enabled === false && t.implemented === true, `${c} phải có sẵn, đã có bộ xử lý và mặc định tắt`);
+      }
+      eq(st0.json.tasks.find((x) => x.code === "academic.insight").requiredConsent, "ai_academic_summary");
+      eq(st0.json.tasks.find((x) => x.code === "academic.house_insight").requiredConsent, null);
+      eq(st0.json.tasks.find((x) => x.code === "finance.monthly_insight").requiredConsent, null);
+      for (const c of INSIGHT) eq((await admin.patch(`/api/v1/ai/tasks/${c}`, { enabled: true })).status, 200, c);
+      const st = await member.get("/api/v1/ai/status");
+      ok(INSIGHT.every((c) => st.json.available.includes(c)), "3 tác vụ nhận xét phải dùng được");
+      eq(st.json.consents.ai_academic_summary, false);
+      eq(st.json.consents.ai_processing, st.json.consented, "consented giữ nguyên nghĩa = ai_processing");
+    });
+
+    let finMonth = "";
+    // Thủ quỹ (bao.pham) đã chạm giới hạn 20 lượt/giờ ở ca trên ⇒ dùng Trưởng nhà (cũng quản lý quỹ) cho ca chạy thật.
+    await test("Nhận xét thu chi (Trưởng nhà): 200 qua Groq; bảng so sánh là số của MÁY CHỦ (khớp tổng quan quỹ), chỉ lấy lời nhận xét từ mô hình", async () => {
+      reset("ok", "ok");
+      const r = await head.post("/api/v1/ai/run", { task: "finance.monthly_insight", input: {} });
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(r.json.provider, "groq");
+      eq(r.json.cached, false);
+      const o = r.json.output;
+      finMonth = o.month;
+      ok(/^\d{4}-\d{2}$/.test(o.month) && /^\d{4}-\d{2}$/.test(o.previousMonth), "có tháng đang xem và tháng trước");
+      const cur = await head.get(`/api/v1/finance/overview?from=${o.month}-01&to=${monthEnd(o.month)}`);
+      const prev = await head.get(`/api/v1/finance/overview?from=${o.previousMonth}-01&to=${monthEnd(o.previousMonth)}`);
+      eq(cur.status, 200, JSON.stringify(cur.json));
+      const by = Object.fromEntries(o.comparisons.map((c) => [c.label, c]));
+      ok(by["Tổng thu"] && by["Tổng chi"], "có dòng Tổng thu/Tổng chi: " + Object.keys(by).join(", "));
+      eq(by["Tổng thu"].current, cur.json.incomeVnd, "tổng thu tháng này = sổ quỹ");
+      eq(by["Tổng thu"].previous, prev.json.incomeVnd, "tổng thu tháng trước = sổ quỹ");
+      eq(by["Tổng chi"].current, cur.json.expenseVnd, "tổng chi tháng này = sổ quỹ");
+      eq(by["Tổng chi"].previous, prev.json.expenseVnd, "tổng chi tháng trước = sổ quỹ");
+      ok(o.comparisons.length <= 6 && o.comparisons.every((c) => Number.isInteger(c.current) && Number.isInteger(c.previous)), "≤ 6 dòng, số nguyên VND");
+      ok(!o.comparisons.some((c) => c.label === "Nhãn bịa"), "nhãn lạ của mô hình bị bỏ");
+      eq(by["Tổng thu"].comment, "Thu quỹ đều đặn.");
+      eq(by["Tổng chi"].comment, "Chi giảm nhẹ so với tháng trước.", "nhãn có ngoặc vuông vẫn ghép đúng");
+      ok(!/https?:|<b>|<\/b>/.test(o.headline), "headline được làm sạch: " + o.headline);
+      eq(o.highlights.length, 4, "tối đa 4 điểm nổi bật");
+      eq(o.warnings.length, 1);
+      eq(o.suggestions.length, 1);
+      eq(mock.calls.length, 1);
+      const sent = mock.calls[0].body.messages[1].content;
+      ok(sent.includes("<du_lieu>") && sent.includes("[Tổng thu]") && sent.includes("Chi theo hạng mục"), "prompt có bảng so sánh + hạng mục: " + sent.slice(0, 600));
+      for (const n of peopleNames) ok(!sent.includes(n), "prompt thu chi không được có tên người: " + n);
+    });
+
+    await test("Mở lại thẻ (cùng số liệu) ⇒ dùng kết quả đã lưu, không gọi nhà cung cấp; tháng sai định dạng/tương lai ⇒ 400", async () => {
+      reset("ok", "ok");
+      const r = await head.post("/api/v1/ai/run", { task: "finance.monthly_insight", input: { month: finMonth } });
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(r.json.cached, true);
+      eq(mock.calls.length, 0);
+      eq((await head.post("/api/v1/ai/run", { task: "finance.monthly_insight", input: { month: "2026-13" } })).status, 400);
+      eq((await head.post("/api/v1/ai/run", { task: "finance.monthly_insight", input: { month: nextMonth(finMonth) } })).status, 400);
+      eq(mock.calls.length, 0);
+    });
+
+    await test("Thành viên thường (không quản lý quỹ) chạy nhận xét thu chi ⇒ 403, không gọi nhà cung cấp", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", { task: "finance.monthly_insight", input: {} });
+      eq(r.status, 403, JSON.stringify(r.json));
+      eq(mock.calls.length, 0);
+    });
+
+    const myRecords = ((await member.get("/api/v1/academic/records")).json ?? []).filter((x) => x.isOwn && x.subjects?.length);
+
+    await test("Nhận xét học tập của tôi: chưa đồng ý ai_academic_summary ⇒ 409 BR-AI-03, không gọi nhà cung cấp", async () => {
+      ok(myRecords.length > 0, "điều kiện nền: thành viên demo phải có bảng điểm");
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", { task: "academic.insight", input: { scope: "self" } });
+      eq(r.status, 409, JSON.stringify(r.json));
+      eq(r.json.errors?.[0]?.message, "BR-AI-03", "mã quy tắc BR-AI-03 trong errors[]");
+      ok(/điểm học tập/.test(detail(r)) && !/BR-AI|ai_academic/.test(detail(r)), "thông báo tiếng Việt riêng cho đồng ý học tập: " + detail(r));
+      eq(mock.calls.length, 0);
+      eq((await member.post("/api/v1/ai/run", { task: "academic.insight", input: { scope: "house" } })).status, 400, "phạm vi toàn nhà dùng tác vụ riêng");
+    });
+
+    await test("Đồng ý ai_academic_summary ⇒ 200; prompt chỉ có số liệu ẩn danh (không tên, MSSV, trường, ngành, tên môn); xu hướng do máy chủ tính", async () => {
+      const c = await member.req("PUT", "/api/v1/ai/consent", { granted: true, purpose: "ai_academic_summary" });
+      eq(c.status, 200, JSON.stringify(c.json));
+      const st = await member.get("/api/v1/ai/status");
+      eq(st.json.consents.ai_academic_summary, true);
+      eq(st.json.consents.ai_processing, false, "đồng ý mục đích này không kéo theo ai_processing");
+      eq((await member.req("PUT", "/api/v1/ai/consent", { granted: true, purpose: "khong_co" })).status, 400, "mục đích lạ ⇒ 400");
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", { task: "academic.insight", input: { scope: "self" } });
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(r.json.provider, "groq");
+      const o = r.json.output;
+      ok(["up", "down", "stable", "unknown"].includes(o.trend), "xu hướng do máy chủ tính, không lấy 'rocket' của mô hình: " + o.trend);
+      ok(o.compare && o.compare.rows[0].label === "GPA hệ 4", "có bảng so sánh GPA");
+      eq(o.headline, "Bạn đang giữ phong độ tốt");
+      const sent = mock.calls[0].body.messages[1].content;
+      const rec = myRecords[0];
+      ok(rec.gpa4 === null || sent.includes(Number(rec.gpa4).toFixed(2)), "prompt có GPA hệ 4 thật của học kỳ: " + sent);
+      const secret = [...(await namesOf(member)), rec.studentCode, rec.university?.name, rec.university?.shortName, rec.major, ...rec.subjects.map((x) => x.name)];
+      for (const x of secret.filter((v) => v && String(v).length >= 3)) ok(!sent.includes(String(x)), "prompt học tập không được chứa: " + x);
+    });
+
+    await test("Nhận xét AI là riêng tư: người duyệt AI (Trưởng nhà) và Admin không thấy trong hàng chờ gợi ý", async () => {
+      ok((await member.get("/api/v1/ai/suggestions")).json.some((x) => x.taskCode === "academic.insight"), "chính chủ thấy nhận xét của mình");
+      ok(!(await head.get("/api/v1/ai/suggestions")).json.some((x) => x.taskCode === "academic.insight"), "Trưởng nhà (ai.review) không thấy");
+      const adminList = (await admin.get("/api/v1/ai/suggestions")).json;
+      ok(!adminList.some((x) => x.taskCode === "academic.insight"), "Admin (ai.manage) không thấy");
+      ok(!adminList.some((x) => x.taskCode === "finance.monthly_insight"), "nhận xét thu chi của Trưởng nhà cũng chỉ người yêu cầu thấy");
+    });
+
+    await test("Nhận xét học tập toàn nhà: thành viên thường ⇒ 403; Trưởng nhà ⇒ 200, chỉ số liệu tổng hợp (không tên người)", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", { task: "academic.house_insight", input: {} });
+      eq(r.status, 403, JSON.stringify(r.json));
+      eq(mock.calls.length, 0);
+      const h = await head.post("/api/v1/ai/run", { task: "academic.house_insight", input: {} });
+      eq(h.status, 200, JSON.stringify(h.json));
+      ok(["up", "down", "stable", "unknown"].includes(h.json.output.trend), "xu hướng hợp lệ");
+      if (h.json.provider) {
+        const sent = mock.calls[0].body.messages[1].content;
+        ok(/bảng điểm/.test(sent), "prompt có số liệu tổng hợp theo học kỳ");
+        for (const n of peopleNames) ok(!sent.includes(n), "prompt toàn nhà không được có tên người: " + n);
+      } else {
+        eq(mock.calls.length, 0, "chưa đủ 3 bảng điểm/học kỳ ⇒ trả lời nội bộ, không gọi ra ngoài");
+      }
+    });
+
+    await test("Rút đồng ý ai_academic_summary ⇒ chặn ngay (409), kể cả khi còn kết quả đã lưu", async () => {
+      eq((await member.req("PUT", "/api/v1/ai/consent", { granted: false, purpose: "ai_academic_summary" })).status, 200);
+      eq((await member.get("/api/v1/ai/status")).json.consents.ai_academic_summary, false);
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", { task: "academic.insight", input: { scope: "self" } });
+      eq(r.status, 409, JSON.stringify(r.json));
+      eq(mock.calls.length, 0);
     });
 
     await test("Tắt công tắc tổng ⇒ không còn tác vụ dùng được; chạy thử bị chặn", async () => {

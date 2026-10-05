@@ -2,7 +2,9 @@
 //  - Học kỳ 1 năm học 2026 – 2027 (học kỳ hiện hành) cho 6 thành viên; bảng điểm của "Lê Minh Tuấn" (tuan.nguyen) đặt ở
 //    Học kỳ 2 năm 2025 – 2026 để tài khoản thành viên demo tự nhập bảng điểm học kỳ hiện hành qua giao diện.
 //  - Mọi thao tác đi đúng đường nghiệp vụ: chính chủ tạo + nhập điểm thành phần (DB tự tính tổng kết/điểm chữ/GPA),
-//    đính kèm ảnh minh chứng do chính mình tải lên, nộp; Phó nhà/Trưởng nhà xác minh hoặc trả lại (app.fn_academic_review).
+//    đính kèm ảnh minh chứng do chính mình tải lên, nộp; Trưởng nhà xác minh hoặc trả lại (app.fn_academic_review).
+//    Bảng điểm của chính Trưởng nhà (BR-ACAD-02 cấm tự xác minh, không ai khác có quyền) nhập ở trạng thái đã xác minh trên
+//    hồ sơ giấy (verifier "import": ngữ cảnh hệ thống, verified_by = anh Hoàng Long — người xác minh trước khi bỏ vai trò Phó nhà).
 //  - Ảnh minh chứng: ảnh PNG sinh tại chỗ (không tải từ mạng) ghi vào STORAGE_DIR như luồng /api/v1/files.
 //  - memberId "m1".. trong mock KHÔNG phải mã thành viên — tra theo họ tên (memberByFullName, rồi theo tên gọi 2 chữ cuối).
 //  - Trường / ngành / MSSV lấy từ hồ sơ sinh viên hiện hành của thành viên (student_profiles; dự phòng INITIAL_MEMBERS → mã
@@ -18,13 +20,13 @@ const STORAGE_ROOT = path.resolve(ROOT, process.env.STORAGE_DIR || loadEnvLocal(
 
 // Trạng thái demo theo bảng điểm mock (giao diện cũ không có luồng duyệt)
 const PLAN = {
-  "acad-1": { status: "verified", verifier: "vice_head" }, // Trần Văn Đức (Trưởng nhà) — Phó nhà xác minh
-  "acad-2": { status: "verified", verifier: "vice_head", previous: true }, // Lê Minh Tuấn → tuan.nguyen, HK2 2025-2026
-  "acad-3": { status: "draft", midtermOnly: ["Cấu tạo kiến trúc"] }, // Lê Hoàng Long (Phó nhà) — đang nhập, còn môn chưa thi cuối kỳ
-  "acad-4": { status: "verified", verifier: "vice_head" }, // Phạm Gia Bảo
-  "acad-5": { status: "rejected", verifier: "vice_head", reason: "Ảnh minh chứng chưa thấy rõ điểm môn Mạng máy tính — em chụp lại toàn trang giúp anh nhé." },
+  "acad-1": { status: "verified", verifier: "import" }, // Trần Văn Đức (Trưởng nhà) — xác minh từ hồ sơ giấy khi nhập dữ liệu
+  "acad-2": { status: "verified", verifier: "house_head", previous: true }, // Lê Minh Tuấn → tuan.nguyen, HK2 2025-2026
+  "acad-3": { status: "draft", midtermOnly: ["Cấu tạo kiến trúc"] }, // Lê Hoàng Long — đang nhập, còn môn chưa thi cuối kỳ
+  "acad-4": { status: "verified", verifier: "house_head" }, // Phạm Gia Bảo
+  "acad-5": { status: "rejected", verifier: "house_head", reason: "Ảnh minh chứng chưa thấy rõ điểm môn Mạng máy tính — em chụp lại toàn trang giúp anh nhé." },
   "acad-6": { status: "submitted" }, // Đặng Thanh Phong — chờ xác minh, cần phụ đạo
-  "acad-7": { status: "verified", verifier: "vice_head" }, // Bùi Văn Hiếu
+  "acad-7": { status: "verified", verifier: "house_head" }, // Bùi Văn Hiếu
 };
 
 // Môn học hợp với ngành thật của từng thành viên (hồ sơ sinh viên) — thay tên môn của mock theo đúng thứ tự,
@@ -180,7 +182,7 @@ export async function seed(ctx) {
   const userOfMember = {};
   for (const [mockId, mid] of Object.entries(ids.member)) userOfMember[mid] = ids.user[mockId];
   const memberIdOf = (name) => ids.memberByFullName[name] ?? ids.memberByName[name.split(/\s+/).slice(-2).join(" ")];
-  const verifierOf = { vice_head: ids.userByRole.vice_head, house_head: ids.userByRole.house_head };
+  const verifierOf = { house_head: ids.userByRole.house_head };
 
   for (const mockRec of records) {
     const rec = fitToMajor(mockRec);
@@ -279,7 +281,11 @@ export async function seed(ctx) {
     // 4) Nộp (trigger kiểm ≥1 môn, đủ tổng kết, có minh chứng ⇒ tính GPA) rồi xác minh / trả lại bởi người có quyền
     if (plan.status === "draft") continue;
     await q("UPDATE academic_records SET status = 'submitted' WHERE id = $1", [ar.id]);
-    if (plan.status === "verified") {
+    if (plan.status === "verified" && plan.verifier === "import") {
+      // Ngữ cảnh hệ thống: trigger không kiểm người xác minh; verified_by ghi người đã xác minh trên hồ sơ giấy
+      await ctx.as(null);
+      await q("UPDATE academic_records SET status = 'verified', verified_by = $2 WHERE id = $1", [ar.id, ids.user["3"]]);
+    } else if (plan.status === "verified") {
       await ctx.as(verifierOf[plan.verifier]);
       await q("UPDATE academic_records SET status = 'verified' WHERE id = $1", [ar.id]);
     } else if (plan.status === "rejected") {

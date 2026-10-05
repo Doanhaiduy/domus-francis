@@ -77,13 +77,77 @@ export const PaySchema = z
 
 export const ReasonSchema = z.object({ reason: zText(5, 500, "Lý do") });
 
-export const PlanSchema = z.object({
-  month: zMonth,
-  amountVnd: zAmount,
-  dueDate: zDate,
-  fundId: zUuid.optional(),
-  name: optText(200, "Tên kỳ thu"),
-});
+/** Lập kế hoạch thu: quỹ định kỳ (mức theo cấu hình) hoặc tiền điện nước tháng (tổng hóa đơn chia đều). */
+export const PlanSchema = z.discriminatedUnion(
+  "kind",
+  [
+    z.object({
+      kind: z.literal("periodic_dues"),
+      /** Tháng đầu kỳ (mặc định: kỳ hiện tại) */
+      startMonth: zMonth.optional(),
+      dueDate: zDate.optional(),
+      fundId: zUuid.optional(),
+    }),
+    z.object({
+      kind: z.literal("utility"),
+      /** Tháng hóa đơn điện nước */
+      month: zMonth,
+      billTotalVnd: zAmount,
+      dueDate: zDate.optional(),
+      fundId: zUuid.optional(),
+      note: optText(500, "Ghi chú"),
+    }),
+  ],
+  { error: "Chọn loại kế hoạch: quỹ định kỳ hoặc tiền điện nước (quỹ sinh hoạt tháng không còn lập mới)." }
+);
+export type PlanInput = z.infer<typeof PlanSchema>;
+
+export const PlanPreviewQuery = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("periodic_dues"), startMonth: zMonth.optional(), dueDate: zDate.optional() }),
+  z.object({
+    kind: z.literal("utility"),
+    month: zMonth,
+    billTotalVnd: z.coerce.number({ error: "Tổng hóa đơn phải là số." }).int().min(0).max(1_000_000_000),
+    dueDate: zDate.optional(),
+  }),
+]);
+
+const zBin = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().trim().regex(/^\d{6}$/, "Mã ngân hàng (BIN) phải gồm 6 chữ số.").nullable().optional()
+);
+const zAccountNo = z
+  .string()
+  .transform((v) => v.replace(/\s/g, ""))
+  .pipe(z.string().regex(/^[0-9A-Za-z]{4,19}$/, "Số tài khoản chỉ gồm chữ số/chữ cái, từ 4 đến 19 ký tự."));
+
+/** Tài khoản nhận tiền (của nhà hoặc của một thành viên). Có BIN ⇒ tạo được VietQR; không có BIN thì phải có ảnh QR. */
+export const BankAccountSchema = z
+  .object({
+    bankBin: zBin,
+    bankName: zText(2, 100, "Tên ngân hàng"),
+    accountNo: zAccountNo,
+    accountName: zText(2, 100, "Tên chủ tài khoản"),
+    qrFileId: zUuid.nullable().optional(),
+  })
+  .refine((v) => !!v.bankBin || !!v.qrFileId, {
+    message: "Chọn ngân hàng trong danh sách (để tạo mã VietQR) hoặc tải ảnh mã QR của tài khoản.",
+    path: ["bankBin"],
+  });
+
+export const MemberPaymentAccountSchema = z
+  .object({
+    bankBin: zBin,
+    bankName: zText(2, 100, "Tên ngân hàng"),
+    accountNo: zAccountNo,
+    accountName: zText(2, 100, "Tên chủ tài khoản"),
+    qrFileId: zUuid.nullable().optional(),
+    note: optText(300, "Ghi chú"),
+  })
+  .refine((v) => !!v.bankBin || !!v.qrFileId, {
+    message: "Chọn ngân hàng trong danh sách (để tạo mã VietQR) hoặc tải ảnh mã QR của tài khoản.",
+    path: ["bankBin"],
+  });
 
 export const PaymentSchema = z
   .object({
@@ -95,7 +159,7 @@ export const PaymentSchema = z
     note: optText(500, "Ghi chú"),
     allocations: z
       .array(z.object({ contributionId: zUuid, amountVnd: zAmount }))
-      .min(1, "Chọn ít nhất một tháng để ghi thu.")
+      .min(1, "Chọn ít nhất một khoản để ghi thu.")
       .max(24),
     clientRequestId: zUuid.optional(),
   })

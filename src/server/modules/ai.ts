@@ -1,9 +1,18 @@
 import "server-only";
-import type { Tx } from "../db";
+import { batch, type Tx } from "../db";
 import { badRequest, conflict, forbidden, notFound } from "../errors";
 import { providerConfigs } from "../ai/config";
 import { breakerState } from "../ai/providers";
-import { AI_TASK_CODES, type AiProviderDto, type AiStatusDto, type AiSuggestionDto, type AiTaskDto, type AiUsageDto } from "@/lib/types/ai";
+import {
+  AI_CONSENT_PURPOSES,
+  AI_TASK_CODES,
+  type AiConsentPurpose,
+  type AiProviderDto,
+  type AiStatusDto,
+  type AiSuggestionDto,
+  type AiTaskDto,
+  type AiUsageDto,
+} from "@/lib/types/ai";
 
 const IMPLEMENTED = new Set<string>(AI_TASK_CODES);
 
@@ -18,28 +27,35 @@ export function providerList(): AiProviderDto[] {
   }));
 }
 
+const PERMS_SQL = "SELECT app.has_permission('ai.use') AS use, app.has_permission('ai.review') AS review, app.has_permission('ai.manage') AS manage";
+type AiPerms = { use: boolean; review: boolean; manage: boolean };
+
 async function perms(tx: Tx) {
-  const r = (
-    await tx.query<{ use: boolean; review: boolean; manage: boolean }>(
-      "SELECT app.has_permission('ai.use') AS use, app.has_permission('ai.review') AS review, app.has_permission('ai.manage') AS manage",
-    )
-  ).rows[0];
+  const r = (await tx.query<AiPerms>(PERMS_SQL)).rows[0];
   return r;
 }
 
 /** Trạng thái cổng AI cho giao diện (AIX-GATE-01): công tắc, nhà cung cấp, đồng ý, danh sách tác vụ. */
 export async function getStatus(tx: Tx): Promise<AiStatusDto> {
-  const p = await perms(tx);
-  const master = (await tx.query<{ v: boolean }>("SELECT app.setting_bool('feature.ai.enabled') AS v")).rows[0].v;
-  const consented = (
-    await tx.query<{ ok: boolean }>("SELECT COALESCE(app.has_active_consent(app.current_member_id(), 'ai_processing'), false) AS ok")
-  ).rows[0].ok;
-  const rows = (
-    await tx.query(
+  // Gộp 4 truy vấn độc lập (quyền, công tắc, đồng ý, danh sách tác vụ): 1 vòng mạng thay vì 4
+  const [permsR, masterR, consentR, tasksR] = await batch(tx, [
+    [PERMS_SQL],
+    ["SELECT app.setting_bool('feature.ai.enabled') AS v"],
+    [
+      `SELECT COALESCE(app.has_active_consent(app.current_member_id(), 'ai_processing'), false) AS ok,
+              COALESCE(app.has_active_consent(app.current_member_id(), 'ai_academic_summary'), false) AS academic`,
+    ],
+    [
       `SELECT code, name_vi, description, technique, data_class, is_enabled, human_review_required, required_consent_purpose, monthly_budget_vnd
          FROM ai_task_types ORDER BY code`,
-    )
-  ).rows;
+    ],
+  ]);
+  const p = permsR.rows[0] as AiPerms;
+  const master = (masterR.rows[0] as { v: boolean }).v;
+  const consentRow = consentR.rows[0] as { ok: boolean; academic: boolean };
+  const consented = consentRow.ok;
+  const consents: Record<AiConsentPurpose, boolean> = { ai_processing: consentRow.ok, ai_academic_summary: consentRow.academic };
+  const rows = tasksR.rows;
   const tasks: AiTaskDto[] = rows.map((r) => ({
     code: r.code,
     name: r.name_vi,
@@ -55,34 +71,38 @@ export async function getStatus(tx: Tx): Promise<AiStatusDto> {
   const providers = providerList();
   const configured = providers.some((x) => x.configured);
   const available = master && configured && p.use ? tasks.filter((t) => t.implemented && t.enabled).map((t) => t.code) : [];
-  return { masterEnabled: master, configured, providers, consented, canUse: p.use, canReview: p.review, canManage: p.manage, available, tasks };
+  return { masterEnabled: master, configured, providers, consented, consents, canUse: p.use, canReview: p.review, canManage: p.manage, available, tasks };
 }
 
-/** Đồng ý / rút đồng ý mục đích ai_processing của chính mình (BR-AI-03, BR-AI-09). */
-export async function setConsent(tx: Tx, granted: boolean, ip: string | null) {
+/**
+ * Đồng ý / rút đồng ý một mục đích AI của chính mình (BR-AI-03, BR-AI-09):
+ *  ai_processing — "Dùng AI xử lý nội dung do tôi tạo"; ai_academic_summary — "Dùng AI nhận xét điểm học tập của tôi".
+ */
+export async function setConsent(tx: Tx, granted: boolean, ip: string | null, purpose: AiConsentPurpose = "ai_processing") {
+  if (!(AI_CONSENT_PURPOSES as readonly string[]).includes(purpose)) throw badRequest("Mục đích đồng ý không hợp lệ.");
   const me = (await tx.query<{ id: string | null }>("SELECT app.current_member_id() AS id")).rows[0].id;
   if (!me) throw forbidden("Chỉ thành viên đã được duyệt mới thiết lập được đồng ý.");
   if (granted) {
     await tx.query(
       `INSERT INTO consents (member_id, purpose_code, policy_version, method, ip)
-       SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = 'ai_processing'
+       SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = $3
        ON CONFLICT (member_id, purpose_code) WHERE withdrawn_at IS NULL DO NOTHING`,
-      [me, ip],
+      [me, ip, purpose],
     );
     // Đồng ý cũ theo phiên bản điều khoản đã lỗi thời: rút rồi ghi lại bản mới.
-    const ok = (await tx.query<{ ok: boolean }>("SELECT app.has_active_consent($1, 'ai_processing') AS ok", [me])).rows[0].ok;
+    const ok = (await tx.query<{ ok: boolean }>("SELECT app.has_active_consent($1, $2) AS ok", [me, purpose])).rows[0].ok;
     if (!ok) {
-      await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = 'ai_processing' AND withdrawn_at IS NULL", [me]);
+      await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = $2 AND withdrawn_at IS NULL", [me, purpose]);
       await tx.query(
         `INSERT INTO consents (member_id, purpose_code, policy_version, method, ip)
-         SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = 'ai_processing'`,
-        [me, ip],
+         SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = $3`,
+        [me, ip, purpose],
       );
     }
   } else {
-    await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = 'ai_processing' AND withdrawn_at IS NULL", [me]);
+    await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = $2 AND withdrawn_at IS NULL", [me, purpose]);
   }
-  return { consented: granted };
+  return { purpose, consented: granted };
 }
 
 /** Bật/tắt một tác vụ và đặt trần ngân sách riêng (AIX-TASK-02). */
@@ -111,23 +131,28 @@ export async function updateTask(tx: Tx, code: string, patch: { enabled?: boolea
 
 /** Chi phí tháng này, ngân sách, tỷ lệ chấp nhận và các job gần đây (AIX-USE-01, AIX-BUD-01). Cần ai.manage (RLS). */
 export async function getUsage(tx: Tx): Promise<AiUsageDto> {
-  if (!(await perms(tx)).manage) throw forbidden("Chỉ người có quyền quản lý AI mới xem được chi phí và nhật ký AI.");
-  const month = (await tx.query<{ m: string }>("SELECT date_trunc('month', app.local_today())::date::text AS m")).rows[0].m;
-  const b = (await tx.query("SELECT limit_vnd, used_vnd, alert_threshold_pct, hard_stop FROM ai_budgets WHERE month = $1", [month])).rows[0];
-  const byTask = (
-    await tx.query(
+  // Pha 1 — quyền + tháng hiện tại: 1 vòng mạng thay vì 2
+  const [permsR, monthR] = await batch(tx, [[PERMS_SQL], ["SELECT date_trunc('month', app.local_today())::date::text AS m"]]);
+  if (!(permsR.rows[0] as AiPerms).manage) throw forbidden("Chỉ người có quyền quản lý AI mới xem được chi phí và nhật ký AI.");
+  const month = (monthR.rows[0] as { m: string }).m;
+  // Pha 2 — gộp các truy vấn số liệu (chỉ chạy khi có quyền ai.manage, như cũ): 1 vòng mạng thay vì 4
+  const [budgetR, byTaskR, accR, jobsR] = await batch(tx, [
+    ["SELECT limit_vnd, used_vnd, alert_threshold_pct, hard_stop FROM ai_budgets WHERE month = $1", [month]],
+    [
       `SELECT task_code, sum(jobs)::int AS jobs, sum(failed_jobs)::int AS failed, sum(tokens_in) AS tin, sum(tokens_out) AS tout, sum(cost_vnd) AS cost
          FROM ai_usage_daily WHERE usage_date >= $1 GROUP BY task_code ORDER BY task_code`,
       [month],
-    )
-  ).rows;
-  const acc = (await tx.query("SELECT task_code, accepted, rejected, pending FROM v_ai_acceptance ORDER BY task_code")).rows;
-  const jobs = (
-    await tx.query(
+    ],
+    ["SELECT task_code, accepted, rejected, pending FROM v_ai_acceptance ORDER BY task_code"],
+    [
       `SELECT id, task_code, status::text AS status, provider, model, cost_vnd, latency_ms, blocked_reason, error_message, created_at
          FROM ai_jobs ORDER BY created_at DESC LIMIT 20`,
-    )
-  ).rows;
+    ],
+  ]);
+  const b = budgetR.rows[0];
+  const byTask = byTaskR.rows;
+  const acc = accR.rows;
+  const jobs = jobsR.rows;
   return {
     month,
     budget: b ? { limitVnd: Number(b.limit_vnd), usedVnd: Number(b.used_vnd), alertThresholdPct: b.alert_threshold_pct, hardStop: b.hard_stop } : null,

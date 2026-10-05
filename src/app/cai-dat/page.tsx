@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Settings, Building, Send, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Settings, Building, Send, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -16,14 +16,25 @@ import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
 import TelegramTab from "./_components/TelegramTab";
 import AiTab from "./_components/AiTab";
+import ModulesTab from "./_components/ModulesTab";
+import AccountsTab from "./_components/AccountsTab";
+import AcademicConfigTab from "./_components/AcademicConfigTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "general" | "categories" | "roles" | "telegram" | "ai";
+type ActiveTab = "general" | "categories" | "academic" | "roles" | "accounts" | "telegram" | "ai" | "modules";
+const TABS: readonly ActiveTab[] = ["general", "categories", "academic", "roles", "accounts", "telegram", "ai", "modules"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
-  const { session } = useSession();
+  const { session, can } = useSession();
   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
+  // Điện thoại: thanh tab cuộn ngang ⇒ đưa tab đang chọn vào tầm nhìn
+  const tabsRef = useRef<HTMLDivElement>(null);
+  // Mở thẳng một tab: /cai-dat?tab=modules (vd. từ dải nhắc "phân hệ đang ẩn")
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab") as ActiveTab | null;
+    if (t && TABS.includes(t)) setActiveTab(t);
+  }, []);
   const { status: aiStatus } = useAiStatus();
 
   const { matrix, isLoading: rbacLoading, error: rbacError } = useRbacMatrix();
@@ -58,6 +69,11 @@ export default function CaiDatPage() {
       ),
     [draft.byKey, resetScope],
   );
+
+  useEffect(() => {
+    const el = tabsRef.current?.querySelector<HTMLElement>("button.text-primary");
+    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [activeTab, draft.isLoading]);
 
   if (isLoadingSkeleton || draft.isLoading) {
     return <CaiDatLoading />;
@@ -150,8 +166,8 @@ export default function CaiDatPage() {
               <h4 className="font-bold">Bạn đang xem cài đặt ở chế độ chỉ đọc</h4>
               <p className="text-[11px] text-amber-700 mt-0.5">
                 Thay đổi cấu hình hệ thống chỉ dành cho người có quyền tương ứng: thông tin cộng đoàn &amp; tham số vận hành (Admin, Trưởng nhà), định
-                mức quỹ &amp; ngưỡng chi (Trưởng nhà), giá suất ăn &amp; giờ chốt cơm (Ban Ẩm thực, Trưởng/Phó nhà), giờ Kinh Tối (Ban Phụng vụ,
-                Trưởng/Phó nhà).
+                mức quỹ &amp; ngưỡng chi (Trưởng nhà), giá suất ăn &amp; giờ chốt cơm (Ban Ẩm thực, Trưởng nhà), giờ Kinh Tối (Ban Phụng vụ,
+                Trưởng nhà).
               </p>
             </div>
           </div>
@@ -172,7 +188,7 @@ export default function CaiDatPage() {
       ) : null}
 
       {/* 2. NAVIGATION TABS */}
-      <div className="flex items-center gap-2 p-1.5 bg-surface-container-low rounded-2xl border border-purple-50 overflow-x-auto custom-scroll">
+      <div ref={tabsRef} className="flex items-center gap-2 p-1.5 bg-surface-container-low rounded-2xl border border-purple-50 overflow-x-auto custom-scroll">
         <button onClick={() => setActiveTab("general")} className={tabBtn("general")}>
           <Building className="w-4 h-4" />
           <span>Cấu hình chung &amp; Định mức</span>
@@ -183,14 +199,28 @@ export default function CaiDatPage() {
           <span>Quản lý Danh mục</span>
           <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700">{categories.length}</span>
         </button>
+        <button onClick={() => setActiveTab("academic")} className={tabBtn("academic")}>
+          <GraduationCap className="w-4 h-4" />
+          <span>Danh mục học tập</span>
+        </button>
         <button onClick={() => setActiveTab("roles")} className={tabBtn("roles")}>
           <ShieldCheck className="w-4 h-4" />
           <span>Phân quyền &amp; Vai trò</span>
         </button>
+        {session && can("auth.user.read") && (
+          <button onClick={() => setActiveTab("accounts")} className={tabBtn("accounts")}>
+            <UserCog className="w-4 h-4" />
+            <span>Tài khoản</span>
+          </button>
+        )}
         <button onClick={() => setActiveTab("telegram")} className={tabBtn("telegram")}>
           <Send className="w-4 h-4" />
           <span>Tích hợp Telegram</span>
           {dirtyIn((k) => !isGeneralKey(k)) > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+        </button>
+        <button onClick={() => setActiveTab("modules")} className={tabBtn("modules")}>
+          <LayoutPanelLeft className="w-4 h-4" />
+          <span>Phân hệ</span>
         </button>
         {aiStatus?.canManage && (
           <button onClick={() => setActiveTab("ai")} className={tabBtn("ai")}>
@@ -206,6 +236,22 @@ export default function CaiDatPage() {
       {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}
       {activeTab === "telegram" && <TelegramTab draft={draft} />}
       {activeTab === "ai" && <AiTab />}
+      {activeTab === "modules" && <ModulesTab />}
+      {activeTab === "accounts" && <AccountsTab />}
+      {activeTab === "academic" && <AcademicConfigTab />}
+
+      {/* Điện thoại: form dài, nút Lưu ở đầu trang ⇒ thanh lưu cố định phía trên thanh điều hướng dưới khi có thay đổi */}
+      {!readOnly && dirtyCount > 0 && (
+        <div className="md:hidden fixed left-3 right-3 bottom-[76px] z-40 flex items-center gap-2 p-2 pl-3.5 rounded-2xl bg-gray-900/95 backdrop-blur text-white shadow-xl animate-in slide-in-from-bottom-2 duration-150">
+          <span className="text-xs font-semibold flex-1 min-w-0 truncate">{dirtyCount} thay đổi chưa lưu</span>
+          <button onClick={() => draft.discard()} disabled={draft.saving} className="px-3 py-2 rounded-xl text-xs font-bold text-gray-300 active:bg-white/10">
+            Hủy
+          </button>
+          <button onClick={handleSave} disabled={draft.saving} className="px-4 py-2 rounded-xl bg-primary text-xs font-bold active:scale-95 transition disabled:opacity-60">
+            {draft.saving ? "Đang lưu…" : "Lưu"}
+          </button>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={confirmReset}

@@ -170,7 +170,7 @@ export default function AddMemberModal() {
                   label="Vai trò"
                   value={role}
                   onChange={setRole}
-                  options={["Thành viên", "Phó nhà", "Thủ quỹ", "Trưởng nhà", "Admin"].map((v) => ({ value: v, label: v }))}
+                  options={["Thành viên", "Thủ quỹ", "Trưởng nhà", "Admin"].map((v) => ({ value: v, label: v }))}
                 />
               )}
             </div>

@@ -19,7 +19,9 @@ import {
   Search,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { MobileDetailSheet } from "@/components/ui/MobileDetailSheet";
 import { useSession } from "@/lib/session";
+import PaymentAccountCard from "@/components/finance/PaymentAccountCard";
 import type { Member } from "@/lib/types/members";
 import { useMembers, useMemberDetail, useApplications } from "@/lib/data/members";
 import ApplicationsPanel from "@/components/members/ApplicationsPanel";
@@ -42,10 +44,19 @@ export default function ThanhVienPage() {
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  // Điện thoại: hồ sơ mở dạng trang phủ khi người dùng chạm vào một thành viên
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pick = (id: string) => {
+    setSelectedMemberId(id);
+    setMobileOpen(true);
+  };
   // Mở thẳng hồ sơ từ Tìm kiếm nhanh (/thanh-vien?member=<id>)
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("member");
-    if (id) setSelectedMemberId(id);
+    if (id) {
+      setSelectedMemberId(id);
+      setMobileOpen(true);
+    }
   }, []);
   const [roomFilter, setRoomFilter] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,7 +91,7 @@ export default function ThanhVienPage() {
   const totalBeds = rooms.filter((r) => r.type === "bedroom").reduce((sum, r) => sum + r.capacity, 0);
   const bedroomCodes = rooms.filter((r) => r.type === "bedroom").map((r) => r.id);
   const occupied = activeMembers.filter((m) => bedroomCodes.includes(m.room)).length;
-  const leaders = activeMembers.filter((m) => ["Trưởng nhà", "Phó nhà", "Thủ quỹ"].includes(m.role));
+  const leaders = activeMembers.filter((m) => ["Trưởng nhà", "Thủ quỹ"].includes(m.role));
   const filteredMembers = members
     .filter((m) => {
       if (roomFilter === "Tất cả") return true;
@@ -285,7 +296,7 @@ export default function ThanhVienPage() {
                 return (
                   <div
                     key={m.id}
-                    onClick={() => setSelectedMemberId(m.id)}
+                    onClick={() => pick(m.id)}
                     className={`p-4 rounded-3xl cursor-pointer transition border flex flex-col justify-between ${
                       isSelected
                         ? "bg-purple-50/80 border-primary shadow-xs"
@@ -369,7 +380,7 @@ export default function ThanhVienPage() {
                   {filteredMembers.map((m) => (
                     <tr
                       key={m.id}
-                      onClick={() => setSelectedMemberId(m.id)}
+                      onClick={() => pick(m.id)}
                       className="hover:bg-purple-50/40 cursor-pointer"
                     >
                       <td className="py-3 pl-2">
@@ -412,7 +423,9 @@ export default function ThanhVienPage() {
 
         {/* MEMBER DETAIL VIEW (4 COLS) */}
         {selectedMember && (
-          <SelectedDetail member={selectedMember} onOpenCV={handleOpenCV} onCopyZalo={handleCopyZalo} onEdit={() => setEditId(selectedMember.id)} />
+          <MobileDetailSheet open={mobileOpen} onClose={() => setMobileOpen(false)} title={selectedMember.fullName} className="lg:col-span-4">
+            <SelectedDetail member={selectedMember} onOpenCV={handleOpenCV} onCopyZalo={handleCopyZalo} onEdit={() => setEditId(selectedMember.id)} />
+          </MobileDetailSheet>
         )}
         {filteredMembers.length === 0 && (
           <div className="lg:col-span-12 text-center text-sm text-gray-400 py-10">Không có thành viên phù hợp.</div>
@@ -441,7 +454,7 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
   const m: Member = detail ? { ...member, ...detail } : member;
   const row = "flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70";
   return (
-    <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+    <div className="bg-white rounded-3xl p-4 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
       <div className="flex flex-col items-center text-center pb-4 border-b border-gray-100">
         {m.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -518,6 +531,9 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
           </a>
         </div>
       </div>
+
+      {/* Tài khoản nhận tiền + mã QR (để anh em/Thủ quỹ chuyển khoản, hoàn tiền) — chính chủ hoặc người quản lý hồ sơ sửa được */}
+      <PaymentAccountCard memberId={m.id} canEdit={m.id === session?.member?.id || can("member.update")} />
 
       <MemberAdminPanel member={m} canEdit={!!detail?.canEdit} onEdit={onEdit} />
     </div>

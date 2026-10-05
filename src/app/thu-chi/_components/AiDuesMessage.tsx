@@ -6,7 +6,6 @@ import { Sparkles, Copy, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useAiTask } from "@/lib/data/ai";
 import { AiLabel, AiSuggestButton } from "@/components/ai/AiParts";
-import { monthTitle } from "@/lib/finance-format";
 import type { ContributionPlanDto } from "@/lib/types/finance";
 import type { AiResultDto } from "@/lib/types/ai";
 
@@ -41,7 +40,7 @@ export default function AiDuesMessage({ plan }: { plan: ContributionPlanDto | un
         <div className="basis-full order-last p-4 rounded-2xl bg-violet-50/50 border border-violet-100 flex flex-col gap-3 text-xs">
           <div className="flex items-start justify-between gap-3">
             <p className="text-gray-600 leading-relaxed">
-              Soạn lời nhắc cho kỳ <b>{monthTitle(plan.month)}</b> — {plan.amountVnd.toLocaleString("vi-VN")} đ, hạn {plan.dueDate.split("-").reverse().join("/")}. AI không nhận tên ai cả; bạn sửa lại rồi tự gửi vào nhóm.
+              Soạn lời nhắc cho khoản <b>{plan.name}</b> — {plan.amountVnd.toLocaleString("vi-VN")} đ/người, hạn {plan.dueDate.split("-").reverse().join("/")}. AI không nhận tên ai cả; bạn sửa lại rồi tự gửi vào nhóm.
             </p>
             <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-white text-gray-400" title="Đóng">
               <X className="w-3.5 h-3.5" />
@@ -55,7 +54,7 @@ export default function AiDuesMessage({ plan }: { plan: ContributionPlanDto | un
             <AiSuggestButton
               task="finance.dues_message"
               label={result ? "Soạn lại" : "Soạn tin nhắc"}
-              getInput={() => ({ amountVnd: plan.amountVnd, dueDate: plan.dueDate, periodLabel: monthTitle(plan.month), tone })}
+              getInput={() => ({ amountVnd: plan.amountVnd, dueDate: plan.dueDate, periodLabel: plan.name.slice(0, 40), tone })}
               onResult={(r) => {
                 setResult(r);
                 setText(r.output.message);

@@ -130,8 +130,13 @@ export interface RoleDto {
   name: string;
   description: string | null;
   rank: number;
+  /** Vai trò hệ thống (Admin, Trưởng nhà, Thủ quỹ, Thành viên): không xóa, bộ quyền khóa — chỉ đổi tên hiển thị/mô tả */
   isSystem: boolean;
+  /** Đã xóa nhưng còn lịch sử tham chiếu (lưu trữ) — danh sách GET /api/v1/rbac không trả các vai trò này */
+  archived: boolean;
   permissionCount: number;
+  /** Mã quyền của vai trò (role_permissions) */
+  permissions: string[];
   holders: RoleHolderDto[];
 }
 
@@ -155,7 +160,54 @@ export interface RbacMatrixDto {
   modules: PermissionModuleDto[];
   /** "all": người gọi xem được mọi phân công vai trò; "own": RLS chỉ cho thấy vai trò của chính mình */
   holdersVisibility: "all" | "own";
+  /** Người gọi có quyền auth.role.manage (thêm/sửa/xóa vai trò tự tạo, đổi tên vai trò hệ thống) */
+  canManage: boolean;
+  /** Người gọi có quyền auth.role.assign (gán/thu hồi vai trò cho người khác) */
+  canAssign: boolean;
+  /** Quyền vai trò tự tạo không được nhận (app.rbac_protected_permissions()) */
+  protectedPermissions: string[];
 }
+
+/** Thân POST /api/v1/rbac/roles (code bắt buộc) và PATCH /api/v1/rbac/roles/{code} (không gửi code). */
+export interface RoleInput {
+  code?: string;
+  name: string;
+  description?: string | null;
+  /** Thứ hạng hiển thị (41–89 với vai trò tự tạo); bỏ trống = giữ nguyên / mặc định 50 */
+  rank?: number | null;
+  /** Bộ quyền MỚI (thay toàn bộ); bỏ trống = giữ nguyên. Vai trò hệ thống: không được đổi. */
+  permissions?: string[] | null;
+}
+
+/** Mã vai trò tự tạo: 3–40 ký tự, chữ thường không dấu/số/gạch dưới, bắt đầu bằng chữ (khớp app.fn_role_save). */
+export const ROLE_CODE_RE = /^[a-z][a-z0-9_]{2,39}$/;
+/** Thứ hạng vai trò tự tạo: dưới Trưởng nhà (20) / Thủ quỹ (30), trên Thành viên (90). Hạng chỉ để sắp xếp, không cấp quyền. */
+export const CUSTOM_ROLE_RANK = { min: 41, max: 89, default: 50 } as const;
+
+/**
+ * Quyền "bảo vệ": chỉ vai trò hệ thống có, vai trò tự tạo không được nhận (chống leo thang đặc quyền, giữ tách bạch tài khoản/kiểm toán).
+ * PHẢI khớp app.rbac_protected_permissions() ở db/app/992_rbac_admin.sql — DB là nơi thực thi, hằng số này để giao diện làm mờ ô.
+ */
+export const PROTECTED_PERMISSIONS = [
+  "auth.role.manage",
+  "auth.role.assign",
+  "auth.role.delegate",
+  "auth.user.manage",
+  "auth.session.revoke_any",
+  "audit.sensitive.read",
+  "member.national_id.read",
+] as const;
+
+/** Lý do một quyền bị khóa với vai trò tự tạo (hiển thị cạnh ô bị làm mờ). */
+export const PROTECTED_PERMISSION_REASON: Record<string, string> = {
+  "auth.role.manage": "Chỉ Admin — tránh tự tạo vai trò có quyền vượt cấp",
+  "auth.role.assign": "Chỉ Trưởng nhà / Admin gán vai trò",
+  "auth.role.delegate": "Ủy quyền chỉ dành cho vai trò hệ thống",
+  "auth.user.manage": "Quản lý tài khoản chỉ dành cho Trưởng nhà / Admin",
+  "auth.session.revoke_any": "Thu hồi phiên người khác chỉ dành cho Trưởng nhà / Admin",
+  "audit.sensitive.read": "Nhật ký dữ liệu nhạy cảm chỉ Trưởng nhà xem",
+  "member.national_id.read": "Giải mã CCCD chỉ Trưởng nhà",
+};
 
 export const PERMISSION_MODULE_LABEL: Record<string, string> = {
   auth: "Tài khoản & Phân quyền",

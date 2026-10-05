@@ -104,7 +104,7 @@ export default function ChoPheDuyetPage() {
             <span>Thông tin liên hệ cấp quyền:</span>
           </div>
           <p className="text-xs text-purple-900/80 leading-relaxed">
-            Vui lòng liên hệ trực tiếp <b>Trưởng nhà</b> hoặc <b>Phó nhà</b> để được kích hoạt. Sau khi được duyệt, bấm <b>Kiểm tra lại</b>.
+            Vui lòng liên hệ trực tiếp <b>Trưởng nhà</b> để được kích hoạt. Sau khi được duyệt, bấm <b>Kiểm tra lại</b>.
           </p>
         </div>
 

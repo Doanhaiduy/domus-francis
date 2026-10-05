@@ -15,7 +15,7 @@ const DB = args.includes("--db") ? args[args.indexOf("--db") + 1] : "luuxa";
 const ONLY = args.includes("--only") ? args[args.indexOf("--only") + 1].split(",") : null;
 
 // Thứ tự phụ thuộc: people trước (người dùng/thành viên), các phân hệ sau dùng ctx.ids
-const MODULES = ["people", "finance", "duty", "academic", "events", "community", "moments", "kitchen", "settings"];
+const MODULES = ["people", "finance", "duty", "academic", "events", "community", "moments", "kitchen", "settings", "documents"];
 
 const srcFile = existsSync(path.join(ROOT, "scripts/db/seed/mock-source.ts"))
   ? "./mock-source.ts"

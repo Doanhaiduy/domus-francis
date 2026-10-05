@@ -10,10 +10,9 @@ import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { membersApi, refreshPeople } from "@/lib/data/members";
-import { ROLE_LABEL } from "@/lib/types/session";
+import { accountsApi } from "@/lib/data/accounts";
 import type { Member } from "@/lib/types/members";
-
-const ROLE_CODES = ["house_head", "vice_head", "treasurer", "admin", "liturgy_lead", "kitchen_lead", "media_lead", "member"];
+import type { MemberRolesDto } from "@/lib/types/accounts";
 const STATUS_LABEL: Record<string, string> = { active: "Đang ở", on_leave: "Tạm vắng", alumni: "Cựu thành viên", left: "Đã rời lưu xá" };
 
 function SecretBox({ title, lines, onClose }: { title: string; lines: [string, string][]; onClose: () => void }) {
@@ -59,7 +58,8 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
   const [accountOpen, setAccountOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [rolesOpen, setRolesOpen] = useState(false);
-  const [roles, setRoles] = useState<string[] | null>(null);
+  // Vai trò đang giữ + danh sách vai trò gán được (đọc từ bảng roles — gồm vai trò tự tạo do Admin thêm)
+  const [roles, setRoles] = useState<MemberRolesDto | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [status, setStatus] = useState<string>("left");
   const [reason, setReason] = useState("");
@@ -117,7 +117,7 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
           <button
             onClick={() =>
               run(async () => {
-                setRoles((await membersApi.roles(member.id)).roles);
+                setRoles(await accountsApi.memberRoles(member.id));
                 setRolesOpen(true);
               })
             }
@@ -221,26 +221,38 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
                 <h3 className="text-base font-bold text-gray-900">Vai trò của {member.fullName}</h3>
                 <button onClick={() => setRolesOpen(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
               </div>
-              <p className="text-[11px] text-gray-500">Gán/thu hồi có hiệu lực ngay; mọi thay đổi được ghi nhật ký kiểm toán.</p>
-              <div className="space-y-1.5">
-                {ROLE_CODES.map((code) => {
-                  const on = roles.includes(code);
+              <p className="text-[11px] text-gray-500">
+                {isSelf
+                  ? "Bạn không thể tự gán hoặc thu hồi vai trò của chính mình — nhờ Trưởng nhà hoặc Admin khác thực hiện."
+                  : "Gán/thu hồi có hiệu lực ngay; mọi thay đổi được ghi nhật ký kiểm toán. Thêm/sửa vai trò ở Cài đặt → Phân quyền & Vai trò."}
+              </p>
+              <div className="space-y-1.5 max-h-[60vh] overflow-y-auto custom-scroll">
+                {roles.assignable.map((r) => {
+                  const on = roles.roles.includes(r.code);
+                  const lockedAdmin = r.code === "admin" && !on && !roles.canAssignAdmin;
                   return (
-                    <label key={code} className="flex items-center justify-between p-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                      <span className="text-xs font-semibold text-gray-800">{ROLE_LABEL[code]}</span>
+                    <label
+                      key={r.code}
+                      className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border border-gray-100 ${isSelf || lockedAdmin ? "opacity-60" : "hover:bg-gray-50 cursor-pointer"}`}
+                      title={lockedAdmin ? "Chỉ Admin được gán vai trò Admin" : r.description ?? undefined}
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-gray-800">{r.name}</span>
+                        {!r.isSystem && <span className="block text-[10px] text-gray-400">Vai trò tự tạo</span>}
+                      </span>
                       <input
                         type="checkbox"
                         checked={on}
-                        disabled={busy}
+                        disabled={busy || isSelf || lockedAdmin}
                         onChange={() =>
                           run(async () => {
-                            const r = await membersApi.setRole(member.id, code, !on);
-                            setRoles(r.roles);
+                            const res = await accountsApi.setMemberRole(member.id, r.code, !on);
+                            setRoles(res);
                             await refreshPeople();
-                            showToast("success", `${on ? "Đã thu hồi" : "Đã gán"} vai trò ${ROLE_LABEL[code]}.`);
+                            showToast("success", `${on ? "Đã thu hồi" : "Đã gán"} vai trò ${r.name}.`);
                           })
                         }
-                        className="accent-primary w-4 h-4"
+                        className="accent-primary w-4 h-4 shrink-0"
                       />
                     </label>
                   );

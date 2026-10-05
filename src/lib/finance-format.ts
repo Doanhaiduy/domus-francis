@@ -66,7 +66,7 @@ export function formatFinanceReportForZalo(r: FinanceReportText): string {
   t += `📤 Tổng chi trong kỳ: ${formatVND(r.expenseVnd)} (${r.expenses.length} khoản chi)\n`;
   t += `💰 Tồn quỹ cuối kỳ: ${formatVND(r.closingVnd)}\n`;
   if (r.duesExpectedVnd > 0) {
-    t += `🧾 Thu quỹ sinh hoạt: ${formatVND(r.duesCollectedVnd)} / ${formatVND(r.duesExpectedVnd)}${rate !== null ? ` (${rate}%)` : ""}\n`;
+    t += `🧾 Thu quỹ & điện nước: ${formatVND(r.duesCollectedVnd)} / ${formatVND(r.duesExpectedVnd)}${rate !== null ? ` (${rate}%)` : ""}\n`;
     t += `⏳ Còn phải thu: ${formatVND(outstanding)}${r.unpaidCount !== null ? ` (${r.unpaidCount} bạn)` : ""}\n`;
   }
   t += `\n`;

@@ -1,13 +1,14 @@
 "use client";
 // Hook dữ liệu + thao tác phân hệ Cài đặt: cấu hình hệ thống (settings), danh mục (categories), ma trận phân quyền (RBAC).
 import useSWR, { mutate as globalMutate } from "swr";
-import { api, swrFetcher } from "../api";
+import { api, inBackground, swrFetcher } from "../api";
 import type {
   CategoryDto,
   CategoryInput,
   CategoryKind,
   OrgSettingsDto,
   RbacMatrixDto,
+  RoleInput,
   SettingChange,
   SettingsListDto,
   TelegramTestDto,
@@ -72,9 +73,22 @@ export function useCategories(opts: { kind?: CategoryKind; activeOnly?: boolean;
 }
 
 export function useRbacMatrix(enabled = true) {
-  const { data, error, isLoading } = useSWR<RbacMatrixDto>(enabled ? RBAC_KEY : null, swrFetcher, { revalidateOnFocus: false });
-  return { matrix: data, error, isLoading };
+  const { data, error, isLoading, mutate } = useSWR<RbacMatrixDto>(enabled ? RBAC_KEY : null, swrFetcher, { revalidateOnFocus: false });
+  return { matrix: data, error, isLoading, mutate };
 }
+
+/** Làm mới ma trận phân quyền + những nơi hiển thị vai trò (danh sách tài khoản, phiên của chính mình — tên vai trò/quyền). */
+export const refreshRbac = () =>
+  inBackground(
+    globalMutate((key) => typeof key === "string" && (key.startsWith(RBAC_KEY) || key.startsWith("/api/v1/accounts") || key === "/api/v1/auth/me"))
+  );
+
+/** Vai trò: thêm/sửa/xóa (auth.role.manage — Admin). Kết quả xóa: "deleted" (xóa hẳn) hoặc "archived" (lưu trữ, đã thu hồi người giữ). */
+export const rbacApi = {
+  createRole: (body: RoleInput & { code: string }) => api.post<{ code: string }>(`${RBAC_KEY}/roles`, body),
+  updateRole: (code: string, body: Partial<RoleInput>) => api.patch<{ ok: true; code: string }>(`${RBAC_KEY}/roles/${encodeURIComponent(code)}`, body),
+  deleteRole: (code: string) => api.del<{ ok: true; code: string; result: "deleted" | "archived" }>(`${RBAC_KEY}/roles/${encodeURIComponent(code)}`),
+};
 
 /** Làm mới cấu hình (danh sách quản trị + bản công khai dùng ở các màn hình khác). */
 export const refreshSettings = () => globalMutate((key) => typeof key === "string" && key.startsWith(SETTINGS_KEY));

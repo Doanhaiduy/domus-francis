@@ -1,5 +1,5 @@
 import "server-only";
-import type { Tx } from "../db";
+import { batch, type Tx } from "../db";
 import { ApiError, notFound } from "../errors";
 import type {
   AcademicAction,
@@ -26,6 +26,19 @@ import type { RecordInput } from "./academic-schema";
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOString() : null);
 
+type Q = [sql: string, params?: unknown[]];
+
+/**
+ * Chạy các câu SQL ĐỘC LẬP trong MỘT vòng mạng (DB ở xa). Phần tử null = câu không cần chạy (như code cũ bỏ qua)
+ * ⇒ trả về mảng rỗng ở đúng vị trí đó.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function batchRows(tx: Tx, items: (Q | null)[]): Promise<any[][]> {
+  const res = await batch(tx, items.filter((x): x is Q => x !== null));
+  let k = 0;
+  return items.map((x) => (x ? res[k++].rows : []));
+}
+
 function toSemester(r: Record<string, any>): SemesterDto {
   return {
     id: r.sem_id,
@@ -45,31 +58,41 @@ const SEMESTER_COLS = `s.id AS sem_id, s.code AS sem_code, s.name AS sem_name, s
        y.code AS year_code, (app.local_today() BETWEEN s.starts_on AND s.ends_on) AS sem_is_current`;
 
 export async function getMeta(tx: Tx): Promise<AcademicMetaDto> {
-  // Học kỳ đã bắt đầu (không nhập điểm cho học kỳ tương lai) — mới nhất trước
-  const semesters = (
-    await tx.query(
+  // Gộp các truy vấn độc lập (học kỳ, trường, thang điểm mặc định, hồ sơ của tôi): 1 vòng mạng thay vì 4
+  const [semR, uniR, scaleR, meR] = await batch(tx, [
+    // Học kỳ đã bắt đầu (không nhập điểm cho học kỳ tương lai) — mới nhất trước
+    [
       `SELECT ${SEMESTER_COLS}
          FROM semesters s JOIN academic_years y ON y.id = s.academic_year_id
         WHERE s.starts_on <= app.local_today()
-        ORDER BY s.starts_on DESC`
-    )
-  ).rows.map(toSemester);
-  const universities = (
-    await tx.query("SELECT id, code, name, short_name FROM universities WHERE deleted_at IS NULL ORDER BY name")
-  ).rows.map((u) => ({ id: u.id, code: u.code, name: u.name, shortName: u.short_name }));
-
-  const scaleRow = (
-    await tx.query(
+        ORDER BY s.starts_on DESC`,
+    ],
+    ["SELECT id, code, name, short_name FROM universities WHERE deleted_at IS NULL AND is_active ORDER BY name"], // trường "Tạm ẩn" không hiện trong danh sách chọn
+    [
       `SELECT id, name, max_score, process_weight_pct, final_weight_pct FROM grade_scales
-        WHERE id = app.fn_scale_for(NULL, app.local_today())`
-    )
-  ).rows[0];
+        WHERE id = app.fn_scale_for(NULL, app.local_today())`,
+    ],
+    ["SELECT m.id, m.full_name FROM members m WHERE m.id = app.current_member_id()"],
+  ]);
+  const semesters = semR.rows.map(toSemester);
+  const universities = uniR.rows.map((u) => ({ id: u.id, code: u.code, name: u.name, shortName: u.short_name }));
+  const scaleRow = scaleR.rows[0];
+  const me = meR.rows[0];
+
+  // Gộp các truy vấn cần id thang điểm / id thành viên (bậc điểm, xếp loại, hồ sơ sinh viên): 1 vòng mạng thay vì 3
+  const [bands, ranks, profileRows] = await batchRows(tx, [
+    scaleRow ? ["SELECT letter, min_score, gpa_points, is_pass FROM grade_scale_bands WHERE scale_id = $1 ORDER BY min_score DESC", [scaleRow.id]] : null,
+    scaleRow ? ["SELECT label_vi, min_gpa4 FROM grade_rank_bands WHERE scale_id = $1 ORDER BY min_gpa4 DESC", [scaleRow.id]] : null,
+    me
+      ? [
+          `SELECT university_id, major, student_code FROM student_profiles
+            WHERE member_id = $1 AND is_current AND deleted_at IS NULL LIMIT 1`,
+          [me.id],
+        ]
+      : null,
+  ]);
   let defaultScale: AcademicMetaDto["defaultScale"] = null;
   if (scaleRow) {
-    const bands = (
-      await tx.query("SELECT letter, min_score, gpa_points, is_pass FROM grade_scale_bands WHERE scale_id = $1 ORDER BY min_score DESC", [scaleRow.id])
-    ).rows;
-    const ranks = (await tx.query("SELECT label_vi, min_gpa4 FROM grade_rank_bands WHERE scale_id = $1 ORDER BY min_gpa4 DESC", [scaleRow.id])).rows;
     defaultScale = {
       id: scaleRow.id,
       name: scaleRow.name,
@@ -81,18 +104,7 @@ export async function getMeta(tx: Tx): Promise<AcademicMetaDto> {
     };
   }
 
-  const me = (
-    await tx.query("SELECT m.id, m.full_name FROM members m WHERE m.id = app.current_member_id()")
-  ).rows[0];
-  const profile = me
-    ? (
-        await tx.query(
-          `SELECT university_id, major, student_code FROM student_profiles
-            WHERE member_id = $1 AND is_current AND deleted_at IS NULL LIMIT 1`,
-          [me.id]
-        )
-      ).rows[0]
-    : null;
+  const profile = me ? profileRows[0] : null;
 
   return {
     semesters,
@@ -240,10 +252,13 @@ function toRecord(r: Record<string, any>, canVerify: boolean): AcademicRecordDto
 }
 
 export async function listRecords(tx: Tx, opts: { id?: string } = {}): Promise<AcademicRecordDto[]> {
-  const canVerify = (await tx.query<{ v: boolean }>("SELECT app.has_permission('academic.verify') AS v")).rows[0].v;
-  const rows = (
-    await tx.query(`${RECORD_SELECT} WHERE ($1::uuid IS NULL OR ar.id = $1) ORDER BY s.starts_on DESC, m.full_name`, [opts.id ?? null])
-  ).rows;
+  // Gộp các truy vấn độc lập (quyền xác minh, bảng điểm): 1 vòng mạng thay vì 2
+  const [vR, rowsR] = await batch(tx, [
+    ["SELECT app.has_permission('academic.verify') AS v"],
+    [`${RECORD_SELECT} WHERE ($1::uuid IS NULL OR ar.id = $1) ORDER BY s.starts_on DESC, m.full_name`, [opts.id ?? null]],
+  ]);
+  const canVerify = (vR.rows[0] as { v: boolean }).v;
+  const rows = rowsR.rows;
   const records = rows.map((r) => toRecord(r, canVerify));
   if (!records.length) return records;
 
@@ -554,37 +569,32 @@ export async function transition(tx: Tx, id: string, action: AcademicAction, rea
 // Tóm tắt cho trang Tổng quan
 // ---------------------------------------------------------------------
 export async function getSummary(tx: Tx): Promise<AcademicSummaryDto> {
-  const sem = (
-    await tx.query(
+  // Gộp các truy vấn độc lập (học kỳ hiện tại, quyền): 1 vòng mạng thay vì 2
+  const [semR, permsR] = await batch(tx, [
+    [
       `SELECT s.id, s.name || ' • ' || y.code AS label FROM semesters s JOIN academic_years y ON y.id = s.academic_year_id
-        WHERE app.local_today() BETWEEN s.starts_on AND s.ends_on ORDER BY s.starts_on DESC LIMIT 1`
-    )
-  ).rows[0];
-  const perms = (
-    await tx.query<{ verify: boolean; agg: boolean }>(
-      "SELECT app.has_permission('academic.verify') AS verify, app.has_permission('academic.read_aggregate') AS agg"
-    )
-  ).rows[0];
+        WHERE app.local_today() BETWEEN s.starts_on AND s.ends_on ORDER BY s.starts_on DESC LIMIT 1`,
+    ],
+    ["SELECT app.has_permission('academic.verify') AS verify, app.has_permission('academic.read_aggregate') AS agg"],
+  ]);
+  const sem = semR.rows[0];
+  const perms = permsR.rows[0] as { verify: boolean; agg: boolean };
+  // Gộp các truy vấn cần học kỳ / quyền (bảng điểm của tôi, số chờ xác minh, thống kê ẩn danh): 1 vòng mạng thay vì 3
+  const [recRows, pendingRows, aggRows] = await batchRows(tx, [
+    sem ? ["SELECT id FROM academic_records WHERE semester_id = $1 AND member_id = app.current_member_id()", [sem.id]] : null,
+    perms.verify ? ["SELECT count(*)::int AS n FROM academic_records WHERE status = 'submitted' AND NOT app.is_self(member_id)"] : null,
+    perms.agg && sem ? ["SELECT * FROM app.fn_academic_aggregate($1)", [sem.id]] : null,
+  ]);
   let mine: AcademicSummaryDto["mine"] = null;
-  if (sem) {
-    const [rec] = (
-      await tx.query("SELECT id FROM academic_records WHERE semester_id = $1 AND member_id = app.current_member_id()", [sem.id])
-    ).rows;
-    if (rec) {
-      const d = await getRecord(tx, rec.id);
-      mine = { recordId: d.id, status: d.status, gpa10: d.gpa10, gpa4: d.gpa4, rank: d.rank };
-    }
+  const [rec] = recRows;
+  if (rec) {
+    const d = await getRecord(tx, rec.id);
+    mine = { recordId: d.id, status: d.status, gpa10: d.gpa10, gpa4: d.gpa4, rank: d.rank };
   }
-  const pendingVerification = perms.verify
-    ? (
-        await tx.query<{ n: number }>(
-          "SELECT count(*)::int AS n FROM academic_records WHERE status = 'submitted' AND NOT app.is_self(member_id)"
-        )
-      ).rows[0].n
-    : null;
+  const pendingVerification = perms.verify ? (pendingRows[0] as { n: number }).n : null;
   let aggregate: AcademicSummaryDto["aggregate"] = null;
   if (perms.agg && sem) {
-    const a = (await tx.query("SELECT * FROM app.fn_academic_aggregate($1)", [sem.id])).rows[0];
+    const a = aggRows[0];
     if (a) {
       aggregate = {
         students: a.students,

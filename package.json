@@ -20,6 +20,7 @@
     "db:audit:quick": "node scripts/db/audit.mjs --quick",
     "test:api": "node --no-warnings scripts/test-api.mjs",
     "db:bundle": "node scripts/db/bundle.mjs",
+    "db:migrate": "node scripts/db/migrate.mjs",
     "test:e2e": "node scripts/e2e/smoke.mjs"
   },
   "dependencies": {

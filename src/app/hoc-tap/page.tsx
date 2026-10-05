@@ -19,10 +19,11 @@ import {
   CheckCircle2,
   ShieldCheck,
   Lock,
-  ClipboardCheck,
-} from "lucide-react";
+  ClipboardCheck, Settings2 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
+import Link from "next/link";
+import AiAcademicInsight from "@/components/ai/AiAcademicInsight";
 import { errorMessage } from "@/lib/api";
 import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -202,6 +203,16 @@ export default function HocTapPage() {
             <Share2 className="w-4 h-4 text-purple-600" />
             <span>Sao chép Zalo</span>
           </button>
+          {can(["academic.scale.manage", "term.manage"]) && (
+            <Link
+              href="/cai-dat?tab=academic"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 transition"
+              title="Thêm trường đại học, năm học, học kỳ"
+            >
+              <Settings2 className="w-4 h-4 text-gray-500" />
+              <span>Trường & năm học</span>
+            </Link>
+          )}
           {canWrite && (
             <button
               onClick={openCreate}
@@ -212,6 +223,12 @@ export default function HocTapPage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* AI nhận xét (tự ẩn khi tác vụ tắt/thiếu quyền; cá nhân cần đồng ý một lần) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 empty:hidden">
+        {canWrite && <AiAcademicInsight scope="self" />}
+        {can("academic.read_aggregate") && <AiAcademicInsight scope="house" />}
       </div>
 
       {/* 2. STATS KPI CARDS (tính từ bảng điểm bạn được xem, theo năm học/học kỳ đang lọc) */}
@@ -439,7 +456,66 @@ export default function HocTapPage() {
       ) : viewMode === "table" ? (
         /* TABLE VIEW */
         <div className="bg-white rounded-3xl border border-purple-50 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto custom-scroll">
+          {/* Điện thoại: mỗi bảng điểm một thẻ (bảng 8 cột bị bóp thành chữ dọc) — chạm để xem chi tiết môn học */}
+          <div className="md:hidden flex flex-col gap-2 p-3">
+            {filteredRecords.map((rec) => {
+              const badge = rankBadge(rec.rank);
+              return (
+                <div key={rec.id} className="p-3 rounded-2xl border border-gray-100 bg-white flex flex-col gap-2">
+                  <button type="button" onClick={() => setDetailId(rec.id)} className="text-left flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                        {initialOf(rec)}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-black text-gray-900 truncate">
+                          {rec.memberName}
+                          {rec.isOwn && <span className="ml-1 text-[9px] font-bold text-primary">(tôi)</span>}
+                        </span>
+                        <span className="block text-[11px] text-gray-500 truncate">
+                          {rec.semester.name} · {rec.university.shortName ?? rec.university.name}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-mono text-sm font-black text-primary block leading-tight">{fmtGpa(rec.gpa4)}</span>
+                      <span className="text-[10px] text-gray-400 font-mono">({fmtGpa(rec.gpa10)}/10)</span>
+                    </div>
+                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", badge.bg, badge.text, badge.border)}>{rec.rank ?? "Chưa xếp loại"}</span>
+                      {statusBadge(rec.status)}
+                      {rec.hasScholarship && <span className="text-[10px] font-bold text-amber-600">⭐ Học bổng</span>}
+                      {rec.support && <span className="text-[10px] font-bold text-rose-600">Cần phụ đạo: {rec.support.subject}</span>}
+                    </div>
+                    <div className="flex items-center shrink-0">
+                      {rec.can.verify && (
+                        <button
+                          onClick={() => void runAction(rec, "verify")}
+                          disabled={!!busy}
+                          className="p-2 rounded-lg text-emerald-600 active:bg-emerald-50 disabled:opacity-50"
+                          title="Xác minh bảng điểm"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {rec.can.edit && (
+                        <button onClick={() => openEdit(rec)} className="p-2 rounded-lg text-gray-500 active:bg-purple-50" title="Sửa bảng điểm">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button onClick={() => setDetailId(rec.id)} className="p-2 rounded-lg text-gray-500 active:bg-purple-50" title="Xem chi tiết">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto custom-scroll">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-surface-container-low/60 border-b border-gray-100 text-gray-500 uppercase text-[10px] font-bold">

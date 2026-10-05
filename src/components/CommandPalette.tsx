@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
+import { useModules } from "@/lib/data/modules";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +36,8 @@ export const CommandPalette: React.FC = () => {
     members,
   } = useApp();
 
-  const { can } = useSession();
+  const { can, session } = useSession();
+  const modules = useModules(!!session?.member);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -79,7 +81,8 @@ export const CommandPalette: React.FC = () => {
   // Tìm không dấu: "tuan" khớp "Tuấn"
   const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
   const q = fold(query.trim());
-  const filteredNav = NAV_ITEMS.filter((item) => fold(item.label).includes(q));
+  // Phân hệ đang bảo trì không xuất hiện trong tìm kiếm nhanh (trừ người quản trị)
+  const filteredNav = NAV_ITEMS.filter((item) => fold(item.label).includes(q) && (modules.canManage || !modules.disabled[item.href]));
 
   const filteredActions = ACTION_ITEMS.filter((item) => fold(item.label).includes(q));
 

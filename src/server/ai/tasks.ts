@@ -1,8 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import type { Tx } from "../db";
-import { badRequest } from "../errors";
-import type { AiOutputMap, AiTaskCode } from "@/lib/types/ai";
+import { batch, type Tx } from "../db";
+import { badRequest, forbidden } from "../errors";
+import type { AcademicInsightOutput, AcademicInsightRow, AiOutputMap, AiTaskCode } from "@/lib/types/ai";
 import { maskText, sanitizeOutput } from "./mask";
 import { retrieve } from "./retrieval";
 
@@ -284,12 +284,608 @@ const minutesTask: TaskDef<"community.minutes"> = {
   },
 };
 
+// ======================= Tiện ích chung cho các tác vụ "nhận xét" =======================
+type Q = readonly [sql: string, params?: readonly unknown[]];
+/** Chạy các câu SQL độc lập trong MỘT vòng mạng; phần tử null ⇒ mảng rỗng đúng vị trí. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function batchRows(tx: Tx, items: (Q | null)[]): Promise<any[][]> {
+  const list = items.filter((x): x is Q => x !== null);
+  const res = list.length ? await batch(tx, list) : [];
+  let k = 0;
+  return items.map((x) => (x ? res[k++].rows : []));
+}
+
+/** Danh sách chuỗi từ mô hình: nới khi kiểm, cắt sau khi làm sạch. */
+const strList = (each: number) => z.array(z.string().max(each * 3)).max(12).default([]);
+const cleanList = (xs: string[], n: number, each: number) => xs.map((x) => sanitizeOutput(x, each)).filter(Boolean).slice(0, n);
+const n0 = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+const fmtVnd = (n: number) => `${new Intl.NumberFormat("vi-VN").format(n)} đ`;
+const fmtNum = (n: number | null, d = 2) => (n === null ? "chưa có" : n.toFixed(d));
+const fmtDmy = (iso: string) => iso.split("-").reverse().join("/");
+const pctChange = (cur: number, prev: number): number | null => (prev === 0 ? null : Math.round(((cur - prev) / Math.abs(prev)) * 1000) / 10);
+/** So khớp nhãn mô hình trả về với nhãn máy chủ (bỏ dấu ngoặc, gạch nối khác loại, khoảng trắng). */
+const normLabel = (s: string) =>
+  s
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[[\]"“”'‘’]/g, "")
+    .replace(/[–—−]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+interface YearRow {
+  id: string;
+  code: string;
+  starts_on: string;
+  ends_on: string;
+}
+const YEARS_SQL: Q = ["SELECT id, code, starts_on::text AS starts_on, ends_on::text AS ends_on FROM academic_years ORDER BY starts_on DESC LIMIT 12"];
+/** Năm học hiện tại (chứa hôm nay, nếu không thì năm gần nhất đã bắt đầu) và năm học liền trước. */
+function pickYears(years: YearRow[], today: string): { cur: YearRow | null; prev: YearRow | null } {
+  const sorted = [...years].sort((a, b) => (a.starts_on < b.starts_on ? 1 : -1));
+  const i = sorted.findIndex((y) => y.starts_on <= today && today <= y.ends_on);
+  const j = i >= 0 ? i : sorted.findIndex((y) => y.starts_on <= today);
+  if (j < 0) return { cur: null, prev: null };
+  return { cur: sorted[j], prev: sorted[j + 1] ?? null };
+}
+const trendOf = (cur: number | null, prev: number | null): AcademicInsightOutput["trend"] =>
+  cur === null || prev === null ? "unknown" : cur - prev >= 0.1 ? "up" : prev - cur >= 0.1 ? "down" : "stable";
+const TREND_TEXT: Record<AcademicInsightOutput["trend"], string> = {
+  up: "tăng",
+  down: "giảm",
+  stable: "ổn định (chênh dưới 0,1 điểm hệ 4)",
+  unknown: "chưa đủ dữ liệu để so sánh",
+};
+/** Trung bình có trọng số; bỏ phần tử thiếu giá trị hoặc trọng số 0. */
+function weighted(items: { v: number | null; w: number }[]): number | null {
+  const ok = items.filter((x) => x.v !== null && x.w > 0);
+  const w = ok.reduce((a, x) => a + x.w, 0);
+  return w > 0 ? Math.round((ok.reduce((a, x) => a + (x.v as number) * x.w, 0) / w) * 100) / 100 : null;
+}
+
+// ======================= 6) Nhận xét thu chi theo tháng =======================
+const finIn = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Tháng phải có dạng YYYY-MM.").optional() });
+const finOut = z.object({
+  headline: str(120, 1),
+  summary: str(600, 1),
+  comparisons: z
+    .array(z.object({ label: z.string().max(300), comment: z.string().max(600).nullish() }).passthrough())
+    .max(20)
+    .default([]),
+  highlights: strList(200),
+  warnings: strList(200),
+  suggestions: strList(200),
+});
+
+interface FinSummary {
+  opening_balance_vnd: number;
+  total_in_vnd: number;
+  total_out_vnd: number;
+  closing_balance_vnd: number;
+  dues_expected_vnd: number;
+  dues_collected_vnd: number;
+  collection_rate_pct: number | null;
+  expense_by_category: { code: string; name: string; total_vnd: number; count: number }[];
+}
+const FEE_LABEL: Record<string, string> = {
+  periodic_dues: "Quỹ định kỳ",
+  utility: "Tiền điện nước",
+  monthly_dues: "Quỹ sinh hoạt tháng",
+  event_fee: "Phí sự kiện",
+  donation: "Quyên góp",
+  deposit: "Đặt cọc",
+  other: "Khoản thu khác",
+};
+const prevMonthOf = (m: string) => {
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+};
+const monthEndOf = (m: string) => {
+  const [y, mo] = m.split("-").map(Number);
+  return `${m}-${String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, "0")}`;
+};
+const mmYyyy = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
+/** "T10/2026", "T9–T11/2026", "T11/2026–T1/2027" */
+const monthRange = (a: string, b: string) =>
+  a === b ? `T${Number(a.slice(5, 7))}/${a.slice(0, 4)}` : a.slice(0, 4) === b.slice(0, 4) ? `T${Number(a.slice(5, 7))}–T${Number(b.slice(5, 7))}/${b.slice(0, 4)}` : `T${Number(a.slice(5, 7))}/${a.slice(0, 4)}–T${Number(b.slice(5, 7))}/${b.slice(0, 4)}`;
+
+const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
+  code: "finance.monthly_insight",
+  suggestionType: "finance_insight",
+  input: finIn,
+  async prepare(tx, input: z.infer<typeof finIn>) {
+    // Quyền: số liệu tổng hợp (finance.summary.read) + vai trò quản lý quỹ (Thủ quỹ/Ban điều hành). Thành viên thường chỉ xem
+    // tổng quan trên trang Thu chi — không chạy AI (mỗi người một lượt gọi/ngày sẽ tốn ngân sách mà không thêm thông tin).
+    const p = (
+      await tx.query<{ today: string; summary: boolean; board: boolean; exp_all: boolean; contrib_all: boolean }>(
+        `SELECT app.local_today()::text AS today, app.has_permission('finance.summary.read') AS summary,
+                app.has_any_permission(ARRAY['finance.ledger.read', 'finance.expense.read_all', 'finance.contribution.read_all']) AS board,
+                app.has_permission('finance.expense.read_all') AS exp_all, app.has_permission('finance.contribution.read_all') AS contrib_all`,
+      )
+    ).rows[0];
+    if (!p.summary || !p.board) throw forbidden("Nhận xét thu chi bằng AI chỉ dành cho Thủ quỹ và Ban điều hành.");
+    const thisMonth = p.today.slice(0, 7);
+    const month = input.month ?? thisMonth;
+    if (month > thisMonth) throw badRequest("Chưa có số liệu cho tháng trong tương lai.");
+    const prev = prevMonthOf(month);
+    const partial = month === thisMonth;
+    const [curFrom, curTo, prevFrom, prevTo] = [`${month}-01`, monthEndOf(month), `${prev}-01`, monthEndOf(prev)];
+
+    // Một vòng mạng: tổng hợp 2 tháng (hàm DB không lộ tên) + đóng quỹ theo loại khoản thu + chi lớn nhất + phiếu đang chờ.
+    const [curR, prevR, contribR, topR, pendingR] = await batchRows(tx, [
+      ["SELECT app.fn_finance_summary($1::date, $2::date) AS s", [curFrom, curTo]],
+      ["SELECT app.fn_finance_summary($1::date, $2::date) AS s", [prevFrom, prevTo]],
+      p.contrib_all
+        ? [
+            // Kế hoạch thu CHỒNG lên tháng (quỹ định kỳ nhiều tháng có period_end_month — đọc qua to_jsonb để vẫn chạy khi cột
+            // chưa có; kế hoạch một tháng: period_month). Trạng thái đóng là hiện tại của kế hoạch, không phải ảnh chụp quá khứ.
+            `WITH plans AS (
+               SELECT cp.id, cp.fee_type::text AS fee_type, cp.period_month AS start_d,
+                      COALESCE((to_jsonb(cp) ->> 'period_end_month')::date, cp.period_month) AS end_d
+                 FROM contribution_plans cp
+                WHERE cp.status <> 'cancelled' AND cp.period_month IS NOT NULL
+             )
+             SELECT to_char(mo.d, 'YYYY-MM') AS m, p.fee_type, to_char(p.start_d, 'YYYY-MM') AS start_m, to_char(p.end_d, 'YYYY-MM') AS end_m,
+                    count(*) FILTER (WHERE ct.status NOT IN ('cancelled', 'waived'))::int AS total,
+                    count(*) FILTER (WHERE ct.status = 'paid')::int AS paid,
+                    count(*) FILTER (WHERE ct.status = 'partial')::int AS partial,
+                    count(*) FILTER (WHERE ct.status = 'unpaid')::int AS unpaid,
+                    count(*) FILTER (WHERE ct.status = 'waived')::int AS waived,
+                    count(*) FILTER (WHERE ct.status IN ('unpaid', 'partial') AND ct.due_date < app.local_today())::int AS overdue,
+                    COALESCE(sum(ct.amount_due_vnd - ct.discount_vnd) FILTER (WHERE ct.status <> 'cancelled'), 0)::bigint AS expected,
+                    COALESCE(sum(ct.paid_vnd) FILTER (WHERE ct.status <> 'cancelled'), 0)::bigint AS collected
+               FROM (VALUES ($1::date), ($2::date)) AS mo(d)
+               JOIN plans p ON p.start_d <= (mo.d + interval '1 month' - interval '1 day')::date AND p.end_d >= mo.d
+               JOIN contributions ct ON ct.plan_id = p.id
+              GROUP BY mo.d, p.id, p.fee_type, p.start_d, p.end_d
+              ORDER BY mo.d, p.start_d, p.fee_type`,
+            [curFrom, prevFrom],
+          ]
+        : null,
+      p.exp_all
+        ? [
+            `SELECT ev.title, ev.amount_vnd, c.name AS category
+               FROM expense_vouchers ev JOIN categories c ON c.id = ev.category_id
+              WHERE ev.status = 'paid' AND app.local_date(ev.paid_at) BETWEEN $1::date AND $2::date
+              ORDER BY ev.amount_vnd DESC, ev.paid_at DESC LIMIT 3`,
+            [curFrom, curTo],
+          ]
+        : null,
+      p.exp_all && partial
+        ? ["SELECT count(*) FILTER (WHERE status = 'pending_approval')::int AS pending, count(*) FILTER (WHERE status = 'approved')::int AS approved FROM expense_vouchers"]
+        : null,
+    ]);
+    const cur = curR[0].s as FinSummary;
+    const old = prevR[0].s as FinSummary;
+
+    // ---- Bảng so sánh: số do máy chủ tính (mô hình chỉ viết lời nhận xét cho từng nhãn) ----
+    const row = (label: string, c: number, pv: number, better: "up" | "down") => ({ label, current: c, previous: pv, changePct: pctChange(c, pv), better });
+    const [ci, co, pi, po] = [n0(cur.total_in_vnd), n0(cur.total_out_vnd), n0(old.total_in_vnd), n0(old.total_out_vnd)];
+    const rows = [
+      row("Tổng thu", ci, pi, "up"),
+      row("Tổng chi", co, po, "down"),
+      row("Chênh lệch thu – chi", ci - co, pi - po, "up"),
+      row(partial ? "Số dư quỹ đến hôm nay" : "Số dư quỹ cuối tháng", n0(cur.closing_balance_vnd), n0(old.closing_balance_vnd), "up"),
+    ];
+    const cats = new Map<string, { name: string; cur: number; curN: number; prev: number; prevN: number }>();
+    for (const c of cur.expense_by_category ?? []) cats.set(c.code, { name: c.name, cur: n0(c.total_vnd), curN: n0(c.count), prev: 0, prevN: 0 });
+    for (const c of old.expense_by_category ?? []) {
+      const x = cats.get(c.code) ?? { name: c.name, cur: 0, curN: 0, prev: 0, prevN: 0 };
+      x.prev = n0(c.total_vnd);
+      x.prevN = n0(c.count);
+      cats.set(c.code, x);
+    }
+    const catList = [...cats.values()].sort((a, b) => b.cur - a.cur || b.prev - a.prev);
+    // Hai hạng mục chi lớn nhất (tình hình đóng quỹ/điện nước nằm ở phần mô tả: quỹ định kỳ trải nhiều tháng nên không so theo tháng được).
+    for (const c of catList.slice(0, 2)) rows.push(row(`Chi ${c.name.toLowerCase()}`, c.cur, c.prev, "down"));
+
+    // ---- Đóng quỹ: chỉ số đếm/số tiền, không tên ----
+    type Contrib = { m: string; fee_type: string; start_m: string; end_m: string; total: number; paid: number; partial: number; unpaid: number; waived: number; overdue: number; expected: string; collected: string };
+    const contrib = contribR as Contrib[];
+    const contribLine = (m: string) => {
+      const list = contrib.filter((c) => c.m === m);
+      if (!list.length) return null;
+      return list
+        .map((c) => {
+          const exp = n0(c.expected);
+          const col = n0(c.collected);
+          const rate = exp > 0 ? ` (${Math.round((col / exp) * 1000) / 10}%)` : "";
+          return `${FEE_LABEL[c.fee_type] ?? "Khoản thu"} ${monthRange(c.start_m, c.end_m)}: ${c.paid}/${c.total} người đã đóng đủ, ${c.partial} đóng một phần, ${c.unpaid} chưa đóng, ${c.waived} được miễn; ${c.overdue} người còn thiếu đã quá hạn; đã thu ${fmtVnd(col)} / ${fmtVnd(exp)}${rate}`;
+        })
+        .join("; ");
+    };
+    const duesFallback = (s: FinSummary) =>
+      `kế hoạch thu bắt đầu trong tháng: phải thu ${fmtVnd(n0(s.dues_expected_vnd))}, đã thu ${fmtVnd(n0(s.dues_collected_vnd))}${s.collection_rate_pct === null ? "" : ` (${s.collection_rate_pct}%)`}`;
+
+    // ---- Khoản chi lớn nhất: che tên thành viên/SĐT/email trong tiêu đề (một lần cho cả danh sách) ----
+    const top = topR as { title: string; amount_vnd: string; category: string }[];
+    let titles = top.map((t) => clean(t.title).replace(/\n/g, " ").slice(0, 120));
+    if (titles.length) {
+      const masked = (await maskText(tx, titles.join("\n"), true)).split("\n");
+      titles = masked.length === titles.length ? masked : await Promise.all(titles.map((t) => maskText(tx, t, true)));
+    }
+    const pending = pendingR[0] as { pending: number; approved: number } | undefined;
+
+    const noData = ci === 0 && co === 0 && n0(cur.dues_expected_vnd) === 0 && !(cur.expense_by_category ?? []).length;
+    const base = { month, previousMonth: prev, partial };
+    const NONE: AiOutputMap["finance.monthly_insight"] = {
+      ...base,
+      headline: `Tháng ${mmYyyy(month)} chưa có số liệu thu chi`,
+      summary: `Chưa có khoản thu, khoản chi hay kế hoạch thu quỹ nào được ghi nhận trong tháng ${mmYyyy(month)} nên chưa thể nhận xét. Bảng dưới vẫn hiện số liệu tháng ${mmYyyy(prev)} để tham khảo.`,
+      comparisons: rows.map((r) => ({ ...r, comment: "" })),
+      highlights: [],
+      warnings: [],
+      suggestions: ["Ghi nhận các khoản thu, khoản chi của tháng vào hệ thống để có nhận xét chính xác."],
+    };
+
+    const data = [
+      `Tháng đang xem: ${mmYyyy(month)}${partial ? ` (CHƯA kết thúc — số liệu tính đến ${fmtDmy(p.today)})` : " (đủ tháng)"}. So sánh với tháng ${mmYyyy(prev)} (đủ tháng).`,
+      partial ? "Lưu ý: tháng chưa kết thúc nên tổng thu/chi thường thấp hơn tháng trước — không kết luận vội là giảm." : "",
+      "Bảng so sánh (đơn vị đồng, nhãn trong ngoặc vuông):",
+      ...rows.map(
+        (r) => `- [${r.label}] tháng này: ${fmtVnd(r.current)}; tháng trước: ${fmtVnd(r.previous)}; thay đổi: ${r.changePct === null ? "không tính được (tháng trước bằng 0)" : `${r.changePct > 0 ? "+" : ""}${r.changePct}%`}`,
+      ),
+      "Chi theo hạng mục (tháng này | tháng trước):",
+      ...(catList.length ? catList.map((c) => `- ${c.name}: ${fmtVnd(c.cur)} (${c.curN} phiếu) | ${fmtVnd(c.prev)} (${c.prevN} phiếu)`) : ["- (không có khoản chi nào)"]),
+      "Tình hình đóng quỹ / điện nước theo kế hoạch thu của tháng:",
+      `- Tháng này: ${p.contrib_all ? (contribLine(month) ?? "chưa có kế hoạch thu") : duesFallback(cur)}`,
+      `- Tháng trước: ${p.contrib_all ? (contribLine(prev) ?? "chưa có kế hoạch thu") : duesFallback(old)}`,
+      ...(titles.length ? ["Khoản chi lớn nhất tháng này (tiêu đề đã che tên):", ...titles.map((t, i) => `- ${clean(t)} — ${fmtVnd(n0(top[i].amount_vnd))} (${clean(top[i].category)})`)] : []),
+      pending ? `Phiếu chi hiện đang chờ duyệt: ${pending.pending}; đã duyệt nhưng chưa chi: ${pending.approved}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const user = [
+      "Nhận xét tình hình thu chi quỹ của cộng đoàn trong tháng đang xem so với tháng trước, CHỈ dựa vào số liệu trong khối dữ liệu (hệ thống đã tính sẵn — không tự tính lại, không bịa số, không nêu hay đoán tên người).",
+      "Giọng văn: khách quan, ngắn gọn, mang tính xây dựng, không trách móc.",
+      "headline: 1 câu ≤ 120 ký tự nêu điểm chính. summary: 2–4 câu. comparisons: với MỖI nhãn trong bảng so sánh viết 1 nhận xét ngắn (≤ 150 ký tự), giữ nguyên nhãn (không kèm ngoặc vuông).",
+      "highlights: tối đa 4 điểm tích cực; warnings: tối đa 4 điều cần lưu ý (chi tăng mạnh, thu quỹ chậm, quá hạn, số dư giảm…); suggestions: tối đa 4 gợi ý cụ thể cho Thủ quỹ/Ban điều hành. Không có ý thì để mảng rỗng.",
+      'Lược đồ: {"headline":"…","summary":"…","comparisons":[{"label":"Tổng thu","comment":"…"}],"highlights":["…"],"warnings":["…"],"suggestions":["…"]}',
+      block(data),
+    ].join("\n");
+
+    return {
+      system: BASE_SYSTEM,
+      user,
+      hashInput: JSON.stringify({ month, partial, today: partial ? p.today : null, rows, catList, contrib, titles, top: top.map((t) => t.amount_vnd), pending: pending ?? null, ex: p.exp_all, ca: p.contrib_all }),
+      inputRef: { kind: "finance_monthly_insight", month },
+      shortCircuit: noData ? NONE : undefined,
+      parse(raw) {
+        const o = finOut.parse(raw);
+        const comments = new Map(o.comparisons.map((c) => [normLabel(c.label), c.comment ?? ""]));
+        return {
+          ...base,
+          headline: sanitizeOutput(o.headline, 120),
+          summary: sanitizeOutput(o.summary, 600),
+          comparisons: rows.map((r) => ({ ...r, comment: sanitizeOutput(comments.get(normLabel(r.label)) ?? "", 160) })),
+          highlights: cleanList(o.highlights, 4, 200),
+          warnings: cleanList(o.warnings, 4, 200),
+          suggestions: cleanList(o.suggestions, 4, 200),
+        };
+      },
+    };
+  },
+};
+
+// ======================= 7) Nhận xét kết quả học tập của chính mình =======================
+const acadOut = z.object({
+  headline: str(120, 1),
+  summary: str(600, 1),
+  points: strList(220),
+  suggestions: strList(220),
+});
+const acadParse = (raw: unknown, trend: AcademicInsightOutput["trend"], compare: AcademicInsightOutput["compare"]): AcademicInsightOutput => {
+  const o = acadOut.parse(raw);
+  return {
+    headline: sanitizeOutput(o.headline, 120),
+    summary: sanitizeOutput(o.summary, 600),
+    trend,
+    points: cleanList(o.points, 5, 220),
+    suggestions: cleanList(o.suggestions, 4, 220),
+    compare,
+  };
+};
+const ACAD_TONE =
+  "Giọng văn: ấm áp, khích lệ, tôn trọng; ghi nhận cố gắng; không phán xét, không so sánh với người cụ thể, không suy đoán hoàn cảnh riêng. Chỉ dùng số liệu trong khối dữ liệu, không bịa số.";
+const ACAD_SCHEMA = 'Lược đồ: {"headline":"…","summary":"…","points":["…"],"suggestions":["…"]}';
+
+const STATUS_VI: Record<string, string> = { verified: "đã xác minh", submitted: "đã nộp, chờ xác minh", draft: "bản nháp (tạm tính)", rejected: "bị trả lại (tạm tính)" };
+const SEM_VI: Record<string, string> = { HK1: "HK1", HK2: "HK2", HE: "Học kỳ hè" };
+
+interface MySem {
+  label: string;
+  yearId: string;
+  status: string;
+  g4: number | null;
+  g10: number | null;
+  rank: string | null;
+  att: number;
+  pas: number;
+  courses: number;
+  failed: number;
+  incomplete: number;
+  scholarship: boolean;
+}
+
+const acadSelfIn = z.object({ scope: z.enum(["self"], { message: "Phạm vi không hợp lệ." }).default("self") });
+
+const academicSelfTask: TaskDef<"academic.insight"> = {
+  code: "academic.insight",
+  suggestionType: "academic_insight",
+  input: acadSelfIn,
+  async prepare(tx) {
+    // CHỈ bảng điểm của chính người gọi; gửi đi: điểm trung bình, tín chỉ, số môn theo học kỳ — không tên, trường, ngành,
+    // mã sinh viên hay tên môn. Cổng DB kiểm đồng ý ai_academic_summary của chủ thể (= người gọi).
+    const [meR, yearsR, recR] = await batchRows(tx, [
+      ["SELECT app.current_member_id() AS me, app.local_today()::text AS today"],
+      YEARS_SQL,
+      [
+        `SELECT s.code AS sem_code, s.starts_on::text AS starts_on, y.id AS year_id, y.code AS year_code, ar.status::text AS status, ar.has_scholarship,
+                snap.gpa10 AS s_g10, snap.gpa4 AS s_g4, snap.rank_label AS s_rank, snap.credits_attempted AS s_att, snap.credits_passed AS s_pas,
+                snap.failed_courses AS s_failed, cum.gpa4 AS cum_g4, cum.gpa10 AS cum_g10, cum.rank_label AS cum_rank,
+                pv.g10, pv.g4, pv.att, pv.pas, pv.failed, pv.incomplete, pv.courses,
+                (SELECT rb.label_vi FROM grade_rank_bands rb
+                  WHERE rb.scale_id = ar.scale_id AND pv.g4_raw IS NOT NULL AND rb.min_gpa4 <= pv.g4_raw
+                  ORDER BY rb.min_gpa4 DESC LIMIT 1) AS pv_rank
+           FROM academic_records ar
+           JOIN semesters s ON s.id = ar.semester_id
+           JOIN academic_years y ON y.id = s.academic_year_id
+           JOIN grade_scales gs ON gs.id = ar.scale_id
+           LEFT JOIN gpa_snapshots snap ON snap.member_id = ar.member_id AND snap.as_of_semester_id = ar.semester_id AND snap.scope = 'semester'
+           LEFT JOIN gpa_snapshots cum ON cum.member_id = ar.member_id AND cum.as_of_semester_id = ar.semester_id AND cum.scope = 'cumulative'
+           LEFT JOIN LATERAL (
+             -- cùng công thức với app.fn_recompute_gpa (trọng số tín chỉ, chỉ môn counts_in_gpa) — để tạm tính bản nháp
+             SELECT CASE WHEN x.att > 0 THEN round(x.w10 / x.att, 2) END AS g10,
+                    CASE WHEN x.att > 0 THEN round(x.w4 / x.att, 2) END AS g4,
+                    CASE WHEN x.att > 0 THEN x.w4 / x.att END AS g4_raw,
+                    x.att, x.pas, x.failed, x.incomplete, x.courses
+               FROM (SELECT COALESCE(SUM(g.credits) FILTER (WHERE g.counts_in_gpa), 0) AS att,
+                            COALESCE(SUM(g.credits) FILTER (WHERE g.counts_in_gpa AND g.is_pass), 0) AS pas,
+                            COUNT(*) FILTER (WHERE g.is_pass = false) AS failed,
+                            COUNT(*) FILTER (WHERE g.total_score IS NULL) AS incomplete,
+                            COUNT(*) AS courses,
+                            COALESCE(SUM(g.total_score * g.credits) FILTER (WHERE g.counts_in_gpa), 0) AS w10,
+                            COALESCE(SUM((CASE WHEN gs.gpa4_mode = 'linear' THEN g.total_score / gs.max_score * 4 ELSE g.gpa_points END) * g.credits)
+                                     FILTER (WHERE g.counts_in_gpa), 0) AS w4
+                       FROM grade_records g WHERE g.record_id = ar.id) x
+           ) pv ON true
+          WHERE ar.member_id = app.current_member_id()
+          ORDER BY s.starts_on`,
+      ],
+    ]);
+    const { me, today } = meR[0] as { me: string | null; today: string };
+    if (!me) throw forbidden("Chỉ thành viên đã được duyệt mới dùng được nhận xét học tập.");
+
+    const sems: MySem[] = recR
+      .filter((r) => n0(r.courses) > 0)
+      .map((r) => {
+        const snap = r.s_g4 !== null && r.s_g4 !== undefined;
+        return {
+          label: `${SEM_VI[r.sem_code] ?? r.sem_code} ${r.year_code}`,
+          yearId: r.year_id,
+          status: r.status,
+          g4: snap ? numOrNull(r.s_g4) : numOrNull(r.g4),
+          g10: snap ? numOrNull(r.s_g10) : numOrNull(r.g10),
+          rank: (snap ? r.s_rank : r.pv_rank) ?? null,
+          att: n0(snap ? r.s_att : r.att),
+          pas: n0(snap ? r.s_pas : r.pas),
+          courses: n0(r.courses),
+          failed: n0(snap ? r.s_failed : r.failed),
+          incomplete: n0(r.incomplete),
+          scholarship: !!r.has_scholarship,
+        };
+      });
+    const lastCum = [...recR].reverse().find((r) => r.cum_g4 !== null && r.cum_g4 !== undefined);
+
+    const NONE: AiOutputMap["academic.insight"] = {
+      headline: "Chưa có bảng điểm để nhận xét",
+      summary: "Bạn chưa nhập bảng điểm nào có điểm môn học. Khi bạn nhập điểm ở mục Học tập, AI sẽ nhận xét kết quả và so sánh với năm học trước giúp bạn.",
+      trend: "unknown",
+      points: [],
+      suggestions: ["Nhập bảng điểm học kỳ gần nhất ở mục Học tập."],
+      compare: null,
+    };
+
+    const { cur, prev } = pickYears(yearsR as YearRow[], today);
+    const agg = (list: MySem[]) =>
+      list.length
+        ? {
+            g4: weighted(list.map((s) => ({ v: s.g4, w: s.att }))),
+            g10: weighted(list.map((s) => ({ v: s.g10, w: s.att }))),
+            att: list.reduce((a, s) => a + s.att, 0),
+            courses: list.reduce((a, s) => a + s.courses, 0),
+            failed: list.reduce((a, s) => a + s.failed, 0),
+          }
+        : null;
+    const curAgg = cur ? agg(sems.filter((s) => s.yearId === cur.id)) : null;
+    const prevAgg = prev ? agg(sems.filter((s) => s.yearId === prev.id)) : null;
+
+    // So sánh: năm học hiện tại vs năm trước; thiếu một bên ⇒ học kỳ gần nhất vs học kỳ trước đó; chỉ 1 học kỳ ⇒ không so sánh.
+    type Agg = NonNullable<ReturnType<typeof agg>>;
+    const mkRows = (a: Agg | null, b: Agg | null): AcademicInsightRow[] => [
+      { label: "GPA hệ 4", current: a?.g4 ?? null, previous: b?.g4 ?? null, better: "up", decimals: 2 },
+      { label: "GPA hệ 10", current: a?.g10 ?? null, previous: b?.g10 ?? null, better: "up", decimals: 2 },
+      { label: "Tín chỉ tính GPA", current: a?.att ?? null, previous: b?.att ?? null, better: "up", decimals: 0 },
+      { label: "Số môn chưa đạt", current: a?.failed ?? null, previous: b?.failed ?? null, better: "down", decimals: 0 },
+    ];
+    let compare: AcademicInsightOutput["compare"] = null;
+    if (curAgg && prevAgg && cur && prev) {
+      compare = { currentLabel: `Năm học ${cur.code}`, previousLabel: `Năm học ${prev.code}`, rows: mkRows(curAgg, prevAgg) };
+    } else if (sems.length >= 2) {
+      const [b, a] = sems.slice(-2);
+      compare = { currentLabel: a.label, previousLabel: b.label, rows: mkRows(agg([a]), agg([b])) };
+    } else if (sems.length === 1) {
+      compare = { currentLabel: sems[0].label, previousLabel: null, rows: mkRows(agg(sems), null) };
+    }
+    const trend = compare ? trendOf(compare.rows[0].current, compare.rows[0].previous) : "unknown";
+
+    const yearLine = (label: string, y: YearRow | null, a: Agg | null) =>
+      !y
+        ? `- ${label}: không xác định.`
+        : !a
+          ? `- ${label} ${y.code}: chưa có bảng điểm.`
+          : `- ${label} ${y.code}: GPA hệ 4 ${fmtNum(a.g4)}, hệ 10 ${fmtNum(a.g10)}; ${a.att} tín chỉ tính GPA; ${a.courses} môn; ${a.failed} môn chưa đạt.`;
+    const data = [
+      `Hôm nay: ${fmtDmy(today)}.`,
+      "Tổng hợp theo năm học (GPA có trọng số tín chỉ):",
+      yearLine("Năm học hiện tại", cur, curAgg),
+      yearLine("Năm học trước", prev, prevAgg),
+      "Theo học kỳ (cũ → mới):",
+      ...sems.map(
+        (s) =>
+          `- ${s.label} — ${STATUS_VI[s.status] ?? s.status}: GPA hệ 4 ${fmtNum(s.g4)}, hệ 10 ${fmtNum(s.g10)}${s.rank ? `, xếp loại ${s.rank}` : ""}; ${s.att} tín chỉ (đạt ${s.pas}); ${s.courses} môn, ${s.failed} môn chưa đạt${s.incomplete ? `, ${s.incomplete} môn chưa có điểm tổng kết` : ""}${s.scholarship ? "; có học bổng" : ""}.`,
+      ),
+      lastCum ? `GPA tích lũy gần nhất: hệ 4 ${fmtNum(numOrNull(lastCum.cum_g4))}, hệ 10 ${fmtNum(numOrNull(lastCum.cum_g10))}${lastCum.cum_rank ? ` (${lastCum.cum_rank})` : ""}.` : "",
+      compare
+        ? `So sánh do hệ thống tính: ${compare.currentLabel}${compare.previousLabel ? ` so với ${compare.previousLabel}` : " (chưa có kỳ trước để so sánh)"} — xu hướng GPA: ${TREND_TEXT[trend]}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const user = [
+      'Viết nhận xét kết quả học tập cho CHÍNH bạn sinh viên đang xem (xưng "bạn"), dựa CHỈ vào số liệu trong khối dữ liệu.',
+      "So sánh năm học hiện tại với năm học trước nếu có; nếu chưa đủ dữ liệu thì dùng so sánh học kỳ mà hệ thống đã nêu, hoặc nói rõ là chưa đủ để so sánh. Xu hướng đã do hệ thống tính — không nói ngược lại.",
+      ACAD_TONE,
+      "headline ≤ 120 ký tự; summary 2–4 câu; points: tối đa 5 ý (điểm mạnh, điều cần chú ý); suggestions: tối đa 4 gợi ý học tập cụ thể, khả thi (lập kế hoạch ôn tập, nhóm học hoặc phụ đạo trong nhà…).",
+      ACAD_SCHEMA,
+      block(data),
+    ].join("\n");
+
+    return {
+      system: BASE_SYSTEM,
+      user,
+      hashInput: JSON.stringify({ sems, cur: cur?.id ?? null, prev: prev?.id ?? null, cum: lastCum ? [lastCum.cum_g4, lastCum.cum_g10, lastCum.cum_rank] : null }),
+      inputRef: { kind: "academic_insight", semesters: sems.length },
+      shortCircuit: sems.length ? undefined : NONE,
+      parse: (raw) => acadParse(raw, trend, compare),
+    };
+  },
+};
+
+// ======================= 8) Nhận xét học tập toàn nhà (tổng hợp ẩn danh) =======================
+interface HouseSem {
+  semester_code: string;
+  year_id: string;
+  year_code: string;
+  students: number;
+  avg_gpa4: string | null;
+  avg_gpa10: string | null;
+  rank_counts: Record<string, number>;
+  students_with_failed: number;
+  failed_courses: number;
+  scholarship: number;
+}
+const GOOD_RANKS = new Set(["Xuất sắc", "Giỏi"]);
+
+const academicHouseTask: TaskDef<"academic.house_insight"> = {
+  code: "academic.house_insight",
+  suggestionType: "academic_insight",
+  input: z.object({}),
+  async prepare(tx) {
+    const [pR, yearsR] = await batchRows(tx, [["SELECT app.local_today()::text AS today, app.has_permission('academic.read_aggregate') AS agg"], YEARS_SQL]);
+    const { today, agg } = pR[0] as { today: string; agg: boolean };
+    if (!agg) throw forbidden("Nhận xét học tập toàn nhà chỉ dành cho Ban điều hành.");
+    const { cur, prev } = pickYears(yearsR as YearRow[], today);
+    const ids = [cur?.id, prev?.id].filter((x): x is string => !!x);
+    // Hàm DB tự kiểm quyền và bỏ học kỳ có < 3 bảng điểm (k-anonymity) — chỉ số liệu tổng hợp, không tên/trường/mã SV.
+    const sems = ids.length
+      ? ((await tx.query("SELECT * FROM app.fn_ai_academic_house_stats($1::uuid[])", [ids])).rows as HouseSem[])
+      : [];
+
+    const NONE: AiOutputMap["academic.house_insight"] = {
+      headline: "Chưa đủ số liệu để nhận xét chung",
+      summary: "Mỗi học kỳ cần ít nhất 3 bảng điểm đã nộp để thống kê ẩn danh. Khi đủ số liệu, AI sẽ nhận xét tình hình học tập chung của nhà và so sánh với năm học trước.",
+      trend: "unknown",
+      points: [],
+      suggestions: ["Nhắc anh em nộp bảng điểm học kỳ ở mục Học tập."],
+      compare: null,
+    };
+
+    const semLabel = (s: HouseSem) => `${SEM_VI[s.semester_code] ?? s.semester_code} ${s.year_code}`;
+    const good = (s: HouseSem) => Object.entries(s.rank_counts ?? {}).reduce((a, [k, v]) => a + (GOOD_RANKS.has(k) ? Number(v) : 0), 0);
+    const agg2 = (list: HouseSem[]) => {
+      if (!list.length) return null;
+      const students = list.reduce((a, s) => a + s.students, 0);
+      return {
+        g4: weighted(list.map((s) => ({ v: numOrNull(s.avg_gpa4), w: s.students }))),
+        g10: weighted(list.map((s) => ({ v: numOrNull(s.avg_gpa10), w: s.students }))),
+        students,
+        goodPct: students ? Math.round((list.reduce((a, s) => a + good(s), 0) / students) * 100) : null,
+        withFailed: list.reduce((a, s) => a + s.students_with_failed, 0),
+      };
+    };
+    type Agg = NonNullable<ReturnType<typeof agg2>>;
+    const curAgg = cur ? agg2(sems.filter((s) => s.year_id === cur.id)) : null;
+    const prevAgg = prev ? agg2(sems.filter((s) => s.year_id === prev.id)) : null;
+    const mkRows = (a: Agg | null, b: Agg | null): AcademicInsightRow[] => [
+      { label: "GPA trung bình hệ 4", current: a?.g4 ?? null, previous: b?.g4 ?? null, better: "up", decimals: 2 },
+      { label: "GPA trung bình hệ 10", current: a?.g10 ?? null, previous: b?.g10 ?? null, better: "up", decimals: 2 },
+      { label: "Lượt bảng điểm", current: a?.students ?? null, previous: b?.students ?? null, better: "up", decimals: 0 },
+      { label: "Tỷ lệ Giỏi trở lên (%)", current: a?.goodPct ?? null, previous: b?.goodPct ?? null, better: "up", decimals: 0 },
+      { label: "Bảng điểm có môn chưa đạt", current: a?.withFailed ?? null, previous: b?.withFailed ?? null, better: "down", decimals: 0 },
+    ];
+    let compare: AcademicInsightOutput["compare"] = null;
+    if (curAgg && prevAgg && cur && prev) {
+      compare = { currentLabel: `Năm học ${cur.code}`, previousLabel: `Năm học ${prev.code}`, rows: mkRows(curAgg, prevAgg) };
+    } else if (sems.length >= 2) {
+      const [b, a] = sems.slice(-2);
+      compare = { currentLabel: semLabel(a), previousLabel: semLabel(b), rows: mkRows(agg2([a]), agg2([b])) };
+    } else if (sems.length === 1) {
+      compare = { currentLabel: semLabel(sems[0]), previousLabel: null, rows: mkRows(agg2(sems), null) };
+    }
+    const trend = compare ? trendOf(compare.rows[0].current, compare.rows[0].previous) : "unknown";
+
+    const data = [
+      `Hôm nay: ${fmtDmy(today)}. Năm học hiện tại: ${cur?.code ?? "không xác định"}; năm học trước: ${prev?.code ?? "không có"}.`,
+      "Số liệu tổng hợp ẩn danh theo học kỳ (chỉ gồm học kỳ có từ 3 bảng điểm trở lên):",
+      ...sems.map((s) => {
+        const ranks = Object.entries(s.rank_counts ?? {})
+          .sort((a, b) => Number(b[1]) - Number(a[1]))
+          .map(([k, v]) => `${clean(k)} ${v}`)
+          .join(", ");
+        return `- ${semLabel(s)}: ${s.students} bảng điểm; GPA trung bình hệ 4 ${fmtNum(numOrNull(s.avg_gpa4))}, hệ 10 ${fmtNum(numOrNull(s.avg_gpa10))}; xếp loại: ${ranks || "chưa có"}; ${s.students_with_failed} bảng điểm có môn chưa đạt (tổng ${s.failed_courses} môn); ${s.scholarship} người có học bổng.`;
+      }),
+      ...(curAgg && cur ? [`Tổng hợp năm học ${cur.code}: GPA TB hệ 4 ${fmtNum(curAgg.g4)}, tỷ lệ Giỏi trở lên ${curAgg.goodPct ?? 0}%.`] : []),
+      ...(prevAgg && prev ? [`Tổng hợp năm học ${prev.code}: GPA TB hệ 4 ${fmtNum(prevAgg.g4)}, tỷ lệ Giỏi trở lên ${prevAgg.goodPct ?? 0}%.`] : []),
+      compare
+        ? `So sánh do hệ thống tính: ${compare.currentLabel}${compare.previousLabel ? ` so với ${compare.previousLabel}` : " (chưa có kỳ trước để so sánh)"} — xu hướng GPA: ${TREND_TEXT[trend]}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const user = [
+      "Nhận xét tình hình học tập CHUNG của cộng đoàn sinh viên dựa CHỈ vào số liệu tổng hợp ẩn danh trong khối dữ liệu; không suy đoán về bất kỳ cá nhân nào.",
+      "So sánh năm học hiện tại với năm học trước nếu có (hoặc theo so sánh học kỳ hệ thống đã nêu). Xu hướng đã do hệ thống tính — không nói ngược lại.",
+      ACAD_TONE,
+      "headline ≤ 120 ký tự; summary 2–4 câu; points: tối đa 5 ý; suggestions: tối đa 4 gợi ý cho Ban điều hành để hỗ trợ học tập chung (nhóm học, phụ đạo, giờ học chung…), mang tính khích lệ.",
+      ACAD_SCHEMA,
+      block(data),
+    ].join("\n");
+
+    return {
+      system: BASE_SYSTEM,
+      user,
+      hashInput: JSON.stringify({ sems, cur: cur?.id ?? null, prev: prev?.id ?? null }),
+      inputRef: { kind: "academic_house_insight", semesters: sems.length },
+      shortCircuit: sems.length ? undefined : NONE,
+      parse: (raw) => acadParse(raw, trend, compare),
+    };
+  },
+};
+
 export const TASKS: { [C in AiTaskCode]: TaskDef<C> } = {
   "finance.dues_message": duesTask,
   "community.policy_rag": ragTask,
   "community.moderation": modTask,
   "facility.issue_triage": triageTask,
   "community.minutes": minutesTask,
+  "finance.monthly_insight": financeInsightTask,
+  "academic.insight": academicSelfTask,
+  "academic.house_insight": academicHouseTask,
 };
 
 export function parseInput(code: AiTaskCode, raw: unknown) {

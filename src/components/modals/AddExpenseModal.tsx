@@ -170,7 +170,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500">
                 <ShieldCheck className="w-3.5 h-3.5 text-primary" />
                 {amountVnd >= dualMin
-                  ? `Từ ${formatVND(dualMin)}: cần 2 chữ ký (Trưởng nhà + Thủ quỹ/Phó nhà).`
+                  ? `Từ ${formatVND(dualMin)}: cần 2 chữ ký (Trưởng nhà + Thủ quỹ; nếu một trong hai là người lập/người ứng tiền thì người còn lại ký).`
                   : "Cần 1 chữ ký duyệt của Ban điều hành."}
               </p>
             )}

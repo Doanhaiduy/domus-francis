@@ -93,6 +93,8 @@ async function main() {
   step("4/4 Dữ liệu demo");
   if (SEED && fresh) run("scripts/db/seed/index.mjs");
   else console.log(fresh ? "  • Bỏ qua (--no-seed)" : "  • DB đã có dữ liệu — bỏ qua seed");
+  // Migration tăng dần (db/app ≥ 991 + db/data): DB mới dựng hay DB cũ đều được cập nhật lên bản hiện tại
+  run("scripts/db/migrate.mjs", "--db", DB);
 
   console.log("\n\x1b[32m✓ Môi trường local sẵn sàng.\x1b[0m  Chạy: pnpm dev  →  http://localhost:3000");
   const demo = path.join(ROOT, ".local", "demo-accounts.txt");

@@ -5,7 +5,7 @@ import { CreateMemberSchema } from "@/server/modules/members-schema";
 import { assignRoom } from "@/server/modules/house";
 import { insertAccountInTx, prepareAccount, setMemberRole } from "@/server/modules/accounts";
 
-const ROLE_BY_LABEL: Record<string, string> = { "Trưởng nhà": "house_head", "Phó nhà": "vice_head", "Thủ quỹ": "treasurer", Admin: "admin" };
+const ROLE_BY_LABEL: Record<string, string> = { "Trưởng nhà": "house_head", "Thủ quỹ": "treasurer", Admin: "admin" };
 
 export const GET = api({}, (ctx) => ctx.db((tx) => listMembers(tx, { includeFormer: ctx.query.get("includeFormer") === "1" })));
 

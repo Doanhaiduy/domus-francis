@@ -22,6 +22,9 @@ import { copyTextToClipboard, formatMemberCVForZalo } from "@/lib/zaloShare";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
 import { exportElementToPdf } from "@/lib/pdfExport";
+import useSWR from "swr";
+import { swrFetcher } from "@/lib/api";
+import type { MemberContributionRow } from "@/lib/types/finance";
 
 interface MemberCVModalProps {
   member: Member | null;
@@ -37,6 +40,14 @@ export default function MemberCVModal({
   const { showToast, members } = useApp();
   // Hồ sơ đầy đủ đọc từ máy chủ — trường nào người xem không có quyền (RLS) thì để trống
   const { member: detail } = useMemberDetail(isOpen ? baseMember?.id : null);
+  // Tình trạng đóng quỹ thật (quỹ định kỳ + điện nước 12 tháng) — RLS: chính chủ hoặc người xem được quỹ cả nhà; không có quyền ⇒ "—"
+  const { data: dues, error: duesError } = useSWR<MemberContributionRow[]>(
+    isOpen && baseMember?.id ? `/api/v1/finance/members/${baseMember.id}/contributions?months=12` : null,
+    swrFetcher,
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  const duesOwing = (dues ?? []).filter((c) => c.status === "unpaid" || c.status === "partial");
+  const duesOwedVnd = duesOwing.reduce((s, c) => s + Math.max(0, c.amountDueVnd - c.amountPaidVnd), 0);
   const member: Member | null = detail ? { ...baseMember, ...detail } : baseMember;
   const houseHead = members.find((m) => m.role === "Trưởng nhà");
   const { org } = useOrgSettings();
@@ -344,8 +355,16 @@ export default function MemberCVModal({
                 <span className="font-semibold text-purple-900">{member.role}</span>
               </div>
               <div className="flex">
-                <span className="w-32 font-bold text-gray-700">Tình trạng quỹ tháng:</span>
-                <span className="text-emerald-700 font-bold">✓ Đã đối soát &amp; nộp đủ</span>
+                <span className="w-32 font-bold text-gray-700">Tình trạng đóng quỹ:</span>
+                {duesError || !dues ? (
+                  <span className="text-gray-400">---</span>
+                ) : duesOwing.length === 0 ? (
+                  <span className="text-emerald-700 font-bold">{dues.length ? "✓ Đã nộp đủ các khoản" : "Chưa có khoản phải thu"}</span>
+                ) : (
+                  <span className="text-rose-700 font-bold">
+                    Còn nợ {duesOwedVnd.toLocaleString("vi-VN")}đ ({duesOwing.length} khoản)
+                  </span>
+                )}
               </div>
               <div className="flex sm:col-span-2">
                 <span className="w-32 font-bold text-gray-700 shrink-0">Ban &amp; Trách vụ:</span>

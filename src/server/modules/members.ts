@@ -1,5 +1,5 @@
 import "server-only";
-import type { Tx } from "../db";
+import { batch, type Tx } from "../db";
 import { ApiError, notFound } from "../errors";
 import { decryptPii, encryptPii, blindIndex, digitsOnly, last4, PII_KEY_VERSION } from "../pii";
 import type { ApplicationDto, MemberDetailDto, MemberDto } from "@/lib/types/members";
@@ -9,7 +9,6 @@ import type { ApplicationDto, MemberDetailDto, MemberDto } from "@/lib/types/mem
 // ---------------------------------------------------------------------
 const POSITION_ROLE: Record<string, string> = {
   house_head: "Trưởng nhà",
-  vice_head: "Phó nhà",
   treasurer: "Thủ quỹ",
   sysadmin: "Admin",
 };
@@ -111,49 +110,47 @@ export async function listMembers(tx: Tx, opts: { includeFormer?: boolean } = {}
     await tx.query(
       `${MEMBER_SELECT}
         WHERE m.deleted_at IS NULL ${opts.includeFormer ? "" : "AND m.status IN ('active', 'on_leave')"}
-        ORDER BY CASE pos.position_code WHEN 'house_head' THEN 1 WHEN 'vice_head' THEN 2 WHEN 'treasurer' THEN 3 ELSE 9 END, m.member_no`
+        ORDER BY CASE pos.position_code WHEN 'house_head' THEN 1 WHEN 'treasurer' THEN 2 ELSE 9 END, m.member_no`
     )
   ).rows;
   return rows.map(toMemberDto);
 }
 
 export async function getMemberDetail(tx: Tx, id: string): Promise<MemberDetailDto> {
-  const r = (await tx.query(`${MEMBER_SELECT} WHERE m.id = $1 AND m.deleted_at IS NULL`, [id])).rows[0];
-  if (!r) throw notFound("Không tìm thấy thành viên.");
-  const base = toMemberDto(r);
-  const perms = (
-    await tx.query<{ self: boolean; priv: boolean; cath: boolean; nid: boolean; upd: boolean; pw: boolean; guard: boolean }>(
+  // Gộp các truy vấn độc lập (đều chỉ phụ thuộc id; RLS quyết định phần nào đọc được như trước): 1 vòng mạng thay vì 8
+  const [memberR, permsR, privR, cathR, sacrR, guardiansR, spR, historyR] = await batch(tx, [
+    [`${MEMBER_SELECT} WHERE m.id = $1 AND m.deleted_at IS NULL`, [id]],
+    [
       `SELECT app.is_self($1) AS self, app.has_permission('member.private.read') AS priv, app.can_view_catholic($1) AS cath,
               app.has_permission('member.national_id.read') AS nid, app.has_permission('member.update') AS upd,
               app.has_permission('member.private.write') AS pw, app.has_permission('member.guardian.read') AS guard`,
-      [id]
-    )
-  ).rows[0];
-  const priv = (
-    await tx.query(
-      "SELECT birth_date, hometown, home_address, national_id_last4 FROM member_private_details WHERE member_id = $1",
-      [id]
-    )
-  ).rows[0];
-  const cath = (
-    await tx.query("SELECT holy_name, diocese_id, parish_name, pastor_name FROM catholic_profiles WHERE member_id = $1", [id])
-  ).rows[0];
-  const sacr = (await tx.query<{ sacrament: string }>("SELECT sacrament::text FROM member_sacraments WHERE member_id = $1 ORDER BY sacrament", [id])).rows;
-  const guardians = (
-    await tx.query(
+      [id],
+    ],
+    ["SELECT birth_date, hometown, home_address, national_id_last4 FROM member_private_details WHERE member_id = $1", [id]],
+    ["SELECT holy_name, diocese_id, parish_name, pastor_name FROM catholic_profiles WHERE member_id = $1", [id]],
+    ["SELECT sacrament::text FROM member_sacraments WHERE member_id = $1 ORDER BY sacrament", [id]],
+    [
       `SELECT id, relation::text, full_name, phone_enc, phone_last4, is_emergency_contact
          FROM member_guardians WHERE member_id = $1 AND deleted_at IS NULL ORDER BY relation`,
-      [id]
-    )
-  ).rows;
-  const sp = (await tx.query("SELECT university_id FROM student_profiles WHERE member_id = $1 AND is_current AND deleted_at IS NULL", [id])).rows[0];
-  const history = (
-    await tx.query(
+      [id],
+    ],
+    ["SELECT university_id FROM student_profiles WHERE member_id = $1 AND is_current AND deleted_at IS NULL", [id]],
+    [
       `SELECT r.code, r.name, ra.starts_on, ra.ends_on FROM room_assignments ra JOIN rooms r ON r.id = ra.room_id
         WHERE ra.member_id = $1 ORDER BY ra.starts_on DESC`,
-      [id]
-    )
-  ).rows;
+      [id],
+    ],
+  ]);
+  const r = memberR.rows[0];
+  if (!r) throw notFound("Không tìm thấy thành viên.");
+  const base = toMemberDto(r);
+  const perms = permsR.rows[0] as { self: boolean; priv: boolean; cath: boolean; nid: boolean; upd: boolean; pw: boolean; guard: boolean };
+  const priv = privR.rows[0];
+  const cath = cathR.rows[0];
+  const sacr = sacrR.rows as { sacrament: string }[];
+  const guardians = guardiansR.rows;
+  const sp = spR.rows[0];
+  const history = historyR.rows;
 
   // CCCD luôn hiển thị dạng che; xem đầy đủ qua revealNationalId (cần quyền + lý do, ghi kiểm toán — vá C-016)
   const identityCard = priv?.national_id_last4 ? `•••• •••• ${priv.national_id_last4}` : undefined;
@@ -335,8 +332,11 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
   if (has(p, "sacraments") && p.sacraments) {
     const want = new Set(p.sacraments.map((s) => SACRAMENT_CODE[s] ?? s).filter((s) => s in SACRAMENT_LABEL));
     const cur = new Set((await tx.query<{ s: string }>("SELECT sacrament::text AS s FROM member_sacraments WHERE member_id = $1", [memberId])).rows.map((r) => r.s));
-    for (const s of cur) if (!want.has(s)) await tx.query("DELETE FROM member_sacraments WHERE member_id = $1 AND sacrament = $2", [memberId, s]);
-    for (const s of want) if (!cur.has(s)) await tx.query("INSERT INTO member_sacraments (member_id, sacrament) VALUES ($1, $2)", [memberId, s]);
+    // Gộp các lệnh xóa/thêm độc lập (giữ thứ tự cũ: xóa trước, thêm sau): 1 vòng mạng thay vì một lệnh một vòng
+    const writes: (readonly [string, unknown[]])[] = [];
+    for (const s of cur) if (!want.has(s)) writes.push(["DELETE FROM member_sacraments WHERE member_id = $1 AND sacrament = $2", [memberId, s]]);
+    for (const s of want) if (!cur.has(s)) writes.push(["INSERT INTO member_sacraments (member_id, sacrament) VALUES ($1, $2)", [memberId, s]]);
+    if (writes.length) await batch(tx, writes);
   }
 
   // Học vụ

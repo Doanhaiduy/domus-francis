@@ -17,6 +17,7 @@ import {
 } from "@/lib/types/finance";
 import { CustomDatePicker, CustomInput, CustomSelect, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
+import ReimburseQr from "@/components/finance/ReimburseQr";
 
 export const STATUS_BADGE: Record<ExpenseStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -245,6 +246,11 @@ export default function ExpenseDetailModal({
               )}
             </div>
 
+            {/* Hoàn ứng: QR tài khoản nhận tiền của người ứng (có sẵn số tiền + nội dung) */}
+            {e.paidBy && (e.status === "approved" || e.status === "paid") && (
+              <ReimburseQr memberId={e.paidBy.memberId} memberName={e.paidBy.name} amountVnd={e.amountVnd} content={`HOAN UNG ${e.voucherNo}`} />
+            )}
+
             {/* CHỨNG TỪ */}
             <div>
               <h5 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide mb-2">Chứng từ / hóa đơn</h5>
@@ -321,8 +327,8 @@ export default function ExpenseDetailModal({
                     <div className="p-2.5 rounded-xl bg-amber-50 text-amber-900 text-xs flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" /> Chờ thêm {e.requiredApprovals - e.approvedCount} chữ ký
                       {e.requiredApprovals === 2
-                        ? " (Trưởng nhà + Thủ quỹ/Phó nhà; người lập/người ứng tiền không tự ký)"
-                        : " (Trưởng nhà, hoặc Thủ quỹ với khoản nhỏ)"}
+                        ? " (Trưởng nhà + Thủ quỹ; người lập/người ứng tiền không tự ký)"
+                        : " (Trưởng nhà; Thủ quỹ ký với khoản nhỏ hoặc khi Trưởng nhà là người lập/người ứng tiền)"}
                     </div>
                   )}
                   {olderRounds.length > 0 && (

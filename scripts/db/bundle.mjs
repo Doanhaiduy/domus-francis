@@ -14,12 +14,18 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { ROOT } from "./env.mjs";
 import { filesForStage } from "./build.mjs";
+import { migrationFiles } from "./migrate.mjs";
 
 const args = process.argv.slice(2);
 const get = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
 
 const legacy = path.join(ROOT, "db", "supabase", "00_drop_legacy_schema.sql");
-const files = [...(args.includes("--clean-legacy") ? [legacy] : []), ...filesForStage("app")]; // base + vá + db/app; KHÔNG gồm 60_smoke_tests.sql
+// base + vá + db/app; KHÔNG gồm 60_smoke_tests.sql; cuối cùng là db/data (dữ liệu nghiệp vụ hiện hành, idempotent — xem migrate.mjs)
+const files = [
+  ...(args.includes("--clean-legacy") ? [legacy] : []),
+  ...filesForStage("app"),
+  ...migrationFiles({ onlyData: true }).map((m) => m.file),
+];
 const parts = files.map((f) => `\n-- ===== ${path.relative(ROOT, f).replace(/\\/g, "/")} =====\n${readFileSync(f, "utf8")}\n`);
 // Một transaction duy nhất ⇒ lỗi ở đâu thì rollback sạch. File nào tự có BEGIN/COMMIT thì bỏ để khỏi lồng.
 // Bổ sung schema extensions vào search_path của các hàm SECURITY DEFINER (để truy cập pgcrypto, unaccent trên Supabase).

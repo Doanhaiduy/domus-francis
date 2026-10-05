@@ -105,3 +105,11 @@ export function fileUrl(fileId: string | null | undefined, variant?: "thumb" | "
   if (!fileId) return null;
   return `/api/v1/files/${fileId}${variant ? `?v=${variant}` : ""}`;
 }
+
+/** Chạy tác vụ nền (bỏ qua kết quả/lỗi) để không chặn luồng giao diện. */
+export const inBackground = (p: Promise<unknown>): Promise<void> =>
+  Promise.resolve(p).then(
+    () => {},
+    () => {},
+  );
+

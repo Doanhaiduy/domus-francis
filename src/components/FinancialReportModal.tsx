@@ -24,7 +24,7 @@ interface FinancialReportModalProps {
   overview: FinanceOverviewDto | undefined;
   /** Phiếu chi trong kỳ (theo quyền xem của người dùng) */
   expenses: ExpenseDto[];
-  /** Kỳ thu quỹ được báo cáo + khoản đóng của từng thành viên (null nếu người xem không được xem danh sách) */
+  /** Kế hoạch thu được báo cáo (quỹ định kỳ / điện nước) + khoản đóng của từng thành viên (null nếu người xem không được xem danh sách) */
   plan: ContributionPlanDto | null;
   rows: ContributionRowDto[] | null;
   /** Người xem thấy toàn bộ phiếu chi (finance.expense.read_all) — nếu không, bảng kê dùng cơ cấu chi tổng hợp */
@@ -40,7 +40,7 @@ export function buildFinanceReport(p: Omit<FinancialReportModalProps, "isOpen" |
   const paid = p.canSeeAllExpenses ? p.expenses.filter((e) => e.status === "paid" || e.status === "reversed") : [];
   const contributionRows =
     p.plan && p.rows
-      ? p.rows.flatMap((row) => (row.cells[p.plan!.month] ? [{ row, cell: row.cells[p.plan!.month] }] : []))
+      ? p.rows.flatMap((row) => (row.cells[p.plan!.id] ? [{ row, cell: row.cells[p.plan!.id] }] : []))
       : [];
   const unpaid =
     p.plan && p.rows && o?.access.contributionsAll
@@ -333,13 +333,16 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
               {/* ITEM 2: MEMBER CONTRIBUTIONS */}
               <div className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider bg-gray-100 px-3 py-1.5 border-l-4 border-primary text-gray-900 font-sans">
-                  II. TÌNH HÌNH ĐÓNG QUỸ SINH HOẠT HUYNH ĐỆ{plan ? ` – ${plan.name.toUpperCase()}` : ""}
+                  II. TÌNH HÌNH CÁC KHOẢN THU{plan ? ` – ${plan.name.toUpperCase()}` : ""}
                   {o?.access.contributionsAll && report.contributionRows.length ? ` (${report.contributionRows.length} THÀNH VIÊN)` : ""}
                 </h3>
-                {!plan && <p className="text-xs text-gray-500 font-sans">Kỳ này chưa lập kế hoạch thu quỹ sinh hoạt.</p>}
+                {!plan && <p className="text-xs text-gray-500 font-sans">Chưa có kế hoạch thu nào (quỹ định kỳ / tiền điện nước).</p>}
                 {plan && (
                   <p className="text-[11px] text-gray-600 font-sans">
-                    Mức đóng {formatVND(plan.amountVnd)} / thành viên · Hạn nộp {dmy(plan.dueDate)} · Đã thu {formatVND(report.duesCollectedVnd)} /{" "}
+                    {plan.feeType === "utility" && plan.billTotalVnd !== null && plan.splitCount
+                      ? `Tổng hóa đơn ${formatVND(plan.billTotalVnd)} ÷ ${plan.splitCount} người = ${formatVND(plan.amountVnd)} / người`
+                      : `Mức đóng ${formatVND(plan.amountVnd)} / thành viên${plan.feeType === "periodic_dues" ? " / kỳ" : ""}`}{" "}
+                    · Hạn nộp {dmy(plan.dueDate)} · Đã thu {formatVND(report.duesCollectedVnd)} /{" "}
                     {formatVND(report.duesExpectedVnd)}
                     {report.duesExpectedVnd > 0 ? ` (${Math.round((report.duesCollectedVnd / report.duesExpectedVnd) * 100)}%)` : ""}
                   </p>

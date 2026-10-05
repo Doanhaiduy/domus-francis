@@ -1,7 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { withTx, type Tx } from "../db";
-import { invalidateSessionCache } from "../http";
+import { batch, withTx, type Tx } from "../db";
 import { ApiError } from "../errors";
 import { hashPassword, passwordProblem, verifyPassword } from "./password";
 import { randomToken, sha256Hex, signAccessToken } from "./tokens";
@@ -38,24 +37,24 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return normalizeIdentifier(raw).phone;
 }
 
-async function isPending(tx: Tx, userId: string): Promise<boolean> {
-  const r = await tx.query("SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [userId]);
-  return r.rowCount === 0;
+/** Phiên + refresh token trong MỘT câu lệnh (CTE) — 1 vòng mạng thay vì 2. */
+function createSessionItem(userId: string, meta: ReqMeta, refresh: string) {
+  return [
+    `WITH s AS (
+       INSERT INTO auth_sessions (user_id, device_label, user_agent, ip, expires_at)
+       VALUES ($1, $2, $3, $4::inet, now() + make_interval(secs => $5)) RETURNING id
+     )
+     INSERT INTO refresh_tokens (session_id, user_id, token_hash, expires_at)
+     SELECT s.id, $1, $6, now() + make_interval(secs => $5) FROM s
+     RETURNING session_id AS id`,
+    [userId, deviceLabel(meta.userAgent), meta.userAgent?.slice(0, 400) ?? null, meta.ip, REFRESH_TTL_SECONDS, sha256Hex(refresh)],
+  ] as const;
 }
 
 async function createSession(tx: Tx, userId: string, meta: ReqMeta) {
   const refresh = randomToken();
-  const s = await tx.query<{ id: string }>(
-    `INSERT INTO auth_sessions (user_id, device_label, user_agent, ip, expires_at)
-     VALUES ($1, $2, $3, $4::inet, now() + make_interval(secs => $5)) RETURNING id`,
-    [userId, deviceLabel(meta.userAgent), meta.userAgent?.slice(0, 400) ?? null, meta.ip, REFRESH_TTL_SECONDS]
-  );
-  const sid = s.rows[0].id;
-  await tx.query(
-    `INSERT INTO refresh_tokens (session_id, user_id, token_hash, expires_at)
-     VALUES ($1, $2, $3, now() + make_interval(secs => $4))`,
-    [sid, userId, sha256Hex(refresh), REFRESH_TTL_SECONDS]
-  );
+  const [q, params] = createSessionItem(userId, meta, refresh);
+  const sid = (await tx.query<{ id: string }>(q, params as unknown as unknown[])).rows[0].id;
   return { sid, refresh };
 }
 
@@ -101,34 +100,41 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
         [id.key, userId, meta.ip, meta.userAgent?.slice(0, 400) ?? null, success, reason]
       );
 
-    const fails = await tx.query<{ by_id: number; by_ip: number }>(
-      `SELECT count(*) FILTER (WHERE identifier = $1)::int AS by_id,
-              count(*) FILTER (WHERE ip = $2::inet)::int    AS by_ip
-         FROM login_attempts
-        WHERE success = false AND attempted_at > now() - interval '15 minutes'`,
-      [id.key, meta.ip]
-    );
+    // Đếm lần sai gần đây + tìm tài khoản: hai truy vấn độc lập ⇒ 1 vòng mạng (ghép cùng BEGIN)
+    const [fails, userRes] = await batch(tx, [
+      [
+        `SELECT count(*) FILTER (WHERE identifier = $1)::int AS by_id,
+                count(*) FILTER (WHERE ip = $2::inet)::int    AS by_ip
+           FROM login_attempts
+          WHERE success = false AND attempted_at > now() - interval '15 minutes'`,
+        [id.key, meta.ip],
+      ],
+      [
+        `SELECT id, email::text, password_hash, status::text, (locked_until IS NOT NULL AND locked_until > now()) AS locked
+           FROM users
+          WHERE deleted_at IS NULL AND (($1::text IS NOT NULL AND email = $1::citext) OR ($2::text IS NOT NULL AND phone_e164 = $2))
+          LIMIT 1`,
+        [id.email, id.phone],
+      ],
+    ]);
     if (fails.rows[0].by_id >= MAX_FAILS_PER_ID * 2 || fails.rows[0].by_ip >= MAX_FAILS_PER_IP) {
       await attempt(null, false, "rate_limited");
       return { ok: false, error: new ApiError(429, "RATE_LIMITED", "Bạn đã thử quá nhiều lần. Vui lòng đợi 15 phút rồi thử lại.") };
     }
 
-    const u = (
-      await tx.query<{ id: string; email: string | null; password_hash: string | null; status: string; locked: boolean }>(
-        `SELECT id, email::text, password_hash, status::text, (locked_until IS NOT NULL AND locked_until > now()) AS locked
-           FROM users
-          WHERE deleted_at IS NULL AND (($1::text IS NOT NULL AND email = $1::citext) OR ($2::text IS NOT NULL AND phone_e164 = $2))
-          LIMIT 1`,
-        [id.email, id.phone]
-      )
-    ).rows[0];
+    const u = userRes.rows[0] as { id: string; email: string | null; password_hash: string | null; status: string; locked: boolean } | undefined;
 
     const good = await verifyPassword(u?.password_hash, password);
     if (!u) {
       await attempt(null, false, "unknown_user");
       return { ok: false, error: new ApiError(401, "BAD_CREDENTIALS", "Email/SĐT hoặc mật khẩu không đúng.") };
     }
-    if (u.locked || u.status === "locked") {
+    if (u.status === "locked") {
+      // Admin/Ban điều hành khóa thủ công (Cài đặt → Tài khoản) — khác với khóa tạm do nhập sai mật khẩu
+      await attempt(u.id, false, "locked");
+      return { ok: false, error: new ApiError(423, "LOCKED", "Tài khoản đã bị Admin/Ban điều hành khóa. Vui lòng liên hệ để được mở khóa.") };
+    }
+    if (u.locked) {
       await attempt(u.id, false, "locked");
       return { ok: false, error: new ApiError(423, "LOCKED", `Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Thử lại sau ${LOCK_MINUTES} phút hoặc liên hệ Ban điều hành.`) };
     }
@@ -143,10 +149,18 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       await attempt(u.id, false, "disabled");
       return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản đã bị vô hiệu hóa. Liên hệ Ban điều hành nếu đây là nhầm lẫn.") };
     }
-    await attempt(u.id, true, null);
-    await tx.query("UPDATE users SET last_login_at = now(), locked_until = NULL WHERE id = $1", [u.id]);
-    const { sid, refresh } = await createSession(tx, u.id, meta);
-    return { ok: true, userId: u.id, sid, refresh, pending: await isPending(tx, u.id) };
+    // Đăng nhập đúng: ghi lần thử + cập nhật người dùng + tạo phiên/refresh token + kiểm tra chờ duyệt ⇒ 1 vòng mạng
+    const refresh = randomToken();
+    const [, , sess, mem] = await batch(tx, [
+      [
+        "INSERT INTO login_attempts (identifier, user_id, ip, user_agent, success, failure_reason) VALUES ($1, $2, $3::inet, $4, $5, $6)",
+        [id.key, u.id, meta.ip, meta.userAgent?.slice(0, 400) ?? null, true, null],
+      ],
+      ["UPDATE users SET last_login_at = now(), locked_until = NULL WHERE id = $1", [u.id]],
+      createSessionItem(u.id, meta, refresh),
+      ["SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [u.id]],
+    ]);
+    return { ok: true, userId: u.id, sid: sess.rows[0].id as string, refresh, pending: mem.rowCount === 0 };
   });
 }
 
@@ -204,10 +218,11 @@ export async function refreshSession(token: string | undefined, meta: ReqMeta): 
     const r = (
       await tx.query<{
         id: string; session_id: string; user_id: string; expired: boolean; rotated_secs: number | null;
-        s_revoked: boolean; s_expired: boolean; u_status: string; u_deleted: boolean;
+        s_revoked: boolean; s_expired: boolean; u_status: string; u_deleted: boolean; pending: boolean;
       }>(
         `SELECT rt.id, rt.session_id, rt.user_id,
                 rt.expires_at <= now() AS expired,
+                NOT EXISTS (SELECT 1 FROM members m WHERE m.user_id = rt.user_id AND m.deleted_at IS NULL) AS pending,
                 CASE WHEN rt.rotated_at IS NULL THEN NULL ELSE extract(epoch FROM now() - rt.rotated_at)::int END AS rotated_secs,
                 s.revoked_at IS NOT NULL AS s_revoked, s.expires_at <= now() AS s_expired,
                 u.status::text AS u_status, u.deleted_at IS NOT NULL AS u_deleted
@@ -225,7 +240,7 @@ export async function refreshSession(token: string | undefined, meta: ReqMeta): 
       await tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'user_disabled' WHERE id = $1 AND revoked_at IS NULL", [r.session_id]);
       return { ok: false, reason: "disabled" };
     }
-    const pending = await isPending(tx, r.user_id);
+    const pending = r.pending;
     if (r.rotated_secs !== null) {
       if (r.rotated_secs <= REFRESH_GRACE_SECONDS) {
         // Hai request làm mới gần như đồng thời: cấp access token mới, không xoay thêm (cookie mới đã về trình duyệt).
@@ -239,20 +254,24 @@ export async function refreshSession(token: string | undefined, meta: ReqMeta): 
       return { ok: false, reason: "reuse" };
     }
     const next = randomToken();
-    const ins = await tx.query<{ id: string }>(
-      `INSERT INTO refresh_tokens (session_id, user_id, token_hash, expires_at)
-       SELECT $1, $2, $3, LEAST(s.expires_at, now() + make_interval(secs => $4)) FROM auth_sessions s WHERE s.id = $1
-       RETURNING id`,
-      [r.session_id, r.user_id, sha256Hex(next), REFRESH_TTL_SECONDS]
-    );
-    await tx.query("UPDATE refresh_tokens SET rotated_at = now(), replaced_by_id = $2 WHERE id = $1", [r.id, ins.rows[0].id]);
-    await tx.query("UPDATE auth_sessions SET last_seen_at = now(), ip = COALESCE($2::inet, ip) WHERE id = $1", [r.session_id, meta.ip]);
+    // Xoay token (chèn token mới + đánh dấu token cũ, CTE) và cập nhật phiên: 1 vòng mạng thay vì 3
+    await batch(tx, [
+      [
+        `WITH n AS (
+           INSERT INTO refresh_tokens (session_id, user_id, token_hash, expires_at)
+           SELECT $1, $2, $3, LEAST(s.expires_at, now() + make_interval(secs => $4)) FROM auth_sessions s WHERE s.id = $1
+           RETURNING id
+         )
+         UPDATE refresh_tokens SET rotated_at = now(), replaced_by_id = (SELECT id FROM n) WHERE id = $5`,
+        [r.session_id, r.user_id, sha256Hex(next), REFRESH_TTL_SECONDS, r.id],
+      ],
+      ["UPDATE auth_sessions SET last_seen_at = now(), ip = COALESCE($2::inet, ip) WHERE id = $1", [r.session_id, meta.ip]],
+    ]);
     return { ok: true, userId: r.user_id, sid: r.session_id, refresh: next, pending };
   });
 }
 
 export async function revokeSession(sid: string, reason: "logout" | "password_changed" | "admin_revoked", meta: ReqMeta) {
-  invalidateSessionCache(sid);
   await withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", (tx) =>
     tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = $2 WHERE id = $1 AND revoked_at IS NULL", [sid, reason])
   );
@@ -262,7 +281,6 @@ export async function revokeSession(sid: string, reason: "logout" | "password_ch
 // Đổi mật khẩu (thu hồi mọi phiên khác)
 // ---------------------------------------------------------------------
 export async function changePassword(userId: string, currentSid: string, current: string, next: string, meta: ReqMeta) {
-  invalidateSessionCache();
   return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx) => {
     const u = (await tx.query<{ email: string | null; password_hash: string | null }>("SELECT email::text, password_hash FROM users WHERE id = $1", [userId])).rows[0];
     if (!u || !(await verifyPassword(u.password_hash, current))) throw new ApiError(400, "BAD_PASSWORD", "Mật khẩu hiện tại không đúng.");

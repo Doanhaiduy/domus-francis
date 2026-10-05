@@ -22,14 +22,19 @@ import {
   Check,
   GraduationCap,
   LogOut,
+  Wrench as WrenchIcon,
+  BookOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
 import { cn } from "@/lib/utils";
+import { prefetchProps } from "@/lib/prefetch";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { fileUrl } from "@/lib/api";
 import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
+import { useModules } from "@/lib/data/modules";
+import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
 
 export const NAV_ITEMS = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
@@ -45,6 +50,7 @@ export const NAV_ITEMS = [
   { href: "/so-do-nha", label: "Sơ đồ nhà", icon: Building2 },
   { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera, isNew: true },
   { href: "/cai-dat", label: "Cài Đặt", icon: Settings, isDividerBefore: true },
+  { href: "/huong-dan", label: "Hướng dẫn sử dụng", icon: BookOpen },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -73,6 +79,8 @@ export const Sidebar: React.FC = () => {
   const duty = useDutySummary(!!session?.member);
   const unreadAnnCount = unread?.announcementsUnread ?? 0;
   const pendingIssuesCount = duty?.openIssuesCount ?? 0;
+  // Phân hệ Admin tạm ẩn (bảo trì): thành viên thấy mục mờ, không bấm được; người quản trị vẫn vào được
+  const modules = useModules(!!session?.member);
 
   const NavContent = (
     <div className="flex flex-col h-full justify-between">
@@ -111,20 +119,38 @@ export const Sidebar: React.FC = () => {
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
+            const paused = modules.disabled[item.href];
 
             return (
               <React.Fragment key={item.href}>
                 {item.isDividerBefore && (
                   <div className="my-2 h-px bg-surface-container-highest" />
                 )}
+                {paused && !modules.canManage ? (
+                  <div
+                    title={paused.message || DEFAULT_MAINTENANCE_MESSAGE}
+                    aria-disabled="true"
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-400 cursor-not-allowed select-none"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="w-4 h-4 shrink-0 text-gray-300" />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">
+                      <WrenchIcon className="w-2.5 h-2.5" /> BẢO TRÌ
+                    </span>
+                  </div>
+                ) : (
                 <Link
                   href={item.href}
+                  {...prefetchProps(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-semibold active:scale-[0.98]",
                     isActive
                       ? "bg-primary-fixed text-on-primary-fixed shadow-xs font-bold"
-                      : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
+                      : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface",
+                    paused && "opacity-60"
                   )}
                 >
                   <div className="flex items-center gap-2.5">
@@ -142,7 +168,7 @@ export const Sidebar: React.FC = () => {
                     <span className="w-2 h-2 rounded-full bg-error shrink-0" />
                   )}
 
-                  {item.isNew && (
+                  {item.isNew && !paused && (
                     <span className="bg-primary text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">
                       MỚI
                     </span>
@@ -153,7 +179,14 @@ export const Sidebar: React.FC = () => {
                       TẠM HOÃN
                     </span>
                   )}
+
+                  {paused && (
+                    <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0" title="Đang ẩn với thành viên">
+                      ĐANG ẨN
+                    </span>
+                  )}
                 </Link>
+                )}
               </React.Fragment>
             );
           })}

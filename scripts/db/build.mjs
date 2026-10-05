@@ -19,12 +19,13 @@ export const APP_SQL = path.join(ROOT, "db", "app");
 const list = (dir, re) =>
   readdirSync(dir).filter((f) => re.test(f)).sort().map((f) => path.join(dir, f));
 
-export const baseFiles = () => list(MIGRATIONS, /^[0-5][0-9]_.*\.sql$/);
+export const baseFiles = (dir = MIGRATIONS) => list(dir, /^[0-5][0-9]_.*\.sql$/);
 export const patchFiles = () => list(PATCHES, /^7[0-5]_.*\.sql$/);
 export const appFiles = () => { try { return list(APP_SQL, /^\d+_.*\.sql$/); } catch { return []; } };
 
-export function filesForStage(stage) {
-  const files = [...baseFiles()];
+/** opts.migrationsDir: thư mục DDL 01…52 khác db/migrations (vd. bản trích nguyên văn tài liệu cho bước đối chứng của bộ kiểm định). */
+export function filesForStage(stage, opts = {}) {
+  const files = [...baseFiles(opts.migrationsDir)];
   if (stage === "patched" || stage === "app") files.push(...patchFiles());
   if (stage === "app") files.push(...appFiles());
   return files;
@@ -58,7 +59,7 @@ export async function applyFiles(db, files, { verbose = true, notices = false } 
 
 export async function buildDatabase(db, stage = "app", opts = {}) {
   await recreateDatabase(db);
-  await applyFiles(db, filesForStage(stage), opts);
+  await applyFiles(db, filesForStage(stage, opts), opts);
 }
 
 async function main() {

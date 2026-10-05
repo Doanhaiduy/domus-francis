@@ -214,7 +214,7 @@ export default function CategoriesTab() {
         <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-2.5 text-xs text-amber-900">
           <Lock className="w-4 h-4 shrink-0 text-amber-700" />
           <span>
-            Bạn đang xem danh mục ở chế độ chỉ đọc. Thêm/sửa/ẩn/xóa danh mục cần quyền <b>Quản lý danh mục</b> (Admin, Trưởng nhà, Phó nhà, Thủ quỹ).
+            Bạn đang xem danh mục ở chế độ chỉ đọc. Thêm/sửa/ẩn/xóa danh mục cần quyền <b>Quản lý danh mục</b> (Admin, Trưởng nhà, Thủ quỹ).
           </span>
         </div>
       )}

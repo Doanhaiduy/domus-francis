@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -19,9 +19,8 @@ import {
   X,
   Paperclip,
   Lock,
-  CalendarPlus,
   AlertCircle,
-  MoreHorizontal,
+  Ban,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -34,19 +33,34 @@ import { FinancialBarChart, ExpenseDonutChart, AreaTrendChart, DonutDataPoint } 
 import FinancialReportModal, { buildFinanceReport } from "@/components/FinancialReportModal";
 import { ExpenseFormCard } from "@/components/modals/AddExpenseModal";
 import { copyTextToClipboard } from "@/lib/zaloShare";
-import { dmy, dm, formatFinanceReportForZalo, monthEndOf, monthTitle, shiftMonth, vnToday } from "@/lib/finance-format";
-import { financeApi, refreshFinance, useContributionMatrix, useExpenses, useFinanceOptions, useFinanceOverview, type PeriodQuery } from "@/lib/data/finance";
+import { dmy, formatFinanceReportForZalo, monthEndOf, shiftMonth, vnToday } from "@/lib/finance-format";
+import {
+  financeApi,
+  refreshFinance,
+  useContributionMatrix,
+  useContributionPlans,
+  useExpenses,
+  useFinanceOptions,
+  useFinanceOverview,
+  type PeriodQuery,
+} from "@/lib/data/finance";
 import {
   PERIOD_STATUS_LABEL,
   type ContributionCellDto,
+  type ContributionPlanDto,
   type ContributionRowDto,
   type ExpenseDetailDto,
   type ExpenseDto,
   type ExpenseStatus,
 } from "@/lib/types/finance";
+import { duesTransferContent } from "@/lib/vietqr";
+import ReceivingAccountCard from "@/components/finance/ReceivingAccountCard";
+import AiFinanceInsight from "@/components/ai/AiFinanceInsight";
+import PayQrDialog from "@/components/finance/PayQrDialog";
 import ExpenseDetailModal, { StatusBadge } from "./_components/ExpenseDetailModal";
 import ContributionMatrix from "./_components/ContributionMatrix";
-import { CellDialog, ContributionBadge, PayModal, PlanModal } from "./_components/ContributionDialogs";
+import CollectionsCard, { defaultPlanOf } from "./_components/CollectionsCard";
+import { CellDialog, DuesCycleModal, PayModal, UtilityModal } from "./_components/ContributionDialogs";
 import { ReasonDialog } from "./_components/dialogs";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
@@ -66,13 +80,11 @@ type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao";
 
 export default function ThuChiPage() {
   const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
-  const { can } = useSession();
+  const { can, session } = useSession();
   const today = useMemo(() => vnToday(), []);
   const current = today.slice(0, 7);
 
   const [activeTab, setActiveTab] = useState<Tab>("tong-quan");
-  const [filterPaid, setFilterPaid] = useState<"all" | "unpaid" | "paid">("unpaid");
-  const [contributionSearch, setContributionSearch] = useState("");
 
   // PERIOD CONTROLS (THEO THÁNG HOẶC KHOẢNG NGÀY)
   const [periodMode, setPeriodMode] = useState<"month" | "range">("month");
@@ -91,9 +103,13 @@ export default function ThuChiPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ExpenseDetailDto | null>(null);
   const [rejectFor, setRejectFor] = useState<ExpenseDto | null>(null);
-  const [payFor, setPayFor] = useState<{ memberId: string; month: string } | null>(null);
+  const [payFor, setPayFor] = useState<{ memberId: string; contributionId: string } | null>(null);
   const [cellFor, setCellFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
-  const [planMonth, setPlanMonth] = useState<string | null>(null);
+  const [payQrFor, setPayQrFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [duesOpen, setDuesOpen] = useState(false);
+  const [utilityOpen, setUtilityOpen] = useState(false);
+  const [cancelPlanFor, setCancelPlanFor] = useState<ContributionPlanDto | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const canManageFinances = can(["finance.expense.read_all", "finance.ledger.read", "finance.contribution.read_all"]);
@@ -122,13 +138,17 @@ export default function ThuChiPage() {
   }, [periodMode, selectedMonth, startDate, endDate, current, today]);
 
   const { overview: o, error: overviewError } = useFinanceOverview(periodQuery);
-  // Thành viên chỉ thấy khoản của mình (RLS) ⇒ mặc định xem "Tất cả" thay vì danh sách người chưa đóng
-  const seesAllContributions = o?.access.contributionsAll;
-  useEffect(() => {
-    if (seesAllContributions === false) setFilterPaid("all");
-  }, [seesAllContributions]);
   const { expenses } = useExpenses(o?.from, o?.to);
   const options = useFinanceOptions();
+
+  // CÁC KHOẢN THU (độc lập với kỳ báo cáo): kế hoạch 12 tháng qua + 6 tháng tới; mặc định kỳ quỹ đang diễn ra
+  const { plans: recentPlans } = useContributionPlans();
+  const plan = useMemo(
+    () => recentPlans?.find((p) => p.id === selectedPlanId) ?? defaultPlanOf(recentPlans, current),
+    [recentPlans, selectedPlanId, current],
+  );
+  const { matrix: planMatrix, isLoading: planRowsLoading } = useContributionMatrix({ plan: plan?.id }, !!plan);
+  const planRows = useMemo(() => (plan && planMatrix ? planMatrix.rows.filter((r) => r.cells[plan.id]) : []), [plan, planMatrix]);
 
   // PERIOD LABEL
   const periodLabel = useMemo(() => {
@@ -147,27 +167,6 @@ export default function ThuChiPage() {
     if (!o || periodMode !== "month" || selectedMonth === "all") return null;
     return o.periods.find((p) => p.month === selectedMonth)?.status ?? null;
   }, [o, periodMode, selectedMonth]);
-
-  // KỲ THU QUỸ ĐƯỢC HIỂN THỊ (tháng đang xem, hoặc kỳ thu mới nhất trong khoảng)
-  const plan = useMemo(() => {
-    const plans = o?.plans ?? [];
-    if (periodMode === "month" && selectedMonth !== "all") return plans.find((p) => p.month === selectedMonth) ?? null;
-    return plans[plans.length - 1] ?? null;
-  }, [o, periodMode, selectedMonth]);
-  const { matrix: planMatrix } = useContributionMatrix(plan?.month, 1, !!plan);
-  const planRows = useMemo(() => (plan && planMatrix ? planMatrix.rows.filter((r) => r.cells[plan.month]) : []), [plan, planMatrix]);
-  const cellOf = (r: ContributionRowDto) => r.cells[plan!.month];
-  const paidList = useMemo(() => planRows.filter((r) => ["paid", "waived"].includes(cellOf(r).status)), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
-  const unpaidList = useMemo(() => planRows.filter((r) => ["unpaid", "partial"].includes(cellOf(r).status)), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const displayedContributions = useMemo(() => {
-    let list = filterPaid === "unpaid" ? unpaidList : filterPaid === "paid" ? paidList : planRows;
-    if (contributionSearch.trim()) {
-      const q = contributionSearch.toLowerCase();
-      list = list.filter((r) => r.fullName.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || (r.room ?? "").toLowerCase().includes(q));
-    }
-    return list;
-  }, [filterPaid, unpaidList, paidList, planRows, contributionSearch]);
 
   // SỐ LIỆU KỲ (từ sổ cái — fn_finance_summary)
   const opening = o?.openingVnd ?? 0;
@@ -466,7 +465,7 @@ export default function ThuChiPage() {
           [
             ["tong-quan", "Tổng quan"],
             ["danh-sach", `Danh sách chi tiêu (${expenses.length})`],
-            ["dong-quy", "Đóng quỹ 12 tháng"],
+            ["dong-quy", "Ma trận đóng quỹ"],
             ["bao-cao", "Báo cáo & Biểu đồ"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
@@ -487,6 +486,9 @@ export default function ThuChiPage() {
       {/* ========================================================================= */}
       {activeTab === "tong-quan" && o && (
         <>
+          {/* AI nhận xét thu chi tháng đang xem so với tháng trước (tự ẩn khi tác vụ tắt hoặc không đủ quyền) */}
+          {periodMode === "month" && selectedMonth !== "all" && <AiFinanceInsight month={selectedMonth} />}
+
           {/* ROW 1: 4 STAT CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
@@ -519,9 +521,9 @@ export default function ThuChiPage() {
                       {paidCount}/{totalCount} {unitLabel}
                     </span>
                   ) : (
-                    <span>Thu quỹ sinh hoạt</span>
+                    <span>Thu quỹ &amp; điện nước</span>
                   )}
-                  <span className="text-[10px] text-gray-400">· {collectRate !== null ? `${collectRate}% chỉ tiêu` : "Chưa lập kỳ thu"}</span>
+                  <span className="text-[10px] text-gray-400">· {collectRate !== null ? `${collectRate}% chỉ tiêu` : "Chưa có khoản thu"}</span>
                 </div>
               </div>
             </div>
@@ -556,14 +558,7 @@ export default function ThuChiPage() {
                     </span>
                   )}
                   <span className="text-[10px] text-gray-400">
-                    ·{" "}
-                    {plansInPeriod.length === 0
-                      ? "Chưa lập kỳ thu"
-                      : outstanding === 0
-                        ? "100% hoàn tất"
-                        : plan
-                          ? `Hạn chót: ${dm(plan.dueDate)}`
-                          : "Còn nợ quỹ"}
+                    · {plansInPeriod.length === 0 ? "Chưa có khoản thu" : outstanding === 0 ? "100% hoàn tất" : "Quỹ kỳ + điện nước trong kỳ"}
                   </span>
                 </div>
               </div>
@@ -596,209 +591,72 @@ export default function ThuChiPage() {
 
           {/* ROW 3: CONTRIBUTIONS & RECENT EXPENSES */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* LEFT: MONTHLY CONTRIBUTION TABLE (7 COLS) */}
-            <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">
-                    {plan ? `Đóng quỹ ${monthTitle(plan.month).toLowerCase()}` : `Đóng quỹ ${periodLabel.toLowerCase()}`}
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    {plan
-                      ? `Mức đóng quy định ${formatVND(plan.amountVnd)} / thành viên / tháng · Hạn ${dmy(plan.dueDate)}`
-                      : "Chưa lập kỳ thu quỹ sinh hoạt cho kỳ này"}
-                  </p>
-                </div>
-
-                {plan && (
-                  <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
-                    {(
-                      [
-                        ["unpaid", `Chưa đóng (${unpaidList.length})`],
-                        ["paid", `Đã đóng (${paidList.length})`],
-                        ["all", `Tất cả (${planRows.length})`],
-                      ] as ["unpaid" | "paid" | "all", string][]
-                    ).map(([k, l]) => (
-                      <button
-                        key={k}
-                        onClick={() => setFilterPaid(k)}
-                        className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${filterPaid === k ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {!plan && (
-                <div className="p-4 rounded-xl bg-surface-container-low/60 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-2">
-                  <span>Kỳ này chưa có kế hoạch thu quỹ — chưa có khoản phải thu nào.</span>
-                  {canPlan && periodMode === "month" && selectedMonth !== "all" && (
-                    <button
-                      onClick={() => setPlanMonth(selectedMonth)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-bold shadow-xs"
-                    >
-                      <CalendarPlus className="w-3.5 h-3.5" /> Lập kỳ thu {monthTitle(selectedMonth).toLowerCase()}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {plan && (
-                <>
-                  {canManageFinances && (
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={contributionSearch}
-                        onChange={(e) => setContributionSearch(e.target.value)}
-                        placeholder="Lọc tên anh em, số phòng (vd: Minh Tuấn, P.1)..."
-                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low border border-transparent focus:border-primary focus:bg-white text-xs font-medium focus:outline-none transition"
-                      />
-                    </div>
-                  )}
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[10px]">
-                          <th className="pb-3 pl-1">Thành viên</th>
-                          <th className="pb-3">Số tiền</th>
-                          <th className="pb-3">Hạn / Ngày</th>
-                          <th className="pb-3 text-center">Trạng thái</th>
-                          <th className="pb-3 text-right pr-1">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {displayedContributions.map((r) => {
-                          const c = cellOf(r);
-                          const last = c.payments[c.payments.length - 1];
-                          const owing = c.status === "unpaid" || c.status === "partial";
-                          return (
-                            <tr key={r.memberId} className="hover:bg-purple-50/40 transition">
-                              <td className="py-3 pl-1">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-7 h-7 rounded-full bg-purple-100 text-primary font-bold text-xs flex items-center justify-center">
-                                    {r.name.split(" ").slice(-1)[0].substring(0, 2).toUpperCase()}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-gray-900">{r.fullName}</div>
-                                    <div className="text-[11px] text-gray-400">{r.room ?? "Chưa xếp phòng"}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-3 font-bold text-gray-900">
-                                {formatVND(c.netDueVnd)}
-                                {c.status === "partial" && <div className="text-[10px] font-semibold text-amber-700">đã đóng {formatVND(c.paidVnd)}</div>}
-                              </td>
-                              <td className="py-3 text-gray-500">
-                                {c.status === "paid" && last ? (
-                                  <span className="text-[11px] text-emerald-600 font-medium">Đã nộp {dm(last.paidOn)}</span>
-                                ) : c.status === "waived" ? (
-                                  <span className="text-[11px] text-sky-700 font-medium">Miễn quỹ</span>
-                                ) : (
-                                  <span className={`text-[11px] font-medium ${c.overdue ? "text-rose-600" : "text-amber-600"}`}>{dmy(c.dueDate)}</span>
-                                )}
-                              </td>
-                              <td className="py-3 text-center">
-                                <ContributionBadge cell={c} />
-                              </td>
-                              <td className="py-3 text-right pr-1">
-                                <div className="flex items-center justify-end gap-1">
-                                  {canRecord && owing && (
-                                    <button
-                                      onClick={() => setPayFor({ memberId: r.memberId, month: c.month })}
-                                      className="px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    >
-                                      Thu tiền
-                                    </button>
-                                  )}
-                                  {canRecord || canWaive ? (
-                                    <button
-                                      onClick={() => setCellFor({ row: r, cell: c })}
-                                      className={`px-2 py-1 rounded-lg text-xs font-bold transition text-gray-500 hover:text-gray-800 hover:bg-gray-100`}
-                                      title={owing ? "Chi tiết, miễn/giảm" : "Phiếu thu, hủy đóng"}
-                                    >
-                                      {owing ? <MoreHorizontal className="w-4 h-4" /> : "Chi tiết"}
-                                    </button>
-                                  ) : (
-                                    <button onClick={() => setCellFor({ row: r, cell: c })} className="text-[10px] text-gray-400 hover:text-primary">
-                                      Chỉ xem
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {displayedContributions.length === 0 && (
-                          <tr>
-                            <td colSpan={5} className="py-6 text-center text-gray-400">
-                              {planRows.length === 0
-                                ? "Bạn không có khoản đóng quỹ nào trong kỳ này."
-                                : filterPaid === "unpaid"
-                                  ? o.access.contributionsAll
-                                    ? "🎉 Tất cả anh em đã hoàn tất đóng quỹ."
-                                    : "Bạn đã đóng đủ quỹ kỳ này."
-                                  : "Không có thành viên phù hợp."}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {!o.access.contributionsAll && (
-                    <p className="text-[11px] text-gray-500">
-                      Bạn chỉ xem được khoản đóng quỹ của mình. Toàn nhà đã thu {formatVND(plan.stats.collectedVnd)} / {formatVND(plan.stats.expectedVnd)}
-                      {plan.stats.expectedVnd > 0 ? ` (${Math.round((plan.stats.collectedVnd / plan.stats.expectedVnd) * 100)}%)` : ""}.
-                    </p>
-                  )}
-                </>
-              )}
+            {/* LEFT: CÁC KHOẢN THU (7 COLS) */}
+            <div className="lg:col-span-7">
+              <CollectionsCard
+                plans={recentPlans}
+                plan={plan}
+                rows={planRows}
+                loadingRows={planRowsLoading}
+                canReadAll={!!o.access.contributionsAll}
+                canRecord={canRecord}
+                canWaive={canWaive}
+                canPlan={canPlan}
+                myMemberId={session?.member?.id ?? null}
+                currentMonth={current}
+                onSelectPlan={setSelectedPlanId}
+                onRecord={(memberId, contributionId) => setPayFor({ memberId, contributionId })}
+                onOpenCell={(row, cell) => setCellFor({ row, cell })}
+                onPayQr={(row, cell) => setPayQrFor({ row, cell })}
+                onCreateDues={() => setDuesOpen(true)}
+                onCreateUtility={() => setUtilityOpen(true)}
+                onCancelPlan={setCancelPlanFor}
+              />
             </div>
 
-            {/* RIGHT: RECENT EXPENSES LIST (5 COLS) */}
-            <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Chi tiêu gần đây" : "Phiếu chi của tôi"}</h2>
-                <button onClick={() => setActiveTab("danh-sach")} className="text-xs font-bold text-primary hover:underline">
-                  Xem tất cả →
-                </button>
-              </div>
+            {/* RIGHT: TÀI KHOẢN NHẬN QUỸ (QR) + CHI TIÊU GẦN ĐÂY (5 COLS) */}
+            <div className="lg:col-span-5 flex flex-col gap-6">
+              <ReceivingAccountCard />
+              <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Chi tiêu gần đây" : "Phiếu chi của tôi"}</h2>
+                  <button onClick={() => setActiveTab("danh-sach")} className="text-xs font-bold text-primary hover:underline">
+                    Xem tất cả →
+                  </button>
+                </div>
 
-              <div className="space-y-3">
-                {expenses.slice(0, 5).map((exp) => (
-                  <button
-                    key={exp.id}
-                    onClick={() => setDetailId(exp.id)}
-                    className="w-full text-left flex items-center justify-between gap-2 p-3 rounded-xl bg-surface-container-low/50 border border-purple-50 hover:bg-surface-container-low transition"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
-                        {CATEGORY_EMOJI[exp.category.code] ?? "🛒"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-gray-900 truncate">{exp.title}</div>
-                        <div className="text-[11px] text-gray-400 truncate">
-                          {dmy(exp.expenseDate)} · {exp.paidBy?.name ?? "Quỹ chi"} ({exp.category.name})
+                <div className="space-y-3">
+                  {expenses.slice(0, 5).map((exp) => (
+                    <button
+                      key={exp.id}
+                      onClick={() => setDetailId(exp.id)}
+                      className="w-full text-left flex items-center justify-between gap-2 p-3 rounded-xl bg-surface-container-low/50 border border-purple-50 hover:bg-surface-container-low transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
+                          {CATEGORY_EMOJI[exp.category.code] ?? "🛒"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-gray-900 truncate">{exp.title}</div>
+                          <div className="text-[11px] text-gray-400 truncate">
+                            {dmy(exp.expenseDate)} · {exp.paidBy?.name ?? "Quỹ chi"} ({exp.category.name})
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className={`text-xs font-extrabold ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
-                        -{formatVND(exp.amountVnd)}
+                      <div className="text-right shrink-0">
+                        <div className={`text-xs font-extrabold ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
+                          -{formatVND(exp.amountVnd)}
+                        </div>
+                        <StatusBadge status={exp.status} className="mt-1 inline-block" />
                       </div>
-                      <StatusBadge status={exp.status} className="mt-1 inline-block" />
+                    </button>
+                  ))}
+                  {expenses.length === 0 && (
+                    <div className="p-4 text-center text-xs text-gray-400">
+                      {canSeeAllExpenses ? "Chưa có phiếu chi nào trong kỳ." : "Bạn chưa có phiếu chi/đề xuất chi nào trong kỳ."}
                     </div>
-                  </button>
-                ))}
-                {expenses.length === 0 && (
-                  <div className="p-4 text-center text-xs text-gray-400">
-                    {canSeeAllExpenses ? "Chưa có phiếu chi nào trong kỳ." : "Bạn chưa có phiếu chi/đề xuất chi nào trong kỳ."}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -883,8 +741,43 @@ export default function ThuChiPage() {
             ))}
           </div>
 
+          {/* Điện thoại: thẻ phiếu chi (bảng 7 cột phải cuộn ngang) — chạm để mở chi tiết, duyệt/từ chối trong đó */}
+          <div className="sm:hidden flex flex-col gap-2">
+            {filteredExpenses.map((exp) => (
+              <button
+                key={exp.id}
+                type="button"
+                onClick={() => setDetailId(exp.id)}
+                className="text-left p-3 rounded-2xl border border-gray-100 bg-white flex flex-col gap-1.5 active:bg-purple-50/50 transition"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-bold text-xs text-gray-900 min-w-0">
+                    {exp.title}
+                    {exp.receipts.length > 0 && <Paperclip className="inline w-3 h-3 ml-1 text-primary" aria-label="Có hóa đơn" />}
+                  </span>
+                  <span className={`text-xs font-extrabold shrink-0 ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
+                    -{formatVND(exp.amountVnd)}
+                  </span>
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  #{exp.voucherNo} · {dmy(exp.expenseDate)} · {exp.paidBy?.name ?? "Quỹ chi trực tiếp"}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold">{exp.category.name}</span>
+                  <StatusBadge status={exp.status} />
+                  {exp.status === "pending_approval" && (
+                    <span className="text-[10px] text-gray-400">
+                      {exp.approvedCount}/{exp.requiredApprovals} chữ ký
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+            {filteredExpenses.length === 0 && <p className="py-6 text-center text-xs text-gray-400">Không có phiếu chi phù hợp.</p>}
+          </div>
+
           {/* TABLE OF EXPENSES */}
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[10px]">
@@ -971,7 +864,12 @@ export default function ThuChiPage() {
       {/* TAB: MA TRẬN ĐÓNG QUỸ 12 THÁNG */}
       {/* ========================================================================= */}
       {activeTab === "dong-quy" && (
-        <ContributionMatrix canPlan={canPlan} onOpenCell={(row, cell) => setCellFor({ row, cell })} onCreatePlan={(m) => setPlanMonth(m)} />
+        <ContributionMatrix
+          canPlan={canPlan}
+          onOpenCell={(row, cell) => setCellFor({ row, cell })}
+          onCreateDues={() => setDuesOpen(true)}
+          onCreateUtility={() => setUtilityOpen(true)}
+        />
       )}
 
       {/* ========================================================================= */}
@@ -1025,7 +923,7 @@ export default function ThuChiPage() {
                   ? `${paidCount}/${totalCount} ${unitLabel} đã nộp`
                   : collectRate !== null
                     ? `Đạt ${collectRate}% chỉ tiêu thu quỹ`
-                    : "Chưa lập kỳ thu"}
+                    : "Chưa có khoản thu"}
               </span>
             </div>
 
@@ -1104,18 +1002,41 @@ export default function ThuChiPage() {
       />
 
       {/* THU QUỸ */}
-      <PayModal memberId={payFor?.memberId ?? null} month={payFor?.month ?? null} onClose={() => setPayFor(null)} />
+      <PayModal memberId={payFor?.memberId ?? null} contributionId={payFor?.contributionId ?? null} onClose={() => setPayFor(null)} />
       <CellDialog
         row={cellFor?.row ?? null}
         cell={cellFor?.cell ?? null}
         onClose={() => setCellFor(null)}
-        onPay={(memberId, month) => setPayFor({ memberId, month })}
+        onPay={(memberId, contributionId) => setPayFor({ memberId, contributionId })}
+        onPayQr={(row, cell) => setPayQrFor({ row, cell })}
       />
-      <PlanModal
-        open={!!planMonth}
-        month={planMonth ?? current}
-        suggestedAmount={(o?.plans ?? []).slice(-1)[0]?.amountVnd ?? null}
-        onClose={() => setPlanMonth(null)}
+      <PayQrDialog
+        open={!!payQrFor}
+        onClose={() => setPayQrFor(null)}
+        amountVnd={payQrFor?.cell.remainingVnd ?? 0}
+        content={payQrFor ? duesTransferContent(payQrFor.cell.planCode, payQrFor.row.fullName, payQrFor.row.name) : ""}
+        subtitle={payQrFor ? `${payQrFor.cell.planName} · ${formatVND(payQrFor.cell.remainingVnd)}` : undefined}
+      />
+      <DuesCycleModal open={duesOpen} onClose={() => setDuesOpen(false)} />
+      <UtilityModal open={utilityOpen} onClose={() => setUtilityOpen(false)} />
+      <ReasonDialog
+        open={!!cancelPlanFor}
+        onClose={() => setCancelPlanFor(null)}
+        icon={<Ban className="w-5 h-5" />}
+        title="Hủy kế hoạch thu"
+        message={
+          cancelPlanFor
+            ? `“${cancelPlanFor.name}” chưa có ai nộp tiền. Hủy sẽ hủy toàn bộ khoản phải thu của kế hoạch này (giữ lại trong nhật ký); sau đó có thể lập lại.`
+            : null
+        }
+        confirmText="Hủy kế hoạch"
+        placeholder="Ví dụ: Nhập sai tổng hóa đơn điện nước"
+        onConfirm={async (reason) => {
+          await financeApi.cancelPlan(cancelPlanFor!.id, reason);
+          setSelectedPlanId(null);
+          await refreshFinance();
+          showToast("success", `Đã hủy ${cancelPlanFor!.name}.`);
+        }}
       />
     </div>
   );

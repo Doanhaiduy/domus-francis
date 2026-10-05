@@ -10,6 +10,6 @@ export const GET = api({}, (ctx) => ctx.db((tx) => listIssues(tx)));
 export const POST = api({}, async (ctx) => {
   const b = await ctx.body(IssueCreateSchema);
   const r = await ctx.db((tx) => createIssue(tx, b));
-  await notifyRoles(ctx, ["house_head", "vice_head"], "facility.issue_new", `Báo hỏng mới ${r.code}`, b.title, { table: "maintenance_issues", id: r.id });
+  await notifyRoles(ctx, ["house_head"], "facility.issue_new", `Báo hỏng mới ${r.code}`, b.title, { table: "maintenance_issues", id: r.id });
   return Response.json(r, { status: 201 });
 });

@@ -20,8 +20,8 @@ const SAMPLES = ["Giờ giới nghiêm của nhà là mấy giờ?", "Quy địn
 const KIND_ICON = { policy: FileText, announcement: Megaphone, event: CalendarDays } as const;
 
 export default function AiAssistantModal() {
-  const { closeModal } = useApp();
-  const { available, needsConsent, reason } = useAiTask("community.policy_rag");
+  const { closeModal, showToast } = useApp();
+  const { available, needsConsent, reason, refresh } = useAiTask("community.policy_rag");
   const [q, setQ] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -141,7 +141,27 @@ export default function AiAssistantModal() {
           <Send className="w-4 h-4" />
         </button>
       </form>
-      <p className="px-5 pb-3 text-[10px] text-gray-400">Câu trả lời do AI tạo, chỉ mang tính tham khảo. Đừng nhập thông tin cá nhân của người khác.</p>
+      <div className="px-5 pb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <p className="text-[10px] text-gray-400">Câu trả lời do AI tạo, chỉ mang tính tham khảo. Đừng nhập thông tin cá nhân của người khác.</p>
+        {available && !needsConsent && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await aiApi.setConsent(false);
+                await refresh();
+                setConsentDone(false);
+                showToast("info", "Đã rút đồng ý — AI sẽ không xử lý nội dung của bạn nữa.");
+              } catch (e) {
+                showToast("error", errorMessage(e));
+              }
+            }}
+            className="text-[10px] font-semibold text-gray-400 hover:text-rose-600 underline"
+          >
+            Rút đồng ý dùng AI
+          </button>
+        )}
+      </div>
     </div>
   );
 }

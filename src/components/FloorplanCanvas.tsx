@@ -124,7 +124,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
   const handleDragStartMember = (memberId: string, e: React.DragEvent) => {
     if (readOnly) {
       e.preventDefault();
-      showToast("info", "Chỉ Trưởng nhà/Phó nhà được xếp phòng.");
+      showToast("info", "Chỉ Trưởng nhà (hoặc vai trò được giao quyền xếp phòng) được xếp phòng.");
       return;
     }
     setDraggedMemberId(memberId);
@@ -353,7 +353,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
           />
 
           {/* Helper hint for drag-and-drop */}
-          <div className="absolute top-3 left-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-purple-200/80 shadow-xs text-xs text-purple-950">
+          <div className="absolute top-3 left-4 z-10 hidden md:flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-purple-200/80 shadow-xs text-xs text-purple-950">
             <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
             <span className="font-semibold">Mẹo:</span> Kéo tên thành viên từ danh sách bên phải rồi thả vào phòng ngủ để xếp phòng!
           </div>

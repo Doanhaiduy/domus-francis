@@ -8,7 +8,7 @@ export const DEMO_PASSWORD = "LuuXa@2026";
 const ACCOUNTS = {
   1: { email: "tuan.nguyen@luuxa.local", roles: ["member"], position: null },
   2: { email: "duc.tran@luuxa.local", roles: ["house_head", "member"], position: "house_head" },
-  3: { email: "long.le@luuxa.local", roles: ["vice_head", "member"], position: "vice_head" },
+  3: { email: "long.le@luuxa.local", roles: ["member"], position: null }, // không còn vai trò Phó nhà (db/data/2026-10-05-01_roles.sql)
   4: { email: "bao.pham@luuxa.local", roles: ["treasurer", "member"], position: "treasurer" },
   5: { email: "viet.vu@luuxa.local", roles: ["admin", "member"], position: "sysadmin" },
   6: { email: "phong.dang@luuxa.local", roles: ["liturgy_lead", "member"], position: "liturgy_head" },

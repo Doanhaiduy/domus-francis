@@ -15,7 +15,7 @@ const USER = get("--user", "duc.tran@luuxa.local");
 const PASS = get("--pass", "LuuXa@2026");
 // Git Bash (MSYS) đổi "/trang" thành "C:/Program Files/Git/trang" — chuẩn hóa lại
 const normPage = (p) => "/" + p.replace(/^[A-Za-z]:\/.*?\/Git\/?/, "").replace(/^\/+/, "");
-const PAGES = get("--pages", "/,/thong-bao,/lich-su-kien,/thu-chi,/bep-com,/hau-can,/phung-vu,/dien-dan,/thanh-vien,/hoc-tap,/so-do-nha,/khoanh-khac,/cai-dat").split(",").map(normPage);
+const PAGES = get("--pages", "/,/thong-bao,/lich-su-kien,/thu-chi,/bep-com,/hau-can,/phung-vu,/dien-dan,/thanh-vien,/hoc-tap,/so-do-nha,/khoanh-khac,/cai-dat,/huong-dan").split(",").map(normPage);
 const HEADED = args.includes("--headed");
 
 const EXES = [

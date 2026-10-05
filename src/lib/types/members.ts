@@ -12,7 +12,7 @@ export interface MemberDto {
   phone: string; // "" nếu bị ẩn (hide_phone)
   email?: string;
   hidePhone: boolean;
-  role: string; // nhãn chức vụ hiển thị: Trưởng nhà / Phó nhà / Thủ quỹ / Admin / Thành viên
+  role: string; // nhãn chức vụ hiển thị: Trưởng nhà / Thủ quỹ / Admin / Thành viên (hoặc tên vai trò tự tạo)
   positionCode?: string;
   duty?: string;
   status: "active" | "on_leave" | "alumni" | "left";

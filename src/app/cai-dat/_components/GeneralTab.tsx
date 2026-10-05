@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Building, Wallet, ShieldCheck, Sliders, ChevronDown, Lock } from "lucide-react";
 import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,13 @@ export const ORG_KEYS = [
   "org.contact_phone",
   "org.order_name",
   "org.chaplain_name",
-  "finance.dues_bank_account",
 ];
 export const FUND_KEYS = [
-  "finance.monthly_dues_vnd",
-  "finance.dues_due_day",
+  "finance.dues_cycle_amount_vnd",
+  "finance.dues_cycle_months",
+  "finance.dues_cycle_start_month",
+  "finance.dues_cycle_due_day",
+  "finance.utility_due_day",
   "meal.price_per_serving_vnd",
   "liturgy.night_prayer_time",
   "meal.lunch_cutoff_time",
@@ -46,6 +49,9 @@ export const FINANCE_CONTROL_KEYS = [
   "finance.period.close_requires_reconciliation",
   "finance.transparency.show_debtor_names",
 ];
+/** Khóa tài chính cũ / có màn hình riêng — không hiện ở tab này:
+ *  quỹ tháng (đã thay bằng quỹ định kỳ), tài khoản nhận quỹ (Thủ quỹ sửa ở trang Thu chi → thẻ "Tài khoản nhận quỹ", có mã QR). */
+const HIDDEN_FINANCE_KEYS = ["finance.monthly_dues_vnd", "finance.dues_due_day", "finance.dues_bank_account", "finance.receiving_account"];
 const TELEGRAM_PREFIX = "integration.telegram.";
 const EVENTS_KEY = "integration.telegram.group_events";
 
@@ -106,7 +112,19 @@ export default function GeneralTab({ draft, roles }: Props) {
   const fundLock = commonLock(draft, FUND_KEYS);
   const finLock = commonLock(draft, FINANCE_CONTROL_KEYS);
 
-  const used = new Set([...ORG_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS]);
+  const used = new Set([...ORG_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS, ...HIDDEN_FINANCE_KEYS]);
+  // Xem trước các kỳ quỹ trong năm theo số tháng mỗi kỳ + tháng bắt đầu đang nhập (vd. T1–T6, T7–T12)
+  const cycleMonths = Number(draft.value<number>("finance.dues_cycle_months")) || 6;
+  const cycleStart = Number(draft.value<number>("finance.dues_cycle_start_month")) || 1;
+  const cycleAmount = Number(draft.value<number>("finance.dues_cycle_amount_vnd")) || 0;
+  const cyclePreview =
+    cycleMonths >= 1 && cycleMonths <= 12 && cycleStart >= 1 && cycleStart <= 12
+      ? Array.from({ length: Math.min(4, Math.ceil(12 / cycleMonths)) }, (_, i) => {
+          const a = ((cycleStart - 1 + i * cycleMonths) % 12) + 1;
+          const b = ((cycleStart - 1 + i * cycleMonths + cycleMonths - 1) % 12) + 1;
+          return a === b ? `T${a}` : `T${a}–T${b}`;
+        }).join(", ")
+      : null;
   const advanced = useMemo(() => {
     const groups = new Map<string, SettingDto[]>();
     for (const m of draft.byKey.values()) {
@@ -175,13 +193,6 @@ export default function GeneralTab({ draft, roles }: Props) {
                 label="Cha linh hướng (ký trên sơ yếu lý lịch)"
                 placeholder="VD: Lm. Giuse Nguyễn Văn A, OFM"
               />
-              <TextSetting
-                draft={draft}
-                k="finance.dues_bank_account"
-                label="Tài khoản nhận quỹ lưu xá (STK • Ngân hàng • Tên chủ thẻ)"
-                placeholder="Số tài khoản đóng quỹ"
-                className="sm:col-span-2"
-              />
             </div>
           </LockNoteShown.Provider>
         </div>
@@ -201,14 +212,37 @@ export default function GeneralTab({ draft, roles }: Props) {
           {!readOnly && <CardLockNote reason={fundLock} />}
           <LockNoteShown.Provider value={readOnly || !!fundLock}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumberSetting draft={draft} k="finance.monthly_dues_vnd" label="Định mức quỹ phòng hàng tháng (VNĐ / người)" />
-              <NumberSetting draft={draft} k="finance.dues_due_day" label="Hạn nộp quỹ hằng tháng (ngày trong tháng)" suffix="ngày" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_amount_vnd" label="Mức quỹ mỗi kỳ (VNĐ / người)" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_months" label="Số tháng mỗi kỳ quỹ" suffix="tháng" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_start_month" label="Kỳ quỹ đầu tiên trong năm bắt đầu từ tháng" suffix="tháng" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_due_day" label="Hạn nộp quỹ kỳ (ngày … của tháng đầu kỳ)" suffix="ngày" />
+              <NumberSetting draft={draft} k="finance.utility_due_day" label="Hạn nộp tiền điện nước (ngày … của tháng sau)" suffix="ngày" />
+              {cyclePreview && draft.meta("finance.dues_cycle_months") && (
+                <p className="sm:col-span-2 -mt-1 text-[11px] text-gray-500">
+                  Các kỳ quỹ trong năm: <b className="text-gray-800">{cyclePreview}</b>
+                  {cycleAmount > 0 && (
+                    <>
+                      {" "}
+                      · {cycleAmount.toLocaleString("vi-VN")}đ / kỳ ≈ {Math.round((cycleAmount * 12) / cycleMonths).toLocaleString("vi-VN")}đ / người / năm
+                    </>
+                  )}
+                  . Tiền điện nước: Thủ quỹ nhập tổng hóa đơn hằng tháng ở trang Thu chi, hệ thống chia đều cho người đang ở.
+                </p>
+              )}
               <NumberSetting draft={draft} k="meal.price_per_serving_vnd" label="Tiền suất cơm trưa / tối tham chiếu (VNĐ / suất)" />
               <TimeSetting draft={draft} k="liturgy.night_prayer_time" label="Giờ cử hành Kinh Tối chung hàng ngày" />
               <TimeSetting draft={draft} k="meal.lunch_cutoff_time" label="Giờ chốt điểm danh cơm trưa" />
               <TimeSetting draft={draft} k="meal.dinner_cutoff_time" label="Giờ chốt điểm danh cơm tối" />
             </div>
           </LockNoteShown.Provider>
+
+          <p className="text-[11px] text-gray-500 -mt-2">
+            Tài khoản nhận quỹ (số tài khoản + mã QR chuyển khoản) do Thủ quỹ cập nhật ở trang{" "}
+            <Link href="/thu-chi" className="font-bold text-primary hover:underline">
+              Thu chi
+            </Link>{" "}
+            → thẻ “Tài khoản nhận quỹ”.
+          </p>
 
           {shown(EVENTS_KEY) && (
             <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-100">
@@ -218,7 +252,7 @@ export default function GeneralTab({ draft, roles }: Props) {
                 checked={events.dues_reminder === true}
                 onChange={(x) => draft.set(EVENTS_KEY, { ...events, dues_reminder: x })}
                 label="Tự động gửi thông báo nhắc đóng quỹ qua Telegram"
-                description={`Bot gửi kèm thông tin tài khoản nhận quỹ và hạn nộp (ngày ${draft.value<number>("finance.dues_due_day") ?? 5} hằng tháng)`}
+                description={`Bot gửi kèm thông tin tài khoản nhận quỹ và hạn nộp (quỹ kỳ: ngày ${draft.value<number>("finance.dues_cycle_due_day") ?? 15} tháng đầu kỳ; điện nước: ngày ${draft.value<number>("finance.utility_due_day") ?? 10} tháng sau)`}
               />
               {draft.meta(EVENTS_KEY) && !groupEnabled && (
                 <p className="mt-1 text-[10.5px] text-amber-700">

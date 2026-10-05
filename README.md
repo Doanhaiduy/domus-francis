@@ -97,3 +97,40 @@ Mặc định **tắt**. Mặc định dùng **Groq**, nếu lỗi/hết hạn m
 
 Tác vụ có sẵn: hỏi đáp nội quy (nút "Trợ lý AI"), soạn tin nhắc quỹ (Thu Chi), phân loại sự cố (Báo hỏng), soạn bản tin (Đăng thông báo), soát nội dung (Tạo chủ đề). AI chỉ gợi ý; dữ liệu được ẩn danh hóa trước khi gửi; có ngân sách tháng, giới hạn 20 lượt/giờ/người, cache 24 giờ.
 `pnpm test:api` dùng máy chủ giả loopback — không bao giờ gọi Groq/Gemini thật. `AI_OFFLINE=1` chặn mọi lệnh gọi ra ngoài.
+
+## Hiệu năng (đặc biệt khi DB ở xa, ví dụ Supabase)
+
+Mỗi câu SQL gửi tới DB ở xa tốn một vòng mạng (vài chục tới vài trăm ms), nên ứng dụng được tối ưu theo số vòng mạng:
+
+- **Chạy bản production**: `pnpm build` rồi `pnpm start`. `pnpm dev` biên dịch lại từng trang ở lần mở đầu nên bấm tab nào cũng dừng vài giây. `pnpm dev`/`pnpm start` tự bỏ qua PostgreSQL local khi `DATABASE_URL` trỏ ra ngoài.
+- **Mỗi request một vòng mạng mở đầu**: `BEGIN; SET LOCAL ROLE; set_config(...); kiểm tra phiên` được ghép vào câu SQL đầu tiên; request GET chạy transaction `READ ONLY` và không chờ `COMMIT`.
+- **Gộp truy vấn độc lập**: `batch(tx, [[sql, params], ...])` (src/server/db.ts) gửi nhiều câu trong một vòng mạng; các API nặng đã dùng.
+- **Pool kết nối**: giữ kết nối nhàn rỗi 5 phút và mở sẵn 3 kết nối khi khởi động (tránh bắt tay TLS lại). Chỉnh bằng `DB_POOL_MAX`, `DB_IDLE_TIMEOUT_MS`, `DB_POOL_WARM`.
+- **Trình duyệt**: thông tin phiên được nạp sẵn khi render HTML (không chờ `/api/v1/auth/me` rồi mới gọi API của trang); form đóng ngay sau khi lưu, danh sách tự làm mới ở nền; rê chuột/chạm vào tab là tải trước dữ liệu của tab đó.
+
+Đo đạc:
+
+- Mỗi API trả header `Server-Timing` (DevTools → Network → chọn request → Timing): số vòng mạng DB, thời gian DB, thời gian chờ kết nối. Tắt bằng `SERVER_TIMING=0`. `DB_TRACE=1` in từng câu SQL ra console máy chủ.
+- `node scripts/perf/pages.mjs --base http://localhost:3000` — mở app bằng Edge/Chrome, bấm qua từng tab, in thời gian và số vòng DB của từng trang.
+- `node scripts/perf/latency-proxy.mjs --delay 20` — giả lập độ trễ DB ở xa trên PostgreSQL local (không cần mạng) để thử tối ưu.
+- `node scripts/e2e/responsive.mjs` — kiểm tra giao diện ở khổ điện thoại 390/360 px (tràn ngang, ảnh chụp từng trang).
+
+## Cập nhật CSDL đang chạy (migration tăng dần)
+
+Từ bản này, thay đổi CSDL được chia hai loại và áp bằng **một lệnh**, không dựng lại, không mất dữ liệu:
+
+- `db/app/99x_*.sql` — cấu trúc mới (bảng, cột, hàm, quyền, khóa cấu hình). Cũng chạy khi dựng mới bằng `pnpm db:build`.
+- `db/data/*.sql` — thay đổi dữ liệu nghiệp vụ (ví dụ bỏ vai trò Phó nhà, cấp quyền cho Admin).
+
+```
+pnpm db:migrate                                              # PostgreSQL local (DB luuxa)
+pnpm db:migrate -- --url "postgresql://…" --allow-remote      # DB ở xa (Supabase) — chạy trên máy được phép
+pnpm db:migrate -- --dry-run                                 # chỉ liệt kê file sẽ chạy
+```
+
+File đã chạy được ghi vào bảng `app_migrations`; chạy lại chỉ áp file mới. Mỗi file là một transaction (lỗi thì tự rollback).
+`pnpm setup:local` tự chạy bước này. `pnpm db:audit` (bộ kiểm định độc lập) không chạy `db/data` vì smoke test của nó giả định dữ liệu gốc của thiết kế.
+
+## Hướng dẫn sử dụng
+
+Trong ứng dụng: thanh bên → **Hướng dẫn sử dụng** (tự lọc theo vai trò). Bản in: `docs/HUONG_DAN_SU_DUNG.md` (sinh từ `src/content/guide.ts` bằng `node --experimental-strip-types scripts/docs/export-guide.mjs`).

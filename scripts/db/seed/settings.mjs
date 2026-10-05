@@ -13,6 +13,14 @@ export async function seed(ctx) {
   for (const [key, value] of Object.entries(demo)) {
     await ctx.q(`UPDATE settings SET value = to_jsonb($2::text) WHERE key = $1 AND value = '""'::jsonb`, [key, value]);
   }
+  // Tài khoản nhận quỹ (JSON, dùng để tạo mã VietQR nộp quỹ) — cùng tài khoản trên; chỉ ghi khi còn trống
+  await ctx.q(
+    `UPDATE settings SET value = $2::jsonb WHERE key = $1 AND COALESCE(value ->> 'accountNo', '') = ''`,
+    [
+      "finance.receiving_account",
+      JSON.stringify({ bankBin: "970407", bankName: "Techcombank", accountNo: "1903688889999", accountName: "TRAN VAN DUC", qrFileId: null }),
+    ]
+  );
 
   await ctx.q(
     `UPDATE categories

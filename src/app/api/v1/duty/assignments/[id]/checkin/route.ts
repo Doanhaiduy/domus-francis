@@ -18,7 +18,7 @@ export const POST = api({}, async (ctx) => {
   const a = out.assignment;
   await notifyRoles(
     ctx,
-    ["house_head", "vice_head"],
+    ["house_head"],
     "duty.review_needed",
     "Ca trực chờ nghiệm thu",
     `${a.area.name} · ${a.shift.label} ${dm(a.date)} — ${a.members.map((m) => m.name).join(", ")} đã gửi ảnh minh chứng.`,

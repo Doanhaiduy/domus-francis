@@ -9,6 +9,7 @@ import PhungVuLoading from "./loading";
 import LiturgySchedule from "./_parts/LiturgySchedule";
 import PrayerBox from "./_parts/PrayerBox";
 import ReflectionCard from "./_parts/ReflectionCard";
+import LiturgyDocuments from "./_parts/LiturgyDocuments";
 
 export default function PhungVuPage() {
   const { members, showToast, isLoadingSkeleton } = useApp();
@@ -37,18 +38,26 @@ export default function PhungVuPage() {
           <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, ý hiệp thông cầu nguyện và suy niệm Lời Chúa hàng tuần</p>
         </div>
 
-        {can("prayer.post") && (
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           <button
-            onClick={() => {
-              const input = document.getElementById("prayer-input");
-              input?.scrollIntoView({ behavior: "smooth", block: "center" });
-              input?.focus();
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md shadow-primary/20 transition self-start md:self-auto"
+            onClick={() => document.getElementById("tai-lieu-phung-vu")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-100 bg-white hover:bg-purple-50 text-primary font-bold text-xs transition"
           >
-            <span>+ Gửi ý cầu nguyện</span>
+            <span>📚 Tài liệu phụng vụ</span>
           </button>
-        )}
+          {can("prayer.post") && (
+            <button
+              onClick={() => {
+                const input = document.getElementById("prayer-input");
+                input?.scrollIntoView({ behavior: "smooth", block: "center" });
+                input?.focus();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md shadow-primary/20 transition"
+            >
+              <span>+ Gửi ý cầu nguyện</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* TOP 3 CARDS */}
@@ -121,6 +130,9 @@ export default function PhungVuPage() {
           <ReflectionCard showToast={showToast} />
         </div>
       </div>
+
+      {/* THƯ VIỆN TÀI LIỆU PHỤNG VỤ (kinh, bài hát, video, PDF, liên kết) */}
+      <LiturgyDocuments showToast={showToast} />
     </div>
   );
 }

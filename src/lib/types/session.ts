@@ -11,19 +11,25 @@ export interface SessionInfo {
     roomName: string | null;
     positionLabel: string | null;
   } | null;
-  /** Mã vai trò hệ thống đang hiệu lực, xếp theo hạng (quyền cao trước): admin, house_head, vice_head, treasurer, … member */
+  /** Mã vai trò đang hiệu lực, xếp theo hạng (quyền cao trước): admin, house_head, treasurer, vai trò tự tạo (các ban…), member */
   roles: string[];
   primaryRole: string;
+  /** Tên hiển thị của vai trò chính (vai trò tự tạo lấy tên từ bảng roles) */
   roleLabel: string;
+  /** Mã vai trò → tên hiển thị (roles.name_vi) cho mọi vai trò người dùng đang giữ */
+  roleNames?: Record<string, string>;
   /** Mã quyền nguyên tử (role_permissions) — nguồn duy nhất để ẩn/hiện chức năng trên giao diện */
   permissions: string[];
   application: { id: string; status: string; fullName: string; email: string | null; createdAt: string; reviewNote: string | null } | null;
 }
 
+/**
+ * Nhãn ngắn của vai trò HỆ THỐNG (và các ban có sẵn). Vai trò tự tạo do Admin thêm không có ở đây — dùng tên từ server
+ * (SessionInfo.roleLabel / roleNames, RbacMatrixDto.roles[].name, AssignableRoleDto.name).
+ */
 export const ROLE_LABEL: Record<string, string> = {
   admin: "Admin",
   house_head: "Trưởng nhà",
-  vice_head: "Phó nhà",
   treasurer: "Thủ quỹ",
   liturgy_lead: "Trưởng ban Phụng vụ",
   kitchen_lead: "Trưởng ban Ẩm thực",

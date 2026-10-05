@@ -25,13 +25,16 @@ import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { FinancialBarChart, ExpenseDonutChart, BarChartDataPoint, DonutDataPoint } from "@/components/ui/Charts";
 import { useDutySummary, useFinanceSummary, useLatestAnnouncements, useUnreadCount, useUpcomingEvents } from "@/lib/data/dashboard";
 import { useOrgSettings } from "@/lib/data/settings";
+import type { FinanceSummaryDto, PlanSummaryDto } from "@/lib/types/finance";
 
 const GREETING: Record<string, string> = {
   house_head: "👑 — Chúc bạn một ngày phục vụ cộng đoàn đầy ân sủng!",
-  vice_head: "🧭 — Cảm ơn bạn đã đồng hành điều hành nhà hôm nay!",
   treasurer: "💰 — Ngân quỹ minh bạch là niềm tin của cả nhà.",
   admin: "🛡️ — Hệ thống quản trị đang sẵn sàng.",
 };
+/** Số người chưa đóng xong một khoản (null khi người xem chỉ thấy khoản của mình). */
+const owingCount = (p: PlanSummaryDto | null) => (p && p.totalCount !== null && p.paidCount !== null ? Math.max(0, p.totalCount - p.paidCount) : null);
+const collectedPct = (p: PlanSummaryDto) => (p.expectedVnd > 0 ? Math.round((p.collectedVnd / p.expectedVnd) * 100) : 0);
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" });
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 const relTime = (iso: string) => {
@@ -84,8 +87,28 @@ export default function HomePage() {
     return <DashboardSkeleton />;
   }
 
-  const contrib = finance?.contributions ?? null;
-  const unpaidCount = contrib ? contrib.totalCount - contrib.paidCount : null;
+  // Thu quỹ theo KỲ (quỹ định kỳ hiện tại) + tiền điện nước tháng gần nhất; người chỉ thấy khoản của mình ⇒ nói về khoản của mình
+  const fin = finance as unknown as FinanceSummaryDto | undefined;
+  const dues = fin?.contributions ?? null;
+  const utility = fin?.utility ?? null;
+  const mine = fin?.mine ?? null;
+  const duesOwing = owingCount(dues);
+  const utilityOwing = owingCount(utility);
+  const duesLine = dues
+    ? duesOwing !== null
+      ? duesOwing > 0
+        ? `Còn ${duesOwing} bạn chưa đóng ${dues.periodLabel}`
+        : `Đã thu đủ ${dues.periodLabel}`
+      : `${dues.periodLabel[0].toUpperCase()}${dues.periodLabel.slice(1)}: đã thu ${collectedPct(dues)}%`
+    : null;
+  const utilityLine = utility
+    ? utilityOwing !== null
+      ? utilityOwing > 0
+        ? `${utility.periodLabel[0].toUpperCase()}${utility.periodLabel.slice(1)}: còn ${utilityOwing} bạn`
+        : `${utility.periodLabel[0].toUpperCase()}${utility.periodLabel.slice(1)}: đã thu đủ`
+      : null
+    : null;
+  const mineLine = mine && duesOwing === null ? (mine.items > 0 ? `Bạn còn ${mine.items} khoản chưa đóng (${formatVND(mine.outstandingVnd)})` : "Bạn đã đóng đủ các khoản") : null;
   const todayDuties = duty?.today ?? [];
   const doneDutiesCount = todayDuties.filter((d) => d.status === "approved" || d.status === "submitted" || d.status === "checked_in").length;
   const myDutyToday = todayDuties.find((d) => session?.member && d.members.includes(session.member.displayName));
@@ -197,8 +220,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
-            <span className="text-xs text-secondary font-semibold">
-              {contrib ? (unpaidCount ? `Còn ${unpaidCount} bạn chưa đóng ${contrib.periodLabel}` : `Đã thu đủ ${contrib.periodLabel}`) : "Xem sổ quỹ"}
+            <span className="text-xs text-secondary font-semibold min-w-0">
+              {mineLine ?? duesLine ?? utilityLine ?? "Xem sổ quỹ"}
+              {!mineLine && duesLine && utilityLine && <span className="block text-[10px] font-medium text-gray-500">{utilityLine}</span>}
             </span>
             <svg className="w-16 h-5 text-primary" fill="none" viewBox="0 0 64 20">
               <path d="M1 16L13 13L24 15L35 8L46 11L55 4L63 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -247,7 +271,7 @@ export default function HomePage() {
             data={chartData}
             height={220}
             title="Biểu Đồ Thu - Chi Quỹ Lưu Xá (6 Tháng)"
-            subtitle="So sánh tiền đóng quỹ hàng tháng và chi tiêu thực tế"
+            subtitle="So sánh tiền thu quỹ, điện nước và chi tiêu thực tế"
           />
           <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
             <span className="flex items-center gap-1.5">
@@ -327,7 +351,9 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Thu Chi
                   </h3>
-                  <p className="text-xs text-rose-600 font-semibold">{unpaidCount != null ? `Còn ${unpaidCount} bạn chưa đóng` : "Sổ quỹ minh bạch"}</p>
+                  <p className="text-xs text-rose-600 font-semibold">
+                    {mine && mine.items > 0 ? `Bạn còn ${mine.items} khoản chưa đóng` : duesOwing ? `Còn ${duesOwing} bạn chưa đóng quỹ kỳ` : "Sổ quỹ minh bạch"}
+                  </p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />

@@ -371,7 +371,12 @@ export async function serveFile(ctx: Ctx, id: string, variant: string | null): P
     "content-type": mime,
     "cache-control": "private, max-age=86400, immutable",
     "x-content-type-options": "nosniff",
-    "content-security-policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+    // PDF: Chrome/Edge không hiển thị PDF trong tài liệu bị "sandbox" (chặn trình xem PDF tích hợp) ⇒ bỏ sandbox riêng cho PDF;
+    // ảnh và tệp khác vẫn sandbox. Trình xem PDF của trình duyệt chạy tách biệt khỏi trang ứng dụng.
+    "content-security-policy":
+      mime === "application/pdf"
+        ? "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; object-src 'self'"
+        : "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
   };
   if (mime === "application/pdf" || ctx.query.has("download")) {
     const name = (f.original_name || `tep.${key.split(".").pop()}`).replace(/[^\p{L}\p{N}._ -]/gu, "_");

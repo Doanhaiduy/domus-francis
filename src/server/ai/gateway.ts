@@ -1,8 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { Ctx } from "../http";
-import type { Tx } from "../db";
-import { ApiError, conflict, forbidden } from "../errors";
+import { batch, type Tx } from "../db";
+import { ApiError, forbidden } from "../errors";
 import type { AiOutputMap, AiResultDto, AiTaskCode } from "@/lib/types/ai";
 import { AI_LIMITS, providerOrder } from "./config";
 import { NoProviderError, ProviderError, generate } from "./providers";
@@ -38,6 +38,17 @@ export async function ensureBudgetRow(ctx: Pick<Ctx, "dbAs">) {
   budgetMonth = month;
 }
 
+/** Lý do chặn từ trigger cổng AI (có mã quy tắc, tên cấu hình) ⇒ câu tiếng Việt cho người dùng; mã quy tắc trả riêng ở errors[].rule. */
+function friendlyBlockReason(raw: string): string {
+  if (raw.startsWith("BR-AI-03") && raw.includes("ai_academic_summary")) return "Bạn cần đồng ý cho AI nhận xét điểm học tập của mình trước khi dùng tính năng này.";
+  if (raw.startsWith("BR-AI-03")) return "Bạn cần đồng ý cho AI xử lý nội dung của mình trước khi dùng tính năng này.";
+  if (raw.startsWith("BR-AI-04")) return "Đã hết ngân sách AI của tháng này. Bạn vẫn làm thủ công được; liên hệ Ban điều hành nếu cần tăng hạn mức.";
+  if (raw.startsWith("BR-AI-02")) return "Loại dữ liệu này không được phép gửi tới dịch vụ AI bên ngoài.";
+  if (raw.includes("toàn hệ thống")) return "Tính năng AI đang tắt. Bạn vẫn làm thủ công như bình thường.";
+  if (raw.includes("chưa được bật")) return "Tính năng AI này chưa được bật.";
+  return raw || "Yêu cầu AI bị chặn.";
+}
+
 interface CachedRow {
   suggestion_id: string;
   job_id: string;
@@ -63,21 +74,29 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     const p = await (def.prepare as (t: Tx, i: unknown) => Promise<Prepared<C>>)(tx, input);
 
     const hash = sha256(`${code}|${PROMPT_VERSION}|${p.hashInput}`);
-    const rate = (
-      await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour'")
-    ).rows[0].n;
-    const cached = (
-      await tx.query<CachedRow>(
+    // Gộp 3 truy vấn độc lập (giới hạn tốc độ, cache, mã thành viên + còn đồng ý không): 1 vòng mạng thay vì 3.
+    // Cache chỉ dùng khi người gọi vẫn còn đồng ý mục đích tác vụ yêu cầu (rút đồng ý ⇒ không trả lại kết quả cũ, đi qua cổng DB).
+    const [rateR, cachedR, whoR] = await batch(tx, [
+      ["SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour'"],
+      [
         `SELECT s.id AS suggestion_id, s.job_id, s.payload, j.provider, j.model, s.created_at
            FROM ai_suggestions s JOIN ai_jobs j ON j.id = s.job_id
           WHERE j.requested_by = app.current_user_id() AND j.task_code = $1 AND j.input_hash = $2 AND j.status = 'succeeded'
             AND s.status IN ('pending','accepted') AND s.created_at > now() - make_interval(hours => $3)
           ORDER BY s.created_at DESC LIMIT 1`,
         [code, hash, AI_LIMITS.cacheHours],
-      )
-    ).rows[0];
-    const me = (await tx.query<{ id: string | null }>("SELECT app.current_member_id() AS id")).rows[0].id;
-    return { p, hash, rate, cached, me };
+      ],
+      [
+        `SELECT app.current_member_id() AS id,
+                COALESCE((SELECT t.required_consent_purpose IS NULL OR app.has_active_consent(app.current_member_id(), t.required_consent_purpose)
+                            FROM ai_task_types t WHERE t.code = $1), true) AS consent_ok`,
+        [code],
+      ],
+    ]);
+    const rate = (rateR.rows[0] as { n: number }).n;
+    const cached = cachedR.rows[0] as CachedRow | undefined;
+    const who = whoR.rows[0] as { id: string | null; consent_ok: boolean };
+    return { p, hash, rate, cached: who.consent_ok ? cached : undefined, me: who.id };
   });
 
   // Trả lời bằng luật nội bộ (không có ngữ cảnh liên quan): không tạo job, không gọi dịch vụ ngoài.
@@ -114,7 +133,11 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     );
     return r.rows[0];
   });
-  if (job.status === "blocked") throw conflict(job.blocked_reason ?? "Tác vụ AI bị chặn.", "AI_BLOCKED");
+  if (job.status === "blocked") {
+    const raw = job.blocked_reason ?? "";
+    const rule = /^(BR-AI-\d+)/.exec(raw)?.[1] ?? null;
+    throw new ApiError(409, "AI_BLOCKED", friendlyBlockReason(raw), rule ? [{ field: "rule", message: rule }] : undefined);
+  }
 
   await ctx.dbAs("luuxa_worker", (tx) => tx.query("UPDATE ai_jobs SET status = 'running', started_at = now() WHERE id = $1", [job.id]));
 

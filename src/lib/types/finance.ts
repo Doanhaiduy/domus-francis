@@ -40,8 +40,68 @@ export const PERIOD_STATUS_LABEL: Record<PeriodStatus, string> = {
 export const APPROVER_ROLE_LABEL: Record<string, string> = {
   house_head: "Trưởng nhà",
   treasurer: "Thủ quỹ",
-  vice_head: "Phó nhà",
 };
+
+/** Loại khoản thu (fee_type_t). Giao diện chỉ lập mới periodic_dues (quỹ định kỳ) và utility (điện nước); monthly_dues chỉ còn trong lịch sử. */
+export type FeeType = "periodic_dues" | "utility" | "monthly_dues" | "event_fee" | "donation" | "deposit" | "other";
+
+export const FEE_TYPE_LABEL: Record<FeeType, string> = {
+  periodic_dues: "Quỹ định kỳ",
+  utility: "Tiền điện nước",
+  monthly_dues: "Quỹ sinh hoạt tháng",
+  event_fee: "Phí sự kiện",
+  donation: "Quyên góp",
+  deposit: "Đặt cọc",
+  other: "Khoản thu khác",
+};
+
+const mNum = (ym: string) => Number(ym.slice(5, 7));
+const yNum = (ym: string) => Number(ym.slice(0, 4));
+
+/** Khoảng tháng: "T7–T12/2026", "T9/2026–T2/2027", "T10/2026" ('YYYY-MM'). */
+export function monthRangeLabel(start: string, end: string | null | undefined): string {
+  if (!end || end === start) return `T${mNum(start)}/${yNum(start)}`;
+  if (yNum(start) === yNum(end)) return `T${mNum(start)}–T${mNum(end)}/${yNum(start)}`;
+  return `T${mNum(start)}/${yNum(start)}–T${mNum(end)}/${yNum(end)}`;
+}
+
+/** Nhãn ngắn của kế hoạch cho cột ma trận / chip: "Quỹ T7–T12", "ĐN T10", "Quỹ T10" (tháng cũ). */
+export function planShortLabel(p: { feeType: FeeType; month: string; endMonth: string | null; name: string }): string {
+  if (p.feeType === "periodic_dues") return `Quỹ T${mNum(p.month)}–T${mNum(p.endMonth ?? p.month)}`;
+  if (p.feeType === "utility") return `ĐN T${mNum(p.month)}`;
+  if (p.feeType === "monthly_dues") return `Quỹ T${mNum(p.month)}`;
+  return p.name.length > 14 ? `${p.name.slice(0, 13)}…` : p.name;
+}
+
+/** Thông tin tài khoản ngân hàng nhận tiền (VietQR cần bankBin 6 số + accountNo). */
+export interface BankAccountDto {
+  /** Mã ngân hàng NAPAS 6 số — null với ví điện tử / ngân hàng ngoài danh sách (khi đó chỉ dùng ảnh QR tải lên) */
+  bankBin: string | null;
+  bankName: string;
+  accountNo: string;
+  accountName: string;
+  /** Ảnh mã QR tự tải lên (storage_files.id) */
+  qrFileId: string | null;
+}
+
+/** GET /api/v1/finance/receiving-account — tài khoản nhận quỹ của nhà (thường là của Thủ quỹ). */
+export interface ReceivingAccountDto {
+  /** null khi chưa khai báo */
+  account: BankAccountDto | null;
+  /** Chuỗi cũ finance.dues_bank_account (hiển thị khi chưa có tài khoản dạng mới) */
+  legacyText: string | null;
+  canEdit: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
+/** GET /api/v1/members/:id/payment-account — tài khoản nhận tiền của một thành viên. */
+export interface MemberPaymentAccountDto {
+  memberId: string;
+  memberName: string;
+  account: (BankAccountDto & { note: string | null; updatedAt: string }) | null;
+  canEdit: boolean;
+}
 
 export interface FundOptionDto {
   id: string;
@@ -70,8 +130,41 @@ export interface FinanceOptionsDto {
   receiptRequiredMinVnd: number | null;
   dualApprovalMinVnd: number | null;
   treasurerSoloMaxVnd: number | null;
-  monthlyDuesVnd: number | null;
-  duesDueDay: number | null;
+  /** Cấu hình quỹ định kỳ (finance.dues_cycle_*) */
+  dues: { cycleMonths: number; amountVnd: number; startMonth: number; dueDay: number };
+  /** Hạn nộp tiền điện nước: ngày này của tháng sau tháng hóa đơn */
+  utilityDueDay: number;
+  /** Kỳ quỹ hiện tại và kỳ kế tiếp ('YYYY-MM') */
+  currentCycle: { startMonth: string; endMonth: string };
+  nextCycle: { startMonth: string; endMonth: string };
+}
+
+/** GET /api/v1/finance/contribution-plans/preview — xem trước khi lập kế hoạch (số người chia, mỗi người, phần dư). */
+export interface PlanPreviewDto {
+  kind: "periodic_dues" | "utility";
+  name: string;
+  month: string;
+  endMonth: string | null;
+  dueDate: string;
+  splitCount: number;
+  amountVnd: number;
+  totalVnd: number;
+  billTotalVnd: number | null;
+  remainderVnd: number;
+  /** Kế hoạch còn hiệu lực trùng kỳ/tháng (lập sẽ bị từ chối) */
+  existing: { id: string; name: string } | null;
+}
+
+export interface CreatePlanResultDto {
+  id: string;
+  code: string;
+  name: string;
+  generated: number;
+  amountVnd: number;
+  dueDate: string;
+  splitCount: number | null;
+  billTotalVnd: number | null;
+  remainderVnd: number | null;
 }
 
 export interface ReceiptDto {
@@ -164,11 +257,21 @@ export interface ContributionPlanDto {
   id: string;
   code: string;
   name: string;
-  month: string; // YYYY-MM
+  feeType: FeeType;
+  /** Tháng (đầu kỳ) — 'YYYY-MM' */
+  month: string;
+  /** Tháng cuối kỳ (quỹ định kỳ) — 'YYYY-MM' | null */
+  endMonth: string | null;
+  /** "Quỹ T7–T12", "ĐN T10" */
+  shortLabel: string;
   amountVnd: number;
   dueDate: string;
   status: string;
   fundId: string;
+  /** Tiền điện nước: tổng hóa đơn + số người chia (null với loại khác) */
+  billTotalVnd: number | null;
+  splitCount: number | null;
+  note: string | null;
   stats: PlanStatsDto;
 }
 
@@ -216,6 +319,10 @@ export interface ContributionPaymentRef {
 export interface ContributionCellDto {
   contributionId: string;
   planId: string;
+  planCode: string;
+  planName: string;
+  feeType: FeeType;
+  /** Tháng (đầu kỳ) của kế hoạch — 'YYYY-MM' */
   month: string;
   status: ContributionStatus;
   amountDueVnd: number;
@@ -234,13 +341,18 @@ export interface ContributionRowDto {
   name: string;
   fullName: string;
   room: string | null;
+  /** Khóa = planId (nhiều kế hoạch có thể cùng tháng đầu: quỹ kỳ + điện nước) */
   cells: Record<string, ContributionCellDto>;
   outstandingVnd: number;
-  overdueMonths: number;
+  /** Số khoản quá hạn chưa đóng đủ */
+  overdueCount: number;
 }
 
 export interface ContributionMatrixDto {
-  months: string[];
+  /** Khoảng tháng đang xem ('YYYY-MM') — các kế hoạch có thời gian giao với khoảng này */
+  from: string;
+  to: string;
+  /** Các cột: kế hoạch thu, sắp theo tháng (đầu kỳ) */
   plans: ContributionPlanDto[];
   rows: ContributionRowDto[];
   canReadAll: boolean;
@@ -248,9 +360,12 @@ export interface ContributionMatrixDto {
 
 /** GET /api/v1/finance/members/:memberId/contributions (MemberContributionHistory) */
 export interface MemberContributionRow {
-  periodLabel: string; // "Tháng 10 / 2026"
+  planId: string;
+  feeType: FeeType;
+  periodLabel: string; // "Quỹ kỳ T7–T12/2026", "Điện nước tháng 09/2026"
   amountDueVnd: number;
   amountPaidVnd: number;
+  dueDate: string;
   status: "paid" | "partial" | "unpaid" | "waived";
 }
 
@@ -261,12 +376,23 @@ export interface FinanceSummaryDto {
   month: { label: string; incomeVnd: number; expenseVnd: number } | null;
   last6Months: { label: string; incomeVnd: number; expenseVnd: number }[] | null;
   expenseByCategory: { name: string; color: string; amountVnd: number }[] | null;
-  contributions: {
-    periodLabel: string;
-    paidCount: number | null;
-    totalCount: number | null;
-    collectedVnd: number | null;
-    expectedVnd: number | null;
-  } | null;
+  /** Kỳ quỹ định kỳ hiện tại (null nếu chưa lập / không có quyền) */
+  contributions: PlanSummaryDto | null;
+  /** Tiền điện nước tháng gần nhất (null nếu chưa có) */
+  utility: PlanSummaryDto | null;
+  /** Khoản người xem còn phải nộp (mọi kế hoạch chưa hủy) */
+  mine: { outstandingVnd: number; items: number; overdue: number } | null;
   pendingApprovals: number;
+}
+
+export interface PlanSummaryDto {
+  planId: string;
+  /** "quỹ kỳ T7–T12/2026" / "điện nước T9/2026" */
+  periodLabel: string;
+  dueDate: string;
+  /** null khi người xem chỉ thấy khoản của mình */
+  paidCount: number | null;
+  totalCount: number | null;
+  collectedVnd: number;
+  expectedVnd: number;
 }
