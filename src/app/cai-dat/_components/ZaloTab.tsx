@@ -27,6 +27,8 @@ interface ZaloChats {
   ok: boolean;
   chats: { chatId: string; type: string | null; title: string | null; lastText: string | null }[];
   error?: string;
+  webhook?: string | null;
+  raw?: string;
 }
 
 const EVENT_DESC: Record<ZaloEventKey, string> = {
@@ -167,6 +169,10 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
           <div className="p-4 rounded-2xl border border-sky-100 bg-sky-50/40 flex flex-col gap-2">
             {!chats.ok ? (
               <p className="text-xs text-rose-700">Không dò được: {chats.error}</p>
+            ) : chats.webhook ? (
+              <p className="text-xs text-amber-800">Bot này đang dùng <b>webhook</b> ({chats.webhook}) nên không dò bằng cách này được — hãy tắt webhook của bot trong Zalo Bot Creator rồi dò lại.</p>
+            ) : chats.raw ? (
+              <p className="text-xs text-gray-700 break-all">Bot nhận được dữ liệu nhưng không đọc ra mã nhóm. Gửi dòng này cho người hỗ trợ: <code>{chats.raw}</code></p>
             ) : chats.chats.length === 0 ? (
               <p className="text-xs text-gray-600">Chưa thấy tin nào. Bấm “Dò nhóm”, rồi <b>trong vòng 15 giây</b> nhắn một câu trong nhóm có bot (ví dụ “@tên bot xin chào”, nhắc đúng tên bot). Nếu bot không nhận được tin của nhóm, hãy thử nhắn riêng cho bot để kiểm tra kết nối.</p>
             ) : (

@@ -132,17 +132,21 @@ export interface ZaloChatDto {
 }
 
 /** Các cuộc trò chuyện bot vừa nhận tin (getUpdates) — để lấy chat_id của nhóm: thêm bot vào nhóm, nhắn một câu, rồi bấm "Dò nhóm". */
-export async function zaloRecentChats(): Promise<{ ok: boolean; chats: ZaloChatDto[]; error?: string }> {
+export async function zaloRecentChats(): Promise<{ ok: boolean; chats: ZaloChatDto[]; error?: string; webhook?: string | null; raw?: string }> {
+  // Webhook đang bật thì getUpdates không dùng được (hai cơ chế loại trừ nhau) — báo rõ để người dùng biết.
+  const wh = await call("getWebhookInfo", {}, 6_000);
+  const webhook = wh.ok ? (((wh.result ?? {}) as Record<string, unknown>).url as string | undefined) || null : null;
   // Long-polling: Zalo giữ yêu cầu tối đa `timeout` giây chờ tin mới; không có tin nào thì trả lỗi "Request timeout" (không phải lỗi thật).
   const r = await call("getUpdates", { timeout: "15" }, 22_000);
   if (!r.ok) {
-    if (/time-?out/i.test(r.error ?? "")) return { ok: true, chats: [] };
-    return { ok: false, chats: [], error: r.error };
+    if (/time-?out/i.test(r.error ?? "")) return { ok: true, chats: [], webhook };
+    return { ok: false, chats: [], error: r.error, webhook };
   }
   const list: unknown[] = Array.isArray(r.result) ? r.result : r.result ? [r.result] : [];
   const seen = new Map<string, ZaloChatDto>();
   for (const u of list) {
-    const msg = ((u as Record<string, unknown>)?.message ?? u) as Record<string, unknown>;
+    const root = u as Record<string, unknown>;
+    const msg = (root?.message ?? root) as Record<string, unknown>;
     const chat = (msg?.chat ?? null) as Record<string, unknown> | null;
     const id = chat?.id ?? msg?.chat_id;
     if (id === undefined || id === null) continue;
@@ -154,5 +158,7 @@ export async function zaloRecentChats(): Promise<{ ok: boolean; chats: ZaloChatD
       lastText: typeof msg?.text === "string" ? (msg.text as string).slice(0, 80) : null,
     });
   }
-  return { ok: true, chats: [...seen.values()] };
+  // Nhận được dữ liệu nhưng không đọc ra cuộc trò chuyện nào ⇒ trả về cấu trúc thô (đã cắt ngắn) để chẩn đoán
+  const raw = !seen.size && list.length ? JSON.stringify(list).slice(0, 600) : undefined;
+  return { ok: true, chats: [...seen.values()], webhook, raw };
 }
