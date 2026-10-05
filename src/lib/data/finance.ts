@@ -166,6 +166,11 @@ export const financeApi = {
   voidPayment: (paymentId: string, reason: string) => api.post(`${FINANCE_KEY}/payments/${paymentId}/void`, { reason }),
   waive: (contributionId: string, discountVnd: number, reason?: string | null) =>
     api.post(`${FINANCE_KEY}/contributions/${contributionId}/waive`, { discountVnd, reason: reason ?? null }),
+  adjustContribution: (contributionId: string, amountDueVnd: number, reason: string) =>
+    api.post<{ id: string; amountDueVnd: number; note: string }>(`${FINANCE_KEY}/contributions/${contributionId}/adjust`, {
+      amountDueVnd,
+      reason,
+    }),
 };
 
 /** Tài khoản nhận tiền của thành viên: khai báo / sửa / xóa (chính chủ hoặc người có quyền sửa hồ sơ). */

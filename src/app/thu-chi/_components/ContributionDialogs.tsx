@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { HandCoins, CalendarPlus, BadgePercent, RotateCcw, Info, Zap, QrCode, AlertTriangle } from "lucide-react";
+import { HandCoins, CalendarPlus, BadgePercent, RotateCcw, Info, Zap, QrCode, AlertTriangle, Pencil } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -224,17 +224,43 @@ export function CellDialog({
   const { can, session } = useSession();
   const canRecord = can("finance.contribution.record");
   const canWaive = can("finance.contribution.waive");
+  const canPlanManage = can("finance.contribution.plan.manage");
   const [voidId, setVoidId] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [reason, setReason] = useState("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [newDueAmount, setNewDueAmount] = useState<number>(0);
+  const [adjustReason, setAdjustReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!cell) return;
     setDiscount(cell.discountVnd > 0 ? cell.discountVnd : cell.amountDueVnd - cell.paidVnd);
     setReason(cell.discountReason ?? "");
+    setNewDueAmount(cell.amountDueVnd);
+    setAdjustReason("");
+    setAdjustOpen(false);
     setError(null);
   }, [cell?.contributionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const adjustDue = async () => {
+    if (!cell) return;
+    if (newDueAmount < cell.paidVnd) return setError(`Mức thu mới không được nhỏ hơn số tiền đã đóng (${formatVND(cell.paidVnd)}).`);
+    if (newDueAmount < cell.discountVnd) return setError(`Mức thu mới không được nhỏ hơn số tiền đã miễn/giảm (${formatVND(cell.discountVnd)}).`);
+    if (!adjustReason.trim() || adjustReason.trim().length < 3) return setError("Vui lòng nêu lý do điều chỉnh (tối thiểu 3 ký tự).");
+    setBusy(true);
+    setError(null);
+    try {
+      await financeApi.adjustContribution(cell.contributionId, newDueAmount, adjustReason.trim());
+      await refreshFinance();
+      showToast("success", `Đã điều chỉnh mức phải thu thành ${formatVND(newDueAmount)} cho ${row?.fullName}.`);
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const waive = async (value: number) => {
     if (!cell) return;
@@ -389,6 +415,51 @@ export function CellDialog({
                 </div>
               </div>
             )}
+            {canPlanManage && cell.status !== "cancelled" && (
+              <div className="p-3 rounded-2xl border border-purple-100 bg-purple-50/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
+                    <Pencil className="w-3.5 h-3.5 text-primary" /> Điều chỉnh mức phải thu (Ban điều hành)
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustOpen(!adjustOpen)}
+                    className="text-[11px] font-bold text-primary hover:underline"
+                  >
+                    {adjustOpen ? "Thu gọn" : "Thay đổi số tiền"}
+                  </button>
+                </div>
+                {adjustOpen && (
+                  <div className="space-y-2 pt-1 border-t border-purple-100/60 mt-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <CustomInput
+                        label="Mức phải thu mới (VNĐ)"
+                        value={newDueAmount ? newDueAmount.toLocaleString("vi-VN") : ""}
+                        onChange={(e) => setNewDueAmount(Number(e.target.value.replace(/\D/g, "")) || 0)}
+                      />
+                      <div className="sm:col-span-2">
+                        <CustomInput
+                          label="Lý do điều chỉnh *"
+                          value={adjustReason}
+                          onChange={(e) => setAdjustReason(e.target.value)}
+                          placeholder="Ví dụ: Đã ra trường chuyển sang mức 500k, thỏa thuận riêng…"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        disabled={busy || newDueAmount === cell.amountDueVnd}
+                        onClick={adjustDue}
+                        className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-xs font-bold text-white disabled:opacity-60"
+                      >
+                        Lưu mức thu mới
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <ErrorBox error={error} />
           </>
         )}
@@ -502,11 +573,35 @@ export function DuesCycleModal({ open, onClose }: { open: boolean; onClose: () =
         </>
       )}
       {preview && (
-        <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 text-xs text-purple-900">
-          <div className="font-bold">{preview.name}</div>
-          <div>
-            {preview.splitCount} người × {formatVND(preview.amountVnd)} = <b>{formatVND(preview.totalVnd)}</b> · hạn {dmy(preview.dueDate)}
+        <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-100 text-xs text-purple-950 space-y-2">
+          <div className="flex items-center justify-between font-bold">
+            <span className="text-sm text-gray-900">{preview.name}</span>
+            <span className="text-primary font-extrabold text-sm">{formatVND(preview.totalVnd)}</span>
           </div>
+          <div className="text-[11px] text-gray-600">
+            Tổng cộng: <b>{preview.splitCount} người</b> · Hạn nộp: {dmy(preview.dueDate)}
+          </div>
+          {preview.breakdown ? (
+            <div className="pt-2 border-t border-purple-100 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="p-2 rounded-xl bg-white/80 border border-purple-50">
+                <span className="text-gray-500 block">Sinh viên ({preview.breakdown.studyingCount} người):</span>
+                <b className="text-gray-900">{formatVND(preview.breakdown.studyingAmountVnd)} / người</b>
+              </div>
+              <div className="p-2 rounded-xl bg-white/80 border border-purple-50">
+                <span className="text-gray-500 block">Đã ra trường ({preview.breakdown.graduatedCount} người):</span>
+                <b className="text-purple-700">{formatVND(preview.breakdown.graduatedAmountVnd)} / người</b>
+              </div>
+              {preview.breakdown.customCount > 0 && (
+                <div className="col-span-2 text-[10px] text-primary italic font-medium">
+                  * Có {preview.breakdown.customCount} thành viên áp dụng định mức riêng theo thỏa thuận cá nhân.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-gray-600">
+              {preview.splitCount} người × {formatVND(preview.amountVnd)} = <b>{formatVND(preview.totalVnd)}</b>
+            </div>
+          )}
         </div>
       )}
       {preview?.existing && (

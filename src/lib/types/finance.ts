@@ -131,7 +131,7 @@ export interface FinanceOptionsDto {
   dualApprovalMinVnd: number | null;
   treasurerSoloMaxVnd: number | null;
   /** Cấu hình quỹ định kỳ (finance.dues_cycle_*) */
-  dues: { cycleMonths: number; amountVnd: number; startMonth: number; dueDay: number };
+  dues: { cycleMonths: number; amountVnd: number; graduatedAmountVnd: number; startMonth: number; dueDay: number };
   /** Hạn nộp tiền điện nước: ngày này của tháng sau tháng hóa đơn */
   utilityDueDay: number;
   /** Kỳ quỹ hiện tại và kỳ kế tiếp ('YYYY-MM') */
@@ -153,6 +153,23 @@ export interface PlanPreviewDto {
   remainderVnd: number;
   /** Kế hoạch còn hiệu lực trùng kỳ/tháng (lập sẽ bị từ chối) */
   existing: { id: string; name: string } | null;
+  /** Thống kê chi tiết theo phân loại thành viên (quỹ định kỳ) */
+  breakdown?: {
+    studyingCount: number;
+    studyingAmountVnd: number;
+    graduatedCount: number;
+    graduatedAmountVnd: number;
+    customCount: number;
+    members?: {
+      id: string;
+      name: string;
+      fullName: string;
+      room: string | null;
+      status: string;
+      duesAmountVnd: number;
+      isCustom: boolean;
+    }[];
+  };
 }
 
 export interface CreatePlanResultDto {

@@ -301,6 +301,18 @@ export default function MemberCVModal({
                 <span>{member.academicYear || "---"}</span>
               </div>
               <div className="flex">
+                <span className="w-32 font-bold text-gray-700">Tình trạng:</span>
+                <span className={member.studentStatus === "graduated" ? "font-bold text-purple-700" : "text-gray-900"}>
+                  {member.studentStatus === "graduated"
+                    ? "Đã tốt nghiệp (Ra trường)"
+                    : member.studentStatus === "suspended"
+                    ? "Bảo lưu"
+                    : member.studentStatus === "dropped_out"
+                    ? "Thôi học"
+                    : "Đang học (Sinh viên)"}
+                </span>
+              </div>
+              <div className="flex">
                 <span className="w-32 font-bold text-gray-700">Mã số sinh viên:</span>
                 <span className="font-mono">{member.studentCode || "---"}</span>
               </div>
@@ -365,6 +377,16 @@ export default function MemberCVModal({
                     Còn nợ {duesOwedVnd.toLocaleString("vi-VN")}đ ({duesOwing.length} khoản)
                   </span>
                 )}
+              </div>
+              <div className="flex">
+                <span className="w-32 font-bold text-gray-700">Định mức quỹ kỳ:</span>
+                <span className="font-semibold text-gray-900">
+                  {member.customDuesVnd
+                    ? `${member.customDuesVnd.toLocaleString("vi-VN")}đ (Định mức riêng)`
+                    : member.effectiveDuesVnd
+                    ? `${member.effectiveDuesVnd.toLocaleString("vi-VN")}đ (${member.studentStatus === "graduated" ? "Đã ra trường" : "Sinh viên"})`
+                    : "---"}
+                </span>
               </div>
               <div className="flex sm:col-span-2">
                 <span className="w-32 font-bold text-gray-700 shrink-0">Ban &amp; Trách vụ:</span>

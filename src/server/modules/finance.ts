@@ -464,6 +464,7 @@ export async function getOptions(tx: Tx): Promise<FinanceOptionsDto> {
     dues: {
       cycleMonths: num("finance.dues_cycle_months") ?? 6,
       amountVnd: num("finance.dues_cycle_amount_vnd") ?? 0,
+      graduatedAmountVnd: num("finance.dues_cycle_graduated_amount_vnd") ?? 500000,
       startMonth: num("finance.dues_cycle_start_month") ?? 1,
       dueDay: num("finance.dues_cycle_due_day") ?? 15,
     },

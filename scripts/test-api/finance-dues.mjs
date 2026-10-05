@@ -30,6 +30,7 @@ export async function run({ as, test, eq, ok, section }) {
     ok(memberId && treasurerMemberId, "thiếu hồ sơ thành viên của tài khoản demo");
     eq(options.dues.cycleMonths, 6, "số tháng mỗi kỳ");
     eq(options.dues.amountVnd, 300000, "mức quỹ mỗi kỳ");
+    eq(options.dues.graduatedAmountVnd, 500000, "mức quỹ đã ra trường mặc định 500.000 đ");
     eq(options.dues.dueDay, 15, "hạn nộp kỳ");
     eq(options.utilityDueDay, 10, "hạn nộp điện nước");
     ok(options.currentCycle.startMonth <= current && options.currentCycle.endMonth >= current, "kỳ hiện tại phải chứa tháng này");
@@ -229,4 +230,55 @@ export async function run({ as, test, eq, ok, section }) {
     const gone = await member.get(`/api/v1/members/${memberId}/payment-account`);
     eq(gone.json.account, null);
   });
+
+  await test("Định mức quỹ riêng: người ra trường (500k), sinh viên (300k), định mức cá nhân; điều chỉnh mức thu", async () => {
+    // 1. Trưởng nhà cập nhật tình trạng thành viên: tuan chuyển sang đã tốt nghiệp
+    const patchRes = await head.patch(`/api/v1/members/${memberId}`, {
+      studentStatus: "graduated",
+    });
+    eq(patchRes.status, 200, detail(patchRes));
+    eq(patchRes.json.studentStatus, "graduated");
+
+    // 2. Xem trước kỳ quỹ phản ánh phân loại
+    const pv = await treasurer.get(`/api/v1/finance/contribution-plans/preview?kind=periodic_dues`);
+    eq(pv.status, 200, detail(pv));
+    ok(pv.json.breakdown, "phải có breakdown phân loại");
+    ok(pv.json.breakdown.graduatedCount >= 1, "phải có ít nhất 1 người đã ra trường");
+    eq(pv.json.breakdown.graduatedAmountVnd, 500000);
+
+    // 3. Thử gán định mức riêng cho thành viên
+    const customRes = await head.patch(`/api/v1/members/${memberId}`, {
+      customDuesVnd: 600000,
+    });
+    eq(customRes.status, 200, detail(customRes));
+    eq(customRes.json.customDuesVnd, 600000);
+
+    const pv2 = await treasurer.get(`/api/v1/finance/contribution-plans/preview?kind=periodic_dues`);
+    eq(pv2.status, 200, detail(pv2));
+    ok(pv2.json.breakdown.customCount >= 1, "phải có ít nhất 1 người có định mức riêng");
+
+    // 4. Khôi phục lại
+    await head.patch(`/api/v1/members/${memberId}`, {
+      studentStatus: "studying",
+      customDuesVnd: null,
+    });
+
+    // 5. Thử điều chỉnh khoản phải thu của một contribution
+    const matrix = (await treasurer.get(`/api/v1/finance/contributions?months=6`)).json;
+    const firstCell = Object.values(matrix?.rows?.[0]?.cells ?? {})[0];
+    if (firstCell) {
+      const adj = await treasurer.post(`/api/v1/finance/contributions/${firstCell.contributionId}/adjust`, {
+        amountDueVnd: 450000,
+        reason: "Điều chỉnh thử nghiệm kiểm tra tính năng",
+      });
+      eq(adj.status, 200, detail(adj));
+      eq(adj.json.amountDueVnd, 450000);
+      // Khôi phục lại
+      await treasurer.post(`/api/v1/finance/contributions/${firstCell.contributionId}/adjust`, {
+        amountDueVnd: firstCell.amountDueVnd,
+        reason: "Khôi phục mức ban đầu",
+      });
+    }
+  });
 }
+

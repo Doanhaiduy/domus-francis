@@ -212,8 +212,39 @@ export async function previewPlan(
     const c = financeCallerFrom(callerR);
     if (!c.planManage) throw forbidden("Bạn không có quyền lập kế hoạch thu quỹ.");
     const cfg = cfgR.rows[0] as { s: string; e: string; due: string; amount: string; existing: { id: string; name: string } | null };
-    const n = (await tx.query<{ n: number }>("SELECT app.fn_billable_member_count($1::date) AS n", [cfg.due])).rows[0].n;
     const amount = Number(cfg.amount);
+    const gradR = await tx.query<{ grad: number }>("SELECT app.setting_int('finance.dues_cycle_graduated_amount_vnd') AS grad");
+    const gradAmount = Number(gradR.rows[0]?.grad) || 500000;
+
+    const membersR = await tx.query<{
+      id: string;
+      display_name: string;
+      full_name: string;
+      room: string | null;
+      student_status: string;
+      custom_dues_vnd: number | null;
+      dues_amount: number;
+    }>(
+      `SELECT m.id, m.display_name, m.full_name, r.code AS room,
+              app.fn_member_student_status(m.id) AS student_status,
+              m.custom_dues_vnd,
+              app.fn_member_dues_amount(m.id, $2::bigint) AS dues_amount
+         FROM public.members m
+         LEFT JOIN room_assignments ra ON ra.member_id = m.id AND ra.starts_on <= app.local_today()
+                                      AND (ra.ends_on IS NULL OR ra.ends_on > app.local_today())
+         LEFT JOIN rooms r ON r.id = ra.room_id
+        WHERE m.deleted_at IS NULL AND m.status = 'active' AND m.joined_on <= $1::date
+        ORDER BY r.code NULLS LAST, m.member_no`,
+      [cfg.due, amount]
+    );
+    const members = membersR.rows;
+    const n = members.length;
+    const totalVnd = members.reduce((sum, m) => sum + Number(m.dues_amount), 0);
+
+    const studying = members.filter((m) => m.custom_dues_vnd === null && m.student_status !== "graduated");
+    const graduated = members.filter((m) => m.custom_dues_vnd === null && m.student_status === "graduated");
+    const custom = members.filter((m) => m.custom_dues_vnd !== null);
+
     return {
       kind: "periodic_dues",
       name: `Quỹ kỳ ${monthRangeLabel(cfg.s, cfg.e)}`,
@@ -222,10 +253,26 @@ export async function previewPlan(
       dueDate: cfg.due,
       splitCount: n,
       amountVnd: amount,
-      totalVnd: amount * n,
+      totalVnd,
       billTotalVnd: null,
       remainderVnd: 0,
       existing: cfg.existing,
+      breakdown: {
+        studyingCount: studying.length,
+        studyingAmountVnd: amount,
+        graduatedCount: graduated.length,
+        graduatedAmountVnd: gradAmount,
+        customCount: custom.length,
+        members: members.map((m) => ({
+          id: m.id,
+          name: m.display_name,
+          fullName: m.full_name,
+          room: m.room,
+          status: m.student_status,
+          duesAmountVnd: Number(m.dues_amount),
+          isCustom: m.custom_dues_vnd !== null,
+        })),
+      },
     };
   }
   const [callerR, cfgR] = await batch(tx, [
@@ -313,4 +360,21 @@ export async function waiveContribution(tx: Tx, id: string, discountVnd: number,
     discountVnd > 0 ? reason ?? null : null,
   ]);
   if (!r.rowCount) throw forbidden("Bạn không có quyền miễn/giảm khoản phải thu này.");
+}
+
+export async function adjustContribution(
+  tx: Tx,
+  id: string,
+  amountDueVnd: number,
+  reason: string
+): Promise<{ id: string; amountDueVnd: number; note: string }> {
+  const c = await financeCaller(tx);
+  if (!c.planManage) throw forbidden("Bạn không có quyền điều chỉnh mức thu quỹ.");
+  const r = (
+    await tx.query<{ r: Record<string, unknown> }>(
+      "SELECT app.fn_adjust_contribution_due($1::uuid, $2::bigint, $3::text) AS r",
+      [id, amountDueVnd, reason]
+    )
+  ).rows[0].r;
+  return { id: String(r.id), amountDueVnd: Number(r.amount_due_vnd), note: String(r.note ?? "") };
 }

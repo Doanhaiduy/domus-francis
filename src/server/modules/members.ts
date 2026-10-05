@@ -51,6 +51,7 @@ const MEMBER_SELECT = `
          pos.position_code, pos.position_name, mp.responsibilities,
          cp.holy_name, cp.parish_name, d.name AS diocese_name,
          COALESCE(sp.major, ds.major) AS major, COALESCE(sp.cohort_label, ds.cohort_label) AS cohort_label, sp.student_code,
+         app.fn_member_student_status(m.id) AS student_status, m.custom_dues_vnd, app.fn_member_dues_amount(m.id) AS effective_dues_vnd,
          un.name AS university_name,
          to_char(mpd.birth_date, 'DD/MM/YYYY') AS birth_dmy
     FROM members m
@@ -99,6 +100,9 @@ function toMemberDto(r: MemberRow): MemberDto {
     major: r.major ?? undefined,
     academicYear: r.cohort_label ?? undefined,
     studentCode: r.student_code ?? undefined,
+    studentStatus: (r.student_status as MemberDto["studentStatus"]) ?? "studying",
+    customDuesVnd: r.custom_dues_vnd !== null && r.custom_dues_vnd !== undefined ? Number(r.custom_dues_vnd) : null,
+    effectiveDuesVnd: r.effective_dues_vnd !== null && r.effective_dues_vnd !== undefined ? Number(r.effective_dues_vnd) : undefined,
     diocese: r.diocese_name ?? undefined,
     parish: r.parish_name ?? undefined,
     birthDate: r.birth_dmy ?? undefined,
@@ -223,6 +227,8 @@ export interface MemberProfileInput {
   major?: string | null;
   academicYear?: string | null;
   studentCode?: string | null;
+  studentStatus?: "studying" | "graduated" | "suspended" | "dropped_out" | null;
+  customDuesVnd?: number | null;
 }
 
 export const toE164 = (p: string | null | undefined): string | null => {
@@ -251,6 +257,7 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
   if (has(p, "hidePhone")) set("hide_phone", !!p.hidePhone);
   if (has(p, "avatarFileId")) set("avatar_file_id", p.avatarFileId || null);
   if (has(p, "joinedOn") && p.joinedOn) set("joined_on", p.joinedOn);
+  if (has(p, "customDuesVnd")) set("custom_dues_vnd", p.customDuesVnd !== null && p.customDuesVnd !== undefined ? p.customDuesVnd : null);
   if (sets.length) {
     const r = await tx.query(`UPDATE members SET ${sets.join(", ")} WHERE id = $1 AND deleted_at IS NULL`, vals);
     if (!r.rowCount) throw new ApiError(403, "FORBIDDEN", "Bạn không có quyền sửa hồ sơ này.");
@@ -340,24 +347,50 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
   }
 
   // Học vụ
-  const t4 = ["universityId", "major", "academicYear", "studentCode"] as const;
+  const t4 = ["universityId", "major", "academicYear", "studentCode", "studentStatus"] as const;
   if (t4.some((k) => has(p, k))) {
     const cur = (await tx.query<{ id: string; university_id: string }>("SELECT id, university_id FROM student_profiles WHERE member_id = $1 AND is_current AND deleted_at IS NULL", [memberId])).rows[0];
     const uni = has(p, "universityId") ? p.universityId : cur?.university_id;
     const years = /(\d{4})\s*[–-]\s*(\d{4})/.exec(p.academicYear ?? "");
+    const stStatus = p.studentStatus ?? undefined;
     if (cur) {
       await tx.query(
-        `UPDATE student_profiles SET university_id = COALESCE($2, university_id), major = $3, cohort_label = $4, student_code = $5,
-                enrollment_year = COALESCE($6, enrollment_year), expected_graduation_year = COALESCE($7, expected_graduation_year)
+        `UPDATE student_profiles SET university_id = COALESCE($2, university_id),
+                major = CASE WHEN $9 THEN $3 ELSE major END,
+                cohort_label = CASE WHEN $10 THEN $4 ELSE cohort_label END,
+                student_code = CASE WHEN $11 THEN $5 ELSE student_code END,
+                enrollment_year = COALESCE($6, enrollment_year), expected_graduation_year = COALESCE($7, expected_graduation_year),
+                status = COALESCE($8::student_status_t, status)
           WHERE id = $1`,
-        [cur.id, uni ?? null, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, years ? Number(years[1]) : null, years ? Number(years[2]) : null]
+        [
+          cur.id,
+          uni ?? null,
+          p.major ?? null,
+          p.academicYear ?? null,
+          p.studentCode ?? null,
+          years ? Number(years[1]) : null,
+          years ? Number(years[2]) : null,
+          stStatus ?? null,
+          has(p, "major"),
+          has(p, "academicYear"),
+          has(p, "studentCode"),
+        ]
       );
     } else if (uni) {
       await tx.query(
-        `INSERT INTO student_profiles (member_id, university_id, major, cohort_label, student_code, enrollment_year, expected_graduation_year)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [memberId, uni, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, years ? Number(years[1]) : null, years ? Number(years[2]) : null]
+        `INSERT INTO student_profiles (member_id, university_id, major, cohort_label, student_code, enrollment_year, expected_graduation_year, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::student_status_t, 'studying'))`,
+        [memberId, uni, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, years ? Number(years[1]) : null, years ? Number(years[2]) : null, stStatus ?? null]
       );
+    } else if (stStatus) {
+      const defaultUni = (await tx.query<{ id: string }>("SELECT id FROM universities ORDER BY sort_order, name LIMIT 1")).rows[0]?.id;
+      if (defaultUni) {
+        await tx.query(
+          `INSERT INTO student_profiles (member_id, university_id, status)
+           VALUES ($1, $2, $3::student_status_t)`,
+          [memberId, defaultUni, stStatus]
+        );
+      }
     }
   }
 }

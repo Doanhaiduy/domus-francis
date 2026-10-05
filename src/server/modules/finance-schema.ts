@@ -178,6 +178,11 @@ export const WaiveSchema = z
     path: ["reason"],
   });
 
+export const AdjustContributionSchema = z.object({
+  amountDueVnd: z.number().int().min(0).max(50_000_000, "Mức thu tối đa 50.000.000 đ."),
+  reason: zText(3, 500, "Lý do điều chỉnh"),
+});
+
 export const RangeQuery = z.object({
   from: zDate.optional(),
   to: zDate.optional(),

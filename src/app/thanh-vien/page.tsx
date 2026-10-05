@@ -308,19 +308,26 @@ export default function ThanhVienPage() {
                         <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
                           {m.room}
                         </span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            m.role === "Trưởng nhà"
-                              ? "bg-purple-100 text-purple-800"
-                              : m.role === "Thủ quỹ"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : m.role === "Admin"
-                              ? "bg-rose-100 text-rose-800"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {m.role}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {m.studentStatus === "graduated" && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              Đã ra trường
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              m.role === "Trưởng nhà"
+                                ? "bg-purple-100 text-purple-800"
+                                : m.role === "Thủ quỹ"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : m.role === "Admin"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {m.role}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -491,8 +498,26 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
         )}
         {m.university && (
           <div className={row}>
-            <span className="text-gray-400 flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> Đại học</span>
-            <span className="font-medium text-gray-800 text-right truncate max-w-[170px]">{m.university}</span>
+            <span className="text-gray-400 flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> Học vụ</span>
+            <span className="font-medium text-gray-800 text-right truncate max-w-[200px]">
+              {m.studentStatus === "graduated" ? (
+                <span className="font-bold text-indigo-700">Đã ra trường ({m.university})</span>
+              ) : (
+                <span>{m.university}</span>
+              )}
+            </span>
+          </div>
+        )}
+        {(can("finance.contribution.read_all") || session?.member?.id === m.id) && (
+          <div className={row}>
+            <span className="text-gray-400 flex items-center gap-1.5">💰 Quỹ kỳ áp dụng</span>
+            <span className="font-bold text-gray-900">
+              {m.customDuesVnd
+                ? `${m.customDuesVnd.toLocaleString("vi-VN")}đ (Định mức riêng)`
+                : m.effectiveDuesVnd
+                ? `${m.effectiveDuesVnd.toLocaleString("vi-VN")}đ (${m.studentStatus === "graduated" ? "Đã ra trường" : "Sinh viên"})`
+                : "—"}
+            </span>
           </div>
         )}
         {m.parentPhone && (

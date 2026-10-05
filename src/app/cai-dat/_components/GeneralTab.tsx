@@ -31,6 +31,7 @@ export const ORG_KEYS = [
 ];
 export const FUND_KEYS = [
   "finance.dues_cycle_amount_vnd",
+  "finance.dues_cycle_graduated_amount_vnd",
   "finance.dues_cycle_months",
   "finance.dues_cycle_start_month",
   "finance.dues_cycle_due_day",
@@ -212,7 +213,8 @@ export default function GeneralTab({ draft, roles }: Props) {
           {!readOnly && <CardLockNote reason={fundLock} />}
           <LockNoteShown.Provider value={readOnly || !!fundLock}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumberSetting draft={draft} k="finance.dues_cycle_amount_vnd" label="Mức quỹ mỗi kỳ (VNĐ / người)" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_amount_vnd" label="Mức quỹ mỗi kỳ — Sinh viên đang học (VNĐ / người)" />
+              <NumberSetting draft={draft} k="finance.dues_cycle_graduated_amount_vnd" label="Mức quỹ mỗi kỳ — Đã tốt nghiệp / ra trường (VNĐ / người)" />
               <NumberSetting draft={draft} k="finance.dues_cycle_months" label="Số tháng mỗi kỳ quỹ" suffix="tháng" />
               <NumberSetting draft={draft} k="finance.dues_cycle_start_month" label="Kỳ quỹ đầu tiên trong năm bắt đầu từ tháng" suffix="tháng" />
               <NumberSetting draft={draft} k="finance.dues_cycle_due_day" label="Hạn nộp quỹ kỳ (ngày … của tháng đầu kỳ)" suffix="ngày" />
@@ -223,7 +225,10 @@ export default function GeneralTab({ draft, roles }: Props) {
                   {cycleAmount > 0 && (
                     <>
                       {" "}
-                      · {cycleAmount.toLocaleString("vi-VN")}đ / kỳ ≈ {Math.round((cycleAmount * 12) / cycleMonths).toLocaleString("vi-VN")}đ / người / năm
+                      · Sinh viên: {cycleAmount.toLocaleString("vi-VN")}đ / kỳ (≈ {Math.round((cycleAmount * 12) / cycleMonths).toLocaleString("vi-VN")}đ/năm)
+                      {Number(draft.value<number>("finance.dues_cycle_graduated_amount_vnd")) > 0 && (
+                        <span> · Đã ra trường: {Number(draft.value<number>("finance.dues_cycle_graduated_amount_vnd")).toLocaleString("vi-VN")}đ / kỳ</span>
+                      )}
                     </>
                   )}
                   . Tiền điện nước: Thủ quỹ nhập tổng hóa đơn hằng tháng ở trang Thu chi, hệ thống chia đều cho người đang ở.

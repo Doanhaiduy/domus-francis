@@ -32,6 +32,8 @@ export const MemberProfileSchema = z.object({
   major: opt(200),
   academicYear: opt(60),
   studentCode: opt(30),
+  studentStatus: z.enum(["studying", "graduated", "suspended", "dropped_out"]).nullable().optional(),
+  customDuesVnd: z.number().int().min(0).max(50_000_000).nullable().optional(),
 });
 
 export const CreateMemberSchema = MemberProfileSchema.extend({

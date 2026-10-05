@@ -26,6 +26,11 @@ export interface MemberDto {
   major?: string;
   academicYear?: string;
   studentCode?: string;
+  studentStatus?: "studying" | "graduated" | "suspended" | "dropped_out";
+  /** Định mức quỹ riêng theo thành viên (null = tính tự động theo sinh viên/đã ra trường) */
+  customDuesVnd?: number | null;
+  /** Mức quỹ kỳ thực tế áp dụng (VNĐ) */
+  effectiveDuesVnd?: number;
   diocese?: string;
   parish?: string;
   /** DD/MM/YYYY — chỉ có khi người xem được đọc thông tin riêng tư (chính chủ / cán bộ) */

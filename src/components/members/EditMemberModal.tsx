@@ -57,6 +57,8 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       major: member.major ?? "",
       academicYear: member.academicYear ?? "",
       studentCode: member.studentCode ?? "",
+      studentStatus: member.studentStatus ?? "studying",
+      customDuesVnd: member.customDuesVnd ?? "",
     });
   }, [member]);
 
@@ -79,7 +81,11 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       major: f.major || null,
       academicYear: f.academicYear || null,
       studentCode: f.studentCode || null,
+      studentStatus: f.studentStatus || "studying",
     };
+    if (f.customDuesVnd !== undefined) {
+      body.customDuesVnd = f.customDuesVnd !== "" && f.customDuesVnd !== null ? Number(f.customDuesVnd) : null;
+    }
     if (member.canEditPrivate) {
       Object.assign(body, {
         birthDate: f.birthDate || null,
@@ -156,8 +162,19 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                 </div>
                 <ImageUploadDropzone label="Ảnh đại diện" bucket="avatars" value={f.avatarFileId ?? ""} onChange={set("avatarFileId")} />
 
-                {section(<GraduationCap className="w-4 h-4" />, "Học vụ")}
+                {section(<GraduationCap className="w-4 h-4" />, "Học vụ & Tình trạng sinh viên")}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <CustomSelect
+                    label="Tình trạng học tập"
+                    value={f.studentStatus ?? "studying"}
+                    onChange={set("studentStatus")}
+                    options={[
+                      { value: "studying", label: "Đang học (Sinh viên)" },
+                      { value: "graduated", label: "Đã tốt nghiệp (Ra trường / Đi làm)" },
+                      { value: "suspended", label: "Bảo lưu" },
+                      { value: "dropped_out", label: "Thôi học" },
+                    ]}
+                  />
                   <CustomSelect
                     label="Trường"
                     value={f.universityId ?? ""}
@@ -167,6 +184,20 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                   <CustomInput label="Ngành học" value={f.major ?? ""} onChange={set("major")} />
                   <CustomInput label="Khóa (VD: K66 (2021 – 2026))" value={f.academicYear ?? ""} onChange={set("academicYear")} />
                   <CustomInput label="Mã sinh viên" value={f.studentCode ?? ""} onChange={set("studentCode")} />
+                  <div>
+                    <CustomInput
+                      label="Định mức quỹ kỳ riêng (VNĐ)"
+                      value={f.customDuesVnd ? Number(f.customDuesVnd).toLocaleString("vi-VN") : ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        set("customDuesVnd")(val ? Number(val) : null);
+                      }}
+                      placeholder={`Tự động: ${f.studentStatus === "graduated" ? "500.000 đ (Đã ra trường)" : "300.000 đ (Sinh viên)"}`}
+                    />
+                    <span className="text-[10px] text-gray-400 mt-1 block">
+                      Để trống = tự động theo tình trạng (Sinh viên 300k, Đã ra trường 500k).
+                    </span>
+                  </div>
                 </div>
 
                 {member.canEditPrivate ? (
