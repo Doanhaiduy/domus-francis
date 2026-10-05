@@ -6,6 +6,6 @@ export async function register() {
   // Điều kiện phải đúng dạng này để Next loại bỏ import khỏi bản build Edge (pg cần module Node)
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { startBackgroundJobs } = await import("./server/jobs");
-    if (process.env.LUUXA_DISABLE_JOBS !== "true") startBackgroundJobs();
+    if (process.env.LUUXA_DISABLE_JOBS !== "true" && !process.env.VERCEL) startBackgroundJobs();
   }
 }

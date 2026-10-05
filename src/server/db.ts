@@ -18,19 +18,25 @@ declare global {
 
 function createPool() {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("Thiếu DATABASE_URL (chạy `pnpm setup:local` để tạo .env.local)");
-  const host = new URL(url).hostname;
+  if (!url) throw new Error("Chưa cấu hình biến môi trường DATABASE_URL trên Vercel / server.");
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    // Fallback if URL is non-standard
+  }
   const isLocal = ["127.0.0.1", "localhost", "::1"].includes(host);
-  if (!isLocal && process.env.ALLOW_REMOTE_DB !== "true" && !process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.SUPABASE_URL) {
-    // Ràng buộc an toàn: cảnh báo nếu chưa cho phép kết nối DB từ xa.
+  const isCloudOrProd = Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
+  if (!isLocal && !isCloudOrProd && process.env.ALLOW_REMOTE_DB !== "true" && !process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.SUPABASE_URL) {
+    // Ràng buộc an toàn: cảnh báo nếu chưa cho phép kết nối DB từ xa ở môi trường local.
     throw new Error(`DATABASE_URL đang trỏ tới host từ xa (${host}). Đặt ALLOW_REMOTE_DB=true trong .env.local để cho phép.`);
   }
   const pool = new Pool({
     connectionString: url,
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
-    max: 20,
+    max: process.env.VERCEL ? 5 : 20,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 15_000,
     application_name: "luuxa-web",
   });
   pool.on("error", (e) => console.error("[db] lỗi kết nối nhàn rỗi:", e.message));

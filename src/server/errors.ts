@@ -96,19 +96,25 @@ export function toApiError(e: unknown): ApiError {
       case "22000":
       case "23000": return new ApiError(422, br ?? "BUSINESS_RULE", msg);
     }
+    if (e.code === "53300") return new ApiError(503, "BUSY", "Cơ sở dữ liệu đang quá tải kết nối. Vui lòng thử lại sau ít phút.");
     if (e.code?.startsWith("22") || e.code?.startsWith("23")) return new ApiError(422, br ?? "BUSINESS_RULE", msg);
   }
   console.error("[api] lỗi không mong đợi:", e);
-  return new ApiError(500, "INTERNAL", "Đã có lỗi hệ thống. Vui lòng thử lại sau.");
+  const errMsg =
+    (e as { detail?: string; message?: string })?.detail ||
+    (e as Error)?.message ||
+    String(e ?? "Đã có lỗi hệ thống. Vui lòng thử lại sau.");
+  return new ApiError(500, "INTERNAL", errMsg);
 }
 
 export function problemResponse(err: ApiError, requestId: string, instance?: string): Response {
+  const isInternal = err.status === 500;
   const body = {
     type: `https://luuxa.local/problems/${err.code.toLowerCase()}`,
     title: TITLES[err.status] ?? "Lỗi",
     status: err.status,
-    // Lời thường cho người dùng: bỏ mã quy tắc/mã quyền/tên bảng-hàm (mã nghiệp vụ vẫn ở `code`)
-    detail: humanizeErrorMessage(err.message),
+    // Với lỗi 500 hệ thống, giữ nguyên thông điệp kỹ thuật/chẩn đoán; với lỗi khác, làm sạch câu chữ
+    detail: isInternal ? err.message : humanizeErrorMessage(err.message),
     code: err.code,
     instance,
     // errors[] giữ nguyên: có nơi dùng làm dữ liệu máy đọc (vd. mã BR-AI-03 cho client AI); câu chữ theo ô đã là tiếng Việt

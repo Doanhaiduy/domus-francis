@@ -29,7 +29,7 @@ let publicKey: CryptoKey | Uint8Array | null = null;
 async function getPublicKey() {
   if (!publicKey) {
     const jwk = process.env.AUTH_JWT_PUBLIC_JWK;
-    if (!jwk) throw new Error("Thiếu AUTH_JWT_PUBLIC_JWK (chạy `pnpm setup:local`)");
+    if (!jwk) throw new Error("Chưa cấu hình biến môi trường AUTH_JWT_PUBLIC_JWK trên Vercel / server.");
     publicKey = await importJWK(JSON.parse(jwk), "EdDSA");
   }
   return publicKey;

@@ -9,7 +9,7 @@ export const PII_KEY_VERSION = 1;
 
 function key(name: "PII_KEY_V1" | "PII_BIDX_KEY"): Buffer {
   const raw = process.env[name];
-  if (!raw) throw new Error(`Thiếu ${name} (chạy \`pnpm setup:local\`)`);
+  if (!raw) throw new Error(`Chưa cấu hình biến môi trường ${name} trên Vercel / server.`);
   const k = Buffer.from(raw, "base64");
   if (k.length !== 32) throw new Error(`${name} phải là 32 byte base64`);
   return k;

@@ -8,7 +8,7 @@ let kid = "local";
 async function getPrivateKey() {
   if (!privateKey) {
     const raw = process.env.AUTH_JWT_PRIVATE_JWK;
-    if (!raw) throw new Error("Thiếu AUTH_JWT_PRIVATE_JWK (chạy `pnpm setup:local`)");
+    if (!raw) throw new Error("Chưa cấu hình biến môi trường AUTH_JWT_PRIVATE_JWK trên Vercel / server.");
     const jwk = JSON.parse(raw);
     kid = jwk.kid ?? kid;
     privateKey = await importJWK(jwk, "EdDSA");
