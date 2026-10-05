@@ -24,6 +24,7 @@ import {
   LogOut,
   Wrench as WrenchIcon,
   BookOpen,
+  User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -233,6 +234,22 @@ export const Sidebar: React.FC = () => {
                   <div className="mt-0.5 text-[10px] text-gray-400">Vai trò: {session.roleLabel} + {session.roles.length - 1} vai trò khác</div>
                 )}
               </div>
+              <Menu.Item>
+                {({ active }) => (
+                  <Link
+                    href="/cai-dat?tab=profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors text-left",
+                      active ? "bg-purple-50 text-primary" : "text-gray-700"
+                    )}
+                  >
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span>Hồ sơ cá nhân</span>
+                  </Link>
+                )}
+              </Menu.Item>
+
               <Menu.Item>
                 {({ active }) => (
                   <button

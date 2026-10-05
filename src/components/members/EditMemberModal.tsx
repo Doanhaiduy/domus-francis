@@ -6,6 +6,7 @@ import { Portal } from "@/components/ui/Portal";
 import { CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
 
@@ -23,11 +24,14 @@ interface Props {
 /** Sửa hồ sơ: chính chủ hoặc cán bộ có quyền. Phần riêng tư / Công giáo chỉ hiện khi được phép (RLS quyết định khi lưu). */
 export default function EditMemberModal({ memberId, onClose }: Props) {
   const { showToast } = useApp();
+  const { session, can } = useSession();
   const { member } = useMemberDetail(memberId);
   const lookups = useLookups();
   const [f, setF] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canManageDues = can("member.update") || can("finance.contribution.plan.manage") || can("finance.settings.write");
 
   useEffect(() => {
     if (!member) return;
@@ -84,7 +88,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       studentCode: f.studentCode || null,
       studentStatus: f.studentStatus || "studying",
     };
-    if (f.customDuesVnd !== undefined) {
+    if (canManageDues && f.customDuesVnd !== undefined) {
       body.customDuesVnd = f.customDuesVnd !== "" && f.customDuesVnd !== null ? Number(f.customDuesVnd) : null;
     }
     if (member.canEditPrivate) {
@@ -185,20 +189,22 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                   <CustomInput label="Ngành học" value={f.major ?? ""} onChange={set("major")} />
                   <CustomInput label="Khóa (VD: K66 (2021 – 2026))" value={f.academicYear ?? ""} onChange={set("academicYear")} />
                   <CustomInput label="Mã sinh viên" value={f.studentCode ?? ""} onChange={set("studentCode")} />
-                  <div>
-                    <CustomInput
-                      label="Định mức quỹ kỳ riêng (VNĐ)"
-                      value={f.customDuesVnd ? Number(f.customDuesVnd).toLocaleString("vi-VN") : ""}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        set("customDuesVnd")(val ? Number(val) : null);
-                      }}
-                      placeholder={`Tự động: ${f.studentStatus === "graduated" ? "500.000 đ (Đã ra trường)" : "300.000 đ (Sinh viên)"}`}
-                    />
-                    <span className="text-[10px] text-gray-400 mt-1 block">
-                      Để trống = tự động theo tình trạng (Sinh viên 300k, Đã ra trường 500k).
-                    </span>
-                  </div>
+                  {canManageDues && (
+                    <div>
+                      <CustomInput
+                        label="Định mức quỹ kỳ riêng (VNĐ)"
+                        value={f.customDuesVnd ? Number(f.customDuesVnd).toLocaleString("vi-VN") : ""}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          set("customDuesVnd")(val ? Number(val) : null);
+                        }}
+                        placeholder={`Tự động: ${f.studentStatus === "graduated" ? "500.000 đ (Đã ra trường)" : "300.000 đ (Sinh viên)"}`}
+                      />
+                      <span className="text-[10px] text-gray-400 mt-1 block">
+                        Để trống = tự động theo tình trạng (Sinh viên 300k, Đã ra trường 500k).
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {member.canEditPrivate ? (

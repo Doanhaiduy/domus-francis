@@ -176,15 +176,19 @@ export const Header: React.FC = () => {
 
           <div className="hidden sm:block h-5 w-px bg-surface-container-highest" />
 
-          {/* ACTIVE ROLE PILL */}
-          <div className="hidden sm:flex items-center gap-2 pl-1">
+          {/* ACTIVE ROLE PILL / PROFILE LINK */}
+          <Link
+            href="/cai-dat?tab=profile"
+            className="hidden sm:flex items-center gap-2 pl-1 p-1 rounded-2xl hover:bg-purple-50/80 transition-all cursor-pointer group select-none active:scale-95"
+            title="Xem &amp; sửa hồ sơ cá nhân của bạn"
+          >
             {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shadow-xs shrink-0" />
+              <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shadow-xs shrink-0 group-hover:ring-2 group-hover:ring-purple-300 transition" />
             ) : (
               <div
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-white shadow-xs shrink-0 bg-gradient-to-tr",
+                  "w-8 h-8 rounded-full flex items-center justify-center text-white shadow-xs shrink-0 bg-gradient-to-tr group-hover:ring-2 group-hover:ring-purple-300 transition",
                   roleCfg.color
                 )}
                 title={roleCfg.desc}
@@ -193,13 +197,13 @@ export const Header: React.FC = () => {
               </div>
             )}
             <div className="hidden xl:flex flex-col text-left">
-              <span className="text-xs font-bold text-gray-900 leading-tight">{displayName}</span>
+              <span className="text-xs font-bold text-gray-900 group-hover:text-primary transition leading-tight">{displayName}</span>
               <span className="text-[10px] font-semibold text-primary">
                 {currentRole}
                 {roomLabel ? ` · ${roomLabel}` : ""}
               </span>
             </div>
-          </div>
+          </Link>
         </div>
       </header>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, Send, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap } from "lucide-react";
+import { Settings, Building, Send, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import CaiDatLoading from "./loading";
 import { useSettingsDraft } from "./_components/useSettingsDraft";
+import ProfileTab from "./_components/ProfileTab";
 import GeneralTab, { isGeneralKey } from "./_components/GeneralTab";
 import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
@@ -22,8 +23,8 @@ import AccountsTab from "./_components/AccountsTab";
 import AcademicConfigTab from "./_components/AcademicConfigTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "general" | "categories" | "academic" | "roles" | "accounts" | "telegram" | "ai" | "modules";
-const TABS: readonly ActiveTab[] = ["general", "categories", "academic", "roles", "accounts", "telegram", "ai", "modules"];
+type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "telegram" | "ai" | "modules";
+const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "telegram", "ai", "modules"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -105,80 +106,92 @@ export default function CaiDatPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-purple-100 text-primary flex items-center justify-center shadow-xs">
-              <Settings className="w-5 h-5" />
+              {activeTab === "profile" ? <User className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Cài Đặt &amp; Quản Lý Hệ Thống</h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold font-mono">v2.5.0</span>
+                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+                  {activeTab === "profile" ? "Hồ Sơ Cá Nhân" : "Cài Đặt & Quản Lý Hệ Thống"}
+                </h1>
+                {activeTab !== "profile" && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold font-mono">v2.5.0</span>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">Cấu hình thông số cộng đoàn, danh mục hệ thống toàn diện, phân quyền và kết nối bot</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {activeTab === "profile"
+                  ? "Cập nhật thông tin cá nhân, ảnh đại diện, quê quán, số điện thoại cha mẹ và hồ sơ Công giáo"
+                  : "Cấu hình thông số cộng đoàn, danh mục hệ thống toàn diện, phân quyền và kết nối bot"}
+              </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {!readOnly ? (
-            <>
-              {dirtyCount > 0 && (
+          {activeTab !== "profile" ? (
+            !readOnly ? (
+              <>
+                {dirtyCount > 0 && (
+                  <button
+                    onClick={() => draft.discard()}
+                    disabled={draft.saving}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
+                    title="Bỏ các thay đổi chưa lưu"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    <span>Hủy thay đổi</span>
+                  </button>
+                )}
                 <button
-                  onClick={() => draft.discard()}
+                  onClick={() =>
+                    resettable.length ? setConfirmReset(true) : showToast("info", "Các cấu hình bạn được sửa ở tab này đều đang ở giá trị mặc định.")
+                  }
                   disabled={draft.saving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
-                  title="Bỏ các thay đổi chưa lưu"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs transition disabled:opacity-60"
                 >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  <span>Hủy thay đổi</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Khôi phục mặc định</span>
                 </button>
-              )}
-              <button
-                onClick={() =>
-                  resettable.length ? setConfirmReset(true) : showToast("info", "Các cấu hình bạn được sửa ở tab này đều đang ở giá trị mặc định.")
-                }
-                disabled={draft.saving}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs transition disabled:opacity-60"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
-                <span>Khôi phục mặc định</span>
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={draft.saving || dirtyCount === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-purple-200 active:scale-95 transition disabled:opacity-50 disabled:active:scale-100"
-              >
-                <Save className="w-4 h-4" />
-                <span>{draft.saving ? "Đang lưu..." : dirtyCount ? `Lưu tất cả thay đổi (${dirtyCount})` : "Lưu tất cả thay đổi"}</span>
-              </button>
-            </>
-          ) : (
-            <span className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">
-              🔒 Chế độ chỉ xem ({session?.roleLabel ?? "Thành viên"})
-            </span>
-          )}
+                <button
+                  onClick={handleSave}
+                  disabled={draft.saving || dirtyCount === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-purple-200 active:scale-95 transition disabled:opacity-50 disabled:active:scale-100"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{draft.saving ? "Đang lưu..." : dirtyCount ? `Lưu tất cả thay đổi (${dirtyCount})` : "Lưu tất cả thay đổi"}</span>
+                </button>
+              </>
+            ) : (
+              <span className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">
+                🔒 Chế độ chỉ xem ({session?.roleLabel ?? "Thành viên"})
+              </span>
+            )
+          ) : null}
         </div>
       </div>
 
-      {/* Thông báo quyền */}
-      {readOnly ? (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-amber-100 text-amber-700 font-bold">🔒</span>
-            <div>
-              <h4 className="font-bold">Bạn đang xem cài đặt ở chế độ chỉ đọc</h4>
-              <p className="text-[11px] text-amber-700 mt-0.5">
-                Thay đổi cấu hình hệ thống chỉ dành cho người có quyền tương ứng: thông tin cộng đoàn &amp; tham số vận hành (Admin, Trưởng nhà), định
-                mức quỹ &amp; ngưỡng chi (Trưởng nhà), giá suất ăn &amp; giờ chốt cơm (Ban Ẩm thực, Trưởng nhà), giờ Kinh Tối (Ban Phụng vụ,
-                Trưởng nhà).
-              </p>
+      {/* Thông báo quyền hệ thống (chỉ hiện khi xem các tab cấu hình hệ thống) */}
+      {activeTab !== "profile" && (
+        readOnly ? (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-amber-100 text-amber-700 font-bold">🔒</span>
+              <div>
+                <h4 className="font-bold">Bạn đang xem cài đặt hệ thống ở chế độ chỉ đọc</h4>
+                <p className="text-[11px] text-amber-700 mt-0.5">
+                  Thay đổi cấu hình hệ thống chỉ dành cho người có quyền tương ứng: thông tin cộng đoàn &amp; tham số vận hành (Admin, Trưởng nhà), định
+                  mức quỹ &amp; ngưỡng chi (Trưởng nhà), giá suất ăn &amp; giờ chốt cơm (Ban Ẩm thực, Trưởng nhà), giờ Kinh Tối (Ban Phụng vụ,
+                  Trưởng nhà).
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        draft.byKey.size > 0 &&
-        [...draft.byKey.values()].some((m) => !m.canWrite) && (
-          <div className="px-4 py-2.5 rounded-2xl bg-surface-container-low border border-purple-50 text-[11px] text-gray-600">
-            Các ô có biểu tượng 🔒 cần quyền khác với vai trò của bạn ({session?.roleLabel}) — lý do hiển thị ngay dưới ô.
-          </div>
+        ) : (
+          draft.byKey.size > 0 &&
+          [...draft.byKey.values()].some((m) => !m.canWrite) && (
+            <div className="px-4 py-2.5 rounded-2xl bg-surface-container-low border border-purple-50 text-[11px] text-gray-600">
+              Các ô có biểu tượng 🔒 cần quyền khác với vai trò của bạn ({session?.roleLabel}) — lý do hiển thị ngay dưới ô.
+            </div>
+          )
         )
       )}
 
@@ -190,6 +203,10 @@ export default function CaiDatPage() {
 
       {/* 2. NAVIGATION TABS */}
       <div ref={tabsRef} className="flex items-center gap-2 p-1.5 bg-surface-container-low rounded-2xl border border-purple-50 overflow-x-auto custom-scroll">
+        <button onClick={() => setActiveTab("profile")} className={tabBtn("profile")}>
+          <User className="w-4 h-4" />
+          <span>Hồ sơ cá nhân</span>
+        </button>
         <button onClick={() => setActiveTab("general")} className={tabBtn("general")}>
           <Building className="w-4 h-4" />
           <span>Cấu hình chung &amp; Định mức</span>
@@ -232,6 +249,7 @@ export default function CaiDatPage() {
         )}
       </div>
 
+      {activeTab === "profile" && <ProfileTab />}
       {activeTab === "general" && <GeneralTab draft={draft} roles={matrix?.roles ?? []} />}
       {activeTab === "categories" && <CategoriesTab />}
       {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}
