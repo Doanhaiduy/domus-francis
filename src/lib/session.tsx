@@ -29,13 +29,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const can = useCallback(
     (p: string | string[]) => {
+      if (data?.roles.includes("admin")) return true;
       const perms = data?.permissions ?? [];
       return (Array.isArray(p) ? p : [p]).some((x) => perms.includes(x));
     },
     [data]
   );
   const hasRole = useCallback(
-    (r: string | string[]) => (Array.isArray(r) ? r : [r]).some((x) => data?.roles.includes(x)),
+    (r: string | string[]) => {
+      if (data?.roles.includes("admin")) return true;
+      return (Array.isArray(r) ? r : [r]).some((x) => data?.roles.includes(x));
+    },
     [data]
   );
   const logout = useCallback(async () => {

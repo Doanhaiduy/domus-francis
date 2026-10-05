@@ -28,7 +28,13 @@ export default function AiAssistantModal() {
   const [consentDone, setConsentDone] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [turns, busy]);
+  useEffect(() => {
+    try {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    } catch {
+      // Bỏ qua nếu môi trường không hỗ trợ smooth scroll
+    }
+  }, [turns, busy]);
 
   const ask = async (text: string) => {
     const question = text.trim();
@@ -91,13 +97,13 @@ export default function AiAssistantModal() {
               <div className="self-start max-w-[92%] px-3.5 py-3 rounded-2xl rounded-bl-md bg-surface-container-low text-xs text-gray-800 flex flex-col gap-2">
                 <p className="whitespace-pre-wrap leading-relaxed">{t.a.answer}</p>
                 {!t.a.confident && <p className="text-[11px] text-amber-700">Mình chưa chắc chắn — hãy xác nhận lại với Ban điều hành.</p>}
-                {t.a.sources.length > 0 && (
+                {t.a.sources && Array.isArray(t.a.sources) && t.a.sources.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {t.a.sources.map((s) => {
-                      const Icon = KIND_ICON[s.kind];
+                    {t.a.sources.map((s, idx) => {
+                      const Icon = (s?.kind && KIND_ICON[s.kind as keyof typeof KIND_ICON]) || FileText;
                       return (
-                        <span key={s.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-[10px] font-semibold text-gray-600">
-                          <Icon className="w-3 h-3" /> {s.title}
+                        <span key={s?.label || idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-[10px] font-semibold text-gray-600">
+                          <Icon className="w-3 h-3" /> {s?.title || s?.label || "Nguồn"}
                         </span>
                       );
                     })}

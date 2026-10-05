@@ -39,7 +39,9 @@ export async function loadSessionInfo(tx: Tx): Promise<SessionInfo> {
   const roles = roleRows.map((r) => r.code);
   // Vai trò hệ thống: nhãn ngắn cố định (vd. "Admin"); vai trò tự tạo (các ban, vai trò Admin thêm): tên trong bảng roles
   const roleNames = Object.fromEntries(roleRows.map((r) => [r.code, (r.is_system && ROLE_LABEL[r.code]) || r.name_vi]));
-  const permissions = (permsR.rows as { code: string }[]).map((r) => r.code);
+  const permissions = roles.includes("admin")
+    ? (await tx.query<{ code: string }>("SELECT code FROM permissions ORDER BY 1")).rows.map((r) => r.code)
+    : (permsR.rows as { code: string }[]).map((r) => r.code);
   const a = m ? null : appR.rows[0];
   const primaryRole = roles[0] ?? "member";
   return {

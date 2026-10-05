@@ -35,7 +35,7 @@ export function providerConfigs(): Record<ProviderId, ProviderConfig> {
     groq: {
       id: "groq",
       label: "Groq",
-      model: process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_MODEL?.trim() || "qwen/qwen3.8-27b",
       apiKey: key(process.env.GROQ_API_KEY),
       usdPerMTokIn: num(process.env.GROQ_USD_PER_MTOK_IN, 0.59),
       usdPerMTokOut: num(process.env.GROQ_USD_PER_MTOK_OUT, 0.79),
@@ -43,7 +43,7 @@ export function providerConfigs(): Record<ProviderId, ProviderConfig> {
     gemini: {
       id: "gemini",
       label: "Gemini",
-      model: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
+      model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
       apiKey: key(process.env.GEMINI_API_KEY),
       usdPerMTokIn: num(process.env.GEMINI_USD_PER_MTOK_IN, 0.1),
       usdPerMTokOut: num(process.env.GEMINI_USD_PER_MTOK_OUT, 0.4),
