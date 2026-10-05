@@ -1,0 +1,13 @@
+.local
+.next-test
+.apply-backup
+apply-changes*.mjs
+kiem-dinh
+backup
+docs
+*.md
+!README.md
+build_docx.py
+scripts/e2e
+scripts/test-api
+scripts/perf
