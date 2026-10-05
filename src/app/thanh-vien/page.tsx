@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   Users,
   LayoutGrid,
@@ -73,11 +74,16 @@ export default function ThanhVienPage() {
     setIsCvModalOpen(true);
   };
 
-  const handleCopyZalo = async (m: Member, e?: React.MouseEvent) => {
+  // Lý lịch có số điện thoại, giáo xứ… ⇒ hỏi lại (hộp thoại của ứng dụng) trước khi đăng vào nhóm
+  const [zaloTarget, setZaloTarget] = useState<Member | null>(null);
+  const handleCopyZalo = (m: Member, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    // Lý lịch có số điện thoại, giáo xứ… ⇒ hỏi lại trước khi đăng vào nhóm
-    if (!window.confirm(`Gửi lý lịch của ${m.fullName} (có số điện thoại và thông tin liên hệ) vào nhóm Zalo?`)) return;
-    await zaloSend(formatMemberCVForZalo(m), `Đã gửi lý lịch ${m.fullName} vào nhóm Zalo.`);
+    setZaloTarget(m);
+  };
+  const confirmSendZalo = async () => {
+    const m = zaloTarget;
+    setZaloTarget(null);
+    if (m) await zaloSend(formatMemberCVForZalo(m), `Đã gửi lý lịch ${m.fullName} vào nhóm Zalo.`);
   };
 
   if (isLoadingSkeleton) {
@@ -108,6 +114,19 @@ export default function ThanhVienPage() {
 
   return (
     <div className="flex flex-col w-full gap-6">
+      <ConfirmDialog
+        isOpen={!!zaloTarget}
+        onClose={() => setZaloTarget(null)}
+        onConfirm={confirmSendZalo}
+        variant="warning"
+        title="Gửi lý lịch vào nhóm Zalo?"
+        message={
+          <>
+            Lý lịch của <b>{zaloTarget?.fullName}</b> có số điện thoại và thông tin liên hệ. Mọi người trong nhóm Zalo sẽ thấy các thông tin này.
+          </>
+        }
+        confirmText="Gửi vào nhóm"
+      />
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

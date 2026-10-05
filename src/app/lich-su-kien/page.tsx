@@ -284,24 +284,32 @@ export default function LichSuKienPage() {
       <UpcomingFeastsBanner items={upcomingFeasts} onPick={goToDate} />
 
       {/* 2. THREE MAIN FEATURE TABS */}
-      <div className="flex items-center gap-2 bg-white rounded-2xl p-1.5 border border-purple-50 shadow-xs max-w-xl">
+      <div className="flex items-stretch gap-2 bg-white rounded-2xl p-1.5 border border-purple-50 shadow-xs w-full max-w-2xl overflow-x-auto custom-scroll">
         {(
           [
-            ["calendar", CalendarIcon, `Lịch Biểu (${filteredEventsForMonth.length})`],
-            ["checkin", CheckCircle2, `Điểm Danh & Check-in (${eventsWithCheckIn.length})`],
-            ["polls", Vote, `Biểu Quyết / Vote (${openPolls})`],
+            ["calendar", CalendarIcon, "Lịch Biểu", filteredEventsForMonth.length],
+            ["checkin", CheckCircle2, "Điểm Danh & Check-in", eventsWithCheckIn.length],
+            ["polls", Vote, "Biểu Quyết / Vote", openPolls],
           ] as const
-        ).map(([key, Icon, label]) => (
+        ).map(([key, Icon, label, count]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
             className={cn(
-              "flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all",
+              "flex-1 basis-0 min-w-fit py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all",
               activeTab === key ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-purple-50"
             )}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-3.5 h-3.5 shrink-0" />
             <span>{label}</span>
+            <span
+              className={cn(
+                "shrink-0 min-w-[1.375rem] px-1.5 py-0.5 rounded-full text-[10px] leading-none font-black text-center tabular-nums",
+                activeTab === key ? "bg-white/25 text-white" : "bg-purple-100 text-purple-700"
+              )}
+            >
+              {count}
+            </span>
           </button>
         ))}
       </div>

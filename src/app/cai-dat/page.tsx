@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, MessageCircle, BellRing, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User } from "lucide-react";
+import { Settings, Building, MessageCircle, BellRing, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User, ScrollText } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -23,10 +23,11 @@ import AiTab from "./_components/AiTab";
 import ModulesTab from "./_components/ModulesTab";
 import AccountsTab from "./_components/AccountsTab";
 import AcademicConfigTab from "./_components/AcademicConfigTab";
+import ActivityTab from "./_components/ActivityTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules";
-const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules"];
+type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules" | "activity";
+const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules", "activity"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -250,6 +251,12 @@ export default function CaiDatPage() {
           <LayoutPanelLeft className="w-4 h-4" />
           <span>Phân hệ</span>
         </button>
+        {session && can("activity.log.read") && (
+          <button onClick={() => setActiveTab("activity")} className={tabBtn("activity")}>
+            <ScrollText className="w-4 h-4" />
+            <span>Nhật ký hoạt động</span>
+          </button>
+        )}
         {aiStatus?.canManage && (
           <button onClick={() => setActiveTab("ai")} className={tabBtn("ai")}>
             <Sparkles className="w-4 h-4" />
@@ -268,6 +275,7 @@ export default function CaiDatPage() {
       {activeTab === "ai" && <AiTab />}
       {activeTab === "modules" && <ModulesTab />}
       {activeTab === "accounts" && <AccountsTab />}
+      {activeTab === "activity" && session && can("activity.log.read") && <ActivityTab />}
       {activeTab === "academic" && <AcademicConfigTab />}
 
       {/* Điện thoại: form dài, nút Lưu ở đầu trang ⇒ thanh lưu cố định phía trên thanh điều hướng dưới khi có thay đổi */}

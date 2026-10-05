@@ -11,6 +11,7 @@ import type { SettingsDraft } from "./useSettingsDraft";
 import { TextSetting, ToggleSetting } from "./SettingFields";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
 import { FormCardsSkeleton } from "./TabSkeletons";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ZALO_TEMPLATES, renderTemplate, sampleVars, templateFor, validateTemplate } from "@/lib/zalo-templates";
 import { ChevronDown, RotateCcw } from "lucide-react";
 
@@ -167,6 +168,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
   const [chats, setChats] = useState<ZaloChats | null>(null);
   const [daily, setDaily] = useState<DailyPreview | null>(null);
   const [running, setRunning] = useState<string | null>(null);
+  const [confirmRun, setConfirmRun] = useState(false);
 
   const runDaily = async (slot: "morning" | "evening", dry: boolean) => {
     setRunning(`${slot}:${dry}`);
@@ -222,6 +224,18 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
+      <ConfirmDialog
+        isOpen={confirmRun}
+        onClose={() => setConfirmRun(false)}
+        onConfirm={() => {
+          setConfirmRun(false);
+          void runDaily("morning", false);
+        }}
+        variant="warning"
+        title="Chạy thật tác vụ buổi sáng?"
+        message="Hệ thống sẽ gửi ngay các tin của buổi sáng hôm nay (vào ứng dụng và nhóm Zalo). Tin nào đã gửi trong ngày thì không gửi lại."
+        confirmText="Chạy thật"
+      />
       <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -377,7 +391,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
               {running === "evening:true" ? "Đang xem…" : "Xem trước buổi tối"}
             </button>
             <button
-              onClick={() => confirm("Chạy thật tác vụ buổi sáng ngay bây giờ? Các tin đã gửi hôm nay sẽ không gửi lại.") && runDaily("morning", false)}
+              onClick={() => setConfirmRun(true)}
               disabled={!!running}
               className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-50"
             >

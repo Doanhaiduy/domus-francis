@@ -228,7 +228,7 @@ export default function HocTapPage() {
       </div>
 
       {/* AI nhận xét (tự ẩn khi tác vụ tắt/thiếu quyền; cá nhân cần đồng ý một lần) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 empty:hidden">
+      <div className="grid grid-cols-1 xl:grid-cols-2 xl:[&>*:only-child]:col-span-2 gap-4 empty:hidden">
         {canWrite && <AiAcademicInsight scope="self" />}
         {can("academic.read_aggregate") && <AiAcademicInsight scope="house" />}
       </div>

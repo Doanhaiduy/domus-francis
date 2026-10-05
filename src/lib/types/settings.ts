@@ -185,6 +185,7 @@ export const PROTECTED_PERMISSIONS = [
   "auth.user.manage",
   "auth.session.revoke_any",
   "audit.sensitive.read",
+  "activity.log.read",
   "member.national_id.read",
 ] as const;
 
@@ -196,6 +197,7 @@ export const PROTECTED_PERMISSION_REASON: Record<string, string> = {
   "auth.user.manage": "Quản lý tài khoản chỉ dành cho Trưởng nhà / Admin",
   "auth.session.revoke_any": "Thu hồi phiên người khác chỉ dành cho Trưởng nhà / Admin",
   "audit.sensitive.read": "Nhật ký dữ liệu nhạy cảm chỉ Trưởng nhà xem",
+  "activity.log.read": "Nhật ký hoạt động người dùng chỉ Admin xem",
   "member.national_id.read": "Giải mã CCCD chỉ Trưởng nhà",
 };
 

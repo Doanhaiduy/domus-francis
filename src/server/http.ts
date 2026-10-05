@@ -5,6 +5,7 @@ import { z, type ZodType } from "zod";
 import { COOKIE, CSRF_HEADER, verifyAccessToken, type AccessClaims } from "@/lib/auth-shared";
 import { withTx, type DbRole, type Tx } from "./db";
 import { ApiError, badRequest, forbidden, problemResponse, toApiError, unauthorized } from "./errors";
+import { recordActivity } from "./activity";
 
 export interface Ctx {
   req: NextRequest;
@@ -69,9 +70,30 @@ export function api(opts: RouteOptions, handler: Handler) {
   return async (req: NextRequest, args: RouteArgs = {}): Promise<Response> => {
     const requestId = randomUUID();
     const ip = clientIp(req);
+    const started = Date.now();
+    // Nhật ký hoạt động: thao tác ghi của người đã đăng nhập (db/app/1016_activity_logs.sql). Không lưu nội dung gửi lên.
+    let actor: string | null = null;
+    const track = (status: number, errorCode: string | null) => {
+      if (!actor || ["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return Promise.resolve();
+      const params: Record<string, string> = {};
+      for (const [k, v] of Object.entries(args.params ?? {})) params[k] = Array.isArray(v) ? v.join("/") : v;
+      return recordActivity({
+        userId: actor,
+        method: req.method,
+        pathname: req.nextUrl.pathname,
+        params,
+        status,
+        errorCode,
+        durationMs: Date.now() - started,
+        ip,
+        userAgent: req.headers.get("user-agent"),
+        requestId,
+      });
+    };
     try {
       const bearer = req.headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
       const session = await verifyAccessToken(bearer ?? req.cookies.get(COOKIE.access)?.value);
+      actor = session?.sub ?? null;
       if (auth !== "public") {
         if (!session) throw unauthorized();
         if (auth === "member" && session.pnd) throw new ApiError(403, "PENDING_APPROVAL", "Tài khoản của bạn đang chờ Ban điều hành duyệt.");
@@ -134,9 +156,11 @@ export function api(opts: RouteOptions, handler: Handler) {
       const res = out instanceof Response ? out : NextResponse.json(out ?? { ok: true });
       res.headers.set("x-request-id", requestId);
       res.headers.set("cache-control", res.headers.get("cache-control") ?? "no-store");
+      await track(res.status, null);
       return res;
     } catch (e) {
       const err = toApiError(e);
+      await track(err.status, err.code);
       return problemResponse(err, requestId, req.nextUrl.pathname);
     }
   };

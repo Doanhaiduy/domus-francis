@@ -1,4 +1,5 @@
 import { withTx } from "./db";
+import { purgeActivity } from "./activity";
 import { purgeStorageFiles, type Bucket } from "./storage";
 import { runLiturgyNotices } from "./liturgy/notices";
 import { autoImportLectionary } from "./modules/liturgy-lectionary";
@@ -12,6 +13,7 @@ export async function housekeeping() {
   try {
     const r = await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
       const out = (await tx.query("SELECT app.fn_housekeeping() AS r")).rows[0].r;
+      await purgeActivity(tx); // nhật ký hoạt động quá 180 ngày
       // Tệp đã đánh dấu xóa quá hạn giữ: xóa nội dung trên Supabase Storage / đĩa local
       const purge = (
         await tx.query<{ id: string; bucket: Bucket; object_key: string; variants: Record<string, string> }>(
