@@ -319,8 +319,8 @@ export default function ExpenseDetailModal({
                     <div className="p-2.5 rounded-xl bg-gray-50 text-gray-600 text-[11px]">
                       Bạn chỉ có thể từ chối phiếu này:{" "}
                       {e.requiredApprovals === 1
-                        ? "phiếu một chữ ký vượt hạn mức Thủ quỹ tự duyệt cần Trưởng nhà ký (BR-FIN-17)."
-                        : "vai trò của bạn đã có người ký trong vòng duyệt này (BR-FIN-02)."}
+                        ? "phiếu một chữ ký vượt hạn mức Thủ quỹ tự duyệt cần Trưởng nhà ký."
+                        : "vai trò của bạn đã có người ký trong vòng duyệt này."}
                     </div>
                   )}
                   {e.status === "pending_approval" && e.approvedCount < e.requiredApprovals && (

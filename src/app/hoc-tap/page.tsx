@@ -583,7 +583,7 @@ export default function HocTapPage() {
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-primary text-[11px] font-bold border border-purple-200 transition active:scale-95"
                           >
                             <ImageIcon className="w-3 h-3" />
-                            <span>Xem EVD</span>
+                            <span>Xem minh chứng</span>
                           </button>
                         ) : (
                           <span className="text-gray-400 italic text-[10px]">Chưa nộp</span>

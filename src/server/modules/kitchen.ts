@@ -1,6 +1,7 @@
 import "server-only";
 import type { Tx } from "../db";
 import type { Ctx } from "../http";
+import { liturgicalRange } from "@/lib/liturgy/engine";
 import { ApiError, forbidden, notFound } from "../errors";
 import type {
   MealCookDto,
@@ -139,9 +140,9 @@ export async function getMealsWeek(tx: Tx, date: string | null): Promise<MealsWe
   const ratings = new Map<string, { avg: number; count: number }>();
   for (const r of (await tx.query("SELECT menu_id, avg_rating, ratings FROM app.fn_meal_feedback_summary($1::date, $2::date)", [wk, wkEnd])).rows)
     ratings.set(r.menu_id, { avg: Number(r.avg_rating), count: Number(r.ratings) });
+  // Tên lễ trong tuần (bộ tính lịch phụng vụ) — chỉ ngày có lễ, không ghi "Thứ Hai tuần … Thường Niên"
   const liturgy = new Map<string, string>();
-  for (const l of (await tx.query("SELECT day_date::text AS d, title FROM liturgical_days WHERE day_date BETWEEN $1::date AND $2::date", [wk, wkEnd])).rows)
-    liturgy.set(l.d, l.title);
+  for (const l of liturgicalRange(wk, wkEnd)) if (l.rank !== "weekday" && l.rank !== "privileged") liturgy.set(l.date, l.title);
 
   const slotOf = (r: Record<string, any>): MealSlotDto => {
     const c = r.id ? counts.get(r.id) : undefined;

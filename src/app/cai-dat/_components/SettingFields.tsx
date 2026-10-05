@@ -4,20 +4,34 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Lock, RotateCcw } from "lucide-react";
 import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
+import { AddressPicker } from "@/components/ui/GeoPicker";
 import { cn } from "@/lib/utils";
 import { feastToLabel, labelToFeast, sameSettingValue, type SettingDto } from "@/lib/types/settings";
 import type { SettingsDraft } from "./useSettingsDraft";
 
 const vnd = (n: number) => `${n.toLocaleString("vi-VN")} đ`;
+/** Tên vai trò hệ thống cho giá trị mặc định dạng danh sách mã vai trò (vd. vai trò bắt buộc xác thực hai lớp). */
+const ROLE_NAME: Record<string, string> = {
+  admin: "Admin",
+  house_head: "Trưởng nhà",
+  treasurer: "Thủ quỹ",
+  member: "Thành viên",
+  liturgy_lead: "Trưởng ban Phụng vụ",
+  kitchen_lead: "Trưởng ban Ẩm thực",
+  media_lead: "Trưởng ban Truyền thông",
+};
 
 export function formatSettingValue(m: Pick<SettingDto, "valueType" | "key">, v: unknown): string {
   if (v === null || v === undefined) return "—";
   if (m.valueType === "vnd" && typeof v === "number") return vnd(v);
   if (m.valueType === "boolean") return v ? "Bật" : "Tắt";
   if (m.key === "org.patron_feast" && typeof v === "string") return feastToLabel(v);
+  if (m.key.endsWith("_bytes") && typeof v === "number") return `${(v / 1048576).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} MB`;
   if (typeof v === "number") return v.toLocaleString("vi-VN");
   if (typeof v === "string") return v === "" ? "(trống)" : v;
-  return JSON.stringify(v);
+  if (Array.isArray(v))
+    return v.length ? v.map((x) => (Array.isArray(x) ? x.join("–") : (ROLE_NAME[String(x)] ?? String(x)))).join(", ") : "(trống)";
+  return typeof v === "object" ? "(cấu hình nhiều mục)" : String(v);
 }
 
 /** true: lý do khóa đã hiện một lần ở đầu thẻ (hoặc cả trang đang chỉ đọc) — không lặp lại dưới từng ô. */
@@ -60,7 +74,11 @@ export function FieldHint({ draft, k, showBounds = true }: { draft: SettingsDraf
   const cur = draft.value(k);
   const bounds =
     showBounds && (m.min !== null || m.max !== null)
-      ? `Giới hạn ${m.min !== null ? formatSettingValue(m, m.min) : "—"} – ${m.max !== null ? formatSettingValue(m, m.max) : "—"}`
+      ? m.min !== null && m.max !== null
+        ? `Giới hạn ${formatSettingValue(m, m.min)} – ${formatSettingValue(m, m.max)}`
+        : m.min !== null
+          ? `Tối thiểu ${formatSettingValue(m, m.min)}`
+          : `Tối đa ${formatSettingValue(m, m.max)}`
       : null;
   const hasDefault = m.defaultValue !== null && m.defaultValue !== undefined && m.defaultValue !== "";
   const atDefault = hasDefault && sameSettingValue(cur, m.defaultValue);
@@ -109,6 +127,21 @@ export function TextSetting({ draft, k, label, placeholder, className }: FieldPr
           className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
         />
       </div>
+      <FieldHint draft={draft} k={k} showBounds={false} />
+    </div>
+  );
+}
+
+/** Địa chỉ: chọn tỉnh/thành → xã/phường theo danh mục hành chính hiện hành + số nhà, đường (địa chỉ cũ giữ nguyên tới khi chọn lại). */
+export function AddressSetting({ draft, k, label, className }: FieldProps) {
+  const m = draft.meta(k);
+  const v = draft.value<string>(k);
+  return (
+    <div className={className}>
+      <div className={dirtyRing(draft, k)}>
+        <AddressPicker label={label} value={typeof v === "string" ? v : ""} onChange={(x) => draft.set(k, x)} disabled={!m?.canWrite} />
+      </div>
+      {draft.errorOf(k) && <p className="mt-1 text-[11px] text-rose-500">{draft.errorOf(k)}</p>}
       <FieldHint draft={draft} k={k} showBounds={false} />
     </div>
   );

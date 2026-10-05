@@ -148,7 +148,7 @@ export async function castVote(tx: Tx, pollId: string, optionIds: string[]) {
     )
   ).rows[0];
   if (!p) throw notFound("Không tìm thấy cuộc biểu quyết.");
-  if (!p.is_open) throw new ApiError(422, "BR-EVT-08", "BR-EVT-08: cuộc biểu quyết không còn nhận phiếu.");
+  if (!p.is_open) throw new ApiError(422, "BR-EVT-08", "Cuộc biểu quyết không còn nhận phiếu.");
   const unique = [...new Set(optionIds)];
   if (unique.length > p.max_choices) {
     throw new ApiError(422, "BR-EVT-08", `Chỉ được chọn tối đa ${p.max_choices} phương án.`);

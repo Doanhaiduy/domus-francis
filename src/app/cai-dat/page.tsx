@@ -7,6 +7,7 @@ import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { useCategories, useRbacMatrix } from "@/lib/data/settings";
 import { sameSettingValue } from "@/lib/types/settings";
+import { settingLabel } from "@/lib/settings-catalog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import CaiDatLoading from "./loading";
@@ -262,10 +263,10 @@ export default function CaiDatPage() {
           <span>
             Đưa <b>{resettable.length}</b> cấu hình bạn được quyền sửa trong tab {resetScope === "telegram" ? "Tích hợp Telegram" : "Cấu hình chung"}{" "}
             về giá trị mặc định và lưu ngay:
-            <span className="block mt-2 max-h-40 overflow-y-auto text-[11px] text-gray-500 font-mono">
+            <span className="block mt-2 max-h-40 overflow-y-auto text-[11px] text-gray-500">
               {resettable.map((m) => (
                 <span key={m.key} className="block">
-                  • {m.key}
+                  • {settingLabel(m.key, m.description)}
                 </span>
               ))}
             </span>

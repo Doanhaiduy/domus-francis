@@ -7,7 +7,9 @@ import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/For
 import { cn } from "@/lib/utils";
 import type { RoleDto, SettingDto } from "@/lib/types/settings";
 import type { SettingsDraft } from "./useSettingsDraft";
+import { settingHelp, settingLabel } from "@/lib/settings-catalog";
 import {
+  AddressSetting,
   CardLockNote,
   FeastSetting,
   FieldHint,
@@ -25,6 +27,7 @@ export const ORG_KEYS = [
   "org.motto",
   "org.address",
   "org.patron_feast",
+  "org.patron_name",
   "org.contact_phone",
   "org.order_name",
   "org.chaplain_name",
@@ -53,6 +56,8 @@ export const FINANCE_CONTROL_KEYS = [
 /** Khóa tài chính cũ / có màn hình riêng — không hiện ở tab này:
  *  quỹ tháng (đã thay bằng quỹ định kỳ), tài khoản nhận quỹ (Thủ quỹ sửa ở trang Thu chi → thẻ "Tài khoản nhận quỹ", có mã QR). */
 const HIDDEN_FINANCE_KEYS = ["finance.monthly_dues_vnd", "finance.dues_due_day", "finance.dues_bank_account", "finance.receiving_account"];
+/** Khóa có tab riêng (Phân hệ) — không lặp lại ở tham số nâng cao. */
+const MANAGED_ELSEWHERE = ["ui.disabled_modules"];
 const TELEGRAM_PREFIX = "integration.telegram.";
 const EVENTS_KEY = "integration.telegram.group_events";
 
@@ -63,7 +68,7 @@ const GROUP_LABEL: Record<string, string> = {
   duty: "Trực nhật & Vệ sinh",
   event: "Sự kiện & Điểm danh",
   qr: "Điểm danh bằng mã QR",
-  facility: "Hậu cần — thời hạn xử lý sự cố (SLA)",
+  facility: "Hậu cần — thời hạn xử lý sự cố",
   laundry: "Đặt lịch giặt",
   feature: "Bật / tắt phân hệ",
   upload: "Lưu trữ tệp tải lên",
@@ -74,6 +79,7 @@ const GROUP_LABEL: Record<string, string> = {
   meal: "Bếp & Cơm",
   liturgy: "Phụng vụ",
   org: "Thông tin tổ chức khác",
+  ui: "Giao diện",
 };
 const GROUP_ORDER = ["feature", "duty", "event", "qr", "facility", "laundry", "upload", "auth", "privacy", "ai", "finance", "meal", "liturgy", "org"];
 
@@ -88,7 +94,6 @@ const unitOf = (k: string): string | undefined => {
   if (k.endsWith("_per_week")) return "lượt";
   return undefined;
 };
-const cleanDesc = (d: string) => d.replace(/\[(GIẢ ĐỊNH|ĐỀ XUẤT|đề xuất)\]\s*/gi, "").trim();
 const mb = (n: unknown) => (typeof n === "number" ? `≈ ${(n / 1048576).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} MB` : "");
 
 interface Props {
@@ -113,7 +118,7 @@ export default function GeneralTab({ draft, roles }: Props) {
   const fundLock = commonLock(draft, FUND_KEYS);
   const finLock = commonLock(draft, FINANCE_CONTROL_KEYS);
 
-  const used = new Set([...ORG_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS, ...HIDDEN_FINANCE_KEYS]);
+  const used = new Set([...ORG_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS, ...HIDDEN_FINANCE_KEYS, ...MANAGED_ELSEWHERE]);
   // Xem trước các kỳ quỹ trong năm theo số tháng mỗi kỳ + tháng bắt đầu đang nhập (vd. T1–T6, T7–T12)
   const cycleMonths = Number(draft.value<number>("finance.dues_cycle_months")) || 6;
   const cycleStart = Number(draft.value<number>("finance.dues_cycle_start_month")) || 1;
@@ -168,14 +173,9 @@ export default function GeneralTab({ draft, roles }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TextSetting draft={draft} k="org.house_name" label="Tên lưu xá chính thức" placeholder="Nhập tên lưu xá" />
               <TextSetting draft={draft} k="org.motto" label="Khẩu hiệu / Châm ngôn cộng đoàn" placeholder="VD: Pax et Bonum" />
-              <TextSetting
-                draft={draft}
-                k="org.address"
-                label="Địa chỉ cộng đoàn lưu xá"
-                placeholder="Địa chỉ trụ sở lưu xá"
-                className="sm:col-span-2"
-              />
+              <AddressSetting draft={draft} k="org.address" label="Địa chỉ cộng đoàn lưu xá" className="sm:col-span-2" />
               <FeastSetting draft={draft} k="org.patron_feast" label="Ngày Đại Lễ Bổn Mạng (DD/MM)" />
+              <TextSetting draft={draft} k="org.patron_name" label="Vị thánh Bổn mạng của nhà" placeholder="VD: Thánh Phanxicô Assisi" />
               <TextSetting
                 draft={draft}
                 k="org.contact_phone"
@@ -343,7 +343,7 @@ export default function GeneralTab({ draft, roles }: Props) {
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700">Có thay đổi</span>
                     )}
                   </h2>
-                  <p className="text-xs text-gray-500">Khung giờ check-in trực nhật, điểm danh, SLA sự cố, lịch giặt, cờ tính năng, bảo mật…</p>
+                  <p className="text-xs text-gray-500">Khung giờ check-in trực nhật, điểm danh, thời hạn xử lý sự cố, lịch giặt, bật/tắt phân hệ, bảo mật…</p>
                 </div>
               </div>
               <ChevronDown className={cn("w-5 h-5 text-gray-400 transition-transform", showAdvanced && "rotate-180 text-primary")} />
@@ -375,6 +375,7 @@ function AdvancedRow({ draft, m, roles }: { draft: SettingsDraft; m: SettingDto;
   const v = draft.value(k);
   const locked = !m.canWrite;
   const err = draft.errorOf(k);
+  const help = settingHelp(k, m.description);
   let control: React.ReactNode;
 
   if (m.valueType === "boolean") {
@@ -442,12 +443,16 @@ function AdvancedRow({ draft, m, roles }: { draft: SettingsDraft; m: SettingDto;
   return (
     <div className={cn("grid grid-cols-1 md:grid-cols-[1fr_260px] gap-2 md:gap-4 items-center px-4 py-3", draft.isDirty(k) && "bg-purple-50/40")}>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-gray-800 leading-snug">{cleanDesc(m.description)}</p>
-        <p className="text-[10px] font-mono text-gray-400 mt-0.5 flex items-center gap-1">
-          {locked && <Lock className="w-2.5 h-2.5 text-amber-600" />}
-          {k}
-          {k.endsWith("_bytes") && <span className="font-sans">· {mb(v)}</span>}
+        <p className="text-xs font-semibold text-gray-800 leading-snug flex items-center gap-1">
+          {locked && <Lock className="w-3 h-3 text-amber-600 shrink-0" />}
+          {settingLabel(k, m.description)}
         </p>
+        {(help || k.endsWith("_bytes")) && (
+          <p className="text-[10.5px] text-gray-500 mt-0.5 leading-snug">
+            {help}
+            {k.endsWith("_bytes") && <span className="text-gray-400">{help ? " · " : ""}Hiện tại {mb(v)}</span>}
+          </p>
+        )}
       </div>
       <div>
         {control}

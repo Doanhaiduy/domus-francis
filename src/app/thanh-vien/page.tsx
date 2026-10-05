@@ -407,7 +407,7 @@ export default function ThanhVienPage() {
                           <button
                             onClick={(e) => handleCopyZalo(m, e)}
                             className="p-1.5 rounded-lg hover:bg-purple-100 text-gray-500 hover:text-primary transition"
-                            title="Copy Zalo"
+                            title="Sao chép thông tin để gửi Zalo"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
@@ -544,7 +544,7 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
             className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition flex items-center justify-center gap-1.5"
           >
             <Copy className="w-3.5 h-3.5 text-primary" />
-            <span>Copy Zalo</span>
+            <span>Chép gửi Zalo</span>
           </button>
           <a
             href={m.phone ? "tel:" + m.phone.split(" ").join("") : undefined}

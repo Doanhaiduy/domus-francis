@@ -151,7 +151,7 @@ export default function TelegramTab({ draft }: { draft: SettingsDraft }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <CustomInput
-                  label="Bot Token"
+                  label="Mã bí mật của bot (Bot Token)"
                   type="password"
                   value=""
                   placeholder="Không lưu trong CSDL"
@@ -160,11 +160,11 @@ export default function TelegramTab({ draft }: { draft: SettingsDraft }) {
                 />
                 <p className="mt-1 flex items-start gap-1 text-[10.5px] leading-snug text-gray-500">
                   <Lock className="w-3 h-3 mt-[1px] shrink-0" />
-                  Theo thiết kế, Bot Token là bí mật ở cấu hình máy chủ (biến môi trường), không có khóa cấu hình trong CSDL nên không nhập ở đây. Bản
-                  cài đặt local không dùng token.
+                  Mã bí mật của bot được cấu hình riêng trên máy chủ, không lưu trong hệ thống nên không nhập ở đây. Bản
+                  cài đặt nội bộ hiện không dùng mã này.
                 </p>
               </div>
-              <TextSetting draft={draft} k={CHAT_KEY} label="Group Chat ID" placeholder="VD: -1001928471920 hoặc @ten_kenh" />
+              <TextSetting draft={draft} k={CHAT_KEY} label="Mã nhóm Telegram (Chat ID)" placeholder="VD: -1001928471920 hoặc @ten_kenh" />
             </div>
 
             <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-100">

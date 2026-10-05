@@ -12,6 +12,9 @@ import {
   CalendarCheck,
   Vote,
   CheckCircle2,
+  Church,
+  Settings2,
+  Star,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -30,6 +33,13 @@ import QrModal from "./_components/QrModal";
 import CheckInModal from "./_components/CheckInModal";
 import AttendanceCard from "./_components/AttendanceCard";
 import { catStyle } from "./_components/styles";
+import { useLiturgyMonth, useUpcomingFeasts } from "@/lib/data/liturgy-calendar";
+import type { CalendarDayDto } from "@/lib/types/liturgy";
+import LiturgyDayPanel from "./_components/LiturgyDayPanel";
+import LiturgySettingsModal from "./_components/LiturgySettingsModal";
+import MassAttendanceSection from "./_components/MassAttendanceSection";
+import UpcomingFeastsBanner from "./_components/UpcomingFeastsBanner";
+import { LIT_COLOR, SPECIAL_COLOR } from "./_components/liturgy-style";
 
 const MONTH_NAMES = [
   "Tháng 01", "Tháng 02", "Tháng 03", "Tháng 04", "Tháng 05", "Tháng 06",
@@ -45,6 +55,7 @@ export default function LichSuKienPage() {
   const canManagePolls = can("poll.manage");
   const canVote = can("poll.vote");
   const canReadAllAttendance = can("event.attendance.read_all");
+  const canManageLiturgy = can("liturgy.calendar.manage");
 
   // Hôm nay theo giờ VN
   const today = useMemo(() => vnParts(), []);
@@ -59,6 +70,28 @@ export default function LichSuKienPage() {
   const { polls } = usePolls();
   const selectedIso = `${currentYear}-${pad(currentMonth + 1)}-${pad(selectedDay)}`;
   const duties = useDayDuties(selectedIso);
+  // Lịch phụng vụ của tháng (tên lễ, màu áo lễ, âm lịch, Bổn mạng, ngày đặc biệt, ngày phải check-in đi lễ)
+  const { month: liturgy } = useLiturgyMonth(currentYear, currentMonth);
+  const upcomingFeasts = useUpcomingFeasts(30);
+  const litByDay = useMemo(() => {
+    const map: Record<number, CalendarDayDto> = {};
+    for (const d of liturgy?.days ?? []) if (d.date.startsWith(`${currentYear}-${pad(currentMonth + 1)}-`)) map[Number(d.date.slice(8, 10))] = d;
+    return map;
+  }, [liturgy, currentYear, currentMonth]);
+  const [liturgySettingsOpen, setLiturgySettingsOpen] = useState(false);
+  const goToDate = (iso: string) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    setCurrentYear(y);
+    setCurrentMonth(m - 1);
+    setSelectedDay(d);
+    setActiveTab("calendar");
+  };
+  // Mở thẳng một ngày từ thông báo nhắc lễ: /lich-su-kien?date=YYYY-MM-DD
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("date");
+    if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) goToDate(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Modal
   const [eventForm, setEventForm] = useState<{ open: boolean; event: EventDto | null; date: string | null }>({ open: false, event: null, date: null });
@@ -223,6 +256,16 @@ export default function LichSuKienPage() {
             <CheckCircle2 className="w-4 h-4" />
             <span>Nhập mã điểm danh</span>
           </button>
+          {canManageLiturgy && (
+            <button
+              onClick={() => setLiturgySettingsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 transition active:scale-95"
+              title="Ngày đặc biệt, lễ Bổn mạng, nhắc lễ, check-in đi lễ, Lời Chúa"
+            >
+              <Settings2 className="w-4 h-4" />
+              <span>Cấu hình lịch phụng vụ</span>
+            </button>
+          )}
           {canManagePolls && (
             <button
               onClick={() => setPollForm({ open: true, eventId: null })}
@@ -243,6 +286,8 @@ export default function LichSuKienPage() {
           )}
         </div>
       </div>
+
+      <UpcomingFeastsBanner items={upcomingFeasts} onPick={goToDate} />
 
       {/* 2. THREE MAIN FEATURE TABS */}
       <div className="flex items-center gap-2 bg-white rounded-2xl p-1.5 border border-purple-50 shadow-xs max-w-xl">
@@ -335,7 +380,7 @@ export default function LichSuKienPage() {
                   <div
                     key={`prev-${idx}`}
                     onClick={() => goMonth(-1)}
-                    className="h-16 p-1 text-gray-300 hover:text-gray-400 text-xs flex flex-col justify-start cursor-pointer opacity-50"
+                    className="h-[4.5rem] sm:h-24 p-1 text-gray-300 hover:text-gray-400 text-xs flex flex-col justify-start cursor-pointer opacity-50"
                     title="Xem tháng trước"
                   >
                     <span className="font-medium text-left pl-1">{daysInPrevMonth - firstDayOfWeek + 1 + idx}</span>
@@ -346,24 +391,78 @@ export default function LichSuKienPage() {
                   const isSelected = selectedDay === d;
                   const isToday = isTodayActive && d === today.d;
                   const dayEvts = eventsByDay[d] || [];
+                  const lit = litByDay[d];
+                  const special = lit?.special[0];
+                  const solemn = !!lit && (lit.isSolemnity || lit.tet > 0);
+                  const tone = lit?.isPatron
+                    ? "bg-gradient-to-br from-amber-100 via-yellow-50 to-white border-amber-400"
+                    : special
+                    ? SPECIAL_COLOR[special.color].cell
+                    : solemn
+                    ? "bg-amber-50/80 border-amber-300"
+                    : lit?.isHighlight
+                    ? "bg-purple-50/50 border-purple-100"
+                    : "bg-surface-container-low/40 border-transparent";
+                  const label = lit?.isPatron
+                    ? "Bổn mạng"
+                    : special
+                    ? special.title
+                    : solemn || lit?.isHighlight
+                    ? lit!.title.replace(/\s*[—,(].*$/, "")
+                    : null;
                   return (
                     <div
                       key={d}
                       onClick={() => setSelectedDay(d)}
+                      title={lit ? `${lit.title}${lit.isPatron ? " · Lễ Bổn mạng của nhà" : ""}${special ? ` · ${special.title}` : ""} · Âm lịch ${lit.lunarLabel}` : undefined}
                       className={cn(
-                        "h-16 p-1.5 rounded-xl cursor-pointer transition flex flex-col justify-between text-left border relative select-none group",
+                        "h-[4.5rem] sm:h-24 p-1.5 pb-2 rounded-xl cursor-pointer transition flex flex-col justify-between text-left border relative select-none group overflow-hidden",
+                        tone,
                         isSelected
-                          ? "bg-purple-100/90 border-primary ring-2 ring-purple-200 shadow-2xs font-bold"
+                          ? "border-primary ring-2 ring-purple-300 shadow-2xs font-bold"
                           : isToday
-                          ? "bg-purple-50/70 border-purple-200"
-                          : "bg-surface-container-low/40 hover:bg-purple-50/50 border-transparent hover:border-purple-200"
+                          ? "ring-2 ring-purple-200"
+                          : "hover:border-purple-300"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className={cn("text-xs font-bold", isSelected || isToday ? "text-primary" : "text-gray-800")}>{d}</span>
-                        {isToday && <span className="text-[9px] bg-primary text-white px-1 rounded font-bold">Nay</span>}
+                      <div className="flex items-start justify-between gap-0.5">
+                        <span className={cn("text-xs font-bold", lit?.isSunday || lit?.tet ? "text-rose-600" : isSelected || isToday ? "text-primary" : "text-gray-800")}>{d}</span>
+                        {isToday ? (
+                          <span className="text-[9px] bg-primary text-white px-1 rounded font-bold">Nay</span>
+                        ) : lit ? (
+                          <span className="text-[8px] sm:text-[9px] text-gray-400 font-medium leading-none mt-0.5">
+                            {lit.lunarDay === 1 || d === 1 ? `${lit.lunarDay}/${lit.lunarMonth}` : lit.lunarDay}
+                          </span>
+                        ) : null}
                       </div>
+                      {label && (
+                        <span
+                          className={cn(
+                            "text-[9px] leading-tight font-bold line-clamp-2 hidden sm:block",
+                            lit?.isPatron ? "text-amber-800" : solemn ? "text-amber-900" : special ? "text-gray-800" : "text-purple-800"
+                          )}
+                        >
+                          {lit?.isPatron && <Star className="inline w-2.5 h-2.5 -mt-0.5 mr-0.5 fill-amber-400 text-amber-500" />}
+                          {label}
+                        </span>
+                      )}
                       <div className="flex flex-wrap gap-1 items-center">
+                        {(lit?.isPatron || solemn) && <Star className={cn("w-2.5 h-2.5 sm:hidden", lit?.isPatron ? "fill-amber-400 text-amber-500" : "fill-amber-300 text-amber-400")} />}
+                        {lit?.requirement && (
+                          <Church
+                            className={cn(
+                              "w-3 h-3",
+                              lit.myCheckin?.status === "rejected"
+                                ? "text-rose-500"
+                                : lit.myCheckin
+                                ? "text-emerald-600"
+                                : lit.requirement.evidenceRequired
+                                ? "text-amber-600"
+                                : "text-gray-400"
+                            )}
+                            aria-label={lit.myCheckin ? "Đã check-in đi lễ" : "Cần check-in đi lễ"}
+                          />
+                        )}
                         {dayEvts.map((evt) => (
                           <span
                             key={evt.id}
@@ -376,6 +475,7 @@ export default function LichSuKienPage() {
                           />
                         ))}
                       </div>
+                      {lit && <span className={cn("absolute bottom-0.5 left-2 right-2 h-[3px] rounded-full opacity-80", LIT_COLOR[lit.color].bar)} />}
                     </div>
                   );
                 })}
@@ -384,7 +484,7 @@ export default function LichSuKienPage() {
                   <div
                     key={`next-${idx}`}
                     onClick={() => goMonth(1)}
-                    className="h-16 p-1 text-gray-300 hover:text-gray-400 text-xs flex flex-col justify-start cursor-pointer opacity-50"
+                    className="h-[4.5rem] sm:h-24 p-1 text-gray-300 hover:text-gray-400 text-xs flex flex-col justify-start cursor-pointer opacity-50"
                     title="Xem tháng sau"
                   >
                     <span className="font-medium text-left pl-1">{idx + 1}</span>
@@ -401,10 +501,34 @@ export default function LichSuKienPage() {
                   </span>
                 ))}
               </div>
+              <div className="flex items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500 flex-wrap -mt-1">
+                <span className="font-bold text-gray-700">Phụng vụ:</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-gradient-to-br from-amber-100 to-white border border-amber-400" />
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-500 -ml-1" /> Bổn mạng
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-amber-50 border border-amber-300" /> Lễ trọng / Tết
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Church className="w-3 h-3 text-amber-600" /> Check-in đi lễ (cần ảnh)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Church className="w-3 h-3 text-emerald-600" /> Đã check-in
+                </span>
+                <span className="flex items-center gap-1">
+                  Màu áo lễ:
+                  {(["green", "violet", "white", "red", "rose"] as const).map((c) => (
+                    <span key={c} className={cn("w-2.5 h-2.5 rounded-full", LIT_COLOR[c].dot)} title={LIT_COLOR[c].label} />
+                  ))}
+                </span>
+                <span>Số nhỏ góc phải: ngày âm lịch</span>
+              </div>
             </div>
 
             {/* RIGHT: DAY DETAILS */}
             <div className="lg:col-span-5 flex flex-col gap-4">
+              <LiturgyDayPanel date={selectedIso} onOpenSettings={canManageLiturgy ? () => setLiturgySettingsOpen(true) : undefined} />
               <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                   <div>
@@ -491,6 +615,7 @@ export default function LichSuKienPage() {
       {/* TAB 2: CHECK-IN & ATTENDANCE */}
       {activeTab === "checkin" && (
         <div className="flex flex-col gap-6 animate-in fade-in duration-200">
+          <MassAttendanceSection month={liturgy} canManage={canManageLiturgy} onPickDay={goToDate} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
               <div>
@@ -605,6 +730,7 @@ export default function LichSuKienPage() {
       />
       {qrEvent && <QrModal event={qrEvent} onClose={() => setQrEventId(null)} />}
       {checkInEvent !== undefined && <CheckInModal event={checkInEvent} onClose={() => setCheckInEvent(undefined)} />}
+      {liturgySettingsOpen && <LiturgySettingsModal onClose={() => setLiturgySettingsOpen(false)} />}
 
       <ConfirmDialog
         isOpen={!!cancelTarget}

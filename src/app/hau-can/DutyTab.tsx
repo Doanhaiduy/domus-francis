@@ -131,8 +131,8 @@ export default function DutyTab({
       showToast(
         "success",
         copyFrom
-          ? `Đã tạo roster nháp, sao chép ${r.copied} ca từ tuần ${dm(copyFrom)}${r.skipped.length ? ` (bỏ qua: ${r.skipped.join("; ")})` : ""}.`
-          : "Đã tạo roster nháp — thêm ca trực rồi bấm Công bố."
+          ? `Đã tạo lịch trực nháp, sao chép ${r.copied} ca từ tuần ${dm(copyFrom)}${r.skipped.length ? ` (bỏ qua: ${r.skipped.join("; ")})` : ""}.`
+          : "Đã tạo lịch trực nháp — thêm ca trực rồi bấm Công bố."
       );
     } catch (e) {
       showToast("error", errorMessage(e));
@@ -146,7 +146,7 @@ export default function DutyTab({
     try {
       const r = await dutyApi.publishRoster(roster.id);
       await afterChange();
-      showToast("success", `Đã công bố roster tuần ${dm(weekStart)} (${r.count} ca) — anh em trực đã nhận thông báo.`);
+      showToast("success", `Đã công bố lịch trực tuần ${dm(weekStart)} (${r.count} ca) — anh em trực đã nhận thông báo.`);
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {
@@ -159,7 +159,7 @@ export default function DutyTab({
     try {
       await dutyApi.deleteRoster(roster.id);
       await afterChange();
-      showToast("success", "Đã xóa roster nháp trống.");
+      showToast("success", "Đã xóa lịch trực nháp trống.");
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {
@@ -231,7 +231,7 @@ export default function DutyTab({
                 disabled={rosterBusy || list.length === 0}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs disabled:opacity-60"
               >
-                {rosterBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Công bố roster
+                {rosterBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Công bố lịch trực
               </button>
             </>
           )}
@@ -251,7 +251,7 @@ export default function DutyTab({
                 disabled={rosterBusy}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white text-xs font-bold shadow-xs disabled:opacity-60"
               >
-                {rosterBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Tạo roster trống
+                {rosterBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Tạo lịch trực trống
               </button>
             </>
           )}
@@ -533,7 +533,7 @@ export default function DutyTab({
             <>
               <h3 className="text-base font-bold text-gray-800">Tuần này chưa có lịch trực{canManage ? "" : " được công bố"}</h3>
               <p className="text-xs text-gray-500">
-                {canManage ? "Tạo roster trống hoặc sao chép từ tuần trước ở thanh phía trên." : "Ban điều hành sẽ công bố lịch trực sớm."}
+                {canManage ? "Tạo lịch trực trống hoặc sao chép từ tuần trước ở thanh phía trên." : "Ban điều hành sẽ công bố lịch trực sớm."}
               </p>
             </>
           ) : (
@@ -950,7 +950,7 @@ function AssignmentModal({
         showToast("success", "Đã cập nhật phân công ca trực.");
       } else {
         await dutyApi.createAssignment({ date, areaId, shiftId, roomCode: roomCode || null, memberIds, overrideReason: override.trim() || null });
-        showToast("success", data?.roster.status === "published" ? "Đã thêm ca trực vào roster đã công bố." : "Đã thêm ca trực vào roster nháp — nhớ bấm Công bố.");
+        showToast("success", data?.roster.status === "published" ? "Đã thêm ca trực vào lịch trực đã công bố." : "Đã thêm ca trực vào lịch trực nháp — nhớ bấm Công bố.");
       }
       await onDone();
       onClose();
@@ -1063,7 +1063,7 @@ function CancelModal({ target, draft, onClose, onDone }: { target: DutyAssignmen
     >
       <div className="p-5 space-y-4">
         <p className="text-xs text-gray-600">
-          Ca bị hủy vẫn được giữ trong lịch sử (không xóa). {draft ? "Roster đang là bản nháp nên có thể bỏ trống lý do." : "Roster đã công bố — bắt buộc ghi lý do."}
+          Ca bị hủy vẫn được giữ trong lịch sử (không xóa). {draft ? "Lịch trực đang là bản nháp nên có thể bỏ trống lý do." : "Lịch trực đã công bố — bắt buộc ghi lý do."}
         </p>
         <CustomTextarea label="Lý do hủy ca:" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ví dụ: Cả nhà đi tĩnh tâm, khu vực đang sửa chữa…" />
         <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">

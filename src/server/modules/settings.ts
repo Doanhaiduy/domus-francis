@@ -14,6 +14,8 @@ import {
   type SettingsListDto,
   type TelegramTestDto,
 } from "@/lib/types/settings";
+import { saintsOn } from "@/lib/liturgy/saints";
+import { settingLabel } from "@/lib/settings-catalog";
 
 interface SettingRow {
   key: string;
@@ -78,15 +80,15 @@ export async function listSettings(tx: Tx): Promise<SettingsListDto> {
 
 async function loadOne(tx: Tx, key: string): Promise<SettingRow> {
   const r = (await tx.query<SettingRow>(`${SELECT_SETTING} WHERE s.key = $1`, [key])).rows[0];
-  if (!r) throw notFound(`Không tìm thấy cấu hình "${key}" (hoặc bạn không có quyền xem cấu hình này).`);
+  if (!r) throw notFound(`Không tìm thấy cấu hình "${settingLabel(key)}" (hoặc bạn không có quyền xem cấu hình này).`);
   return r;
 }
 
 function denyWrite(r: SettingRow): never {
   throw forbidden(
     r.write_permission === "finance.settings.write"
-      ? `Cấu hình tài chính "${r.key}" chỉ người có quyền finance.settings.write (Trưởng nhà) được sửa.`
-      : `Bạn không có quyền sửa cấu hình "${r.key}" (cần quyền ${r.write_permission}).`,
+      ? `Cấu hình tài chính "${settingLabel(r.key, r.description)}" chỉ Trưởng nhà được sửa.`
+      : `Bạn không có quyền sửa cấu hình "${settingLabel(r.key, r.description)}".`,
   );
 }
 
@@ -102,7 +104,7 @@ export async function updateSettings(tx: Tx, changes: SettingChange[]): Promise<
   const roles = (await tx.query<{ code: string }>("SELECT code FROM roles")).rows.map((r) => r.code);
 
   const plan: { row: SettingRow; value: unknown }[] = [];
-  const errors: { field: string; message: string }[] = [];
+  const errors: { field: string; message: string; label: string }[] = [];
   for (const c of byKey.values()) {
     const row = await loadOne(tx, c.key);
     const value = normalize(row.value_type, c.value);
@@ -110,18 +112,19 @@ export async function updateSettings(tx: Tx, changes: SettingChange[]): Promise<
     if (!row.can_write) denyWrite(row);
     const err = validateSettingValue({ key: row.key, valueType: row.value_type, min: row.min_value, max: row.max_value }, value, roles);
     if (err) {
-      errors.push({ field: row.key, message: err });
+      errors.push({ field: row.key, message: err, label: settingLabel(row.key, row.description) });
       continue;
     }
     if (c.version !== undefined && c.version !== row.version)
-      throw conflict(`Cấu hình "${row.key}" vừa được người khác thay đổi — tải lại trang để xem giá trị mới rồi sửa lại.`, "STALE_VERSION");
+      throw conflict(`Cấu hình "${settingLabel(row.key, row.description)}" vừa được người khác thay đổi — tải lại trang để xem giá trị mới rồi sửa lại.`, "STALE_VERSION");
     plan.push({ row, value });
   }
-  if (errors.length) throw badRequest(`${errors[0].field}: ${errors[0].message}`, errors);
+  if (errors.length)
+    throw badRequest(`${errors[0].label}: ${errors[0].message}`, errors.map(({ field, message }) => ({ field, message })));
 
   for (const { row, value } of plan) {
     const r = await tx.query("UPDATE settings SET value = $2::jsonb WHERE key = $1 AND version = $3", [row.key, JSON.stringify(value), row.version]);
-    if (!r.rowCount) throw conflict(`Cấu hình "${row.key}" vừa được người khác thay đổi — tải lại trang rồi thử lại.`, "STALE_VERSION");
+    if (!r.rowCount) throw conflict(`Cấu hình "${settingLabel(row.key, row.description)}" vừa được người khác thay đổi — tải lại trang rồi thử lại.`, "STALE_VERSION");
   }
   return { changed: plan.map((p) => p.row.key) };
 }
@@ -153,18 +156,9 @@ export async function getPublicSettings(tx: Tx): Promise<OrgSettingsDto> {
   for (const r of (await tx.query<{ key: string; value: unknown }>("SELECT key, value FROM settings WHERE is_public ORDER BY key")).rows)
     values[r.key] = r.value;
   const feast = str(values["org.patron_feast"]);
-  let feastTitle: string | null = null;
-  if (/^\d{2}-\d{2}$/.test(feast)) {
-    feastTitle =
-      (
-        await tx.query<{ title: string }>(
-          `SELECT title FROM liturgical_days
-            WHERE to_char(day_date, 'MM-DD') = $1 AND extract(year FROM day_date) = extract(year FROM app.local_today())
-            LIMIT 1`,
-          [feast],
-        )
-      ).rows[0]?.title ?? null;
-  }
+  // Tên lễ Bổn mạng: cấu hình org.patron_name, nếu trống thì lấy lễ các thánh ngày đó trong lịch phụng vụ
+  const patronName = str(values["org.patron_name"]).trim();
+  const feastTitle = patronName || (/^\d{2}-\d{2}$/.test(feast) ? saintsOn(feast)[0]?.title ?? null : null);
   return {
     houseName: str(values["org.house_name"]),
     motto: str(values["org.motto"]),
@@ -200,8 +194,8 @@ export async function telegramDryRun(tx: Tx): Promise<TelegramTestDto> {
   ).rows;
   const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   const tgRow = rows.find((r) => r.key === "integration.telegram.group_chat_id");
-  if (!tgRow) throw forbidden("Chỉ Ban điều hành có quyền sửa cấu hình hệ thống (setting.write) mới xem và thử được cấu hình Telegram.");
-  if (!tgRow.can_write) throw forbidden("Bạn không có quyền cấu hình Telegram (cần quyền setting.write).");
+  if (!tgRow) throw forbidden("Chỉ người được quyền sửa cấu hình hệ thống (Ban điều hành, Admin) mới xem và thử được cấu hình Telegram.");
+  if (!tgRow.can_write) throw forbidden("Bạn không có quyền cấu hình Telegram.");
 
   const enabled = v["integration.telegram.group_enabled"] === true;
   const chatId = str(v["integration.telegram.group_chat_id"]);
@@ -209,9 +203,9 @@ export async function telegramDryRun(tx: Tx): Promise<TelegramTestDto> {
   const active = TELEGRAM_EVENT_KEYS.filter((k) => events[k] === true);
   const problems: string[] = [];
   if (!enabled) problems.push("Công tắc “Gửi tin tự động vào nhóm” đang TẮT — dù có kết nối mạng, hệ thống cũng sẽ không gửi tin nào.");
-  if (!chatId) problems.push("Chưa nhập Group Chat ID của nhóm Telegram.");
+  if (!chatId) problems.push("Chưa nhập mã nhóm Telegram (Chat ID).");
   if (!active.length) problems.push("Chưa bật loại tin tự động nào.");
-  problems.push("Bot Token không được lưu trong CSDL (theo thiết kế, token là bí mật cấu hình phía máy chủ) và bản cài đặt local không dùng token.");
+  problems.push("Mã bí mật của bot (Bot Token) không lưu trong hệ thống mà cấu hình riêng trên máy chủ; bản cài đặt nội bộ hiện không dùng mã này.");
 
   const now = (await tx.query<{ t: string }>("SELECT to_char(now() AT TIME ZONE 'Asia/Ho_Chi_Minh', 'DD/MM/YYYY HH24:MI') AS t")).rows[0].t;
   const preview = [

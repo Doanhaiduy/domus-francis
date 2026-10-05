@@ -85,7 +85,7 @@ export default function HauCanPage() {
                 title="Sao chép lịch phân công trực nhật tuần đang xem để gửi vào Zalo"
               >
                 <Copy className="w-4 h-4 text-primary" />
-                <span>Copy Zalo</span>
+                <span>Chép gửi Zalo</span>
               </button>
               {can("duty.manage") && (
                 <button

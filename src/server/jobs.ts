@@ -1,5 +1,7 @@
 import { withTx } from "./db";
 import { purgeStorageFiles, type Bucket } from "./storage";
+import { runLiturgyNotices } from "./liturgy/notices";
+import { autoImportLectionary } from "./modules/liturgy-lectionary";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -44,10 +46,33 @@ async function dutyJobs() {
   }
 }
 
+/** Mỗi 30 phút: nhắc lễ trọng / Bổn mạng / ngày đặc biệt và nhắc check-in đi lễ (chống gửi trùng bằng liturgy_notice_log). */
+async function liturgyJobs() {
+  try {
+    const n = await runLiturgyNotices();
+    if (n && process.env.NODE_ENV !== "production") console.log("[jobs] nhắc lễ:", n, "thông báo");
+  } catch (e) {
+    console.error("[jobs] nhắc lễ lỗi:", (e as Error).message);
+  }
+}
+
+/** Lời Chúa chưa nạp ⇒ thử nạp từ nguồn mở (một lần lúc khởi động + mỗi ngày); lỗi mạng thì để lần sau. */
+async function lectionaryJob() {
+  try {
+    await autoImportLectionary();
+  } catch (e) {
+    console.error("[jobs] nạp Lời Chúa lỗi:", (e as Error).message);
+  }
+}
+
 export function startBackgroundJobs() {
   if (globalThis.__luuxaJobs) return;
   setTimeout(dutyJobs, 20_000);
   setInterval(dutyJobs, 10 * 60 * 1000);
   setTimeout(housekeeping, 15_000);
+  setTimeout(liturgyJobs, 30_000);
+  setInterval(liturgyJobs, 30 * 60 * 1000);
+  setTimeout(lectionaryJob, 45_000);
+  setInterval(lectionaryJob, 24 * 60 * 60 * 1000);
   globalThis.__luuxaJobs = setInterval(housekeeping, 60 * 60 * 1000);
 }

@@ -10,11 +10,12 @@ import type {
   ReflectionDto,
 } from "@/lib/types/community";
 import { addDays, dayPeriod, formatDayMonth, weekdayOf } from "@/lib/community-format";
+import { liturgicalDay } from "@/lib/liturgy/engine";
 import { currentMemberId, denyOrMissing, iso, permissions, personCols, personJoin, toPerson } from "./community-shared";
 
 // ---------------------------------------------------------------------
 // Lịch phụng vụ tuần: buổi phụng vụ = sự kiện thuộc danh mục EVT_MASS (Phụng vụ & Thánh lễ) / EVT_PATRON (Bổn mạng),
-// kèm lịch Phụng vụ Công giáo theo ngày (liturgical_days) và phân công phục vụ (liturgy_assignments × liturgy_role_types).
+// kèm lịch Phụng vụ Công giáo theo ngày (bộ tính lịch src/lib/liturgy/engine.ts) và phân công phục vụ (liturgy_assignments × liturgy_role_types).
 // ---------------------------------------------------------------------
 const LITURGY_CATS = ["EVT_MASS", "EVT_PATRON"];
 const TZ = "Asia/Ho_Chi_Minh";
@@ -113,36 +114,37 @@ export async function getWeek(tx: Tx, fromParam: string | null): Promise<Liturgy
   const from = fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) ? fromParam : today;
   const to = addDays(from, 6);
 
-  const [days, sessions, roleTypes] = await Promise.all([
-    tx.query(
-      "SELECT day_date::text AS d, title, rank_label, color, is_abstinence, note FROM liturgical_days WHERE day_date BETWEEN $1 AND $2",
-      [from, to]
-    ),
+  const [sessions, roleTypes] = await Promise.all([
     sessionsBetween(tx, from, addDays(from, 7)),
     tx.query("SELECT id, code, name_vi FROM liturgy_role_types WHERE is_active ORDER BY sort_order"),
   ]);
-  const ld = new Map<string, Row>(days.rows.map((r) => [r.d, r]));
 
   const list: LiturgyDayDto[] = [];
   for (let i = 0; i < 7; i++) {
     const d = addDays(from, i);
-    const l = ld.get(d);
+    const l = liturgicalDay(d);
     list.push({
       date: d,
       weekday: weekdayOf(d),
       dateLabel: formatDayMonth(d),
       isToday: d === today,
       isSunday: weekdayOf(d) === "Chúa Nhật",
-      liturgical: l
-        ? { title: l.title, rankLabel: l.rank_label ?? null, color: l.color ?? null, isAbstinence: !!l.is_abstinence, note: l.note ?? null }
-        : null,
+      liturgical: {
+        // Ngày thường: bỏ thứ ở đầu tên (đã hiện cạnh ngày) — "Thứ Hai tuần XXVII Thường Niên" ⇒ "Tuần XXVII Thường Niên"
+        title: l.title.startsWith(`${l.weekdayLabel} `)
+          ? l.title.slice(l.weekdayLabel.length + 1).replace(/^[—-]\s*/, "").replace(/^./, (c) => c.toUpperCase())
+          : l.title,
+        rankLabel: l.rank === "weekday" || l.rank === "privileged" ? null : l.rankLabel,
+        color: l.color,
+        isAbstinence: !!l.fasting,
+        note: l.notes.find((n) => !/đầu tháng/.test(n)) ?? null,
+      },
       sessions: sessions.filter((s) => s.date === d),
     });
   }
 
-  // Tên tuần phụng vụ lấy từ Chúa Nhật trong khoảng (vd "Chúa Nhật XXVII Thường Niên" ⇒ "Tuần XXVII Thường Niên")
-  const sunday = list.find((d) => d.isSunday && d.liturgical && /^Chúa Nhật/i.test(d.liturgical.title));
-  const weekLabel = sunday ? sunday.liturgical!.title.replace(/^Chúa Nhật/i, "Tuần").replace(/\s*[-–·].*$/, "") : null;
+  // Tên tuần phụng vụ (vd "Tuần XXVII Thường Niên") theo Chúa Nhật trong khoảng 7 ngày
+  const weekLabel = liturgicalDay(list.find((d) => d.isSunday)?.date ?? from).weekLabel;
 
   // Thẻ đầu trang: buổi kế tiếp hôm nay (hoặc sắp tới) và Thánh lễ kế tiếp (trong 45 ngày)
   const upcoming = await sessionsBetween(tx, today, addDays(today, 45));

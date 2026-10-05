@@ -235,7 +235,7 @@ export async function updateExpense(tx: Tx, id: string, b: UpdateExpenseInput) {
     .rows[0];
   if (!cur) throw notFound("Không tìm thấy phiếu chi.");
   if (cur.requested_by !== c.uid) throw forbidden("Chỉ người lập phiếu mới được sửa phiếu chi.");
-  if (!OWNER_EDITABLE.includes(cur.status)) throw new ApiError(422, "BR-FIN-05", "BR-FIN-05: phiếu đã duyệt/đã chi không được sửa nội dung.");
+  if (!OWNER_EDITABLE.includes(cur.status)) throw new ApiError(422, "BR-FIN-05", "Phiếu đã duyệt/đã chi không được sửa nội dung.");
   // Phiếu đang chờ duyệt / bị từ chối: rút về nháp trước (chữ ký vòng cũ được giữ, nộp lại sang vòng mới)
   if (cur.status !== "draft") await tx.query("SELECT app.fn_return_expense_to_draft($1)", [id]);
   if (b.expenseDate) await assertNotFuture(tx, b.expenseDate, "Ngày chi");

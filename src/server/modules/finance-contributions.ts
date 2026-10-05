@@ -349,7 +349,7 @@ export async function waiveContribution(tx: Tx, id: string, discountVnd: number,
     ["SELECT amount_due_vnd AS due, paid_vnd AS paid FROM contributions WHERE id = $1", [id]],
   ]);
   const c = financeCallerFrom(callerR);
-  if (!c.waive) throw forbidden("BR-FIN-14: chỉ Trưởng nhà (quyền finance.contribution.waive) được miễn/giảm khoản phải thu.");
+  if (!c.waive) throw forbidden("Chỉ Trưởng nhà được miễn/giảm khoản phải thu.");
   const cur = curR.rows[0] as { due: number; paid: number } | undefined;
   if (!cur) throw notFound("Không tìm thấy khoản phải thu.");
   if (discountVnd > Number(cur.due) - Number(cur.paid))

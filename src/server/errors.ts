@@ -1,4 +1,5 @@
 import "server-only";
+import { humanizeErrorMessage } from "@/lib/humanize-error";
 
 /**
  * Lỗi API theo RFC 9457 (application/problem+json) — Phần 6.1.6 tài liệu thiết kế.
@@ -75,7 +76,7 @@ export function toApiError(e: unknown): ApiError {
       case "23505": return new ApiError(409, br ?? "DUPLICATE", userMsg("Dữ liệu bị trùng với bản ghi đã có."));
       case "23P01": return new ApiError(409, br ?? "OVERLAP", userMsg("Trùng lịch/khoảng thời gian với bản ghi đã có."));
       case "23503": return new ApiError(409, br ?? "REFERENCE", userMsg("Dữ liệu đang được tham chiếu hoặc tham chiếu tới bản ghi không tồn tại."));
-      case "23502": return new ApiError(422, br ?? "REQUIRED", raised ? msg : `Thiếu thông tin bắt buộc${e.column ? ` (${e.column})` : ""}.`);
+      case "23502": return new ApiError(422, br ?? "REQUIRED", raised ? msg : "Thiếu thông tin bắt buộc.");
       case "23514": return new ApiError(422, br ?? "CHECK_FAILED", userMsg("Dữ liệu không thỏa ràng buộc nghiệp vụ."));
       case "22P02":
       case "22007":
@@ -106,9 +107,11 @@ export function problemResponse(err: ApiError, requestId: string, instance?: str
     type: `https://luuxa.local/problems/${err.code.toLowerCase()}`,
     title: TITLES[err.status] ?? "Lỗi",
     status: err.status,
-    detail: err.message,
+    // Lời thường cho người dùng: bỏ mã quy tắc/mã quyền/tên bảng-hàm (mã nghiệp vụ vẫn ở `code`)
+    detail: humanizeErrorMessage(err.message),
     code: err.code,
     instance,
+    // errors[] giữ nguyên: có nơi dùng làm dữ liệu máy đọc (vd. mã BR-AI-03 cho client AI); câu chữ theo ô đã là tiếng Việt
     errors: err.errors,
     request_id: requestId,
   };

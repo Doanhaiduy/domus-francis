@@ -72,6 +72,13 @@ Một người có thể giữ nhiều vai trò (ví dụ Trưởng nhà + Thàn
 - **Điểm danh**: quét mã QR tại chỗ hoặc bấm **Nhập mã điểm danh** và gõ mã được đọc to.
 - **Biểu quyết**: chọn phương án trong thẻ biểu quyết trước hạn chót.
 
+### Lịch phụng vụ & check-in đi lễ
+- Mỗi ô ngày trên **Lịch & Sự kiện** có vạch **màu áo lễ**, số nhỏ là **ngày âm lịch**. Ô **vàng** là lễ trọng / Tết, ô có ⭐ là **lễ Bổn mạng của nhà**, ô màu khác là **ngày đặc biệt** của nhà.
+- Bấm vào một ngày: khung **Phụng vụ** cho biết tên lễ, bậc lễ, mùa/tuần, năm A/B/C, ngày chay/kiêng thịt, **ý lễ** của nhà và ý cầu nguyện của Giáo hội, cùng **Lời Chúa** (bài đọc, đáp ca, Tin Mừng — bấm để đọc toàn văn; có liên kết bản chính thức của Nhóm Phiên Dịch CGKPV).
+- Ngày có biểu tượng ⛪ là ngày **phải check-in đi lễ**: **Chúa Nhật** chỉ cần bấm **Tôi đã đi lễ**; **lễ trọng, lễ Bổn mạng** và ngày đặc biệt ngoài Chúa Nhật cần kèm **ảnh minh chứng** (ảnh nhà thờ / Thánh lễ bạn dự). Được check-in từ chiều hôm trước (lễ vọng) đến hạn ghi trên thẻ (mặc định 2 ngày sau lễ).
+- Ban Phụng vụ xem ảnh và xác nhận; nếu **chưa hợp lệ** bạn nhận thông báo kèm lý do và gửi lại ảnh khác.
+- Ứng dụng **báo trước** khi sắp đến lễ trọng / Bổn mạng / ngày đặc biệt (mặc định trước 7 ngày và hôm trước), và nhắc buổi tối nếu bạn chưa check-in. Tab **Điểm Danh & Check-in** liệt kê các ngày phải đi lễ trong tháng và trạng thái của bạn.
+
 ### Thu chi — đóng quỹ & tiền điện nước
 - Quỹ sinh hoạt: **600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do Ban điều hành cấu hình).
 - Tiền **điện nước** tính chung cả nhà mỗi tháng rồi chia đều cho người đang ở.
@@ -154,6 +161,10 @@ Một người có thể giữ nhiều vai trò (ví dụ Trưởng nhà + Thàn
 ### Thông báo, sự kiện, diễn đàn
 - Đăng thông báo (chọn đối tượng nhận, ghim, yêu cầu xác nhận), tạo sự kiện + mã QR điểm danh, tạo biểu quyết, kiểm duyệt diễn đàn.
 
+### Lịch phụng vụ, lễ Bổn mạng & đi lễ
+- **Lịch & Sự kiện → Cấu hình lịch phụng vụ**: đặt **ngày và tên Bổn mạng** của nhà (ngày này được tô vàng ⭐, báo trước cho anh em và — nếu bật — bắt buộc check-in đi lễ kèm ảnh), thêm **ngày đặc biệt** (kỷ niệm thành lập, lễ tạ ơn, tĩnh tâm…), chọn số ngày báo trước, giờ nhắc check-in, nạp **Lời Chúa**.
+- Nhập **ý lễ** của nhà cho từng ngày; duyệt check-in đi lễ và xem **Tổng hợp cả nhà** (ai vắng ngày nào) ở tab Điểm Danh & Check-in.
+
 ### Cấu hình chung
 - **Cài Đặt → Cấu hình chung & Định mức**: thông tin nhà, mức quỹ mỗi kỳ, số tháng mỗi kỳ, hạn nộp, ngưỡng duyệt chi, giờ chốt cơm, giờ kinh tối…
 - **Cài Đặt → Danh mục học tập** (hoặc nút **Trường & năm học** ở trang Học Tập): thêm/sửa/tạm ẩn trường đại học, năm học (niên khóa) kèm học kỳ, đặt năm học hiện hành, nhiệm kỳ Ban điều hành. Mục đang có dữ liệu dùng tới thì không xóa được (chỉ tạm ẩn).
@@ -187,6 +198,9 @@ Một người có thể giữ nhiều vai trò (ví dụ Trưởng nhà + Thàn
 - **Danh mục**: hạng mục chi, loại sự kiện, chuyên mục thông báo/diễn đàn…
 - **Danh mục học tập**: trường đại học, năm học, học kỳ, nhiệm kỳ.
 
+### Lịch phụng vụ
+- Lịch phụng vụ do ứng dụng tự tính cho mọi năm (theo luật phụng vụ và lịch riêng của Hội đồng Giám mục Việt Nam). **Lời Chúa** được nạp tự động từ dữ liệu mở trên GitHub khi máy chủ khởi động (chỉ tải về, không gửi dữ liệu của nhà ra ngoài); có thể nạp lại ở **Lịch & Sự kiện → Cấu hình lịch phụng vụ → Lời Chúa**. Admin cũng cấu hình được ngày Bổn mạng và ngày đặc biệt ở đó.
+
 ### Trợ lý AI
 - **Cài Đặt → Trợ lý AI**: bật công tắc tổng và từng tính năng (hỏi đáp nội quy, soạn tin nhắc quỹ, phân loại sự cố, tóm tắt, soát nội dung, nhận xét thu chi, nhận xét học tập), đặt ngân sách tháng, xem nhật ký. Khóa API Groq/Gemini đặt trong file `.env.local` của máy chủ.
 
@@ -202,6 +216,8 @@ Một người có thể giữ nhiều vai trò (ví dụ Trưởng nhà + Thàn
 Phạm vi làm việc tùy theo quyền Admin đã cấp cho vai trò của bạn. Thường gặp:
 
 - **Trưởng ban Phụng vụ**: lịch phụng vụ tuần, phân công đọc sách/giúp lễ/hát, quản lý **Tài liệu phụng vụ** (thêm kinh, lời bài hát, PDF, link YouTube), kiểm duyệt ý cầu nguyện.
+  - Trên **Lịch & Sự kiện**: nhập **ý lễ** cho từng ngày (khung Phụng vụ → *Thêm ý lễ*), xem ai đã check-in đi lễ và bấm **Hợp lệ / Không hợp lệ** (ảnh trùng của người khác hoặc chụp sai ngày được cảnh báo), xem **Tổng hợp cả nhà** ở tab Điểm Danh.
+  - Nút **Cấu hình lịch phụng vụ**: thêm **ngày đặc biệt** của nhà (lặp hằng năm hoặc một lần, chọn màu, bắt buộc check-in, cần ảnh, báo trước), đổi **ngày & tên Bổn mạng**, số ngày báo trước, giờ nhắc check-in, bật/tắt check-in Chúa Nhật và lễ trọng, **nạp Lời Chúa**.
 - **Trưởng ban Ẩm thực**: thực đơn tuần, chốt suất ăn, sửa đăng ký sau giờ chốt, kho thực phẩm, khảo sát món ăn.
 - **Trưởng ban Truyền thông**: tạo/kiểm duyệt album Khoảnh khắc, đăng bản tin.
 

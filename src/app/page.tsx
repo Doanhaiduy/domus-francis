@@ -25,6 +25,7 @@ import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { FinancialBarChart, ExpenseDonutChart, BarChartDataPoint, DonutDataPoint } from "@/components/ui/Charts";
 import { useDutySummary, useFinanceSummary, useLatestAnnouncements, useUnreadCount, useUpcomingEvents } from "@/lib/data/dashboard";
 import { useOrgSettings } from "@/lib/data/settings";
+import LiturgyTodayCard from "@/components/LiturgyTodayCard";
 import type { FinanceSummaryDto, PlanSummaryDto } from "@/lib/types/finance";
 
 const GREETING: Record<string, string> = {
@@ -157,6 +158,9 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Phụng vụ hôm nay + lễ lớn sắp tới */}
+      <LiturgyTodayCard />
 
       {/* ROW 1: 3 STATISTIC METRIC CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

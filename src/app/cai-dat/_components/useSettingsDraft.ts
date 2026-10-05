@@ -76,7 +76,7 @@ export function useSettingsDraft(roleCodes: string[] = []): SettingsDraft {
       solo >= dual &&
       ("finance.expense.treasurer_solo_approve_max_vnd" in draft || "finance.expense.dual_approval_min_vnd" in draft)
     ) {
-      const msg = "Hạn mức Thủ quỹ tự duyệt phải nhỏ hơn ngưỡng hai chữ ký (BR-FIN-32).";
+      const msg = "Hạn mức Thủ quỹ tự duyệt phải nhỏ hơn ngưỡng hai chữ ký.";
       errs["finance.expense.treasurer_solo_approve_max_vnd"] ??= msg;
       errs["finance.expense.dual_approval_min_vnd"] ??= msg;
     }
@@ -147,8 +147,8 @@ export function useSettingsDraft(roleCodes: string[] = []): SettingsDraft {
       const w = writers[m.writePermission];
       const who = w?.roles.length ? w.roles.join(", ") : "Ban điều hành";
       if (m.writePermission === "finance.settings.write")
-        return `Chỉ ${who} được sửa · finance.settings.write (Admin kỹ thuật không có quyền tài chính)`;
-      return `Chỉ ${who} được sửa · ${m.writePermission}`;
+        return `Chỉ ${who} được sửa (Admin kỹ thuật không có quyền tài chính)`;
+      return `Chỉ ${who} được sửa`;
     },
     [byKey, writers],
   );

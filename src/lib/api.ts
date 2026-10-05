@@ -96,7 +96,13 @@ export const swrFetcher = <T,>(key: string) => apiFetch<T>(key);
 /** Thông điệp lỗi hiển thị cho người dùng. */
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiClientError) return e.message;
-  if (e instanceof Error) return e.message;
+  if (e instanceof Error) {
+    // Lỗi mạng của trình duyệt (tiếng Anh, khác nhau theo trình duyệt) ⇒ câu tiếng Việt
+    if (e.name === "AbortError") return "Yêu cầu đã bị hủy.";
+    if (e instanceof TypeError && /fetch|network|load failed/i.test(e.message))
+      return "Không kết nối được máy chủ — kiểm tra mạng rồi thử lại.";
+    return e.message;
+  }
   return "Đã có lỗi xảy ra.";
 }
 

@@ -23,6 +23,7 @@ import { useSession } from "@/lib/session";
 import { ApiClientError, errorMessage } from "@/lib/api";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ProvincePicker } from "@/components/ui/GeoPicker";
 import { DialogShell, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
 import { academicConfigApi, refreshAcademicConfig, useAcademicConfig } from "@/lib/data/academic-config";
 import {
@@ -201,7 +202,7 @@ function UniversityDialog({
             required
           />
         </div>
-        <CustomInput label="Tỉnh / thành phố" value={city} onChange={(e) => setCity(e.target.value)} placeholder="VD: Hà Nội" maxLength={100} error={errors.city} />
+        <ProvincePicker label="Tỉnh / thành phố" value={city} onChange={setCity} error={errors.city} />
         <div className="p-3 bg-purple-50/70 rounded-2xl border border-purple-100">
           <CustomToggle
             checked={isActive}

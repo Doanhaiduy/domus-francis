@@ -525,7 +525,7 @@ async function checkMemberSlotConflicts(tx: Tx, date: string, shiftId: string, m
   ).rows;
   if (busy.length) {
     throw conflict(
-      `BR-DUTY-04: ${busy.map((b) => `${b.display_name} (đang trực ${b.area})`).join(", ")} đã có ca khác cùng ngày, cùng ca.`,
+      `${busy.map((b) => `${b.display_name} (đang trực ${b.area})`).join(", ")} đã có ca khác cùng ngày, cùng ca.`,
       "BR-DUTY-04"
     );
   }
@@ -585,7 +585,7 @@ export async function updateAssignment(
     await tx.query("SELECT id, duty_date::text AS duty_date, area_id, shift_id, status::text AS status FROM duty_assignments WHERE id = $1", [id])
   ).rows[0];
   if (!a) throw notFound("Không tìm thấy ca trực.");
-  if (a.status !== "scheduled") throw new ApiError(422, "BR-DUTY-07", "BR-DUTY-07: ca đã check-in/có kết quả — không đổi người trực ngoài quy trình đổi ca.");
+  if (a.status !== "scheduled") throw new ApiError(422, "BR-DUTY-07", "Ca đã check-in/có kết quả — không đổi người trực ngoài quy trình đổi ca.");
   const date = i.date ?? a.duty_date;
   const areaId = i.areaId ?? a.area_id;
   const shiftId = i.shiftId ?? a.shift_id;

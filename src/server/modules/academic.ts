@@ -554,7 +554,7 @@ export async function transition(tx: Tx, id: string, action: AcademicAction, rea
         await tx.query<{ status: string; own: boolean }>("SELECT status::text AS status, app.is_self(member_id) AS own FROM academic_records WHERE id = $1", [id])
       ).rows[0];
       if (!seen) throw notFound("Không tìm thấy bảng điểm hoặc bạn không được xem bảng điểm này.");
-      if (seen.own) throw new ApiError(422, "BR-ACAD-02", "BR-ACAD-02: không được tự xác minh bảng điểm của chính mình.");
+      if (seen.own) throw new ApiError(422, "BR-ACAD-02", "Không được tự xác minh bảng điểm của chính mình.");
       if (seen.status !== "submitted") throw new ApiError(422, "NOT_SUBMITTED", "Chỉ xác minh được bảng điểm đang chờ xác minh.");
       throw new ApiError(403, "FORBIDDEN", "Bạn không có quyền xác minh bảng điểm.");
     }

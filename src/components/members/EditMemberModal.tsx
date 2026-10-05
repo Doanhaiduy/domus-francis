@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { X, UserCog, Lock, Church, GraduationCap } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
@@ -211,8 +212,10 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                         onChange={set("nationalId")}
                         placeholder="Để trống nếu không đổi"
                       />
-                      <CustomInput label="Quê quán" value={f.hometown ?? ""} onChange={set("hometown")} />
-                      <CustomInput label="Địa chỉ thường trú" value={f.homeAddress ?? ""} onChange={set("homeAddress")} />
+                      <div className="sm:col-span-2">
+                        <HometownPicker value={f.hometown ?? ""} onChange={set("hometown")} />
+                      </div>
+                      <AddressPicker label="Địa chỉ thường trú" value={f.homeAddress ?? ""} onChange={set("homeAddress")} className="sm:col-span-2" />
                       <CustomInput label="Họ tên cha" value={f.fatherName ?? ""} onChange={set("fatherName")} />
                       <CustomInput label="SĐT cha" value={f.fatherPhone ?? ""} onChange={set("fatherPhone")} placeholder="Để trống nếu không đổi" />
                       <CustomInput label="Họ tên mẹ" value={f.motherName ?? ""} onChange={set("motherName")} />

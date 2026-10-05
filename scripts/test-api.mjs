@@ -150,6 +150,11 @@ async function startServer() {
       AI_RETRY_BASE_MS: "5",
       GROQ_API_KEY: "offline-test-key",
       GEMINI_API_KEY: "offline-test-gemini",
+      // Danh mục tỉnh/thành: máy chủ giả loopback (scripts/test-api/geo.mjs) thay provinces.open-api.vn
+      PROVINCES_API_BASE_URL: "http://127.0.0.1:3198",
+      // Lời Chúa (lịch phụng vụ): máy chủ giả loopback (scripts/test-api/liturgy-calendar.mjs) thay GitHub
+      LITURGY_DATA_BASE_URL: "http://127.0.0.1:3197",
+      LITURGY_AUTO_IMPORT: "0",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

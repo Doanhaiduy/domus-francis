@@ -40,6 +40,7 @@ export const PERIOD_STATUS_LABEL: Record<PeriodStatus, string> = {
 export const APPROVER_ROLE_LABEL: Record<string, string> = {
   house_head: "Trưởng nhà",
   treasurer: "Thủ quỹ",
+  vice_head: "Phó nhà (trước đây)",
 };
 
 /** Loại khoản thu (fee_type_t). Giao diện chỉ lập mới periodic_dues (quỹ định kỳ) và utility (điện nước); monthly_dues chỉ còn trong lịch sử. */

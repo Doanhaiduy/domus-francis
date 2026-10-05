@@ -21,7 +21,17 @@ const list = (dir, re) =>
 
 export const baseFiles = (dir = MIGRATIONS) => list(dir, /^[0-5][0-9]_.*\.sql$/);
 export const patchFiles = () => list(PATCHES, /^7[0-5]_.*\.sql$/);
-export const appFiles = () => { try { return list(APP_SQL, /^\d+_.*\.sql$/); } catch { return []; } };
+// db/app sắp theo SỐ đầu tên tệp (90 < 991 < 999 < 1000) như pnpm db:migrate — sắp theo chữ sẽ đặt 1000_… trước 90_…
+export const appFiles = () => {
+  try {
+    return readdirSync(APP_SQL)
+      .filter((f) => /^\d+_.*\.sql$/.test(f))
+      .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10) || a.localeCompare(b))
+      .map((f) => path.join(APP_SQL, f));
+  } catch {
+    return [];
+  }
+};
 
 /** opts.migrationsDir: thư mục DDL 01…52 khác db/migrations (vd. bản trích nguyên văn tài liệu cho bước đối chứng của bộ kiểm định). */
 export function filesForStage(stage, opts = {}) {

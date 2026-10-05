@@ -3,8 +3,8 @@
 Ứng dụng web nội bộ cho lưu xá sinh viên Công giáo: thành viên & sơ đồ nhà, trực nhật & hậu cần, thu chi minh bạch,
 học tập, lịch sự kiện & điểm danh QR, thông báo, diễn đàn, phụng vụ, bếp cơm, khoảnh khắc.
 
-**Chạy hoàn toàn trên máy (local-first):** PostgreSQL 16 portable, tệp lưu trên ổ đĩa, font tự lưu trữ — không gọi
-Supabase hay dịch vụ bên ngoài nào khi chạy.
+**Chạy hoàn toàn trên máy (local-first):** PostgreSQL 16 portable, tệp lưu trên ổ đĩa, font tự lưu trữ — không gửi dữ liệu
+nào của nhà ra ngoài; chỉ đọc (GET) dữ liệu công khai: Lời Chúa (GitHub) và danh mục tỉnh/thành (provinces.open-api.vn) — xem mục Lịch phụng vụ.
 
 ## Kiến trúc
 
@@ -97,6 +97,25 @@ Mặc định **tắt**. Mặc định dùng **Groq**, nếu lỗi/hết hạn m
 
 Tác vụ có sẵn: hỏi đáp nội quy (nút "Trợ lý AI"), soạn tin nhắc quỹ (Thu Chi), phân loại sự cố (Báo hỏng), soạn bản tin (Đăng thông báo), soát nội dung (Tạo chủ đề). AI chỉ gợi ý; dữ liệu được ẩn danh hóa trước khi gửi; có ngân sách tháng, giới hạn 20 lượt/giờ/người, cache 24 giờ.
 `pnpm test:api` dùng máy chủ giả loopback — không bao giờ gọi Groq/Gemini thật. `AI_OFFLINE=1` chặn mọi lệnh gọi ra ngoài.
+
+## Lịch phụng vụ, Lời Chúa & check-in đi lễ
+
+- **Lịch phụng vụ tự tính** (`src/lib/liturgy/engine.ts`, không cần mạng): mùa/tuần, năm A/B/C – I/II, tên lễ tiếng Việt, bậc lễ, màu áo lễ,
+  lễ trọng bị ngăn trở được dời (Truyền Tin, Thánh Giuse, Vô Nhiễm…), lịch riêng Việt Nam (Hiển Linh/Thăng Thiên/Mình Máu Thánh dời
+  về Chúa Nhật, 24/11 Các Thánh Tử Đạo Việt Nam là lễ trọng, Mồng Một/Hai/Ba Tết, Lễ Tro trùng Tết dời sang mồng 4 — đặc ân
+  2407/98/L), âm lịch Việt Nam (`lunar.ts`). Đối chiếu với lịch Hà Nội / lịch chung 2026: khớp bậc lễ và màu áo lễ.
+- **Lời Chúa**: nạp một lần từ dữ liệu mở trên GitHub (`anrevietson/myCalLiturgy`, ghim commit) vào bảng `liturgy_lectionary`;
+  bản văn được ghép theo **trích dẫn** (không theo mã tệp nguồn) nên luôn đúng ngày; thiếu bản văn thì hiện trích dẫn + liên kết
+  bản chính thức kpv.vn. Máy chủ tự nạp khi bảng còn trống; nạp lại ở Lịch & Sự kiện → Cấu hình lịch phụng vụ → Lời Chúa.
+  `LITURGY_DATA_BASE_URL` đổi nguồn (bản sao nội bộ), `LITURGY_OFFLINE=1` chặn tải, `LITURGY_AUTO_IMPORT=0` tắt tự nạp.
+- **Check-in đi lễ** (`mass_checkins`): Chúa Nhật không cần ảnh; lễ trọng, lễ Bổn mạng (`org.patron_feast`, `org.patron_name`) và
+  ngày đặc biệt của nhà (`liturgy_special_days`) cần ảnh minh chứng; Ban Phụng vụ duyệt (cảnh báo ảnh trùng pHash / chụp sai ngày).
+- **Nhắc lễ** (job nền 30 phút/lần, `app.fn_liturgy_notice` chống gửi trùng): trước N ngày (`liturgy.notify_days_before`), hôm trước,
+  và tối ngày lễ nhắc người chưa check-in (`liturgy.checkin_reminder_time`).
+
+Nguồn bên ngoài duy nhất ứng dụng gọi (chỉ **GET dữ liệu công khai**, không gửi dữ liệu của nhà): GitHub raw (Lời Chúa) và
+provinces.open-api.vn (danh mục tỉnh/thành, xã/phường — qua máy chủ, có đệm; `PROVINCES_API_BASE_URL` đổi nguồn).
+`pnpm test:api` dùng máy chủ giả loopback cho cả hai.
 
 ## Hiệu năng (đặc biệt khi DB ở xa, ví dụ Supabase)
 
