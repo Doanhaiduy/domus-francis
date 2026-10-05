@@ -12,6 +12,7 @@ import { TextSetting, ToggleSetting } from "./SettingFields";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, type ZaloEventKey } from "@/lib/types/settings";
 import { FormCardsSkeleton } from "./TabSkeletons";
 
+const CHAT_RE = /^[A-Za-z0-9._:-]{3,100}$/;
 const EVENTS_KEY = "integration.zalo.group_events";
 const ENABLED_KEY = "integration.zalo.group_enabled";
 const CHAT_KEY = "integration.zalo.group_chat_id";
@@ -65,7 +66,7 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
   const sendTest = async () => {
     setTesting(true);
     try {
-      const r = await api.post<{ sent: boolean; reason?: string }>("/api/v1/integrations/zalo/test", {});
+      const r = await api.post<{ sent: boolean; reason?: string }>("/api/v1/integrations/zalo/test", { chatId: chatId.trim() });
       showToast(r.sent ? "success" : "warning", r.sent ? "Đã gửi tin thử vào nhóm Zalo — hãy kiểm tra nhóm." : r.reason ?? "Không gửi được.");
       void mutate();
     } catch (e) {
@@ -143,9 +144,9 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
           <ToggleSetting draft={draft} k={ENABLED_KEY} label="Gửi tin tự động vào nhóm Zalo" description="Công tắc tổng — tắt thì bot không gửi bất kỳ loại tin nào dưới đây" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div className="flex flex-col gap-3">
           <TextSetting draft={draft} k={CHAT_KEY} label="Mã nhóm Zalo (chat_id)" placeholder="Bấm “Dò nhóm” để lấy mã" />
-          <div className="flex flex-wrap items-center gap-2 md:pt-6">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={findChats}
               disabled={finding || !status?.tokenConfigured}
@@ -155,15 +156,15 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
             </button>
             <button
               onClick={sendTest}
-              disabled={testing || !status?.tokenConfigured || !status?.chatId}
-              title={!status?.chatId ? "Lưu mã nhóm trước khi gửi thử" : undefined}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-200 transition disabled:opacity-50"
+              disabled={testing || !status?.tokenConfigured || !CHAT_RE.test(chatId.trim())}
+              title={!CHAT_RE.test(chatId.trim()) ? "Nhập hoặc chọn mã nhóm hợp lệ trước khi gửi thử" : "Gửi một tin thử tới mã nhóm đang nhập (không cần lưu trước)"}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-md shadow-sky-200 transition disabled:opacity-50 disabled:shadow-none"
             >
               <Send className="w-3.5 h-3.5" /> {testing ? "Đang gửi..." : "Gửi tin thử"}
             </button>
+            {unsaved && <span className="text-[11px] text-amber-700">Có thay đổi chưa lưu — nhớ bấm “Lưu tất cả thay đổi”.</span>}
           </div>
         </div>
-        {unsaved && <p className="-mt-3 text-[10.5px] text-amber-700">Bạn có thay đổi chưa lưu — “Gửi tin thử” dùng cấu hình ĐÃ LƯU; bấm “Lưu tất cả thay đổi” trước.</p>}
 
         {chats && (
           <div className="p-4 rounded-2xl border border-sky-100 bg-sky-50/40 flex flex-col gap-2">

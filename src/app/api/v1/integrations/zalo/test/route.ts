@@ -3,7 +3,11 @@ import { api } from "@/server/http";
 import { forbidden } from "@/server/errors";
 import { readZaloConfig, sendZaloText } from "@/server/integrations/zalo";
 
-const Schema = z.object({ text: z.string().trim().max(1000).optional() });
+const Schema = z.object({
+  text: z.string().trim().max(1000).optional(),
+  /** Thử với mã đang nhập trên màn hình (chưa cần lưu); bỏ trống = mã đã lưu */
+  chatId: z.string().trim().regex(/^[A-Za-z0-9._:-]{3,100}$/, "Mã nhóm không hợp lệ.").optional(),
+});
 
 /** Gửi một tin thử vào nhóm Zalo đã cấu hình (không phụ thuộc công tắc tổng). */
 export const POST = api({}, async (ctx) => {
@@ -12,8 +16,9 @@ export const POST = api({}, async (ctx) => {
   const b = await ctx.body(Schema);
   const cfg = await readZaloConfig(ctx);
   if (!cfg.tokenConfigured) return { sent: false, reason: "Máy chủ chưa có ZALO_BOT_TOKEN — đặt biến môi trường này trên Vercel rồi triển khai lại." };
-  if (!cfg.chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id) hoặc chưa lưu cấu hình." };
+  const chatId = b.chatId || cfg.chatId;
+  if (!chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
   const text = b.text || "🔔 Tin thử từ hệ thống Lưu Xá Phanxicô — nếu thấy tin này trong nhóm nghĩa là kết nối Zalo đã hoạt động.";
-  const r = await sendZaloText(cfg.chatId, text);
+  const r = await sendZaloText(chatId, text);
   return r.ok ? { sent: true } : { sent: false, reason: r.error };
 });
