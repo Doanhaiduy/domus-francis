@@ -1,27 +1,15 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  Wallet,
   TrendingUp,
   TrendingDown,
   Clock,
   Plus,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  Filter,
-  Search,
-  Download,
   FileDown,
-  Receipt,
-  ArrowDownRight,
-  ArrowUpRight,
+  Search,
   Eye,
-  ShieldAlert,
   Calendar,
-  Sparkles,
   Copy,
   ChevronLeft,
   ChevronRight,
@@ -29,255 +17,243 @@ import {
   RotateCcw,
   Check,
   X,
+  Paperclip,
+  Lock,
+  CalendarPlus,
+  AlertCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
+import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import ThuChiLoading from "./loading";
-import { CustomInput, CustomSelect, CustomDatePicker } from "@/components/ui/FormControls";
+import { CustomSelect, CustomDatePicker } from "@/components/ui/FormControls";
+import { Portal } from "@/components/ui/Portal";
+import { FinancialBarChart, ExpenseDonutChart, AreaTrendChart, DonutDataPoint } from "@/components/ui/Charts";
+import FinancialReportModal, { buildFinanceReport } from "@/components/FinancialReportModal";
+import { ExpenseFormCard } from "@/components/modals/AddExpenseModal";
+import { copyTextToClipboard } from "@/lib/zaloShare";
+import { dmy, dm, formatFinanceReportForZalo, monthEndOf, monthTitle, shiftMonth, vnToday } from "@/lib/finance-format";
+import { financeApi, refreshFinance, useContributionMatrix, useExpenses, useFinanceOptions, useFinanceOverview, type PeriodQuery } from "@/lib/data/finance";
 import {
-  FinancialBarChart,
-  ExpenseDonutChart,
-  AreaTrendChart,
-  BarChartDataPoint,
-  DonutDataPoint,
-  AreaDataPoint,
-} from "@/components/ui/Charts";
-import FinancialReportModal from "@/components/FinancialReportModal";
-import { formatFinancialReportForZalo, copyTextToClipboard } from "@/lib/zaloShare";
-import { Contribution } from "@/lib/mockData";
+  PERIOD_STATUS_LABEL,
+  type ContributionCellDto,
+  type ContributionRowDto,
+  type ExpenseDetailDto,
+  type ExpenseDto,
+  type ExpenseStatus,
+} from "@/lib/types/finance";
+import ExpenseDetailModal, { StatusBadge } from "./_components/ExpenseDetailModal";
+import ContributionMatrix from "./_components/ContributionMatrix";
+import { CellDialog, ContributionBadge, PayModal, PlanModal } from "./_components/ContributionDialogs";
+import { ReasonDialog } from "./_components/dialogs";
 
-const SIX_MONTH_BARS: BarChartDataPoint[] = [
-  { label: "T5", thu: 4200000, chi: 3850000 },
-  { label: "T6", thu: 4200000, chi: 4120000 },
-  { label: "T7", thu: 4200000, chi: 3600000 },
-  { label: "T8", thu: 4200000, chi: 3950000 },
-  { label: "T9", thu: 4200000, chi: 4400000 },
-  { label: "T10", thu: 3850000, chi: 2870000 },
+const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
+  { label: "Tất cả", statuses: null },
+  { label: "Chờ duyệt", statuses: ["pending_approval"] },
+  { label: "Đã duyệt", statuses: ["approved"] },
+  { label: "Đã chi", statuses: ["paid"] },
+  { label: "Từ chối", statuses: ["rejected"] },
+  { label: "Nháp", statuses: ["draft"] },
+  { label: "Hủy / Đảo", statuses: ["cancelled", "reversed"] },
 ];
+const NOT_COUNTED: ExpenseStatus[] = ["cancelled", "rejected", "reversed"];
+const CATEGORY_EMOJI: Record<string, string> = { FOOD: "🛒", UTILITY: "⚡", CLEAN: "🧴", REPAIR: "🔧", LITURGY: "✝", GUEST: "🤝", OTHER: "📦" };
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-const SIX_MONTH_TREND: AreaDataPoint[] = [
-  { label: "Tháng 5", value: 6500000 },
-  { label: "Tháng 6", value: 6850000 },
-  { label: "Tháng 7", value: 7450000 },
-  { label: "Tháng 8", value: 7700000 },
-  { label: "Tháng 9", value: 8750000 },
-  { label: "Tháng 10", value: 9730000 },
-];
-
-const MONTH_ORDER = ["08/2026", "09/2026", "10/2026"];
-
-function parseVNDate(dStr: string): Date | null {
-  const parts = dStr.split("/");
-  if (parts.length === 3) {
-    return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-  }
-  return null;
-}
+type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao";
 
 export default function ThuChiPage() {
-  const {
-    fundBalance,
-    contributions,
-    expenses,
-    toggleContribution,
-    openModal,
-    showToast,
-    currentRole,
-    isLoadingSkeleton,
-    approveExpense,
-  } = useApp();
+  const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
+  const { can } = useSession();
+  const today = useMemo(() => vnToday(), []);
+  const current = today.slice(0, 7);
 
-  const [activeTab, setActiveTab] = useState<"tong-quan" | "danh-sach" | "bao-cao">("tong-quan");
+  const [activeTab, setActiveTab] = useState<Tab>("tong-quan");
   const [filterPaid, setFilterPaid] = useState<"all" | "unpaid" | "paid">("unpaid");
   const [contributionSearch, setContributionSearch] = useState("");
 
   // PERIOD CONTROLS (THEO THÁNG HOẶC KHOẢNG NGÀY)
   const [periodMode, setPeriodMode] = useState<"month" | "range">("month");
-  const [selectedMonth, setSelectedMonth] = useState<string>("10/2026");
+  const [selectedMonth, setSelectedMonth] = useState<string>(current);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Expenses Tab Filter States
   const [expenseSearch, setExpenseSearch] = useState("");
-  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("Tất cả");
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("ALL");
   const [expenseStatusFilter, setExpenseStatusFilter] = useState<string>("Tất cả");
   const [expenseDateFilter, setExpenseDateFilter] = useState("");
 
-  const canManageFinances = ["Trưởng nhà", "Thủ quỹ", "Admin"].includes(currentRole);
-  const canApproveExpense = ["Trưởng nhà", "Admin"].includes(currentRole);
-  const canCreateExpense = ["Thủ quỹ", "Trưởng nhà", "Admin"].includes(currentRole);
+  // Hộp thoại
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ExpenseDetailDto | null>(null);
+  const [rejectFor, setRejectFor] = useState<ExpenseDto | null>(null);
+  const [payFor, setPayFor] = useState<{ memberId: string; month: string } | null>(null);
+  const [cellFor, setCellFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [planMonth, setPlanMonth] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const canManageFinances = can(["finance.expense.read_all", "finance.ledger.read", "finance.contribution.read_all"]);
+  const canSeeAllExpenses = can("finance.expense.read_all");
+  const canCreateExpense = can("finance.expense.create");
+  const canApprove = can("finance.expense.approve");
+  const canRecord = can("finance.contribution.record");
+  const canWaive = can("finance.contribution.waive");
+  const canPlan = can("finance.contribution.plan.manage");
+
+  // KỲ ĐANG XEM → tham số truy vấn
+  const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => shiftMonth(current, -i)), [current]);
+  const MONTH_ORDER = useMemo(() => [...monthOptions].reverse(), [monthOptions]);
+  const { periodQuery, rangeError } = useMemo((): { periodQuery: PeriodQuery; rangeError: string | null } => {
+    const thisMonth = { from: `${current}-01`, to: monthEndOf(current) };
+    if (periodMode === "month")
+      return { periodQuery: selectedMonth === "all" ? { all: true } : { from: `${selectedMonth}-01`, to: monthEndOf(selectedMonth) }, rangeError: null };
+    let from = startDate;
+    let to = endDate;
+    if (!from && !to) return { periodQuery: thisMonth, rangeError: null };
+    if (from && !to) to = from > today ? from : today;
+    if (!from && to) from = `${to.slice(0, 4)}-01-01`;
+    if (from > to) return { periodQuery: thisMonth, rangeError: "Ngày bắt đầu phải trước ngày kết thúc." };
+    if (daysBetween(from, to) > 366) return { periodQuery: thisMonth, rangeError: "Khoảng ngày tối đa 366 ngày — đang hiển thị tháng hiện tại." };
+    return { periodQuery: { from, to }, rangeError: null };
+  }, [periodMode, selectedMonth, startDate, endDate, current, today]);
+
+  const { overview: o, error: overviewError } = useFinanceOverview(periodQuery);
+  // Thành viên chỉ thấy khoản của mình (RLS) ⇒ mặc định xem "Tất cả" thay vì danh sách người chưa đóng
+  const seesAllContributions = o?.access.contributionsAll;
+  useEffect(() => {
+    if (seesAllContributions === false) setFilterPaid("all");
+  }, [seesAllContributions]);
+  const { expenses } = useExpenses(o?.from, o?.to);
+  const options = useFinanceOptions();
 
   // PERIOD LABEL
   const periodLabel = useMemo(() => {
     if (periodMode === "month") {
       if (selectedMonth === "all") return "Toàn bộ các tháng";
-      const [m, y] = selectedMonth.split("/");
-      return `Tháng ${m}, ${y}`;
-    } else {
-      if (startDate && endDate) {
-        const s = startDate.split("-").reverse().join("/");
-        const e = endDate.split("-").reverse().join("/");
-        return `${s} – ${e}`;
-      }
-      if (startDate) return `Từ ngày ${startDate.split("-").reverse().join("/")}`;
-      if (endDate) return `Đến ngày ${endDate.split("-").reverse().join("/")}`;
-      return "Khoảng ngày tùy chọn";
+      return `Tháng ${selectedMonth.slice(5, 7)}, ${selectedMonth.slice(0, 4)}`;
     }
-  }, [periodMode, selectedMonth, startDate, endDate]);
+    if (rangeError) return `Tháng ${current.slice(5, 7)}, ${current.slice(0, 4)}`;
+    if (startDate && endDate) return `${dmy(startDate)} – ${dmy(endDate)}`;
+    if (startDate) return `Từ ngày ${dmy(startDate)}`;
+    if (endDate) return `Đến ngày ${dmy(endDate)}`;
+    return "Khoảng ngày tùy chọn";
+  }, [periodMode, selectedMonth, startDate, endDate, rangeError, current]);
 
-  // FILTERED EXPENSES FOR CURRENT PERIOD
-  const periodExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      const d = parseVNDate(e.date);
-      if (!d) return true;
-      if (periodMode === "month") {
-        if (selectedMonth === "all") return true;
-        const [m, y] = selectedMonth.split("/").map(Number);
-        return d.getMonth() + 1 === m && d.getFullYear() === y;
-      } else {
-        if (startDate) {
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          if (d < start) return false;
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          if (d > end) return false;
-        }
-        return true;
-      }
-    });
-  }, [expenses, periodMode, selectedMonth, startDate, endDate]);
+  const periodStatus = useMemo(() => {
+    if (!o || periodMode !== "month" || selectedMonth === "all") return null;
+    return o.periods.find((p) => p.month === selectedMonth)?.status ?? null;
+  }, [o, periodMode, selectedMonth]);
 
-  // PERIOD CONTRIBUTIONS
-  const periodContributions: Contribution[] = useMemo(() => {
-    if (periodMode === "month" && (selectedMonth === "09/2026" || selectedMonth === "08/2026")) {
-      // Past months were 100% paid
-      return contributions.map((c) => ({
-        ...c,
-        status: "Đã đóng" as const,
-        paidDate: `02/${selectedMonth.split("/")[0]}`,
-      }));
-    }
-    return contributions;
-  }, [contributions, periodMode, selectedMonth]);
+  // KỲ THU QUỸ ĐƯỢC HIỂN THỊ (tháng đang xem, hoặc kỳ thu mới nhất trong khoảng)
+  const plan = useMemo(() => {
+    const plans = o?.plans ?? [];
+    if (periodMode === "month" && selectedMonth !== "all") return plans.find((p) => p.month === selectedMonth) ?? null;
+    return plans[plans.length - 1] ?? null;
+  }, [o, periodMode, selectedMonth]);
+  const { matrix: planMatrix } = useContributionMatrix(plan?.month, 1, !!plan);
+  const planRows = useMemo(() => (plan && planMatrix ? planMatrix.rows.filter((r) => r.cells[plan.month]) : []), [plan, planMatrix]);
+  const cellOf = (r: ContributionRowDto) => r.cells[plan!.month];
+  const paidList = useMemo(() => planRows.filter((r) => ["paid", "waived"].includes(cellOf(r).status)), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unpaidList = useMemo(() => planRows.filter((r) => ["unpaid", "partial"].includes(cellOf(r).status)), [planRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const paidList = useMemo(() => periodContributions.filter((c) => c.status === "Đã đóng"), [periodContributions]);
-  const unpaidList = useMemo(() => periodContributions.filter((c) => c.status === "Chưa đóng"), [periodContributions]);
-
-  const periodCollected = useMemo(() => paidList.reduce((sum, c) => sum + c.amount, 0), [paidList]);
-  const periodUnpaid = useMemo(() => unpaidList.reduce((sum, c) => sum + c.amount, 0), [unpaidList]);
-  const periodSpent = useMemo(() => periodExpenses.reduce((sum, e) => sum + e.amount, 0), [periodExpenses]);
-
-  // DYNAMIC FUND BALANCE FOR PERIOD
-  const currentPeriodBalance = useMemo(() => {
-    if (selectedMonth === "09/2026") return 9730000;
-    if (selectedMonth === "08/2026") return 7700000;
-    return fundBalance;
-  }, [selectedMonth, fundBalance]);
-
-  // DYNAMIC DONUT BREAKDOWN
-  const dynamicExpenseDonut: DonutDataPoint[] = useMemo(() => {
-    const cats: Record<string, { val: number; color: string }> = {
-      "Thực phẩm": { val: 0, color: "#f59e0b" },
-      "Điện nước": { val: 0, color: "#3b82f6" },
-      "Vệ sinh": { val: 0, color: "#10b981" },
-      "Phụng vụ": { val: 0, color: "#8b5cf6" },
-      "Sửa chữa": { val: 0, color: "#ef4444" },
-      "Khác": { val: 0, color: "#6b7280" },
-    };
-
-    periodExpenses.forEach((e) => {
-      if (cats[e.category]) {
-        cats[e.category].val += e.amount;
-      }
-    });
-
-    const points = Object.entries(cats)
-      .filter(([_, v]) => v.val > 0)
-      .map(([k, v]) => ({
-        label: k === "Thực phẩm" ? "Thực phẩm & Bếp" : k,
-        value: v.val,
-        color: v.color,
-      }));
-
-    return points.length > 0
-      ? points
-      : [{ label: "Chưa có phát sinh", value: 1, color: "#e5e7eb" }];
-  }, [periodExpenses]);
-
-  // Filtered Contributions with Search
   const displayedContributions = useMemo(() => {
-    let list =
-      filterPaid === "unpaid"
-        ? unpaidList
-        : filterPaid === "paid"
-        ? paidList
-        : periodContributions;
+    let list = filterPaid === "unpaid" ? unpaidList : filterPaid === "paid" ? paidList : planRows;
     if (contributionSearch.trim()) {
       const q = contributionSearch.toLowerCase();
-      list = list.filter(
-        (c) => c.name.toLowerCase().includes(q) || c.room.toLowerCase().includes(q)
-      );
+      list = list.filter((r) => r.fullName.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || (r.room ?? "").toLowerCase().includes(q));
     }
     return list;
-  }, [filterPaid, unpaidList, paidList, periodContributions, contributionSearch]);
+  }, [filterPaid, unpaidList, paidList, planRows, contributionSearch]);
 
-  // Filtered Expenses for Tab 2
+  // SỐ LIỆU KỲ (từ sổ cái — fn_finance_summary)
+  const opening = o?.openingVnd ?? 0;
+  const closing = o?.closingVnd ?? 0;
+  const delta = closing - opening;
+  const deltaPct = opening > 0 ? Math.round((delta / opening) * 1000) / 10 : null;
+  const plansInPeriod = o?.plans ?? [];
+  const duesExpected = plansInPeriod.reduce((s, p) => s + p.stats.expectedVnd, 0);
+  const duesCollected = plansInPeriod.reduce((s, p) => s + p.stats.collectedVnd, 0);
+  const outstanding = Math.max(0, duesExpected - duesCollected);
+  const collectRate = duesExpected > 0 ? Math.round((duesCollected / duesExpected) * 100) : null;
+  const countsKnown = plansInPeriod.length > 0 && plansInPeriod.every((p) => p.stats.paidCount !== null);
+  const paidCount = countsKnown ? plansInPeriod.reduce((s, p) => s + (p.stats.paidCount ?? 0) + (p.stats.waivedCount ?? 0), 0) : null;
+  const totalCount = countsKnown ? plansInPeriod.reduce((s, p) => s + (p.stats.totalCount ?? 0) + (p.stats.waivedCount ?? 0), 0) : null;
+  const owingCount = countsKnown ? plansInPeriod.reduce((s, p) => s + (p.stats.unpaidCount ?? 0) + (p.stats.partialCount ?? 0), 0) : null;
+  const unitLabel = plansInPeriod.length > 1 ? "lượt" : "thành viên";
+  const paidVoucherCount = (o?.expenseByCategory ?? []).reduce((s, c) => s + c.count, 0);
+  const pendingInPeriod = expenses.filter((e) => e.status === "pending_approval").length;
+
+  const barData = useMemo(() => (o?.months ?? []).map((m) => ({ label: m.label, thu: m.incomeVnd, chi: m.expenseVnd })), [o]);
+  const trendData = useMemo(() => (o?.months ?? []).map((m) => ({ label: `Tháng ${Number(m.month.slice(5, 7))}`, value: m.closingVnd })), [o]);
+  const dynamicExpenseDonut: DonutDataPoint[] = useMemo(() => {
+    const pts = (o?.expenseByCategory ?? []).filter((c) => c.amountVnd > 0).map((c) => ({ label: c.name, value: c.amountVnd, color: c.color }));
+    return pts.length ? pts : [{ label: "Chưa có phát sinh", value: 1, color: "#e5e7eb" }];
+  }, [o]);
+
+  // DANH SÁCH PHIẾU CHI (lọc)
   const filteredExpenses = useMemo(() => {
-    return periodExpenses.filter((e) => {
+    const st = STATUS_FILTERS.find((f) => f.label === expenseStatusFilter)?.statuses ?? null;
+    const q = expenseSearch.toLowerCase().trim();
+    return expenses.filter((e) => {
       const matchSearch =
-        e.name.toLowerCase().includes(expenseSearch.toLowerCase()) ||
-        e.paidBy.toLowerCase().includes(expenseSearch.toLowerCase()) ||
-        (e.note && e.note.toLowerCase().includes(expenseSearch.toLowerCase()));
-      const matchCategory =
-        expenseCategoryFilter === "Tất cả" || e.category === expenseCategoryFilter;
-      const matchStatus =
-        expenseStatusFilter === "Tất cả" || e.status === expenseStatusFilter;
-      const matchDate =
-        !expenseDateFilter || e.date.includes(expenseDateFilter);
-
+        !q ||
+        e.title.toLowerCase().includes(q) ||
+        e.voucherNo.toLowerCase().includes(q) ||
+        (e.paidBy?.name ?? "").toLowerCase().includes(q) ||
+        e.requestedBy.name.toLowerCase().includes(q) ||
+        (e.note ?? "").toLowerCase().includes(q);
+      const matchCategory = expenseCategoryFilter === "ALL" || e.category.code === expenseCategoryFilter;
+      const matchStatus = !st || st.includes(e.status);
+      const matchDate = !expenseDateFilter || dmy(e.expenseDate).includes(expenseDateFilter.trim());
       return matchSearch && matchCategory && matchStatus && matchDate;
     });
-  }, [periodExpenses, expenseSearch, expenseCategoryFilter, expenseStatusFilter, expenseDateFilter]);
+  }, [expenses, expenseSearch, expenseCategoryFilter, expenseStatusFilter, expenseDateFilter]);
+  const filteredExpensesTotal = filteredExpenses.filter((e) => !NOT_COUNTED.includes(e.status)).reduce((s, e) => s + e.amountVnd, 0);
 
-  const filteredExpensesTotal = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const reportProps = { periodLabel, overview: o, expenses, plan, rows: o?.access.contributionsAll ? planRows : null, canSeeAllExpenses };
 
   // QUICK COPY ZALO ACTION
   const handleCopyZalo = async () => {
-    const text = formatFinancialReportForZalo({
-      periodLabel,
-      fundBalance: currentPeriodBalance,
-      totalCollected: periodCollected,
-      totalSpent: periodSpent,
-      totalUnpaid: periodUnpaid,
-      unpaidMembers: unpaidList,
-      recentExpenses: periodExpenses,
-    });
-    const success = await copyTextToClipboard(text);
-    if (success) {
-      showToast("success", "Đã sao chép báo cáo Zalo! Bạn có thể dán (Ctrl+V) ngay vào nhóm chat.");
-    } else {
-      showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
-    }
+    if (!o) return;
+    const success = await copyTextToClipboard(formatFinanceReportForZalo(buildFinanceReport(reportProps)));
+    if (success) showToast("success", "Đã sao chép báo cáo Zalo! Bạn có thể dán (Ctrl+V) ngay vào nhóm chat.");
+    else showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
   };
 
   // STEPPING MONTHS
   const handleStepMonth = (direction: -1 | 1) => {
     const currentIndex = MONTH_ORDER.indexOf(selectedMonth);
     if (currentIndex === -1) {
-      setSelectedMonth("10/2026");
+      setSelectedMonth(current);
       return;
     }
     const nextIndex = currentIndex + direction;
-    if (nextIndex >= 0 && nextIndex < MONTH_ORDER.length) {
-      setSelectedMonth(MONTH_ORDER[nextIndex]);
+    if (nextIndex >= 0 && nextIndex < MONTH_ORDER.length) setSelectedMonth(MONTH_ORDER[nextIndex]);
+  };
+
+  const quickApprove = async (e: ExpenseDto) => {
+    setBusyId(e.id);
+    try {
+      const r = await financeApi.decide(e.id, "approved");
+      await refreshFinance();
+      showToast(
+        "success",
+        r.status === "approved"
+          ? `Phiếu ${e.voucherNo} đã đủ chữ ký — chờ Thủ quỹ chi.`
+          : `Đã ký duyệt phiếu ${e.voucherNo} (${r.approvedCount}/${r.requiredApprovals}).`,
+      );
+    } catch (x) {
+      showToast("error", errorMessage(x));
+    } finally {
+      setBusyId(null);
     }
   };
 
-  if (isLoadingSkeleton) {
+  if (isLoadingSkeleton || (!o && !overviewError)) {
     return <ThuChiLoading />;
   }
 
@@ -286,12 +262,8 @@ export default function ThuChiPage() {
       {/* HEADER BAR */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-            Thu Chi &amp; Tài Chính
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Quản lý dòng tiền quỹ sinh hoạt chung Lưu Xá Phanxicô minh bạch &amp; chuẩn xác
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Thu Chi &amp; Tài Chính</h1>
+          <p className="text-sm text-gray-500 mt-1">Quản lý dòng tiền quỹ sinh hoạt chung Lưu Xá Phanxicô minh bạch &amp; chuẩn xác</p>
         </div>
 
         {/* TOP QUICK ACTIONS */}
@@ -318,10 +290,10 @@ export default function ThuChiPage() {
             <button
               onClick={() => openModal("addExpense")}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-primary/20 transition active:scale-95"
-              title="Thủ quỹ lập phiếu chi tiêu (chờ Trưởng nhà phê duyệt)"
+              title={canManageFinances ? "Lập phiếu chi (chờ Ban điều hành phê duyệt)" : "Đề xuất chi / xin hoàn ứng khoản bạn đã chi cho nhà"}
             >
               <Plus className="w-4 h-4" />
-              <span>Lập phiếu chi</span>
+              <span>{canManageFinances ? "Lập phiếu chi" : "Đề xuất chi"}</span>
             </button>
           ) : (
             <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-semibold">
@@ -334,15 +306,12 @@ export default function ThuChiPage() {
 
       {/* PERIOD CONTROLLER (BỘ CHỌN CHU KỲ TÀI CHÍNH THÁNG / KHOẢNG NGÀY) */}
       <div className="bg-white rounded-2xl p-4 border border-purple-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* LEFT: MODE TOGGLE */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-surface-container-low p-1 rounded-xl">
             <button
               onClick={() => setPeriodMode("month")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                periodMode === "month"
-                  ? "bg-white text-primary shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
+                periodMode === "month" ? "bg-white text-primary shadow-xs" : "text-gray-500 hover:text-gray-900"
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
@@ -351,9 +320,7 @@ export default function ThuChiPage() {
             <button
               onClick={() => setPeriodMode("range")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                periodMode === "range"
-                  ? "bg-white text-primary shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
+                periodMode === "range" ? "bg-white text-primary shadow-xs" : "text-gray-500 hover:text-gray-900"
               }`}
             >
               <CalendarRange className="w-3.5 h-3.5" />
@@ -368,51 +335,59 @@ export default function ThuChiPage() {
             <Calendar className="w-3.5 h-3.5 text-primary" />
             <span>Kỳ: {periodLabel}</span>
           </div>
+          {periodStatus && (
+            <div
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold ${
+                periodStatus === "closed"
+                  ? "bg-gray-900 text-white"
+                  : periodStatus === "pending_confirmation"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-emerald-50 text-emerald-700"
+              }`}
+              title="Trạng thái sổ quỹ tháng: đã chốt thì không ghi thêm bút toán vào tháng này"
+            >
+              {periodStatus !== "open" && <Lock className="w-3 h-3" />}
+              {PERIOD_STATUS_LABEL[periodStatus]}
+            </div>
+          )}
         </div>
 
-        {/* RIGHT: CONTROLS ACCORDING TO MODE */}
         <div className="flex flex-wrap items-center gap-2">
           {periodMode === "month" ? (
             <div className="flex items-center gap-1.5">
-              {/* PREV MONTH STEPPER */}
               <button
                 onClick={() => handleStepMonth(-1)}
-                disabled={selectedMonth === MONTH_ORDER[0]}
+                disabled={selectedMonth === MONTH_ORDER[0] || selectedMonth === "all"}
                 className="p-2 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
                 title="Tháng trước"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              {/* MONTH SELECT */}
-              <div className="w-48">
+              <div className="w-52">
                 <CustomSelect
                   value={selectedMonth}
                   onChange={(val) => setSelectedMonth(val)}
                   options={[
-                    { value: "10/2026", label: "Tháng 10, 2026 (Hiện tại)" },
-                    { value: "09/2026", label: "Tháng 09, 2026" },
-                    { value: "08/2026", label: "Tháng 08, 2026" },
+                    ...monthOptions.map((m) => ({ value: m, label: `Tháng ${m.slice(5, 7)}, ${m.slice(0, 4)}${m === current ? " (Hiện tại)" : ""}` })),
                     { value: "all", label: "Tất cả các tháng" },
                   ]}
                   placeholder="Chọn tháng"
                 />
               </div>
 
-              {/* NEXT MONTH STEPPER */}
               <button
                 onClick={() => handleStepMonth(1)}
-                disabled={selectedMonth === MONTH_ORDER[MONTH_ORDER.length - 1]}
+                disabled={selectedMonth === MONTH_ORDER[MONTH_ORDER.length - 1] || selectedMonth === "all"}
                 className="p-2 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
                 title="Tháng sau"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              {/* RESET CURRENT MONTH BUTTON */}
-              {selectedMonth !== "10/2026" && (
+              {selectedMonth !== current && (
                 <button
-                  onClick={() => setSelectedMonth("10/2026")}
+                  onClick={() => setSelectedMonth(current)}
                   className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold transition"
                   title="Về tháng hiện tại"
                 >
@@ -423,25 +398,12 @@ export default function ThuChiPage() {
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-36">
-                <CustomDatePicker
-                  value={startDate}
-                  onChange={setStartDate}
-                  placeholder="Từ ngày..."
-                  format="YYYY-MM-DD"
-                />
+                <CustomDatePicker value={startDate} onChange={setStartDate} placeholder="Từ ngày..." format="YYYY-MM-DD" />
               </div>
-
               <span className="text-gray-400 text-xs font-bold">→</span>
-
               <div className="w-36">
-                <CustomDatePicker
-                  value={endDate}
-                  onChange={setEndDate}
-                  placeholder="Đến ngày..."
-                  format="YYYY-MM-DD"
-                />
+                <CustomDatePicker value={endDate} onChange={setEndDate} placeholder="Đến ngày..." format="YYYY-MM-DD" />
               </div>
-
               {(startDate || endDate) && (
                 <button
                   onClick={() => {
@@ -458,6 +420,7 @@ export default function ThuChiPage() {
           )}
         </div>
       </div>
+      {rangeError && <div className="-mt-3 text-xs font-semibold text-rose-600">{rangeError}</div>}
 
       {/* ROLE BANNER FOR MEMBERS */}
       {!canManageFinances && (
@@ -465,67 +428,80 @@ export default function ThuChiPage() {
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-primary shrink-0" />
             <span>
-              <b>Chế độ xem tài chính công khai (Vai trò: {currentRole})</b>: Toàn bộ thành viên có quyền giám sát chứng từ, phiếu chi và số dư quỹ. Quyền ghi chi tiêu và duyệt chi chỉ áp dụng cho Thủ quỹ và Trưởng nhà.
+              <b>Chế độ xem tài chính công khai (Vai trò: {currentRole})</b>: Mọi thành viên giám sát được tồn quỹ, tổng thu – chi, cơ cấu chi tiêu và tỷ lệ thu
+              quỹ của cả nhà; phiếu chi và khoản đóng quỹ thì bạn xem được của chính mình. Duyệt chi, ghi thu và xuất quỹ chỉ áp dụng cho Thủ quỹ và Ban điều
+              hành.
             </span>
           </div>
         </div>
       )}
 
+      {overviewError && !o && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-sm text-rose-800">Không tải được số liệu quỹ: {errorMessage(overviewError)}</div>
+      )}
+
+      {canApprove && o && o.pendingApprovals > pendingInPeriod && (
+        <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            Có {o.pendingApprovals - pendingInPeriod} phiếu chi đang chờ duyệt nằm ngoài kỳ đang xem.
+          </span>
+          <button
+            onClick={() => {
+              setPeriodMode("month");
+              setSelectedMonth("all");
+              setExpenseStatusFilter("Chờ duyệt");
+              setActiveTab("danh-sach");
+            }}
+            className="px-3 py-1.5 rounded-xl bg-white border border-amber-200 font-bold hover:bg-amber-100"
+          >
+            Xem phiếu chờ duyệt
+          </button>
+        </div>
+      )}
+
       {/* TABS */}
-      <div className="flex gap-2 border-b border-purple-50 pb-2">
-        <button
-          onClick={() => setActiveTab("tong-quan")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-            activeTab === "tong-quan"
-              ? "bg-primary text-white shadow-xs"
-              : "text-gray-600 hover:bg-surface-container-low"
-          }`}
-        >
-          Tổng quan
-        </button>
-        <button
-          onClick={() => setActiveTab("danh-sach")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-            activeTab === "danh-sach"
-              ? "bg-primary text-white shadow-xs"
-              : "text-gray-600 hover:bg-surface-container-low"
-          }`}
-        >
-          Danh sách chi tiêu ({periodExpenses.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("bao-cao")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-            activeTab === "bao-cao"
-              ? "bg-primary text-white shadow-xs"
-              : "text-gray-600 hover:bg-surface-container-low"
-          }`}
-        >
-          Báo cáo &amp; Biểu đồ
-        </button>
+      <div className="flex gap-2 border-b border-purple-50 pb-2 overflow-x-auto">
+        {(
+          [
+            ["tong-quan", "Tổng quan"],
+            ["danh-sach", `Danh sách chi tiêu (${expenses.length})`],
+            ["dong-quy", "Đóng quỹ 12 tháng"],
+            ["bao-cao", "Báo cáo & Biểu đồ"],
+          ] as [Tab, string][]
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setActiveTab(k)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+              activeTab === k ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:bg-surface-container-low"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ========================================================================= */}
       {/* TAB 1: TỔNG QUAN */}
       {/* ========================================================================= */}
-      {activeTab === "tong-quan" && (
+      {activeTab === "tong-quan" && o && (
         <>
           {/* ROW 1: 4 STAT CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Tồn quỹ kỳ này ({periodLabel})</span>
-                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                  🏛️
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">🏛️</div>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-extrabold text-gray-900">
-                  {formatVND(currentPeriodBalance)}
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-primary font-bold mt-2">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>Tích lũy an toàn (+12.5%)</span>
+                <div className="text-2xl font-extrabold text-gray-900">{formatVND(closing)}</div>
+                <div className={`flex items-center gap-1.5 text-xs font-bold mt-2 ${delta >= 0 ? "text-primary" : "text-rose-600"}`}>
+                  {delta >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                  <span>
+                    {delta >= 0 ? "Tăng" : "Giảm"} {formatVND(Math.abs(delta))}
+                    {deltaPct !== null ? ` (${delta >= 0 ? "+" : ""}${deltaPct}%)` : ""} so với đầu kỳ
+                  </span>
                 </div>
               </div>
             </div>
@@ -533,17 +509,19 @@ export default function ThuChiPage() {
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Đã thu trong kỳ</span>
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                  💰
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">💰</div>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-extrabold text-gray-900">
-                  {formatVND(periodCollected)}
-                </div>
+                <div className="text-2xl font-extrabold text-gray-900">{formatVND(o.incomeVnd)}</div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold mt-2">
-                  <span>{paidList.length}/12 thành viên</span>
-                  <span className="text-[10px] text-gray-400">· {Math.round((paidList.length / 12) * 100)}% chỉ tiêu</span>
+                  {paidCount !== null && totalCount ? (
+                    <span>
+                      {paidCount}/{totalCount} {unitLabel}
+                    </span>
+                  ) : (
+                    <span>Thu quỹ sinh hoạt</span>
+                  )}
+                  <span className="text-[10px] text-gray-400">· {collectRate !== null ? `${collectRate}% chỉ tiêu` : "Chưa lập kỳ thu"}</span>
                 </div>
               </div>
             </div>
@@ -551,17 +529,15 @@ export default function ThuChiPage() {
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Đã chi trong kỳ</span>
-                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                  🛒
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">🛒</div>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-extrabold text-gray-900">
-                  {formatVND(periodSpent)}
-                </div>
+                <div className="text-2xl font-extrabold text-gray-900">{formatVND(o.expenseVnd)}</div>
                 <div className="flex items-center gap-1.5 text-xs text-primary font-bold mt-2">
-                  <span>{periodExpenses.length} khoản chi</span>
-                  <span className="text-[10px] text-gray-400">· Trong định mức</span>
+                  <span>{paidVoucherCount} phiếu đã chi</span>
+                  <span className="text-[10px] text-gray-400">
+                    · {o.pendingApprovals} {canSeeAllExpenses ? "phiếu chờ duyệt" : "chờ duyệt (của bạn)"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -569,18 +545,25 @@ export default function ThuChiPage() {
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Chưa thu trong kỳ</span>
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                  ⏳
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">⏳</div>
               </div>
               <div className="mt-3">
-                <div className="text-2xl font-extrabold text-rose-600">
-                  {formatVND(periodUnpaid)}
-                </div>
+                <div className={`text-2xl font-extrabold ${outstanding > 0 ? "text-rose-600" : "text-emerald-700"}`}>{formatVND(outstanding)}</div>
                 <div className="flex items-center gap-1.5 text-xs text-amber-700 font-bold mt-2">
-                  <span>{unpaidList.length} thành viên</span>
+                  {owingCount !== null && (
+                    <span>
+                      {owingCount} {unitLabel}
+                    </span>
+                  )}
                   <span className="text-[10px] text-gray-400">
-                    · {unpaidList.length === 0 ? "100% hoàn tất" : "Hạn chót: 05/" + (selectedMonth.includes("/") ? selectedMonth.split("/")[0] : "10")}
+                    ·{" "}
+                    {plansInPeriod.length === 0
+                      ? "Chưa lập kỳ thu"
+                      : outstanding === 0
+                        ? "100% hoàn tất"
+                        : plan
+                          ? `Hạn chót: ${dm(plan.dueDate)}`
+                          : "Còn nợ quỹ"}
                   </span>
                 </div>
               </div>
@@ -591,19 +574,23 @@ export default function ThuChiPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-7 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs">
               <FinancialBarChart
-                data={SIX_MONTH_BARS}
+                data={barData}
                 height={220}
                 title="Dòng Tiền Thu - Chi 6 Tháng Gần Nhất"
-                subtitle="Thu từ quỹ sinh hoạt huynh đệ so với thực chi các tháng"
+                subtitle="Thu quỹ thực nhận so với thực chi (số thuần, đã trừ bút toán đảo)"
               />
             </div>
             <div className="lg:col-span-5 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
-              <AreaTrendChart
-                data={SIX_MONTH_TREND}
-                height={190}
-                title="Tăng Trưởng Số Dư Quỹ Lưu Xá"
-                subtitle="Biến động số dư tích lũy sau đối soát từng tháng"
-              />
+              <AreaTrendChart data={trendData} height={190} title="Tăng Trưởng Số Dư Quỹ Lưu Xá" subtitle="Số dư cuối mỗi tháng theo sổ cái" />
+              {o.funds && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {o.funds.map((f) => (
+                    <span key={f.id} className="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-semibold text-gray-700">
+                      {f.name}: <b className="text-gray-900">{formatVND(f.balanceVnd)}</b>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -613,158 +600,205 @@ export default function ThuChiPage() {
             <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900">Đóng quỹ Kỳ 2/2026 (6 tháng)</h2>
-                  <p className="text-xs text-gray-500">Mức đóng quy định 600.000đ / thành viên / 6 tháng</p>
+                  <h2 className="text-base font-bold text-gray-900">
+                    {plan ? `Đóng quỹ ${monthTitle(plan.month).toLowerCase()}` : `Đóng quỹ ${periodLabel.toLowerCase()}`}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {plan
+                      ? `Mức đóng quy định ${formatVND(plan.amountVnd)} / thành viên / tháng · Hạn ${dmy(plan.dueDate)}`
+                      : "Chưa lập kỳ thu quỹ sinh hoạt cho kỳ này"}
+                  </p>
                 </div>
 
-                <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
-                  <button
-                    onClick={() => setFilterPaid("unpaid")}
-                    className={`px-3 py-1.5 rounded-lg transition ${
-                      filterPaid === "unpaid" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"
-                    }`}
-                  >
-                    Chưa đóng ({unpaidList.length})
-                  </button>
-                  <button
-                    onClick={() => setFilterPaid("paid")}
-                    className={`px-3 py-1.5 rounded-lg transition ${
-                      filterPaid === "paid" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"
-                    }`}
-                  >
-                    Đã đóng ({paidList.length})
-                  </button>
-                  <button
-                    onClick={() => setFilterPaid("all")}
-                    className={`px-3 py-1.5 rounded-lg transition ${
-                      filterPaid === "all" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"
-                    }`}
-                  >
-                    Tất cả (12)
-                  </button>
+                {plan && (
+                  <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
+                    {(
+                      [
+                        ["unpaid", `Chưa đóng (${unpaidList.length})`],
+                        ["paid", `Đã đóng (${paidList.length})`],
+                        ["all", `Tất cả (${planRows.length})`],
+                      ] as ["unpaid" | "paid" | "all", string][]
+                    ).map(([k, l]) => (
+                      <button
+                        key={k}
+                        onClick={() => setFilterPaid(k)}
+                        className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${filterPaid === k ? "bg-white text-gray-900 shadow-xs" : "text-gray-500"}`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {!plan && (
+                <div className="p-4 rounded-xl bg-surface-container-low/60 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-2">
+                  <span>Kỳ này chưa có kế hoạch thu quỹ — chưa có khoản phải thu nào.</span>
+                  {canPlan && periodMode === "month" && selectedMonth !== "all" && (
+                    <button
+                      onClick={() => setPlanMonth(selectedMonth)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-bold shadow-xs"
+                    >
+                      <CalendarPlus className="w-3.5 h-3.5" /> Lập kỳ thu {monthTitle(selectedMonth).toLowerCase()}
+                    </button>
+                  )}
                 </div>
-              </div>
+              )}
 
-              {/* SEARCH FILTER FOR CONTRIBUTIONS */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={contributionSearch}
-                  onChange={(e) => setContributionSearch(e.target.value)}
-                  placeholder="Lọc tên anh em, số phòng (vd: Minh Tuấn, P.1)..."
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low border border-transparent focus:border-primary focus:bg-white text-xs font-medium focus:outline-none transition"
-                />
-              </div>
+              {plan && (
+                <>
+                  {canManageFinances && (
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={contributionSearch}
+                        onChange={(e) => setContributionSearch(e.target.value)}
+                        placeholder="Lọc tên anh em, số phòng (vd: Minh Tuấn, P.1)..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-surface-container-low border border-transparent focus:border-primary focus:bg-white text-xs font-medium focus:outline-none transition"
+                      />
+                    </div>
+                  )}
 
-              {/* TABLE OF MEMBERS */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[10px]">
-                      <th className="pb-3 pl-1">Thành viên</th>
-                      <th className="pb-3">Số tiền</th>
-                      <th className="pb-3">Hạn / Ngày</th>
-                      <th className="pb-3 text-center">Trạng thái</th>
-                      <th className="pb-3 text-right pr-1">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {displayedContributions.map((c) => {
-                      const isPaid = c.status === "Đã đóng";
-
-                      return (
-                        <tr key={c.memberId} className="hover:bg-purple-50/40 transition">
-                          <td className="py-3 pl-1">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-purple-100 text-primary font-bold text-xs flex items-center justify-center">
-                                {c.name.split(" ").slice(-1)[0].substring(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="font-bold text-gray-900">{c.name}</div>
-                                <div className="text-[11px] text-gray-400">{c.room}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 font-bold text-gray-900">{formatVND(c.amount)}</td>
-                          <td className="py-3 text-gray-500">
-                            {isPaid ? (
-                              <span className="text-[11px] text-emerald-600 font-medium">
-                                Đã nộp {c.paidDate || "1/10"}
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-amber-600 font-medium">{c.deadline}</span>
-                            )}
-                          </td>
-                          <td className="py-3 text-center">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isPaid
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-rose-100 text-rose-800"
-                              }`}
-                            >
-                              {c.status}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right pr-1">
-                            {canManageFinances ? (
-                              <button
-                                onClick={() => toggleContribution(c.memberId)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                                  isPaid
-                                    ? "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                }`}
-                              >
-                                {isPaid ? "Hủy đóng" : "Thu tiền"}
-                              </button>
-                            ) : (
-                              <span className="text-[10px] text-gray-400">Chỉ xem</span>
-                            )}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase text-[10px]">
+                          <th className="pb-3 pl-1">Thành viên</th>
+                          <th className="pb-3">Số tiền</th>
+                          <th className="pb-3">Hạn / Ngày</th>
+                          <th className="pb-3 text-center">Trạng thái</th>
+                          <th className="pb-3 text-right pr-1">Thao tác</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {displayedContributions.map((r) => {
+                          const c = cellOf(r);
+                          const last = c.payments[c.payments.length - 1];
+                          const owing = c.status === "unpaid" || c.status === "partial";
+                          return (
+                            <tr key={r.memberId} className="hover:bg-purple-50/40 transition">
+                              <td className="py-3 pl-1">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-7 h-7 rounded-full bg-purple-100 text-primary font-bold text-xs flex items-center justify-center">
+                                    {r.name.split(" ").slice(-1)[0].substring(0, 2).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-gray-900">{r.fullName}</div>
+                                    <div className="text-[11px] text-gray-400">{r.room ?? "Chưa xếp phòng"}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 font-bold text-gray-900">
+                                {formatVND(c.netDueVnd)}
+                                {c.status === "partial" && <div className="text-[10px] font-semibold text-amber-700">đã đóng {formatVND(c.paidVnd)}</div>}
+                              </td>
+                              <td className="py-3 text-gray-500">
+                                {c.status === "paid" && last ? (
+                                  <span className="text-[11px] text-emerald-600 font-medium">Đã nộp {dm(last.paidOn)}</span>
+                                ) : c.status === "waived" ? (
+                                  <span className="text-[11px] text-sky-700 font-medium">Miễn quỹ</span>
+                                ) : (
+                                  <span className={`text-[11px] font-medium ${c.overdue ? "text-rose-600" : "text-amber-600"}`}>{dmy(c.dueDate)}</span>
+                                )}
+                              </td>
+                              <td className="py-3 text-center">
+                                <ContributionBadge cell={c} />
+                              </td>
+                              <td className="py-3 text-right pr-1">
+                                <div className="flex items-center justify-end gap-1">
+                                  {canRecord && owing && (
+                                    <button
+                                      onClick={() => setPayFor({ memberId: r.memberId, month: c.month })}
+                                      className="px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                    >
+                                      Thu tiền
+                                    </button>
+                                  )}
+                                  {canRecord || canWaive ? (
+                                    <button
+                                      onClick={() => setCellFor({ row: r, cell: c })}
+                                      className={`px-2 py-1 rounded-lg text-xs font-bold transition text-gray-500 hover:text-gray-800 hover:bg-gray-100`}
+                                      title={owing ? "Chi tiết, miễn/giảm" : "Phiếu thu, hủy đóng"}
+                                    >
+                                      {owing ? <MoreHorizontal className="w-4 h-4" /> : "Chi tiết"}
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => setCellFor({ row: r, cell: c })} className="text-[10px] text-gray-400 hover:text-primary">
+                                      Chỉ xem
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {displayedContributions.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-gray-400">
+                              {planRows.length === 0
+                                ? "Bạn không có khoản đóng quỹ nào trong kỳ này."
+                                : filterPaid === "unpaid"
+                                  ? o.access.contributionsAll
+                                    ? "🎉 Tất cả anh em đã hoàn tất đóng quỹ."
+                                    : "Bạn đã đóng đủ quỹ kỳ này."
+                                  : "Không có thành viên phù hợp."}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {!o.access.contributionsAll && (
+                    <p className="text-[11px] text-gray-500">
+                      Bạn chỉ xem được khoản đóng quỹ của mình. Toàn nhà đã thu {formatVND(plan.stats.collectedVnd)} / {formatVND(plan.stats.expectedVnd)}
+                      {plan.stats.expectedVnd > 0 ? ` (${Math.round((plan.stats.collectedVnd / plan.stats.expectedVnd) * 100)}%)` : ""}.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* RIGHT: RECENT EXPENSES LIST (5 COLS) */}
             <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h2 className="text-base font-bold text-gray-900">Chi tiêu gần đây</h2>
-                <button
-                  onClick={() => setActiveTab("danh-sach")}
-                  className="text-xs font-bold text-primary hover:underline"
-                >
+                <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Chi tiêu gần đây" : "Phiếu chi của tôi"}</h2>
+                <button onClick={() => setActiveTab("danh-sach")} className="text-xs font-bold text-primary hover:underline">
                   Xem tất cả →
                 </button>
               </div>
 
               <div className="space-y-3">
                 {expenses.slice(0, 5).map((exp) => (
-                  <div
+                  <button
                     key={exp.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-surface-container-low/50 border border-purple-50 hover:bg-surface-container-low transition"
+                    onClick={() => setDetailId(exp.id)}
+                    className="w-full text-left flex items-center justify-between gap-2 p-3 rounded-xl bg-surface-container-low/50 border border-purple-50 hover:bg-surface-container-low transition"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
-                        🛒
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
+                        {CATEGORY_EMOJI[exp.category.code] ?? "🛒"}
                       </div>
-                      <div>
-                        <div className="text-xs font-bold text-gray-900">{exp.name}</div>
-                        <div className="text-[11px] text-gray-400">
-                          {exp.date} · {exp.paidBy} ({exp.category})
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-900 truncate">{exp.title}</div>
+                        <div className="text-[11px] text-gray-400 truncate">
+                          {dmy(exp.expenseDate)} · {exp.paidBy?.name ?? "Quỹ chi"} ({exp.category.name})
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs font-extrabold text-rose-600">
-                      -{formatVND(exp.amount)}
+                    <div className="text-right shrink-0">
+                      <div className={`text-xs font-extrabold ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
+                        -{formatVND(exp.amountVnd)}
+                      </div>
+                      <StatusBadge status={exp.status} className="mt-1 inline-block" />
                     </div>
-                  </div>
+                  </button>
                 ))}
+                {expenses.length === 0 && (
+                  <div className="p-4 text-center text-xs text-gray-400">
+                    {canSeeAllExpenses ? "Chưa có phiếu chi nào trong kỳ." : "Bạn chưa có phiếu chi/đề xuất chi nào trong kỳ."}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -778,13 +812,18 @@ export default function ThuChiPage() {
         <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Sổ cái chi tiêu sinh hoạt</h2>
+              <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Sổ phiếu chi sinh hoạt" : "Phiếu chi & đề xuất chi của tôi"}</h2>
               <p className="text-xs text-gray-500">
-                Toàn bộ chứng từ, phiếu chi giải ngân cho hoạt động lưu xá
+                {canSeeAllExpenses
+                  ? "Toàn bộ chứng từ, phiếu chi giải ngân cho hoạt động lưu xá — bấm vào phiếu để xem hóa đơn, chữ ký duyệt"
+                  : "Phiếu bạn lập hoặc bạn đã ứng tiền; tổng chi của cả nhà xem ở thẻ Tổng quan / Báo cáo"}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+              <span
+                className="text-xs font-bold text-gray-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100"
+                title="Không tính phiếu đã hủy, bị từ chối hoặc đã đảo"
+              >
                 Tổng đã lọc: <b className="text-rose-600">{formatVND(filteredExpensesTotal)}</b>
               </span>
             </div>
@@ -798,29 +837,25 @@ export default function ThuChiPage() {
                 type="text"
                 value={expenseSearch}
                 onChange={(e) => setExpenseSearch(e.target.value)}
-                placeholder="Tìm khoản chi, người thanh toán, ghi chú..."
+                placeholder="Tìm khoản chi, số phiếu, người ứng tiền, ghi chú..."
                 className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-purple-200"
               />
             </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl text-xs font-semibold">
-              {["Tất cả", "Đã duyệt", "Chờ duyệt"].map((st) => (
+            <div className="flex flex-wrap items-center gap-1 bg-surface-container-low p-1 rounded-xl text-xs font-semibold">
+              {STATUS_FILTERS.map(({ label }) => (
                 <button
-                  key={st}
-                  onClick={() => setExpenseStatusFilter(st)}
+                  key={label}
+                  onClick={() => setExpenseStatusFilter(label)}
                   className={`px-3 py-1 rounded-lg transition ${
-                    expenseStatusFilter === st
-                      ? "bg-white text-gray-900 shadow-2xs font-bold"
-                      : "text-gray-500 hover:text-gray-800"
+                    expenseStatusFilter === label ? "bg-white text-gray-900 shadow-2xs font-bold" : "text-gray-500 hover:text-gray-800"
                   }`}
                 >
-                  {st}
+                  {label}
                 </button>
               ))}
             </div>
 
-            {/* Date filter */}
             <div className="relative w-40">
               <Calendar className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
@@ -835,17 +870,15 @@ export default function ThuChiPage() {
 
           {/* Category Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {["Tất cả", "Thực phẩm", "Điện nước", "Vệ sinh", "Sửa chữa", "Phụng vụ", "Khác"].map((cat) => (
+            {[{ code: "ALL", name: "Tất cả" }, ...(options?.categories ?? [])].map((cat) => (
               <button
-                key={cat}
-                onClick={() => setExpenseCategoryFilter(cat)}
+                key={cat.code}
+                onClick={() => setExpenseCategoryFilter(cat.code)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
-                  expenseCategoryFilter === cat
-                    ? "bg-primary text-white shadow-2xs font-bold"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  expenseCategoryFilter === cat.code ? "bg-primary text-white shadow-2xs font-bold" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
@@ -858,7 +891,7 @@ export default function ThuChiPage() {
                   <th className="pb-3 pl-2">Mã / Ngày</th>
                   <th className="pb-3">Tên khoản chi</th>
                   <th className="pb-3">Phân loại</th>
-                  <th className="pb-3">Người thanh toán</th>
+                  <th className="pb-3">Người ứng / chi</th>
                   <th className="pb-3">Ghi chú</th>
                   <th className="pb-3 text-right">Số tiền</th>
                   <th className="pb-3 text-center pr-2">Trạng thái</th>
@@ -866,49 +899,50 @@ export default function ThuChiPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredExpenses.map((exp) => (
-                  <tr key={exp.id} className="hover:bg-purple-50/40 transition">
+                  <tr key={exp.id} onClick={() => setDetailId(exp.id)} className="hover:bg-purple-50/40 transition cursor-pointer">
                     <td className="py-3 pl-2 font-mono text-[11px] text-gray-500">
-                      <div>#{exp.id}</div>
-                      <div className="text-[10px] text-gray-400">{exp.date}</div>
+                      <div>#{exp.voucherNo}</div>
+                      <div className="text-[10px] text-gray-400">{dmy(exp.expenseDate)}</div>
                     </td>
-                    <td className="py-3 font-bold text-gray-900">{exp.name}</td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold">
-                        {exp.category}
+                    <td className="py-3 font-bold text-gray-900">
+                      <span className="inline-flex items-center gap-1.5">
+                        {exp.title}
+                        {exp.receipts.length > 0 && <Paperclip className="w-3 h-3 text-primary shrink-0" aria-label="Có hóa đơn" />}
                       </span>
                     </td>
-                    <td className="py-3 text-gray-700 font-medium">{exp.paidBy}</td>
-                    <td className="py-3 text-gray-400 text-[11px] max-w-[180px] truncate">
-                      {exp.note || "—"}
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold whitespace-nowrap">{exp.category.name}</span>
                     </td>
-                    <td className="py-3 text-right font-extrabold text-rose-600">
-                      -{formatVND(exp.amount)}
+                    <td className="py-3 text-gray-700 font-medium">{exp.paidBy?.name ?? "Quỹ chi trực tiếp"}</td>
+                    <td className="py-3 text-gray-400 text-[11px] max-w-[180px] truncate">{exp.note || exp.noReceiptReason || "—"}</td>
+                    <td className={`py-3 text-right font-extrabold ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
+                      -{formatVND(exp.amountVnd)}
                     </td>
-                    <td className="py-3 text-center pr-2">
+                    <td className="py-3 text-center pr-2" onClick={(ev) => ev.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1.5">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            exp.status === "Đã duyệt"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : exp.status === "Từ chối"
-                              ? "bg-rose-100 text-rose-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {exp.status}
-                        </span>
+                        <button onClick={() => setDetailId(exp.id)} className="flex flex-col items-center">
+                          <StatusBadge status={exp.status} />
+                          {exp.status === "pending_approval" && (
+                            <span className="text-[10px] text-gray-400 mt-0.5">
+                              {exp.approvedCount}/{exp.requiredApprovals} chữ ký
+                            </span>
+                          )}
+                        </button>
 
-                        {exp.status === "Chờ duyệt" && canApproveExpense && (
+                        {(exp.can.approve || exp.can.reject) && (
                           <div className="flex items-center gap-1">
+                            {exp.can.approve && (
+                              <button
+                                disabled={busyId === exp.id}
+                                onClick={() => quickApprove(exp)}
+                                className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition disabled:opacity-50"
+                                title="Ký duyệt phiếu chi"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => approveExpense(exp.id, "Đã duyệt")}
-                              className="p-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition"
-                              title="Trưởng nhà phê duyệt phiếu chi"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => approveExpense(exp.id, "Từ chối")}
+                              onClick={() => setRejectFor(exp)}
                               className="p-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 transition"
                               title="Từ chối phiếu chi"
                             >
@@ -920,6 +954,13 @@ export default function ThuChiPage() {
                     </td>
                   </tr>
                 ))}
+                {filteredExpenses.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-400">
+                      Không có phiếu chi phù hợp trong kỳ {periodLabel.toLowerCase()}.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -927,21 +968,26 @@ export default function ThuChiPage() {
       )}
 
       {/* ========================================================================= */}
+      {/* TAB: MA TRẬN ĐÓNG QUỸ 12 THÁNG */}
+      {/* ========================================================================= */}
+      {activeTab === "dong-quy" && (
+        <ContributionMatrix canPlan={canPlan} onOpenCell={(row, cell) => setCellFor({ row, cell })} onCreatePlan={(m) => setPlanMonth(m)} />
+      )}
+
+      {/* ========================================================================= */}
       {/* TAB 3: BÁO CÁO THÁNG & BIỂU ĐỒ */}
       {/* ========================================================================= */}
-      {activeTab === "bao-cao" && (
+      {activeTab === "bao-cao" && o && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-50 shadow-xs flex flex-col gap-6">
-          {/* REPORT HEADER */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
             <div>
-              <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1">
-                Báo cáo tài chính nội bộ &amp; Biểu đồ thống kê
-              </div>
-              <h2 className="text-xl font-extrabold text-gray-900">
-                Tổng Kết Quỹ &amp; Phân Tích {periodLabel}
-              </h2>
+              <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1">Báo cáo tài chính nội bộ &amp; Biểu đồ thống kê</div>
+              <h2 className="text-xl font-extrabold text-gray-900">Tổng Kết Quỹ &amp; Phân Tích {periodLabel}</h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                Kỳ đối soát: {periodLabel} · Thủ quỹ: Phạm Gia Bảo (P.103)
+                Kỳ đối soát: {periodLabel}
+                {o.signatories.treasurer
+                  ? ` · Thủ quỹ: ${o.signatories.treasurer.name}${o.signatories.treasurer.room ? ` (${o.signatories.treasurer.room})` : ""}`
+                  : ""}
               </p>
             </div>
 
@@ -964,48 +1010,52 @@ export default function ThuChiPage() {
             </div>
           </div>
 
-          {/* KEY FINANCIAL SUMMARY CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-surface-container-low/60 border border-purple-50">
               <span className="text-xs text-gray-400 font-medium">Số dư đầu kỳ</span>
-              <div className="text-xl font-extrabold text-gray-900 mt-1">
-                {selectedMonth === "08/2026" ? "6.850.000đ" : selectedMonth === "09/2026" ? "7.700.000đ" : "8.750.000đ"}
-              </div>
-              <span className="text-[10px] text-gray-500 mt-1 block">Chuyển từ kỳ trước</span>
+              <div className="text-xl font-extrabold text-gray-900 mt-1">{formatVND(o.openingVnd)}</div>
+              <span className="text-[10px] text-gray-500 mt-1 block">Chuyển từ kỳ trước (gồm số dư đầu kỳ nhập sổ)</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
               <span className="text-xs text-emerald-800 font-medium">Tổng thu quỹ</span>
-              <div className="text-xl font-extrabold text-emerald-700 mt-1">+{formatVND(periodCollected)}</div>
-              <span className="text-[10px] text-emerald-600 mt-1 block">{paidList.length}/12 thành viên đã nộp</span>
+              <div className="text-xl font-extrabold text-emerald-700 mt-1">+{formatVND(o.incomeVnd)}</div>
+              <span className="text-[10px] text-emerald-600 mt-1 block">
+                {paidCount !== null && totalCount
+                  ? `${paidCount}/${totalCount} ${unitLabel} đã nộp`
+                  : collectRate !== null
+                    ? `Đạt ${collectRate}% chỉ tiêu thu quỹ`
+                    : "Chưa lập kỳ thu"}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
               <span className="text-xs text-rose-800 font-medium">Tổng giải ngân</span>
-              <div className="text-xl font-extrabold text-rose-600 mt-1">-{formatVND(periodSpent)}</div>
-              <span className="text-[10px] text-rose-500 mt-1 block">{periodExpenses.length} khoản đã duyệt</span>
+              <div className="text-xl font-extrabold text-rose-600 mt-1">-{formatVND(o.expenseVnd)}</div>
+              <span className="text-[10px] text-rose-500 mt-1 block">{paidVoucherCount} khoản đã chi (đã trừ phiếu đảo)</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-100">
               <span className="text-xs text-purple-800 font-medium">Số dư kết chuyển</span>
-              <div className="text-xl font-extrabold text-primary mt-1">{formatVND(currentPeriodBalance)}</div>
-              <span className="text-[10px] text-primary font-bold mt-1 block">Quỹ an toàn</span>
+              <div className="text-xl font-extrabold text-primary mt-1">{formatVND(o.closingVnd)}</div>
+              <span className="text-[10px] text-primary font-bold mt-1 block">
+                {delta >= 0 ? "Quỹ tăng" : "Quỹ giảm"} {formatVND(Math.abs(delta))} trong kỳ
+              </span>
             </div>
           </div>
 
-          {/* CHARTS IN REPORT */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
               <ExpenseDonutChart
                 data={dynamicExpenseDonut}
                 size={170}
                 title={`Cơ Cấu Chi Phí (${periodLabel})`}
-                subtitle="Tỷ trọng chi tiêu giữa các danh mục sinh hoạt thực tế"
+                subtitle="Tỷ trọng các phiếu đã chi giữa các danh mục sinh hoạt"
               />
             </div>
             <div className="lg:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
               <FinancialBarChart
-                data={SIX_MONTH_BARS}
+                data={barData}
                 height={210}
                 title="Đối Soát Thu Quỹ vs Chi Tiêu (6 Tháng)"
                 subtitle="So sánh số tiền thu nộp thực tế và chi phí giải ngân"
@@ -1016,13 +1066,56 @@ export default function ThuChiPage() {
       )}
 
       {/* FINANCIAL REPORT MODAL */}
-      <FinancialReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        periodLabel={periodLabel}
-        fundBalance={currentPeriodBalance}
-        expenses={periodExpenses}
-        contributions={periodContributions}
+      <FinancialReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} {...reportProps} />
+
+      {/* CHI TIẾT / SỬA PHIẾU CHI */}
+      <ExpenseDetailModal
+        expenseId={detailId}
+        onClose={() => setDetailId(null)}
+        onEdit={(e) => {
+          setDetailId(null);
+          setEditing(e);
+        }}
+      />
+      {editing && (
+        <Portal>
+          <div onClick={() => setEditing(null)} className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 overflow-y-auto p-3 sm:p-5">
+            <div className="flex min-h-full items-center justify-center">
+              <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg my-auto">
+                <ExpenseFormCard expense={editing} onClose={() => setEditing(null)} onSaved={(s) => setDetailId(s.id)} />
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+      <ReasonDialog
+        open={!!rejectFor}
+        onClose={() => setRejectFor(null)}
+        icon={<X className="w-5 h-5" />}
+        title="Từ chối phiếu chi"
+        message={rejectFor ? `Phiếu ${rejectFor.voucherNo} — ${rejectFor.title} (${formatVND(rejectFor.amountVnd)}).` : null}
+        confirmText="Từ chối phiếu"
+        placeholder="Ví dụ: Thiếu hóa đơn, số tiền chưa khớp biên lai…"
+        onConfirm={async (reason) => {
+          await financeApi.decide(rejectFor!.id, "rejected", reason);
+          await refreshFinance();
+          showToast("success", `Đã từ chối phiếu ${rejectFor!.voucherNo}.`);
+        }}
+      />
+
+      {/* THU QUỸ */}
+      <PayModal memberId={payFor?.memberId ?? null} month={payFor?.month ?? null} onClose={() => setPayFor(null)} />
+      <CellDialog
+        row={cellFor?.row ?? null}
+        cell={cellFor?.cell ?? null}
+        onClose={() => setCellFor(null)}
+        onPay={(memberId, month) => setPayFor({ memberId, month })}
+      />
+      <PlanModal
+        open={!!planMonth}
+        month={planMonth ?? current}
+        suggestedAmount={(o?.plans ?? []).slice(-1)[0]?.amountVnd ?? null}
+        onClose={() => setPlanMonth(null)}
       />
     </div>
   );

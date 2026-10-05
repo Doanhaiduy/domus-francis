@@ -20,6 +20,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
+import { fileUrl } from "@/lib/api";
+import { useUnreadCount } from "@/lib/data/dashboard";
 import { cn } from "@/lib/utils";
 
 const ROLE_CONFIGS: Record<
@@ -47,6 +50,34 @@ const ROLE_CONFIGS: Record<
     color: "from-purple-600 to-violet-600 text-white",
     badge: "bg-purple-100 text-purple-800 border-purple-200",
   },
+  "Phó nhà": {
+    label: "Phó nhà",
+    desc: "Hỗ trợ điều hành: phân công & nghiệm thu trực nhật, xếp phòng, lịch sự kiện, xử lý sự cố",
+    icon: Building2,
+    color: "from-sky-500 to-indigo-600 text-white",
+    badge: "bg-sky-100 text-sky-800 border-sky-200",
+  },
+  "Trưởng ban Phụng vụ": {
+    label: "Trưởng ban Phụng vụ",
+    desc: "Lịch phụng vụ, phân công đọc sách/giúp lễ, kiểm duyệt ý chỉ cầu nguyện",
+    icon: CheckCircle2,
+    color: "from-indigo-500 to-purple-600 text-white",
+    badge: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  },
+  "Trưởng ban Ẩm thực": {
+    label: "Trưởng ban Ẩm thực",
+    desc: "Thực đơn, chốt suất ăn, kho bếp và phân công đi chợ",
+    icon: UtensilsCrossed,
+    color: "from-orange-500 to-amber-600 text-white",
+    badge: "bg-orange-100 text-orange-800 border-orange-200",
+  },
+  "Trưởng ban Truyền thông": {
+    label: "Trưởng ban Truyền thông",
+    desc: "Kiểm duyệt album khoảnh khắc, đăng bản tin",
+    icon: Eye,
+    color: "from-pink-500 to-rose-600 text-white",
+    badge: "bg-pink-100 text-pink-800 border-pink-200",
+  },
   "Admin": {
     label: "Admin",
     desc: "Quản trị viên hệ thống: Quản trị kỹ thuật, phân quyền & cấu hình",
@@ -57,27 +88,17 @@ const ROLE_CONFIGS: Record<
 };
 
 export const Header: React.FC = () => {
-  const {
-    announcements,
-    openModal,
-    currentRole,
-    setCurrentRole,
-    toggleMobileMenu,
-    simulateLoading,
-    toggleCommandPalette,
-    showToast,
-  } = useApp();
-
-  const unreadCount = announcements.filter((a) => a.isUnread).length;
+  const { openModal, currentRole, toggleMobileMenu, toggleCommandPalette } = useApp();
+  const { session, can } = useSession();
+  const unread = useUnreadCount(!!session?.member);
+  const unreadCount = (unread?.announcementsUnread ?? 0) + (unread?.notificationsUnread ?? 0);
   const roleCfg = ROLE_CONFIGS[currentRole] || ROLE_CONFIGS["Thành viên"];
   const RoleIcon = roleCfg.icon;
+  const displayName = session?.member?.displayName ?? session?.user.email ?? "…";
+  const roomLabel = session?.member?.roomCode ?? null;
+  const avatar = fileUrl(session?.member?.avatarFileId, "thumb");
 
-  const canManageFinances = ["Trưởng nhà", "Thủ quỹ", "Admin"].includes(currentRole);
-
-  const handleRoleChange = (newRole: string) => {
-    setCurrentRole(newRole);
-    showToast("info", `Đã chuyển sang vai trò: ${newRole}`);
-  };
+  const canCreateExpense = can("finance.expense.create");
 
   return (
     <div className="w-full z-20 sticky top-0 flex flex-col">
@@ -116,18 +137,8 @@ export const Header: React.FC = () => {
 
         {/* RIGHT AMBIENT & ACTIONS */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* DEMO SKELETON BUTTON */}
-          <button
-            onClick={() => simulateLoading()}
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-semibold border border-purple-200 transition active:scale-95"
-            title="Bấm để kích hoạt trạng thái Skeleton Loading mô phỏng"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Demo Skeleton</span>
-          </button>
-
           {/* ROLE-BASED QUICK ACTION BUTTON */}
-          {canManageFinances ? (
+          {canCreateExpense ? (
             <button
               onClick={() => openModal("addExpense")}
               className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-semibold shadow-xs transition shadow-primary/20 active:scale-95"
@@ -161,61 +172,31 @@ export const Header: React.FC = () => {
 
           {/* ACTIVE ROLE PILL */}
           <div className="hidden sm:flex items-center gap-2 pl-1">
-            <div
-              className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-white shadow-xs shrink-0 bg-gradient-to-tr",
-                roleCfg.color
-              )}
-            >
-              <RoleIcon className="w-4 h-4" />
-            </div>
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shadow-xs shrink-0" />
+            ) : (
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-white shadow-xs shrink-0 bg-gradient-to-tr",
+                  roleCfg.color
+                )}
+                title={roleCfg.desc}
+              >
+                <RoleIcon className="w-4 h-4" />
+              </div>
+            )}
             <div className="hidden xl:flex flex-col text-left">
-              <span className="text-xs font-bold text-gray-900 leading-tight">Minh Tuấn</span>
-              <span className="text-[10px] font-semibold text-primary">{currentRole} · P.204</span>
+              <span className="text-xs font-bold text-gray-900 leading-tight">{displayName}</span>
+              <span className="text-[10px] font-semibold text-primary">
+                {currentRole}
+                {roomLabel ? ` · ${roomLabel}` : ""}
+              </span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* 2. DYNAMIC ROLE TEST BANNER */}
-      <div className="w-full bg-gray-950 text-white border-b border-gray-800 px-3.5 sm:px-6 lg:px-8 py-1.5 flex flex-col sm:flex-row items-center justify-between text-xs gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-bold uppercase tracking-wider text-[10px] shrink-0 border border-purple-500/30">
-            Thử nghiệm vai trò
-          </span>
-          <div className="flex items-center gap-1.5 truncate">
-            <span className="font-extrabold text-amber-300 shrink-0">
-              {currentRole}
-            </span>
-            <span className="text-gray-400 text-[11px] truncate hidden md:inline">
-              — {roleCfg.desc}
-            </span>
-          </div>
-        </div>
-
-        {/* Quick Role Switch Buttons */}
-        <div className="flex items-center gap-1 shrink-0 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
-          <span className="text-gray-400 text-[11px] mr-1 hidden lg:inline">Chuyển sang:</span>
-          {["Trưởng nhà", "Thủ quỹ", "Thành viên", "Admin"].map((r) => {
-            const isCur = currentRole === r;
-            return (
-              <button
-                key={r}
-                type="button"
-                onClick={() => handleRoleChange(r)}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all shrink-0",
-                  isCur
-                    ? "bg-amber-400 text-gray-950 shadow-xs"
-                    : "bg-gray-800 hover:bg-gray-700 text-gray-300"
-                )}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 };

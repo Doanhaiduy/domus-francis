@@ -22,6 +22,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
 
@@ -34,16 +35,16 @@ export const CommandPalette: React.FC = () => {
     members,
   } = useApp();
 
+  const { can } = useSession();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const NAV_ITEMS = [
     { label: "Tổng quan", href: "/", icon: LayoutDashboard, category: "Điều hướng" },
     { label: "Hậu cần, Trực nhật & Báo hỏng", href: "/hau-can", icon: Wrench, category: "Điều hướng" },
-    { label: "Bếp & Điểm danh cơm (Tạm hoãn)", href: "/bep-com", icon: UtensilsCrossed, category: "Điều hướng" },
+    { label: "Bếp & Điểm danh cơm", href: "/bep-com", icon: UtensilsCrossed, category: "Điều hướng" },
     { label: "Thu Chi & Tài Chính", href: "/thu-chi", icon: Wallet, category: "Điều hướng" },
     { label: "Lịch & Sự kiện", href: "/lich-su-kien", icon: Calendar, category: "Điều hướng" },
-    { label: "Hậu cần & Báo hỏng", href: "/hau-can", icon: Wrench, category: "Điều hướng" },
     { label: "Phụng vụ & Kinh tối", href: "/phung-vu", icon: Church, category: "Điều hướng" },
     { label: "Diễn đàn trao đổi", href: "/dien-dan", icon: MessagesSquare, category: "Điều hướng" },
     { label: "Danh bạ thành viên", href: "/thanh-vien", icon: Users, category: "Điều hướng" },
@@ -56,13 +57,14 @@ export const CommandPalette: React.FC = () => {
   const ACTION_ITEMS = [
     { label: "Xem sơ đồ nhà tương tác", action: () => { setCommandPaletteOpen(false); router.push("/so-do-nha"); }, icon: Building2, category: "Hành động nhanh" },
     { label: "Xem album & Lưu khoảnh khắc", action: () => { setCommandPaletteOpen(false); router.push("/khoanh-khac"); }, icon: Camera, category: "Hành động nhanh" },
-    { label: "Ghi chi tiêu quỹ mới", action: () => openModal("addExpense"), icon: Plus, category: "Hành động nhanh" },
-    { label: "Báo hỏng thiết bị & cơ sở", action: () => openModal("reportIssue"), icon: Wrench, category: "Hành động nhanh" },
-    { label: "Đăng thông báo cộng đoàn", action: () => openModal("createAnnouncement"), icon: Plus, category: "Hành động nhanh" },
-    { label: "Yêu cầu đổi ca trực", action: () => openModal("swapDuty"), icon: Calendar, category: "Hành động nhanh" },
-    { label: "Thêm sự kiện mới", action: () => openModal("addEvent"), icon: Plus, category: "Hành động nhanh" },
-    { label: "Thêm thành viên mới", action: () => openModal("addMember"), icon: User, category: "Hành động nhanh" },
-  ];
+    { label: "Ghi chi tiêu quỹ mới", action: () => openModal("addExpense"), icon: Plus, category: "Hành động nhanh", perm: "finance.expense.create" },
+    { label: "Báo hỏng thiết bị & cơ sở", action: () => openModal("reportIssue"), icon: Wrench, category: "Hành động nhanh", perm: "issue.create" },
+    { label: "Đăng thông báo cộng đoàn", action: () => openModal("createAnnouncement"), icon: Plus, category: "Hành động nhanh", perm: "announcement.create" },
+    { label: "Yêu cầu đổi ca trực", action: () => openModal("swapDuty"), icon: Calendar, category: "Hành động nhanh", perm: "duty.swap.request" },
+    { label: "Thêm sự kiện mới", action: () => openModal("addEvent"), icon: Plus, category: "Hành động nhanh", perm: "event.manage" },
+    { label: "Thêm thành viên mới", action: () => openModal("addMember"), icon: User, category: "Hành động nhanh", perm: "member.create" },
+    { label: "Đổi mật khẩu", action: () => openModal("changePassword"), icon: User, category: "Hành động nhanh" },
+  ].filter((a) => !("perm" in a) || !a.perm || can(a.perm));
 
   const handleSelectNav = (href: string) => {
     setCommandPaletteOpen(false);
@@ -74,18 +76,15 @@ export const CommandPalette: React.FC = () => {
     action();
   };
 
-  const filteredNav = NAV_ITEMS.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase())
-  );
+  // Tìm không dấu: "tuan" khớp "Tuấn"
+  const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  const q = fold(query.trim());
+  const filteredNav = NAV_ITEMS.filter((item) => fold(item.label).includes(q));
 
-  const filteredActions = ACTION_ITEMS.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredActions = ACTION_ITEMS.filter((item) => fold(item.label).includes(q));
 
   const filteredMembers = members.filter(
-    (m) =>
-      m.fullName.toLowerCase().includes(query.toLowerCase()) ||
-      m.room.toLowerCase().includes(query.toLowerCase())
+    (m) => fold(m.fullName).includes(q) || fold(m.room).includes(q) || (!!m.phone && m.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")))
   );
 
   const visibleMembers = query.trim() ? filteredMembers : [];
@@ -101,7 +100,7 @@ export const CommandPalette: React.FC = () => {
     })),
     ...visibleMembers.map((m) => ({
       label: m.fullName,
-      onSelect: () => handleSelectNav("/thanh-vien"),
+      onSelect: () => handleSelectNav(`/thanh-vien?member=${m.id}`),
     })),
   ];
 
@@ -278,7 +277,7 @@ export const CommandPalette: React.FC = () => {
                     return (
                       <button
                         key={m.id}
-                        onClick={() => handleSelectNav("/thanh-vien")}
+                        onClick={() => handleSelectNav(`/thanh-vien?member=${m.id}`)}
                         className={cn(
                           "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs hover:bg-purple-50 text-gray-700 hover:text-primary transition group text-left",
                           idx === activeIndex ? "bg-purple-50 text-primary" : ""

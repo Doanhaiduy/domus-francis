@@ -1,268 +1,177 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { createPortal } from "react-dom";
+import React, { useMemo, useState } from "react";
 import {
   GraduationCap,
-  BookOpen,
   Award,
   TrendingUp,
   AlertTriangle,
-  CheckCircle2,
   Search,
-  Filter,
   Plus,
   Eye,
   Share2,
-  FileText,
   Image as ImageIcon,
   Sparkles,
-  X,
-  Check,
-  Building,
-  School,
-  Maximize2,
-  ChevronRight,
   HelpCircle,
   Table,
   LayoutGrid,
+  Pencil,
+  CheckCircle2,
+  ShieldCheck,
+  Lock,
+  ClipboardCheck,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { AcademicRecord, SubjectScore } from "@/lib/mockData";
-import { CustomInput, CustomSelect, CustomTextarea, SelectOption, ImageUploadDropzone } from "@/components/ui/FormControls";
-import HocTapLoading from "./loading";
+import { useSession } from "@/lib/session";
+import { errorMessage } from "@/lib/api";
+import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { copyTextToClipboard } from "@/lib/zaloShare";
+import { academicApi, refreshAcademic, useAcademicMeta, useAcademicRecords } from "@/lib/data/academic";
+import { RANK_ORDER, STATUS_META, computeStats, fmtGpa, formatAcademicZalo, rankBadge, semesterLabel } from "@/lib/academic-format";
+import type { AcademicAction, AcademicRecordDto, AcademicStatus } from "@/lib/types/academic";
+import HocTapLoading from "./loading";
+import RecordFormModal from "./_components/RecordFormModal";
+import RecordDetailModal from "./_components/RecordDetailModal";
+import ReasonDialog from "./_components/ReasonDialog";
 
-const RANK_BADGES: Record<
-  AcademicRecord["rank"],
-  { bg: string; text: string; border: string }
-> = {
-  "Xuất sắc": { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" },
-  "Giỏi": { bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-200" },
-  "Khá": { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
-  "Trung bình": { bg: "bg-amber-100", text: "text-amber-800", border: "border-amber-200" },
-  "Cần cố gắng": { bg: "bg-rose-100", text: "text-rose-800", border: "border-rose-200" },
-};
+const official = (r: AcademicRecordDto) => r.status === "submitted" || r.status === "verified";
+const initialOf = (r: AcademicRecordDto) => (r.displayName.split(/\s+/).pop() || r.memberName).charAt(0).toUpperCase();
 
 export default function HocTapPage() {
-  const {
-    academicRecords,
-    addAcademicRecord,
-    updateAcademicRecord,
-    deleteAcademicRecord,
-    members,
-    showToast,
-    isLoadingSkeleton,
-    currentRole,
-  } = useApp();
+  const { showToast, isLoadingSkeleton } = useApp();
+  const { can, session } = useSession();
+  const canWrite = can("academic.write_own") && !!session?.member;
+  const leaderView = can(["academic.read_all", "academic.verify"]);
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { records, error, isLoading } = useAcademicRecords();
+  const { meta } = useAcademicMeta();
 
-  // Filter States
+  // Bộ lọc
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedSemester, setSelectedSemester] = useState<string>("all");
   const [selectedRank, setSelectedRank] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
-  // Evidence (EVD) Lightbox Modal State
-  const [activeEvdRecord, setActiveEvdRecord] = useState<AcademicRecord | null>(null);
+  // Modal
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<AcademicRecordDto | null>(null);
+  const [busy, setBusy] = useState<AcademicAction | "delete" | null>(null);
+  const [reasonFor, setReasonFor] = useState<{ record: AcademicRecordDto; action: "reject" | "reopen" } | null>(null);
+  const [deleting, setDeleting] = useState<AcademicRecordDto | null>(null);
 
-  // Add / Edit Record Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedMemberName, setSelectedMemberName] = useState("");
-  const [formUniversity, setFormUniversity] = useState("ĐH Bách Khoa TP.HCM");
-  const [formMajor, setFormMajor] = useState("Kỹ thuật Cơ điện tử");
-  const [formStudentId, setFormStudentId] = useState("2310123");
-  const [formAcademicYear, setFormAcademicYear] = useState("2025-2026");
-  const [formSemester, setFormSemester] = useState<AcademicRecord["semester"]>("Học kỳ 2");
-  const [formAspirations, setFormAspirations] = useState("");
-  const [formEvidencePhoto, setFormEvidencePhoto] = useState(
-    "https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=1200&q=80"
+  const detail = detailId ? records.find((r) => r.id === detailId) ?? null : null;
+  const ownRecords = useMemo(() => records.filter((r) => r.isOwn), [records]);
+
+  const availableYears = useMemo(() => Array.from(new Set(records.map((r) => r.semester.yearCode))).sort().reverse(), [records]);
+
+  const scopeRecords = useMemo(
+    () =>
+      records.filter(
+        (r) => (selectedYear === "all" || r.semester.yearCode === selectedYear) && (selectedSemester === "all" || r.semester.name === selectedSemester)
+      ),
+    [records, selectedYear, selectedSemester]
   );
-  const [formSupportNeeded, setFormSupportNeeded] = useState(false);
-  const [formSupportSubject, setFormSupportSubject] = useState("");
-  const [formScholarship, setFormScholarship] = useState(true);
 
-  // Dynamic Subjects List in Add Form
-  const [formSubjects, setFormSubjects] = useState<
-    Array<{ subjectName: string; credits: number; midtermScore: number; finalScore: number }>
-  >([
-    { subjectName: "Toán chuyên đề", credits: 3, midtermScore: 8.5, finalScore: 9.0 },
-    { subjectName: "Lập trình ứng dụng", credits: 3, midtermScore: 8.0, finalScore: 8.5 },
-  ]);
-
-  // Available Years
-  const availableYears = useMemo(() => {
-    const set = new Set(academicRecords.map((r) => r.academicYear));
-    return Array.from(set).sort().reverse();
-  }, [academicRecords]);
-
-  // Filtered Records
   const filteredRecords = useMemo(() => {
-    return academicRecords.filter((rec) => {
-      const matchYear = selectedYear === "all" || rec.academicYear === selectedYear;
-      const matchSem = selectedSemester === "all" || rec.semester === selectedSemester;
-      const matchRank = selectedRank === "all" || rec.rank === selectedRank;
-      const term = searchTerm.toLowerCase().trim();
+    const term = searchTerm.toLowerCase().trim();
+    return scopeRecords.filter((rec) => {
+      const matchRank = selectedRank === "all" || (selectedRank === "none" ? !rec.rank : rec.rank === selectedRank);
+      const matchStatus = selectedStatus === "all" || rec.status === selectedStatus;
       const matchSearch =
         term === "" ||
-        rec.memberName.toLowerCase().includes(term) ||
-        rec.university.toLowerCase().includes(term) ||
-        rec.major.toLowerCase().includes(term) ||
-        rec.studentId.toLowerCase().includes(term) ||
-        rec.room.toLowerCase().includes(term);
-
-      return matchYear && matchSem && matchRank && matchSearch;
+        [rec.memberName, rec.university.name, rec.university.shortName ?? "", rec.major ?? "", rec.studentCode ?? "", rec.room]
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+      return matchRank && matchStatus && matchSearch;
     });
-  }, [academicRecords, selectedYear, selectedSemester, selectedRank, searchTerm]);
+  }, [scopeRecords, selectedRank, selectedStatus, searchTerm]);
 
-  // Statistics
-  const totalStudents = academicRecords.length;
-  const avgGpa4 = useMemo(() => {
-    if (academicRecords.length === 0) return 0;
-    const sum = academicRecords.reduce((s, r) => s + r.gpa4, 0);
-    return (sum / academicRecords.length).toFixed(2);
-  }, [academicRecords]);
+  // Thống kê từ dữ liệu nhìn thấy được, theo phạm vi niên khóa/học kỳ đang chọn
+  // Ban điều hành: chỉ tính bảng điểm đã nộp/xác minh (số liệu chính thức, không lẫn bản nháp của chính mình)
+  const statsRecords = useMemo(() => (leaderView ? scopeRecords.filter(official) : scopeRecords), [scopeRecords, leaderView]);
+  const stats = useMemo(() => computeStats(statsRecords), [statsRecords]);
+  const pendingForMe = useMemo(() => records.filter((r) => r.can.verify), [records]);
 
-  const excellentCount = useMemo(() => {
-    return academicRecords.filter((r) => r.rank === "Xuất sắc" || r.rank === "Giỏi").length;
-  }, [academicRecords]);
+  const scopeLabel = `${selectedYear === "all" ? "Tất cả năm học" : `Năm học ${selectedYear}`} • ${selectedSemester === "all" ? "Mọi học kỳ" : selectedSemester}`;
 
-  const scholarshipCount = useMemo(() => {
-    return academicRecords.filter((r) => r.scholarshipEligible).length;
-  }, [academicRecords]);
-
-  const needSupportCount = useMemo(() => {
-    return academicRecords.filter((r) => r.supportNeeded).length;
-  }, [academicRecords]);
-
-  // Handle Add Subject Row in Form
-  const handleAddSubjectRow = () => {
-    setFormSubjects((prev) => [
-      ...prev,
-      { subjectName: "", credits: 3, midtermScore: 7.0, finalScore: 7.0 },
-    ]);
-  };
-
-  const handleRemoveSubjectRow = (index: number) => {
-    setFormSubjects((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Helper to calculate Letter Grade & GPA
-  const computeSubjectTotal = (mid: number, fin: number) => {
-    return Math.round((mid * 0.4 + fin * 0.6) * 10) / 10;
-  };
-
-  const computeLetterGrade = (total: number) => {
-    if (total >= 9.0) return "A+";
-    if (total >= 8.5) return "A";
-    if (total >= 8.0) return "B+";
-    if (total >= 7.0) return "B";
-    if (total >= 6.5) return "C+";
-    if (total >= 5.5) return "C";
-    if (total >= 4.0) return "D";
-    return "F";
-  };
-
-  // Handle Submit New Academic Record
-  const handleCreateRecordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedMemberName) {
-      showToast("error", "Vui lòng chọn thành viên!");
-      return;
-    }
-    const memberObj = members.find((m) => m.fullName === selectedMemberName);
-    const room = memberObj?.room || "Lưu Xá";
-
-    const subjects: SubjectScore[] = formSubjects
-      .filter((s) => s.subjectName.trim().length > 0)
-      .map((s, idx) => {
-        const total = computeSubjectTotal(s.midtermScore, s.finalScore);
-        return {
-          id: `sub-${Date.now()}-${idx}`,
-          subjectName: s.subjectName.trim(),
-          credits: Number(s.credits) || 3,
-          midtermScore: Number(s.midtermScore),
-          finalScore: Number(s.finalScore),
-          totalScore: total,
-          letterGrade: computeLetterGrade(total),
-        };
-      });
-
-    if (subjects.length === 0) {
-      showToast("error", "Vui lòng nhập ít nhất 1 môn học!");
-      return;
-    }
-
-    // Calculate overall GPA
-    const totalCredits = subjects.reduce((sum, s) => sum + s.credits, 0);
-    const weighted10 = subjects.reduce((sum, s) => sum + s.totalScore * s.credits, 0);
-    const gpa10 = Math.round((weighted10 / totalCredits) * 100) / 100;
-    const gpa4 = Math.round(((gpa10 / 10) * 4) * 100) / 100;
-
-    let rank: AcademicRecord["rank"] = "Khá";
-    if (gpa4 >= 3.6) rank = "Xuất sắc";
-    else if (gpa4 >= 3.2) rank = "Giỏi";
-    else if (gpa4 >= 2.5) rank = "Khá";
-    else if (gpa4 >= 2.0) rank = "Trung bình";
-    else rank = "Cần cố gắng";
-
-    addAcademicRecord({
-      memberId: memberObj?.id || `m-${Date.now()}`,
-      memberName: selectedMemberName,
-      room,
-      university: formUniversity.trim(),
-      major: formMajor.trim(),
-      studentId: formStudentId.trim() || "2310000",
-      academicYear: formAcademicYear,
-      semester: formSemester,
-      gpa10,
-      gpa4,
-      rank,
-      subjects,
-      evidencePhoto: formEvidencePhoto,
-      aspirations: formAspirations.trim() || "Tiếp tục nỗ lực duy trì học lực tốt trong năm học.",
-      scholarshipEligible: formScholarship,
-      supportNeeded: formSupportNeeded,
-      supportSubject: formSupportNeeded ? formSupportSubject.trim() : undefined,
-    });
-
-    setIsAddModalOpen(false);
-    // Reset Form
-    setSelectedMemberName("");
-    setFormAspirations("");
-  };
-
-  // Copy Academic Summary to Zalo
   const handleCopyZaloSummary = async () => {
-    let text = `🎓 BÁO CÁO HỌC LỰC & ĐIỂM SỐ LƯU XÁ PHANXICÔ\n`;
-    text += `Niên khóa: ${selectedYear === "all" ? "Tổng thể" : selectedYear} • Học kỳ: ${selectedSemester === "all" ? "Cả năm" : selectedSemester}\n\n`;
-    text += `📊 Thống kê chung:\n`;
-    text += `• Điểm GPA trung bình: ${avgGpa4} / 4.0\n`;
-    text += `• Số sinh viên Giỏi & Xuất sắc: ${excellentCount}/${totalStudents}\n`;
-    text += `• Sinh viên đạt học bổng: ${scholarshipCount} anh em\n`;
-    text += `• Sinh viên cần hỗ trợ phụ đạo: ${needSupportCount} anh em\n\n`;
-    text += `🏆 Danh sách tiêu biểu:\n`;
-
-    filteredRecords.slice(0, 5).forEach((r, idx) => {
-      text += `${idx + 1}. ${r.memberName} (${r.room} - ${r.university}): GPA ${r.gpa4}/4.0 (${r.rank})\n`;
-    });
-
-    text += `\nPax et Bonum - Ban Học Tập Lưu Xá Sinh Viên Phanxicô`;
+    const text = formatAcademicZalo({ records: leaderView ? filteredRecords.filter(official) : filteredRecords, scopeLabel, personal: !leaderView });
     const success = await copyTextToClipboard(text);
-    if (success) {
-      showToast("success", "Đã sao chép tổng hợp học lực! Có thể dán ngay vào Zalo Lưu Xá.");
+    if (success) showToast("success", "Đã sao chép tổng hợp học lực! Có thể dán ngay vào Zalo Lưu Xá.");
+    else showToast("error", "Không thể tự động sao chép. Vui lòng thử lại!");
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+  const openEdit = (r: AcademicRecordDto) => {
+    setDetailId(null);
+    setEditing(r);
+    setFormOpen(true);
+  };
+
+  const runAction = async (r: AcademicRecordDto, action: AcademicAction, reason?: string) => {
+    setBusy(action);
+    try {
+      const res = await academicApi.act(r.id, action, reason ?? null);
+      const msg: Record<AcademicAction, string> = {
+        submit: "Đã nộp bảng điểm — chờ Ban điều hành xác minh.",
+        withdraw: "Đã rút bảng điểm về bản nháp — có thể chỉnh sửa.",
+        verify: `Đã xác minh bảng điểm của ${r.memberName}.`,
+        reject: `Đã trả lại bảng điểm cho ${r.memberName}.`,
+        reopen: `Đã mở lại bảng điểm của ${r.memberName} về bản nháp.`,
+      };
+      showToast("success", msg[action]);
+      if (!res.record) setDetailId(null);
+      await refreshAcademic();
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setBusy(null);
     }
   };
 
-  if (isLoadingSkeleton) {
+  const onAction = (r: AcademicRecordDto, action: AcademicAction) => {
+    if (action === "reject" || action === "reopen") setReasonFor({ record: r, action });
+    else void runAction(r, action);
+  };
+
+  const doDelete = async (r: AcademicRecordDto) => {
+    setBusy("delete");
+    try {
+      await academicApi.remove(r.id);
+      showToast("success", `Đã xóa bản nháp bảng điểm ${semesterLabel(r.semester)}.`);
+      setDetailId(null);
+      await refreshAcademic();
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (isLoadingSkeleton || (isLoading && !records.length)) {
     return <HocTapLoading />;
   }
+
+  const resetFilters = () => {
+    setSelectedYear("all");
+    setSelectedSemester("all");
+    setSelectedRank("all");
+    setSelectedStatus("all");
+    setSearchTerm("");
+  };
+
+  const statusBadge = (s: AcademicStatus) => (
+    <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold border inline-block whitespace-nowrap", STATUS_META[s].cls)}>{STATUS_META[s].label}</span>
+  );
 
   return (
     <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto pb-16">
@@ -275,12 +184,8 @@ export default function HocTapPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-                  Quản Lý Học Tập &amp; Điểm Số
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold font-mono">
-                  Học Vụ Lưu Xá
-                </span>
+                <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Quản Lý Học Tập &amp; Điểm Số</h1>
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold font-mono">Học Vụ Lưu Xá</span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 Theo dõi kết quả học tập, điểm giữa kỳ - cuối kỳ, lưu trữ ảnh minh chứng bảng điểm (EVD) và đồng hành nguyện vọng
@@ -297,26 +202,27 @@ export default function HocTapPage() {
             <Share2 className="w-4 h-4 text-purple-600" />
             <span>Sao chép Zalo</span>
           </button>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-purple-200 active:scale-95 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Điền / Cập Nhật Điểm Số</span>
-          </button>
+          {canWrite && (
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-purple-200 active:scale-95 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Điền / Cập Nhật Điểm Số</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 2. STATS KPI CARDS */}
+      {/* 2. STATS KPI CARDS (tính từ bảng điểm bạn được xem, theo năm học/học kỳ đang lọc) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              GPA Trung Bình
-            </span>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{leaderView ? "GPA Trung Bình" : "GPA Của Tôi"}</span>
             <div className="text-2xl font-black text-gray-900 mt-1">
-              {avgGpa4} <span className="text-xs font-semibold text-gray-400">/ 4.0</span>
+              {stats.avgGpa4 !== null ? fmtGpa(stats.avgGpa4) : "—"} <span className="text-xs font-semibold text-gray-400">/ 4.0</span>
             </div>
+            <span className="text-[10px] text-gray-400">{stats.avgGpa10 !== null ? `${fmtGpa(stats.avgGpa10)}/10 • ` : ""}{stats.ranked} bảng điểm {leaderView ? "đã nộp " : ""}có GPA</span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-purple-50 text-primary flex items-center justify-center font-bold">
             <TrendingUp className="w-5 h-5" />
@@ -325,12 +231,13 @@ export default function HocTapPage() {
 
         <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              Giỏi &amp; Xuất Sắc
-            </span>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Giỏi &amp; Xuất Sắc</span>
             <div className="text-2xl font-black text-emerald-600 mt-1">
-              {excellentCount} <span className="text-xs font-semibold text-gray-400">/ {totalStudents}</span>
+              {stats.excellentOrGood} <span className="text-xs font-semibold text-gray-400">/ {stats.ranked}</span>
             </div>
+            <span className="text-[10px] text-gray-400">
+              {RANK_ORDER.filter((k) => stats.byRank[k]).map((k) => `${k}: ${stats.byRank[k]}`).join(" • ") || "Chưa có xếp loại"}
+            </span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
             <Award className="w-5 h-5" />
@@ -339,10 +246,9 @@ export default function HocTapPage() {
 
         <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              Đạt Học Bổng
-            </span>
-            <div className="text-2xl font-black text-amber-600 mt-1">{scholarshipCount} SV</div>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Đạt Học Bổng</span>
+            <div className="text-2xl font-black text-amber-600 mt-1">{stats.scholarship} SV</div>
+            <span className="text-[10px] text-gray-400">trên {stats.students} sinh viên</span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
             <Sparkles className="w-5 h-5" />
@@ -351,16 +257,48 @@ export default function HocTapPage() {
 
         <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              Cần Phụ Đạo / Kèm
-            </span>
-            <div className="text-2xl font-black text-rose-600 mt-1">{needSupportCount} SV</div>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cần Phụ Đạo / Kèm</span>
+            <div className="text-2xl font-black text-rose-600 mt-1">{stats.needSupport} SV</div>
+            <span className="text-[10px] text-gray-400">yêu cầu phụ đạo đang mở</span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
             <HelpCircle className="w-5 h-5" />
           </div>
         </div>
       </div>
+
+      {/* Hàng chờ xác minh (người có academic.verify) / phạm vi dữ liệu */}
+      {pendingForMe.length > 0 ? (
+        <div className="bg-amber-50/70 rounded-2xl px-4 py-3 border border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-amber-900">
+            <ClipboardCheck className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              Có <b>{pendingForMe.length}</b> bảng điểm đang chờ anh xác minh: {pendingForMe.slice(0, 3).map((r) => r.memberName).join(", ")}
+              {pendingForMe.length > 3 ? "…" : ""}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              resetFilters();
+              setSelectedStatus("submitted");
+            }}
+            className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition"
+          >
+            Xem danh sách chờ
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-[11px] text-gray-500 px-1 -mt-2">
+          <Lock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          {leaderView
+            ? "Ban điều hành chỉ xem bảng điểm đã nộp của anh em đồng ý chia sẻ kết quả học tập; số liệu trên tính từ các bảng điểm đó."
+            : "Điểm số là dữ liệu riêng tư: bạn chỉ xem được bảng điểm của chính mình; Ban điều hành xem khi bạn đã nộp và đồng ý chia sẻ."}
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-xs text-rose-700 font-semibold">Không tải được dữ liệu học tập: {errorMessage(error)}</div>
+      )}
 
       {/* 3. FILTER & SEARCH TOOLBAR */}
       <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
@@ -371,9 +309,7 @@ export default function HocTapPage() {
               onClick={() => setSelectedYear("all")}
               className={cn(
                 "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0",
-                selectedYear === "all"
-                  ? "bg-primary text-white shadow-xs"
-                  : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
+                selectedYear === "all" ? "bg-primary text-white shadow-xs" : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
               )}
             >
               Tất cả các năm
@@ -384,9 +320,7 @@ export default function HocTapPage() {
                 onClick={() => setSelectedYear(yr)}
                 className={cn(
                   "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0",
-                  selectedYear === yr
-                    ? "bg-primary text-white shadow-xs"
-                    : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
+                  selectedYear === yr ? "bg-primary text-white shadow-xs" : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
                 )}
               >
                 Năm học {yr}
@@ -394,7 +328,18 @@ export default function HocTapPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl shrink-0 self-end sm:self-auto">
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
+            <div className="w-40">
+              <CustomSelect
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                options={[
+                  { value: "all", label: "Mọi trạng thái" },
+                  ...(Object.keys(STATUS_META) as AcademicStatus[]).map((k) => ({ value: k, label: STATUS_META[k].label })),
+                ]}
+              />
+            </div>
+          <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewMode("table")}
               className={cn(
@@ -418,21 +363,19 @@ export default function HocTapPage() {
               <span className="hidden sm:inline">Dạng thẻ</span>
             </button>
           </div>
+          </div>
         </div>
 
-        {/* Filters & Search */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-bold text-gray-400 mr-1">Xếp loại:</span>
-            {["all", "Xuất sắc", "Giỏi", "Khá", "Trung bình", "Cần cố gắng"].map((rnk) => (
+            {["all", ...RANK_ORDER].map((rnk) => (
               <button
                 key={rnk}
                 onClick={() => setSelectedRank(rnk)}
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
-                  selectedRank === rnk
-                    ? "bg-purple-700 text-white shadow-xs"
-                    : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
+                  selectedRank === rnk ? "bg-purple-700 text-white shadow-xs" : "bg-surface-container-low text-gray-700 hover:bg-purple-100"
                 )}
               >
                 {rnk === "all" ? "Tất cả xếp loại" : rnk}
@@ -440,7 +383,7 @@ export default function HocTapPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <div className="w-36">
               <CustomSelect
                 value={selectedSemester}
@@ -453,8 +396,7 @@ export default function HocTapPage() {
                 ]}
               />
             </div>
-
-            <div className="w-60">
+            <div className="w-full sm:w-60">
               <CustomInput
                 placeholder="Tìm tên, trường, ngành, MSSV..."
                 value={searchTerm}
@@ -469,26 +411,30 @@ export default function HocTapPage() {
       {/* 4. CONTENT LIST: TABLE OR CARDS */}
       {filteredRecords.length === 0 ? (
         <div className="py-16 bg-white rounded-3xl border border-dashed border-purple-200 text-center flex flex-col items-center justify-center p-6 gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-primary flex items-center justify-center font-bold text-xl">
-            🎓
-          </div>
-          <h3 className="text-base font-bold text-gray-900">
-            Không tìm thấy hồ sơ học tập phù hợp
-          </h3>
-          <p className="text-xs text-gray-500 max-w-sm">
-            Thử thay đổi bộ lọc học kỳ, xếp loại hoặc xóa từ khóa tìm kiếm để xem các hồ sơ khác.
-          </p>
-          <button
-            onClick={() => {
-              setSelectedYear("all");
-              setSelectedSemester("all");
-              setSelectedRank("all");
-              setSearchTerm("");
-            }}
-            className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-[#4d2dbf] transition shadow-xs"
-          >
-            Xem tất cả sinh viên
-          </button>
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-primary flex items-center justify-center font-bold text-xl">🎓</div>
+          {records.length === 0 ? (
+            <>
+              <h3 className="text-base font-bold text-gray-900">{canWrite ? "Bạn chưa có bảng điểm nào" : "Chưa có bảng điểm nào để hiển thị"}</h3>
+              <p className="text-xs text-gray-500 max-w-sm">
+                {canWrite
+                  ? "Nhập điểm quá trình/giữa kỳ, cuối kỳ của học kỳ này và tải ảnh minh chứng để Ban điều hành xác minh."
+                  : "Bảng điểm chỉ hiển thị khi anh em đã nộp và đồng ý chia sẻ với Ban điều hành."}
+              </p>
+              {canWrite && (
+                <button onClick={openCreate} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-[#4d2dbf] transition shadow-xs">
+                  Điền điểm số học kỳ này
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="text-base font-bold text-gray-900">Không tìm thấy hồ sơ học tập phù hợp</h3>
+              <p className="text-xs text-gray-500 max-w-sm">Thử thay đổi bộ lọc học kỳ, xếp loại, trạng thái hoặc xóa từ khóa tìm kiếm để xem các hồ sơ khác.</p>
+              <button onClick={resetFilters} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-[#4d2dbf] transition shadow-xs">
+                Xem tất cả sinh viên
+              </button>
+            </>
+          )}
         </div>
       ) : viewMode === "table" ? (
         /* TABLE VIEW */
@@ -509,71 +455,55 @@ export default function HocTapPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredRecords.map((rec) => {
-                  const badge = RANK_BADGES[rec.rank];
-
+                  const badge = rankBadge(rec.rank);
                   return (
                     <tr key={rec.id} className="hover:bg-purple-50/20 transition-colors">
-                      {/* Member & Room */}
                       <td className="py-3.5 px-4 font-bold text-gray-900">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {rec.memberName.charAt(0)}
+                            {initialOf(rec)}
                           </div>
                           <div>
-                            <span className="block font-black text-gray-900">{rec.memberName}</span>
+                            <span className="block font-black text-gray-900">
+                              {rec.memberName}
+                              {rec.isOwn && <span className="ml-1 text-[9px] font-bold text-primary">(tôi)</span>}
+                            </span>
                             <span className="text-[10px] text-gray-400 font-mono">
-                              {rec.room} • MSSV: {rec.studentId}
+                              {rec.room} • MSSV: {rec.studentCode ?? "—"}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* University & Major */}
                       <td className="py-3.5 px-4">
-                        <span className="font-bold text-gray-800 block text-xs">{rec.university}</span>
-                        <span className="text-[11px] text-gray-500">{rec.major}</span>
+                        <span className="font-bold text-gray-800 block text-xs">{rec.university.name}</span>
+                        <span className="text-[11px] text-gray-500">{rec.major ?? "—"}</span>
                       </td>
 
-                      {/* Semester */}
                       <td className="py-3.5 px-4">
-                        <span className="font-bold text-gray-800 block">{rec.semester}</span>
-                        <span className="text-[10px] text-gray-400 font-mono">{rec.academicYear}</span>
+                        <span className="font-bold text-gray-800 block">{rec.semester.name}</span>
+                        <span className="text-[10px] text-gray-400 font-mono block">{rec.semester.yearCode}</span>
+                        <span className="mt-1 inline-block">{statusBadge(rec.status)}</span>
                       </td>
 
-                      {/* GPA */}
                       <td className="py-3.5 px-4 text-center">
-                        <span className="font-mono text-sm font-black text-primary block">
-                          {rec.gpa4.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-mono">
-                          ({rec.gpa10.toFixed(2)}/10)
-                        </span>
+                        <span className="font-mono text-sm font-black text-primary block">{fmtGpa(rec.gpa4)}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">({fmtGpa(rec.gpa10)}/10)</span>
+                        {rec.gpaPreview && rec.gpa4 !== null && <span className="block text-[9px] font-semibold text-gray-400">tạm tính</span>}
+                        {rec.incompleteCount > 0 && <span className="block text-[9px] font-semibold text-amber-600">{rec.incompleteCount} môn chưa đủ điểm</span>}
                       </td>
 
-                      {/* Rank & Scholarship */}
                       <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={cn(
-                            "px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-block",
-                            badge.bg,
-                            badge.text,
-                            badge.border
-                          )}
-                        >
-                          {rec.rank}
+                        <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-block", badge.bg, badge.text, badge.border)}>
+                          {rec.rank ?? "Chưa xếp loại"}
                         </span>
-                        {rec.scholarshipEligible && (
-                          <span className="block text-[9px] font-bold text-amber-600 mt-1">
-                            ⭐ Đạt học bổng
-                          </span>
-                        )}
+                        {rec.hasScholarship && <span className="block text-[9px] font-bold text-amber-600 mt-1">⭐ Đạt học bổng</span>}
                       </td>
 
-                      {/* EVD Button */}
                       <td className="py-3.5 px-4 text-center">
-                        {rec.evidencePhoto ? (
+                        {rec.evidence ? (
                           <button
-                            onClick={() => setActiveEvdRecord(rec)}
+                            onClick={() => setDetailId(rec.id)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-primary text-[11px] font-bold border border-purple-200 transition active:scale-95"
                           >
                             <ImageIcon className="w-3 h-3" />
@@ -582,25 +512,44 @@ export default function HocTapPage() {
                         ) : (
                           <span className="text-gray-400 italic text-[10px]">Chưa nộp</span>
                         )}
-                      </td>
-
-                      {/* Aspirations */}
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <p className="text-[11px] text-gray-600 line-clamp-2 leading-relaxed">
-                          {rec.aspirations}
-                        </p>
-                        {rec.supportNeeded && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 mt-0.5">
-                            <AlertTriangle className="w-3 h-3" />
-                            Cần phụ đạo: {rec.supportSubject}
+                        {rec.status === "verified" && (
+                          <span className="flex items-center justify-center gap-0.5 text-[9px] font-bold text-emerald-600 mt-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            {rec.verifiedByName ?? "Đã xác minh"}
                           </span>
                         )}
                       </td>
 
-                      {/* Action */}
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <p className="text-[11px] text-gray-600 line-clamp-2 leading-relaxed">
+                          {rec.goals?.goals || rec.goals?.difficulties || <span className="italic text-gray-400">—</span>}
+                        </p>
+                        {rec.support && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 mt-0.5">
+                            <AlertTriangle className="w-3 h-3" />
+                            Cần phụ đạo: {rec.support.subject}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        {rec.can.verify && (
+                          <button
+                            onClick={() => void runAction(rec, "verify")}
+                            disabled={!!busy}
+                            className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition disabled:opacity-50"
+                            title="Xác minh bảng điểm"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {rec.can.edit && (
+                          <button onClick={() => openEdit(rec)} className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-purple-50 transition" title="Sửa bảng điểm">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
-                          onClick={() => setActiveEvdRecord(rec)}
+                          onClick={() => setDetailId(rec.id)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-purple-50 transition"
                           title="Xem chi tiết môn học"
                         >
@@ -618,40 +567,33 @@ export default function HocTapPage() {
         /* GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRecords.map((rec) => {
-            const badge = RANK_BADGES[rec.rank];
-
+            const badge = rankBadge(rec.rank);
             return (
               <div
                 key={rec.id}
                 className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4 group"
               >
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
-                        badge.bg,
-                        badge.text,
-                        badge.border
-                      )}
-                    >
-                      {rec.rank}
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold border", badge.bg, badge.text, badge.border)}>
+                        {rec.rank ?? "Chưa xếp loại"}
+                      </span>
+                      {statusBadge(rec.status)}
+                    </div>
                     <span className="text-[11px] font-mono text-gray-400">
-                      {rec.semester} • {rec.academicYear}
+                      {rec.semester.name} • {rec.semester.yearCode}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-500 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                      {rec.memberName.charAt(0)}
+                      {initialOf(rec)}
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-gray-900 group-hover:text-primary transition-colors">
-                        {rec.memberName}
-                      </h3>
+                      <h3 className="text-base font-black text-gray-900 group-hover:text-primary transition-colors">{rec.memberName}</h3>
                       <p className="text-xs text-gray-500">
-                        {rec.room} • MSSV: {rec.studentId}
+                        {rec.room} • MSSV: {rec.studentCode ?? "—"}
                       </p>
                     </div>
                   </div>
@@ -659,46 +601,42 @@ export default function HocTapPage() {
                   <div className="p-3 bg-surface-container-low/60 rounded-2xl border border-purple-50 space-y-1 text-xs">
                     <div className="flex items-center justify-between text-gray-700">
                       <span className="text-gray-400">Trường:</span>
-                      <span className="font-bold text-right truncate max-w-[180px]">{rec.university}</span>
+                      <span className="font-bold text-right truncate max-w-[180px]">{rec.university.name}</span>
                     </div>
                     <div className="flex items-center justify-between text-gray-700">
                       <span className="text-gray-400">Ngành:</span>
-                      <span className="font-semibold text-right">{rec.major}</span>
+                      <span className="font-semibold text-right truncate max-w-[180px]">{rec.major ?? "—"}</span>
                     </div>
                     <div className="flex items-center justify-between text-gray-700 pt-1 border-t border-gray-100">
-                      <span className="text-gray-400">Điểm GPA:</span>
+                      <span className="text-gray-400">Điểm GPA{rec.gpaPreview && rec.gpa4 !== null ? " (tạm tính)" : ""}:</span>
                       <span className="font-mono font-black text-primary text-sm">
-                        {rec.gpa4.toFixed(2)} / 4.0 ({rec.gpa10.toFixed(2)}/10)
+                        {fmtGpa(rec.gpa4)} / 4.0 ({fmtGpa(rec.gpa10)}/10)
                       </span>
                     </div>
                   </div>
 
-                  {rec.aspirations && (
+                  {(rec.goals?.goals || rec.goals?.difficulties) && (
                     <div className="text-xs text-gray-600 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">
-                        Nguyện vọng:
-                      </span>
-                      <p className="line-clamp-2 leading-relaxed">{rec.aspirations}</p>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Nguyện vọng:</span>
+                      <p className="line-clamp-2 leading-relaxed">{rec.goals?.goals || rec.goals?.difficulties}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                  {rec.supportNeeded ? (
+                  {rec.support ? (
                     <span className="text-[10px] font-bold text-rose-600 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
                       Cần phụ đạo
                     </span>
-                  ) : rec.scholarshipEligible ? (
-                    <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
-                      ⭐ Đạt học bổng
-                    </span>
+                  ) : rec.hasScholarship ? (
+                    <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1">⭐ Đạt học bổng</span>
                   ) : (
-                    <span className="text-[10px] text-gray-400">Học lực ổn định</span>
+                    <span className="text-[10px] text-gray-400">{rec.status === "verified" ? "Đã xác minh" : "Học lực ổn định"}</span>
                   )}
 
                   <button
-                    onClick={() => setActiveEvdRecord(rec)}
+                    onClick={() => setDetailId(rec.id)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold transition active:scale-95"
                   >
                     <Eye className="w-3.5 h-3.5" />
@@ -711,386 +649,74 @@ export default function HocTapPage() {
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* 5. MODAL: XEM MINH CHỨNG BẢNG ĐIỂM (EVD LIGHTBOX) */}
-      {/* ======================================================== */}
-      {activeEvdRecord &&
-        mounted &&
-        createPortal(
-          <div
-            onClick={() => setActiveEvdRecord(null)}
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-150"
-          >
-            <div className="flex min-h-full items-center justify-center">
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-purple-50 flex flex-col max-h-[90vh] overflow-hidden my-auto"
-              >
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-purple-100 text-primary flex items-center justify-center font-bold">
-                      <ImageIcon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-gray-900">
-                        Minh Chứng Bảng Điểm (EVD): {activeEvdRecord.memberName}
-                      </h3>
-                      <p className="text-[11px] text-gray-500">
-                        {activeEvdRecord.university} • {activeEvdRecord.semester} ({activeEvdRecord.academicYear})
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setActiveEvdRecord(null)}
-                    className="p-1 rounded-lg text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+      {/* 5. MODAL: XEM BẢNG ĐIỂM & MINH CHỨNG */}
+      <RecordDetailModal
+        record={detail}
+        busy={busy}
+        onClose={() => setDetailId(null)}
+        onEdit={openEdit}
+        onDelete={(r) => setDeleting(r)}
+        onAction={onAction}
+      />
 
-                <div className="p-5 overflow-y-auto custom-scroll space-y-4 flex-1">
-                  {/* Photo Preview */}
-                  {activeEvdRecord.evidencePhoto ? (
-                    <div className="rounded-2xl overflow-hidden border border-purple-100 shadow-sm relative group bg-gray-950">
-                      <img
-                        src={activeEvdRecord.evidencePhoto}
-                        alt="EVD Minh Chứng"
-                        className="w-full max-h-72 object-contain mx-auto"
-                      />
-                      <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold">
-                        Ảnh chụp cổng thông tin sinh viên
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 text-xs">
-                      Sinh viên chưa tải ảnh minh chứng bảng điểm.
-                    </div>
-                  )}
-
-                  {/* Subject score breakdown table */}
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                      Chi tiết điểm từng môn học ({activeEvdRecord.subjects.length} môn):
-                    </h4>
-                    <div className="border border-gray-100 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead className="bg-gray-50 text-[10px] text-gray-500 uppercase font-bold">
-                          <tr>
-                            <th className="py-2 px-3">Tên môn học</th>
-                            <th className="py-2 px-3 text-center">Tín chỉ</th>
-                            <th className="py-2 px-3 text-center">Giữa kỳ</th>
-                            <th className="py-2 px-3 text-center">Cuối kỳ</th>
-                            <th className="py-2 px-3 text-center">Tổng kết</th>
-                            <th className="py-2 px-3 text-center">Điểm chữ</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {activeEvdRecord.subjects.map((sub) => (
-                            <tr key={sub.id} className="hover:bg-purple-50/20">
-                              <td className="py-2 px-3 font-bold text-gray-900">{sub.subjectName}</td>
-                              <td className="py-2 px-3 text-center font-mono">{sub.credits}</td>
-                              <td className="py-2 px-3 text-center font-mono text-purple-700 font-bold">{sub.midtermScore}</td>
-                              <td className="py-2 px-3 text-center font-mono text-indigo-700 font-bold">{sub.finalScore}</td>
-                              <td className="py-2 px-3 text-center font-mono font-black text-gray-900">{sub.totalScore}</td>
-                              <td className="py-2 px-3 text-center font-mono font-bold text-emerald-700">{sub.letterGrade}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Aspirations & Notes */}
-                  <div className="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100 space-y-1">
-                    <span className="text-xs font-bold text-purple-900 block">
-                      Nguyện vọng &amp; Ghi chú học tập:
-                    </span>
-                    <p className="text-xs text-gray-700 leading-relaxed">
-                      {activeEvdRecord.aspirations}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 border-t border-gray-100 flex items-center justify-end gap-2.5 bg-gray-50/50">
-                  <button
-                    onClick={() => setActiveEvdRecord(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100"
-                  >
-                    Đóng
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* ======================================================== */}
       {/* 6. MODAL: ĐIỀN / CẬP NHẬT ĐIỂM SỐ */}
-      {/* ======================================================== */}
-      {isAddModalOpen &&
-        mounted &&
-        createPortal(
-          <div
-            onClick={() => setIsAddModalOpen(false)}
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-150"
-          >
-            <div className="flex min-h-full items-center justify-center">
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-purple-50 flex flex-col max-h-[90vh] overflow-hidden my-auto"
-              >
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-primary" />
-                    <div>
-                      <h3 className="text-base font-black text-gray-900">Điền Kết Quả Điểm Số Sinh Viên</h3>
-                      <p className="text-[11px] text-gray-500">Cập nhật điểm giữa kỳ, cuối kỳ và ảnh minh chứng EVD</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsAddModalOpen(false)}
-                    className="p-1 rounded-lg text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+      <RecordFormModal
+        open={formOpen}
+        meta={meta}
+        ownRecords={ownRecords}
+        editing={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSaved={() => {
+          void refreshAcademic();
+        }}
+      />
 
-                <form onSubmit={handleCreateRecordSubmit} className="p-5 space-y-4 overflow-y-auto custom-scroll flex-1">
-                  {/* Member selection */}
-                  <CustomSelect
-                    label="Chọn thành viên sinh viên:"
-                    value={selectedMemberName}
-                    onChange={setSelectedMemberName}
-                    placeholder="-- Chọn thành viên Lưu Xá --"
-                    options={[
-                      { value: "", label: "-- Chọn thành viên Lưu Xá --" },
-                      ...members.map((m) => ({
-                        value: m.fullName,
-                        label: m.fullName,
-                        subLabel: m.room ? `Phòng ${m.room}` : "Chưa xếp phòng",
-                      })),
-                    ]}
-                  />
+      <ReasonDialog
+        open={!!reasonFor}
+        title={reasonFor?.action === "reject" ? "Trả lại bảng điểm" : "Mở lại bảng điểm đã xác minh"}
+        description={
+          reasonFor?.action === "reject" ? (
+            <>
+              Bảng điểm của <b>{reasonFor?.record.memberName}</b> sẽ trở về trạng thái <b>Bị trả lại</b>; thành viên sửa rồi nộp lại.
+            </>
+          ) : (
+            <>
+              Bảng điểm của <b>{reasonFor?.record.memberName}</b> sẽ về <b>bản nháp</b> (bỏ dấu xác minh, GPA tạm thời không tính) để thành viên chỉnh sửa.
+            </>
+          )
+        }
+        placeholder={reasonFor?.action === "reject" ? "VD: Ảnh minh chứng bị mờ, chưa thấy điểm môn Giải tích 2…" : "VD: Bổ sung điểm môn còn thiếu theo phúc khảo…"}
+        confirmText={reasonFor?.action === "reject" ? "Trả lại" : "Mở lại"}
+        minLength={reasonFor?.action === "reject" ? 5 : 0}
+        tone={reasonFor?.action === "reject" ? "danger" : "warning"}
+        onClose={() => setReasonFor(null)}
+        onConfirm={async (reason) => {
+          if (!reasonFor) return;
+          await runAction(reasonFor.record, reasonFor.action, reason || undefined);
+          setReasonFor(null);
+        }}
+      />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <CustomInput
-                      label="Trường Đại Học"
-                      placeholder="VD: ĐH Bách Khoa TP.HCM"
-                      value={formUniversity}
-                      onChange={(e) => setFormUniversity(e.target.value)}
-                      required
-                    />
-
-                    <CustomInput
-                      label="Chuyên Ngành"
-                      placeholder="VD: Khoa học máy tính"
-                      value={formMajor}
-                      onChange={(e) => setFormMajor(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <CustomInput
-                      label="Mã Số Sinh Viên (MSSV)"
-                      placeholder="VD: 2310123"
-                      value={formStudentId}
-                      onChange={(e) => setFormStudentId(e.target.value)}
-                      required
-                    />
-
-                    <CustomSelect
-                      label="Niên khóa"
-                      value={formAcademicYear}
-                      onChange={setFormAcademicYear}
-                      options={[
-                        { value: "2026-2027", label: "2026-2027" },
-                        { value: "2025-2026", label: "2025-2026" },
-                        { value: "2024-2025", label: "2024-2025" },
-                      ]}
-                    />
-
-                    <CustomSelect
-                      label="Học kỳ"
-                      value={formSemester}
-                      onChange={(val) => setFormSemester(val as any)}
-                      options={[
-                        { value: "Học kỳ 1", label: "Học kỳ 1" },
-                        { value: "Học kỳ 2", label: "Học kỳ 2" },
-                        { value: "Học kỳ hè", label: "Học kỳ hè" },
-                      ]}
-                    />
-                  </div>
-
-                  {/* Dynamic Subjects List */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold text-gray-700">
-                        Danh sách môn học, điểm giữa kỳ &amp; cuối kỳ:
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleAddSubjectRow}
-                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Thêm môn</span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-2 max-h-48 overflow-y-auto custom-scroll p-2 bg-gray-50 rounded-xl">
-                      {formSubjects.map((sub, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200">
-                          <input
-                            type="text"
-                            placeholder="Tên môn học..."
-                            value={sub.subjectName}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setFormSubjects((prev) =>
-                                prev.map((s, i) => (i === idx ? { ...s, subjectName: val } : s))
-                              );
-                            }}
-                            className="flex-1 p-1.5 rounded-md border border-gray-100 text-xs outline-none"
-                            required
-                          />
-                          <input
-                            type="number"
-                            placeholder="Tín chỉ"
-                            title="Số tín chỉ"
-                            value={sub.credits}
-                            min={1}
-                            max={10}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setFormSubjects((prev) =>
-                                prev.map((s, i) => (i === idx ? { ...s, credits: val } : s))
-                              );
-                            }}
-                            className="w-14 p-1.5 rounded-md border border-gray-100 text-xs text-center outline-none"
-                            required
-                          />
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="10"
-                            placeholder="Giữa kỳ"
-                            title="Điểm Giữa kỳ (hệ 10)"
-                            value={sub.midtermScore}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setFormSubjects((prev) =>
-                                prev.map((s, i) => (i === idx ? { ...s, midtermScore: val } : s))
-                              );
-                            }}
-                            className="w-16 p-1.5 rounded-md border border-gray-100 text-xs text-center font-bold text-purple-700 outline-none"
-                            required
-                          />
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="10"
-                            placeholder="Cuối kỳ"
-                            title="Điểm Cuối kỳ (hệ 10)"
-                            value={sub.finalScore}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              setFormSubjects((prev) =>
-                                prev.map((s, i) => (i === idx ? { ...s, finalScore: val } : s))
-                              );
-                            }}
-                            className="w-16 p-1.5 rounded-md border border-gray-100 text-xs text-center font-bold text-indigo-700 outline-none"
-                            required
-                          />
-                          {formSubjects.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSubjectRow(idx)}
-                              className="p-1 text-rose-500 hover:bg-rose-50 rounded"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Evidence Photo */}
-                  <ImageUploadDropzone
-                    label="Ảnh Minh Chứng Bảng Điểm / Cổng Đào Tạo (EVD)"
-                    placeholder="Kéo thả ảnh chụp màn hình bảng điểm hoặc nhấp để chọn tệp từ máy..."
-                    helperText="Tải ảnh chụp từ cổng sinh viên hoặc giấy xác nhận điểm (PNG, JPG, WEBP)"
-                    value={formEvidencePhoto}
-                    onChange={setFormEvidencePhoto}
-                    required
-                  />
-
-                  {/* Aspirations */}
-                  <CustomTextarea
-                    label="Nguyện vọng / Mục tiêu học tập / Khó khăn"
-                    placeholder="VD: Mục tiêu đạt học bổng; Cần hỗ trợ phụ đạo môn Giải tích..."
-                    value={formAspirations}
-                    onChange={(e) => setFormAspirations(e.target.value)}
-                    rows={2}
-                  />
-
-                  {/* Toggles */}
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <label className="flex items-center gap-2 p-3 bg-amber-50/60 rounded-xl border border-amber-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formScholarship}
-                        onChange={(e) => setFormScholarship(e.target.checked)}
-                        className="w-4 h-4 text-primary rounded accent-primary"
-                      />
-                      <span className="text-xs font-bold text-amber-900">Đạt học bổng</span>
-                    </label>
-
-                    <label className="flex items-center gap-2 p-3 bg-rose-50/60 rounded-xl border border-rose-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formSupportNeeded}
-                        onChange={(e) => setFormSupportNeeded(e.target.checked)}
-                        className="w-4 h-4 text-primary rounded accent-primary"
-                      />
-                      <span className="text-xs font-bold text-rose-900">Cần phụ đạo kèm</span>
-                    </label>
-                  </div>
-
-                  {formSupportNeeded && (
-                    <CustomInput
-                      label="Môn học cụ thể cần anh lớn phụ đạo"
-                      placeholder="VD: Giải tích 2, Kinh tế lượng..."
-                      value={formSupportSubject}
-                      onChange={(e) => setFormSupportSubject(e.target.value)}
-                    />
-                  )}
-
-                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddModalOpen(false)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100"
-                    >
-                      Hủy bỏ
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white text-xs font-bold shadow-md shadow-purple-200 active:scale-95"
-                    >
-                      Lưu Bảng Điểm &amp; EVD
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      <ConfirmDialog
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => deleting && void doDelete(deleting)}
+        title="Xóa bản nháp bảng điểm?"
+        message={
+          deleting ? (
+            <>
+              Bảng điểm <b>{semesterLabel(deleting.semester)}</b> ({deleting.subjects.length} môn) và ảnh minh chứng đính kèm sẽ bị gỡ. Thao tác không hoàn tác được.
+            </>
+          ) : (
+            ""
+          )
+        }
+        confirmText="Xóa bản nháp"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Skeleton, StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 
 export default function Loading() {
   return (

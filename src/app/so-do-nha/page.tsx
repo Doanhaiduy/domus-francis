@@ -32,7 +32,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { Room, Floor, RoomType, Member } from "@/lib/mockData";
+import { useSession } from "@/lib/session";
+import type { Room, Floor, RoomType, Member } from "@/lib/types/members";
 import { CustomSelect, CustomInput, CustomToggle, CustomTextarea, SelectOption } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FloorplanCanvas } from "@/components/FloorplanCanvas";
@@ -65,7 +66,6 @@ const ROOM_TYPE_LABELS: Record<RoomType, { label: string; icon: any; color: stri
 
 export default function SoDoNhaPage() {
   const {
-    currentRole,
     members,
     floors,
     rooms,
@@ -79,7 +79,10 @@ export default function SoDoNhaPage() {
     showToast,
   } = useApp();
 
-  const canManageHouse = ["Trưởng nhà", "Phó nhà", "Admin"].includes(currentRole);
+  // Quyền đọc từ DB (role_permissions): xếp/chuyển phòng vs. sửa cấu trúc nhà (phòng, tầng, tọa độ)
+  const { can } = useSession();
+  const canManageHouse = can("house.assign");
+  const canStructure = can("house.structure.manage");
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -487,6 +490,30 @@ export default function SoDoNhaPage() {
             </button>
           </div>
 
+          {/* Builder mode toggle (sửa cấu trúc nhà) */}
+          {canStructure && (
+            <button
+              onClick={() => setIsBuilderMode((v) => !v)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 border",
+                isBuilderMode ? "bg-amber-400 text-gray-950 border-amber-500" : "bg-white text-gray-700 border-gray-200 hover:border-purple-300"
+              )}
+              title="Bật/tắt chế độ chỉnh sửa phòng & tầng"
+            >
+              <Settings2 className="w-4 h-4" />
+              <span>{isBuilderMode ? "Đang chỉnh sửa sơ đồ" : "Chỉnh sửa sơ đồ"}</span>
+            </button>
+          )}
+          {canStructure && isBuilderMode && (
+            <button
+              onClick={() => openAddFloorModal()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary font-bold text-xs border border-purple-200 transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Thêm tầng</span>
+            </button>
+          )}
+
           {/* Quick Transfer Button */}
           {canManageHouse && (
             <button
@@ -677,6 +704,7 @@ export default function SoDoNhaPage() {
             onSelectFloor={(flId) => setSelectedFloor(flId)}
             rooms={rooms}
             members={members}
+            readOnly={!canManageHouse}
             roomOccupantsMap={roomOccupantsMap}
             onUpdateRoomPosition={(roomId, x, y, w, h) => {
               updateRoom(roomId, { x, y, w, h });
@@ -721,7 +749,7 @@ export default function SoDoNhaPage() {
                   </div>
                 </div>
 
-                {canManageHouse && isBuilderMode && (
+                {canStructure && isBuilderMode && (
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => openAddRoomModal(floor.id)}
@@ -763,7 +791,7 @@ export default function SoDoNhaPage() {
                   <p className="text-xs font-semibold text-gray-500">
                     Không tìm thấy phòng phù hợp trên tầng này.
                   </p>
-                  {canManageHouse && isBuilderMode && (
+                  {canStructure && isBuilderMode && (
                     <button
                       onClick={() => openAddRoomModal(floor.id)}
                       className="mt-3 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold"
@@ -948,7 +976,7 @@ export default function SoDoNhaPage() {
                               </button>
                             )}
 
-                            {canManageHouse && isBuilderMode && (
+                            {canStructure && isBuilderMode && (
                               <>
                                 <button
                                   onClick={() => openEditRoomModal(room)}
@@ -1167,7 +1195,7 @@ export default function SoDoNhaPage() {
 
               {/* Modal Actions */}
               <div className="shrink-0 flex items-center justify-end gap-3 p-4 px-6 border-t border-gray-100 bg-gray-50/70">
-                {canManageHouse && (
+                {canStructure && (
                   <button
                     onClick={() => {
                       const room = selectedRoomForDetail;

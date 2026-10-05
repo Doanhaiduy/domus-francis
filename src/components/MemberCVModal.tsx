@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   Calendar,
 } from "lucide-react";
-import { Member } from "@/lib/mockData";
+import type { Member } from "@/lib/types/members";
+import { useMemberDetail } from "@/lib/data/members";
+import { useOrgSettings } from "@/lib/data/settings";
 import { copyTextToClipboard, formatMemberCVForZalo } from "@/lib/zaloShare";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
@@ -28,11 +30,17 @@ interface MemberCVModalProps {
 }
 
 export default function MemberCVModal({
-  member,
+  member: baseMember,
   isOpen,
   onClose,
 }: MemberCVModalProps) {
-  const { showToast } = useApp();
+  const { showToast, members } = useApp();
+  // Hồ sơ đầy đủ đọc từ máy chủ — trường nào người xem không có quyền (RLS) thì để trống
+  const { member: detail } = useMemberDetail(isOpen ? baseMember?.id : null);
+  const member: Member | null = detail ? { ...baseMember, ...detail } : baseMember;
+  const houseHead = members.find((m) => m.role === "Trưởng nhà");
+  const { org } = useOrgSettings();
+  const today = new Date();
   const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -174,26 +182,33 @@ export default function MemberCVModal({
           <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4">
             <div>
               <p className="text-xs uppercase tracking-wider font-bold text-gray-600">
-                TỈNH DÒNG ANH EM HÈN MỌN VIỆT NAM (OFM)
+                {(org.orderName || "Tỉnh Dòng Anh Em Hèn Mọn Việt Nam (OFM)").toUpperCase()}
               </p>
               <h2 className="text-base sm:text-lg font-bold text-gray-900 uppercase">
-                LƯU XÁ SINH VIÊN CÔNG GIÁO PHANXICÔ ASSISI
+                {(org.houseName || "Lưu Xá Sinh Viên Công Giáo Phanxicô Assisi").toUpperCase()}
               </h2>
               <p className="text-xs italic text-gray-600 mt-0.5">
-                Châm ngôn: &ldquo;Pax et Bonum — Bình An và Thiện Hảo&rdquo;
+                Châm ngôn: &ldquo;{org.motto || "Pax et Bonum — Bình An và Thiện Hảo"}&rdquo;
               </p>
               <p className="text-[11px] text-gray-500 mt-1">
-                Địa chỉ: Ngõ 68 Triều Khúc, Thanh Xuân Nam, Hà Nội · Hotline: 0903 112 451
+                Địa chỉ: {org.address || "—"}{org.contactPhone ? ` · Hotline: ${org.contactPhone}` : ""}
               </p>
             </div>
 
             {/* 3x4 PHOTO BOX */}
             <div className="w-24 h-32 border-2 border-dashed border-gray-400 rounded-md flex flex-col items-center justify-center bg-gray-50 shrink-0 text-center p-1">
-              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mb-1">
-                {member.avatarText}
-              </div>
-              <span className="text-[10px] font-bold text-gray-500 uppercase">Ảnh 3×4</span>
-              <span className="text-[9px] text-gray-400">(Dán ảnh tại đây)</span>
+              {member.avatarFileId ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/api/v1/files/${member.avatarFileId}?v=medium`} alt="" className="w-full h-full object-cover rounded" />
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mb-1">
+                    {member.avatarText}
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Ảnh 3×4</span>
+                  <span className="text-[9px] text-gray-400">(Dán ảnh tại đây)</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -251,7 +266,7 @@ export default function MemberCVModal({
               </div>
               <div className="flex sm:col-span-2">
                 <span className="w-32 font-bold text-gray-700 shrink-0">Các Bí tích đã lãnh:</span>
-                <span>{member.sacraments ? member.sacraments.join(" · ") : "Rửa tội · Thêm sức · Thánh thể"}</span>
+                <span>{member.sacraments?.length ? member.sacraments.join(" · ") : "---"}</span>
               </div>
             </div>
           </div>
@@ -361,7 +376,7 @@ export default function MemberCVModal({
                 <p className="font-bold text-gray-700">TRƯỞNG LƯU XÁ</p>
                 <p className="text-[10px] italic text-gray-400 mt-0.5">(Xác nhận &amp; Duyệt phòng)</p>
                 <div className="h-16 flex items-end justify-center font-bold text-gray-900 font-sans">
-                  Trần Văn Đức
+                  {houseHead?.fullName ?? ""}
                 </div>
               </div>
 
@@ -369,13 +384,13 @@ export default function MemberCVModal({
                 <p className="font-bold text-gray-700">LINH HƯỚNG / ĐỒNG HÀNH</p>
                 <p className="text-[10px] italic text-gray-400 mt-0.5">(Chứng nhận Tỉnh Dòng OFM)</p>
                 <div className="h-16 flex items-end justify-center font-bold text-gray-900 font-sans">
-                  Lm. Phanxicô Assisi
+                  {org.chaplainName || ""}
                 </div>
               </div>
             </div>
 
             <div className="text-right text-[10px] text-gray-400 border-t border-gray-100 pt-2 font-sans">
-              Hà Nội, ngày 02 tháng 10 năm 2026 · Mã hồ sơ: LX-PX-{member.id.padStart(3, "0")}
+              Hà Nội, ngày {String(today.getDate()).padStart(2, "0")} tháng {String(today.getMonth() + 1).padStart(2, "0")} năm {today.getFullYear()} · Mã hồ sơ: LX-PX-{String(member.memberNo ?? 0).padStart(4, "0")}
             </div>
           </div>
         </div>

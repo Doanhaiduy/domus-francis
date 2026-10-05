@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+// Font tự lưu trữ từ gói npm @fontsource (không tải từ Google Fonts lúc chạy hay lúc build)
+import "@fontsource/plus-jakarta-sans/vietnamese-400.css";
+import "@fontsource/plus-jakarta-sans/vietnamese-500.css";
+import "@fontsource/plus-jakarta-sans/vietnamese-600.css";
+import "@fontsource/plus-jakarta-sans/vietnamese-700.css";
+import "@fontsource/plus-jakarta-sans/vietnamese-800.css";
+import "@fontsource/plus-jakarta-sans/latin-400.css";
+import "@fontsource/plus-jakarta-sans/latin-500.css";
+import "@fontsource/plus-jakarta-sans/latin-600.css";
+import "@fontsource/plus-jakarta-sans/latin-700.css";
+import "@fontsource/plus-jakarta-sans/latin-800.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-600.css";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
+import { SessionProvider } from "@/lib/session";
 import { AppShell } from "@/components/AppShell";
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin", "vietnamese"],
-  variable: "--font-jakarta",
-  display: "swap",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Lưu Xá Phanxicô - Quản Lý Cộng Đoàn Sinh Viên",
@@ -27,16 +28,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${jakarta.variable} ${jetbrains.variable}`}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-      </head>
+    <html lang="vi">
       <body className="font-sans antialiased">
-        <AppProvider>
-          <AppShell>{children}</AppShell>
-        </AppProvider>
+        <SessionProvider>
+          <AppProvider>
+            <AppShell>{children}</AppShell>
+          </AppProvider>
+        </SessionProvider>
       </body>
     </html>
   );

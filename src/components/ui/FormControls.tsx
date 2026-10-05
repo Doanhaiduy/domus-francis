@@ -192,6 +192,7 @@ interface CustomToggleProps {
   onChange: (checked: boolean) => void;
   label?: string;
   description?: string;
+  disabled?: boolean;
 }
 
 export const CustomToggle: React.FC<CustomToggleProps> = ({
@@ -199,6 +200,7 @@ export const CustomToggle: React.FC<CustomToggleProps> = ({
   onChange,
   label,
   description,
+  disabled,
 }) => {
   return (
     <div className="flex items-center justify-between py-1">
@@ -211,9 +213,10 @@ export const CustomToggle: React.FC<CustomToggleProps> = ({
       <Switch
         checked={checked}
         onChange={onChange}
+        disabled={disabled}
         className={`${
           checked ? "bg-primary" : "bg-gray-200"
-        } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-200`}
+        } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-200`}
       >
         <span
           aria-hidden="true"
@@ -703,5 +706,5 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
   );
 };
 
-export { ImageUploadDropzone, MultiImageUploadDropzone } from "./ImageUploadDropzone";
-export type { ImageUploadDropzoneProps, MultiImageUploadDropzoneProps } from "./ImageUploadDropzone";
+export { ImageUploadDropzone, MultiImageUploadDropzone, previewUrl, uploadFile } from "./ImageUploadDropzone";
+export type { ImageUploadDropzoneProps, MultiImageUploadDropzoneProps, UploadBucket, UploadedFile } from "./ImageUploadDropzone";

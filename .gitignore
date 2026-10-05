@@ -76,3 +76,9 @@ ehthumbs.db
 [Dd]esktop.ini
 
 /docs
+# Local PostgreSQL (dev/test) + upload lưu trên máy
+.local/
+.next-test/
+.apply-backup/
+apply-changes.mjs
+/kiem-dinh

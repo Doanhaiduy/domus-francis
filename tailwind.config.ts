@@ -40,8 +40,8 @@ const config: Config = {
         "outline-variant": "#c9c4d8",
       },
       fontFamily: {
-        sans: ["var(--font-jakarta)", "sans-serif"],
-        mono: ["var(--font-jetbrains)", "monospace"],
+        sans: ["\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
+        mono: ["\"JetBrains Mono\"", "ui-monospace", "monospace"],
       },
       spacing: {
         "space-2xs": "0.25rem",

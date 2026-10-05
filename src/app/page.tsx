@@ -19,120 +19,87 @@ import {
   Building2,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
 import { formatVND } from "@/lib/utils";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import {
-  FinancialBarChart,
-  ExpenseDonutChart,
-  BarChartDataPoint,
-  DonutDataPoint,
-} from "@/components/ui/Charts";
+import { FinancialBarChart, ExpenseDonutChart, BarChartDataPoint, DonutDataPoint } from "@/components/ui/Charts";
+import { useDutySummary, useFinanceSummary, useLatestAnnouncements, useUnreadCount, useUpcomingEvents } from "@/lib/data/dashboard";
+import { useOrgSettings } from "@/lib/data/settings";
 
-const MONTHLY_FINANCIAL_DATA: BarChartDataPoint[] = [
-  { label: "T5", thu: 4200000, chi: 3850000 },
-  { label: "T6", thu: 4200000, chi: 4120000 },
-  { label: "T7", thu: 4200000, chi: 3600000 },
-  { label: "T8", thu: 4200000, chi: 3950000 },
-  { label: "T9", thu: 4200000, chi: 4400000 },
-  { label: "T10", thu: 3850000, chi: 2870000 },
-];
-
-const EXPENSE_CATEGORIES_DATA: DonutDataPoint[] = [
-  { label: "Thực phẩm & Bếp", value: 1870000, color: "#f59e0b" },
-  { label: "Điện, Nước & Net", value: 350000, color: "#3b82f6" },
-  { label: "Vệ sinh & Hóa phẩm", value: 240000, color: "#10b981" },
-  { label: "Phụng vụ & Lễ", value: 230000, color: "#8b5cf6" },
-  { label: "Sửa chữa & Vật tư", value: 180000, color: "#ef4444" },
-];
+const GREETING: Record<string, string> = {
+  house_head: "👑 — Chúc bạn một ngày phục vụ cộng đoàn đầy ân sủng!",
+  vice_head: "🧭 — Cảm ơn bạn đã đồng hành điều hành nhà hôm nay!",
+  treasurer: "💰 — Ngân quỹ minh bạch là niềm tin của cả nhà.",
+  admin: "🛡️ — Hệ thống quản trị đang sẵn sàng.",
+};
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" });
+const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+const relTime = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "vừa xong";
+  if (m < 60) return `${m} phút trước`;
+  if (m < 60 * 24) return `${Math.round(m / 60)} giờ trước`;
+  return new Date(iso).toLocaleDateString("vi-VN");
+};
 
 export default function HomePage() {
-  const {
-    fundBalance,
-    contributions,
-    expenses,
-    mealAttendance,
-    announcements,
-    issues,
-    cleaningDuties,
-    openModal,
-    currentRole,
-    isLoadingSkeleton,
-  } = useApp();
+  const { openModal, isLoadingSkeleton, members, rooms } = useApp();
+  const { session, can } = useSession();
+  const ready = !!session?.member;
+  const finance = useFinanceSummary(ready);
+  const duty = useDutySummary(ready);
+  const events = useUpcomingEvents(5, ready);
+  const announcements = useLatestAnnouncements(5, ready);
+  const unread = useUnreadCount(ready);
+  const { org } = useOrgSettings();
 
-  // Real-time clock
+  // Đồng hồ (giờ máy)
   const [currentTime, setCurrentTime] = useState("");
+  const [today, setToday] = useState("");
   useEffect(() => {
-    const updateTime = () => {
+    const update = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
+      setToday(now.toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }));
     };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
+    update();
+    const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Dynamic chart data from store
-  const dynamicChartData = useMemo((): BarChartDataPoint[] => {
-    const monthMap: Record<string, { thu: number; chi: number }> = {};
-    // Parse expense dates (format: DD/MM/YYYY)
-    expenses.forEach(e => {
-      const parts = e.date.split("/");
-      const month = parts.length === 3 ? `T${parseInt(parts[1])}` : "T10";
-      if (!monthMap[month]) monthMap[month] = { thu: 0, chi: 0 };
-      monthMap[month].chi += e.amount;
-    });
-    // Add contributions
-    contributions.filter(c => c.status === "Đã đóng").forEach(c => {
-      const key = "T10";
-      if (!monthMap[key]) monthMap[key] = { thu: 0, chi: 0 };
-      monthMap[key].thu += c.amount;
-    });
-    const keys = Object.keys(monthMap).sort();
-    if (keys.length >= 2) {
-      return keys.map(label => ({ label, ...monthMap[label] }));
-    }
-    return MONTHLY_FINANCIAL_DATA;
-  }, [contributions, expenses]);
-
-  // Dynamic donut data from expenses
-  const dynamicDonutData = useMemo((): DonutDataPoint[] => {
-    const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#ec4899", "#06b6d4"];
-    const catMap: Record<string, number> = {};
-    expenses.forEach(e => {
-      const cat = e.category || "Khác";
-      catMap[cat] = (catMap[cat] || 0) + e.amount;
-    });
-    const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 7);
-    if (entries.length >= 2) {
-      return entries.map(([label, value], i) => ({ label, value, color: colors[i % colors.length] }));
-    }
-    return EXPENSE_CATEGORIES_DATA;
-  }, [expenses]);
-
-  // Recent expenses for activity feed
-  const recentExpenses = useMemo(() => {
-    return [...expenses]
-      .sort((a, b) => {
-        // Parse DD/MM/YYYY
-        const parseDate = (s: string) => {
-          const p = s.split("/");
-          return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime() : 0;
-        };
-        return parseDate(b.date) - parseDate(a.date);
-      })
-      .slice(0, 4);
-  }, [expenses]);
+  const chartData = useMemo(
+    (): BarChartDataPoint[] => (finance?.last6Months ?? []).map((m) => ({ label: m.label, thu: m.incomeVnd, chi: m.expenseVnd })),
+    [finance]
+  );
+  const donutData = useMemo(
+    (): DonutDataPoint[] => (finance?.expenseByCategory ?? []).filter((c) => c.amountVnd > 0).map((c) => ({ label: c.name, value: c.amountVnd, color: c.color })),
+    [finance]
+  );
+  const total6 = useMemo(
+    () => (finance?.last6Months ?? []).reduce((a, m) => ({ thu: a.thu + m.incomeVnd, chi: a.chi + m.expenseVnd }), { thu: 0, chi: 0 }),
+    [finance]
+  );
 
   if (isLoadingSkeleton) {
     return <DashboardSkeleton />;
   }
 
-  const unpaidCount = contributions.filter((c) => c.status === "Chưa đóng").length;
-  const eatingLunchCount = Object.values(mealAttendance).filter((m) => m.lunch).length;
-  const unreadCount = announcements.filter((a) => a.isUnread).length;
-  const pendingIssues = issues.filter((i) => i.status !== "Đã xong").length;
-  const todayDuties = cleaningDuties.filter((d) => d.dayOfWeek === "Thứ Sáu" || d.dateStr === "02/10/2026");
-  const doneDutiesCount = todayDuties.filter((d) => d.status === "approved" || d.status === "submitted").length;
+  const contrib = finance?.contributions ?? null;
+  const unpaidCount = contrib ? contrib.totalCount - contrib.paidCount : null;
+  const todayDuties = duty?.today ?? [];
+  const doneDutiesCount = todayDuties.filter((d) => d.status === "approved" || d.status === "submitted" || d.status === "checked_in").length;
+  const myDutyToday = todayDuties.find((d) => session?.member && d.members.includes(session.member.displayName));
+  const firstDuty = myDutyToday ?? todayDuties[0];
+  const bedTotal = rooms.filter((r) => r.type === "bedroom").reduce((a, r) => a + r.capacity, 0);
+  const housed = members.filter((m) => rooms.some((r) => r.id === m.room && r.type === "bedroom")).length;
+  const name = session?.member?.displayName ?? "";
+  const greeting = `Chào ${session?.roleLabel && session.primaryRole !== "member" ? session.roleLabel + " " : "bạn "}${name} ${GREETING[session?.primaryRole ?? ""] ?? "👋 — Chúc bạn một ngày học tập nhiều niềm vui và bình an!"}`;
+
+  // Dòng hoạt động: thông báo mới + sự kiện sắp tới (sắp theo thời gian)
+  const feed = [
+    ...(announcements ?? []).map((a) => ({ key: `a-${a.id}`, icon: "📢", href: "/thong-bao", title: a.title, meta: `${a.author ?? ""}${a.authorRole ? ` (${a.authorRole})` : ""} · ${relTime(a.createdAt)}`, tag: a.category, unread: a.isUnread, at: a.createdAt })),
+    ...(events ?? []).map((e) => ({ key: `e-${e.id}`, icon: "📅", href: "/lich-su-kien", title: e.title, meta: `${fmtDate(e.startsAt)} · ${fmtTime(e.startsAt)}${e.location ? ` · ${e.location}` : ""}`, tag: e.category ?? undefined, unread: false, at: e.startsAt })),
+  ].slice(0, 7);
 
   return (
     <div className="flex flex-col w-full gap-6">
@@ -150,13 +117,8 @@ export default function HomePage() {
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {currentRole === "Trưởng nhà"
-              ? "Chào Trưởng nhà Văn Đức 👑 — Chúc bạn một ngày phục vụ cộng đoàn đầy ân sủng!"
-              : currentRole === "Thủ quỹ"
-              ? "Chào Thủ quỹ Gia Bảo 💰 — Ngân quỹ minh bạch, đang có 1 khoản chi chờ đối soát."
-              : currentRole === "Admin"
-              ? "Chào Admin Quốc Việt 🛡️ — Toàn bộ hệ thống quản trị đang sẵn sàng."
-              : "Chào bạn 👋 — Chúc bạn một ngày học tập nhiều niềm vui và bình an!"}
+            {greeting}
+            {can("finance.expense.approve") && finance?.pendingApprovals ? ` Có ${finance.pendingApprovals} phiếu chi chờ duyệt.` : ""}
           </p>
         </div>
 
@@ -168,7 +130,7 @@ export default function HomePage() {
           <div className="w-px h-3.5 bg-gray-200" />
           <div className="flex items-center gap-1.5 text-xs text-gray-600">
             <Sun className="w-4 h-4 text-amber-500" />
-            <span>26°C · Bình an</span>
+            <span className="capitalize">{today || "—"}</span>
           </div>
         </div>
       </div>
@@ -189,23 +151,22 @@ export default function HomePage() {
               </span>
             </div>
             <div className="mt-4">
-              <span className="text-xs text-gray-500 font-medium block">Phân công nhiệm vụ</span>
-              <div className="text-xl font-bold text-gray-900 tracking-tight mt-0.5">
-                Trực: Tuấn &amp; Khôi
+              <span className="text-xs text-gray-500 font-medium block">{myDutyToday ? "Ca trực của bạn hôm nay" : "Phân công nhiệm vụ"}</span>
+              <div className="text-xl font-bold text-gray-900 tracking-tight mt-0.5 truncate">
+                {firstDuty ? `Trực: ${firstDuty.members.join(" & ") || "—"}` : duty ? "Hôm nay không có ca trực" : "—"}
               </div>
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
-            <span className="text-xs text-gray-600 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Trực cửa · Đình Khôi nấu ăn
+            <span className="text-xs text-gray-600 flex items-center gap-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+              {firstDuty ? `${firstDuty.area} · ${firstDuty.shift}` : "Xem lịch phân công tuần"}
             </span>
-            <button
-              onClick={() => openModal("swapDuty")}
-              className="text-[11px] font-bold text-primary hover:underline"
-            >
-              Đổi ca
-            </button>
+            {can("duty.swap.request") && duty?.myNext && (
+              <button onClick={() => openModal("swapDuty")} className="text-[11px] font-bold text-primary hover:underline">
+                Đổi ca
+              </button>
+            )}
           </div>
         </div>
 
@@ -220,21 +181,24 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-secondary shadow-xs">
                 <Wallet className="w-5 h-5" />
               </div>
-              <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/50 px-2 py-0.5 rounded-md flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5" />
-                +12.5%
-              </span>
+              {finance?.month && (
+                <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  {finance.month.label}: {finance.month.incomeVnd - finance.month.expenseVnd >= 0 ? "+" : "−"}
+                  {formatVND(Math.abs(finance.month.incomeVnd - finance.month.expenseVnd))}
+                </span>
+              )}
             </div>
             <div className="mt-4">
               <span className="text-xs text-gray-500 font-medium block">Quỹ hiện tại</span>
               <div className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5">
-                {formatVND(fundBalance)}
+                {finance?.fundBalanceVnd != null ? formatVND(finance.fundBalanceVnd) : "—"}
               </div>
             </div>
           </div>
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
             <span className="text-xs text-secondary font-semibold">
-              Còn {unpaidCount} bạn chưa đóng T10
+              {contrib ? (unpaidCount ? `Còn ${unpaidCount} bạn chưa đóng ${contrib.periodLabel}` : `Đã thu đủ ${contrib.periodLabel}`) : "Xem sổ quỹ"}
             </span>
             <svg className="w-16 h-5 text-primary" fill="none" viewBox="0 0 64 20">
               <path d="M1 16L13 13L24 15L35 8L46 11L55 4L63 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -267,9 +231,9 @@ export default function HomePage() {
           <div className="mt-4 pt-2.5 flex items-center justify-between bg-surface-container-low/70 -mx-5 -mb-5 px-5 py-2.5 rounded-b-2xl">
             <span className="text-xs text-gray-600 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              Đã nghiệm thu ca sáng
+              {duty ? `${duty.pendingReviewsCount} ca chờ nghiệm thu` : "—"}
             </span>
-            <span className="text-xs text-primary font-bold">Check-in ngay →</span>
+            <span className="text-xs text-primary font-bold">{myDutyToday ? "Check-in ngay →" : "Xem lịch trực →"}</span>
           </div>
         </Link>
 
@@ -280,7 +244,7 @@ export default function HomePage() {
         {/* Left: 6-Month Cashflow Bar Chart */}
         <div className="lg:col-span-7 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
           <FinancialBarChart
-            data={dynamicChartData}
+            data={chartData}
             height={220}
             title="Biểu Đồ Thu - Chi Quỹ Lưu Xá (6 Tháng)"
             subtitle="So sánh tiền đóng quỹ hàng tháng và chi tiêu thực tế"
@@ -288,11 +252,11 @@ export default function HomePage() {
           <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Tổng thu 6T: <b className="text-gray-900 font-mono">24.850.000đ</b>
+              Tổng thu 6T: <b className="text-gray-900 font-mono">{formatVND(total6.thu)}</b>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-purple-600" />
-              Tổng chi 6T: <b className="text-gray-900 font-mono">22.790.000đ</b>
+              Tổng chi 6T: <b className="text-gray-900 font-mono">{formatVND(total6.chi)}</b>
             </span>
             <Link href="/thu-chi" className="text-primary font-bold hover:underline">
               Xem sổ quỹ →
@@ -303,16 +267,16 @@ export default function HomePage() {
         {/* Right: Expense Breakdown Donut Chart */}
         <div className="lg:col-span-5 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
           <ExpenseDonutChart
-            data={dynamicDonutData}
+            data={donutData}
             size={160}
-            title="Cơ Cấu Chi Tiêu Tháng 10"
+            title={`Cơ Cấu Chi Tiêu ${finance?.month?.label ?? "Tháng Này"}`}
             subtitle="Phân bổ hạng mục chi phí cộng đoàn"
           />
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500">Đã giải ngân: <b className="text-gray-900">2.870.000đ</b></span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-              Trong định mức an toàn
-            </span>
+            <span className="text-gray-500">Đã chi trong tháng: <b className="text-gray-900">{finance?.month ? formatVND(finance.month.expenseVnd) : "—"}</b></span>
+            <Link href="/thu-chi" className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+              Chi tiết sổ quỹ
+            </Link>
           </div>
         </div>
       </div>
@@ -363,7 +327,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Thu Chi
                   </h3>
-                  <p className="text-xs text-rose-600 font-semibold">Còn {unpaidCount} bạn chưa đóng</p>
+                  <p className="text-xs text-rose-600 font-semibold">{unpaidCount != null ? `Còn ${unpaidCount} bạn chưa đóng` : "Sổ quỹ minh bạch"}</p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -380,9 +344,11 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
-                    Lịch Trực Nhà
+                    Lịch &amp; Sự Kiện
                   </h3>
-                  <p className="text-xs text-gray-500">Hôm nay: Trực cửa &amp; Bếp</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {events?.[0] ? `Sắp tới: ${events[0].title}` : "Chưa có sự kiện sắp tới"}
+                  </p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -401,7 +367,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Báo Hỏng
                   </h3>
-                  <p className="text-xs text-orange-600 font-semibold">{pendingIssues} sự cố đang xử lý</p>
+                  <p className="text-xs text-orange-600 font-semibold">{duty ? `${duty.openIssuesCount} sự cố đang xử lý` : "Báo hỏng thiết bị"}</p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -420,7 +386,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Giờ Kinh Tối
                   </h3>
-                  <p className="text-xs text-gray-500">20:30 tối nay · Nguyện đường</p>
+                  <p className="text-xs text-gray-500">{org.nightPrayerTime ? `${org.nightPrayerTime} tối nay · Nguyện đường` : "Lịch phụng vụ & ý chỉ cầu nguyện"}</p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -439,7 +405,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors">
                     Bảng Tin
                   </h3>
-                  <p className="text-xs text-rose-600 font-semibold">{unreadCount} thông báo mới</p>
+                  <p className="text-xs text-rose-600 font-semibold">{unread ? `${unread.announcementsUnread} thông báo mới` : "Bảng tin cộng đoàn"}</p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
@@ -447,17 +413,23 @@ export default function HomePage() {
 
           </div>
 
-          {/* Quick Presence Status */}
+          {/* Sĩ số & chỗ ở (dữ liệu thật) */}
           <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-center justify-between text-xs text-gray-700">
-            <div className="flex items-center gap-2">
+            <Link href="/so-do-nha" className="flex items-center gap-2 hover:text-primary">
               <Building2 className="w-4 h-4 text-primary shrink-0" />
-              <span>Hiện diện phòng sinh hoạt: <b>Khu A: 100% · Khu B: 85% có mặt</b></span>
-            </div>
+              <span>
+                Sĩ số: <b>{members.length} thành viên</b> · Chỗ ở: <b>{housed}/{bedTotal}</b> giường
+              </span>
+            </Link>
             <div className="flex -space-x-1.5">
-              <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white">T</div>
-              <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white">K</div>
-              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white">H</div>
-              <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-[9px] font-bold ring-2 ring-white">+9</div>
+              {members.slice(0, 3).map((m) => (
+                <div key={m.id} className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white" title={m.fullName}>
+                  {m.avatarText}
+                </div>
+              ))}
+              {members.length > 3 && (
+                <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-[9px] font-bold ring-2 ring-white">+{members.length - 3}</div>
+              )}
             </div>
           </div>
         </div>
@@ -473,30 +445,21 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-3.5">
-            {recentExpenses.length > 0 ? (
-              recentExpenses.map((exp) => (
-                <div key={exp.id} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                    💳
-                  </div>
+            {feed.length > 0 ? (
+              feed.map((f) => (
+                <Link key={f.key} href={f.href} className="flex items-start gap-3 group">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xs shrink-0 mt-0.5">{f.icon}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-900 line-clamp-1">
-                      <b>{exp.paidBy}</b> đã chi: {exp.name}
-                    </p>
+                    <p className={`text-xs line-clamp-1 group-hover:text-primary ${f.unread ? "font-bold text-gray-900" : "text-gray-900"}`}>{f.title}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] font-semibold text-rose-600">
-                        -{formatVND(exp.amount)}
-                      </span>
-                      <span className="text-[11px] text-gray-400">· {exp.date}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 bg-gray-100 text-gray-600 rounded">
-                        {exp.category}
-                      </span>
+                      <span className="text-[11px] text-gray-400 truncate">{f.meta}</span>
+                      {f.tag && <span className="text-[10px] px-1.5 bg-gray-100 text-gray-600 rounded shrink-0">{f.tag}</span>}
                     </div>
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
-              <p className="text-xs text-gray-500 py-3 text-center">Chưa có chi tiêu gần đây</p>
+              <p className="text-xs text-gray-500 py-3 text-center">Chưa có hoạt động mới</p>
             )}
           </div>
 
@@ -510,41 +473,34 @@ export default function HomePage() {
 
       </div>
 
-      {/* BOTTOM REMINDER BANNER */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-purple-100/60 border border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-bold shrink-0 shadow-sm shadow-purple-300">
-            🔔
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-gray-900">Lịch trực ngày mai của bạn!</span>
-              <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-extrabold rounded-md">
-                Nhắc nhở
-              </span>
+      {/* NHẮC CA TRỰC SẮP TỚI CỦA BẠN */}
+      {duty?.myNext && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-purple-100/60 border border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-bold shrink-0 shadow-sm shadow-purple-300">🔔</div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-gray-900">Ca trực sắp tới của bạn</span>
+                <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-extrabold rounded-md">Nhắc nhở</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-0.5">
+                <b>{duty.myNext.area}</b> · {duty.myNext.shift} · {new Date(duty.myNext.date + "T00:00:00").toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit" })}
+              </p>
             </div>
-            <p className="text-xs text-gray-600 mt-0.5">
-              Bạn có lịch <b>trực bếp vào ngày mai (Thứ Sáu, 2/10)</b>. Hãy chuẩn bị thực đơn cùng nhóm trước 21:00 tối nay nhé!
-            </p>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            {can("duty.swap.request") && (
+              <button onClick={() => openModal("swapDuty")} className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 transition">
+                Báo đổi ca
+              </button>
+            )}
+            <Link href="/hau-can" className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-xs font-bold text-white transition shadow-sm shadow-purple-200 flex items-center gap-1">
+              <span>Xem phân công</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          <button
-            onClick={() => openModal("swapDuty")}
-            className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 transition"
-          >
-            Báo đổi ca
-          </button>
-          <Link
-            href="/lich-su-kien"
-            className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-xs font-bold text-white transition shadow-sm shadow-purple-200 flex items-center gap-1"
-          >
-            <span>Xem phân công</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
+      )}
 
     </div>
   );

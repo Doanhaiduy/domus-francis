@@ -24,17 +24,19 @@ import {
   LogOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Menu, Transition } from "@headlessui/react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
+import { fileUrl } from "@/lib/api";
+import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
 
 export const NAV_ITEMS = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
   { href: "/thong-bao", label: "Thông báo", icon: Bell, badgeKey: "announcements" },
   { href: "/lich-su-kien", label: "Lịch & Sự kiện", icon: Calendar },
   { href: "/thu-chi", label: "Thu Chi", icon: Wallet },
-  { href: "/bep-com", label: "Bếp & Cơm", icon: UtensilsCrossed, isPaused: true },
+  { href: "/bep-com", label: "Bếp & Cơm", icon: UtensilsCrossed, isPaused: false },
   { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench, badgeDot: true },
   { href: "/phung-vu", label: "Phụng Vụ", icon: Church },
   { href: "/dien-dan", label: "Diễn Đàn", icon: MessagesSquare, isNew: true },
@@ -50,26 +52,27 @@ export const Sidebar: React.FC = () => {
   const router = useRouter();
   const {
     currentRole,
-    setCurrentRole,
-    announcements,
-    issues,
+    openModal,
     mobileMenuOpen,
     setMobileMenuOpen,
   } = useApp();
+  const { session, logout } = useSession();
 
-  const handleSignOut = async () => {
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn("Sign out error", err);
-    }
-    router.push("/dang-nhap");
-    router.refresh();
-  };
+  const displayName = session?.member?.displayName ?? session?.user.email ?? "…";
+  const initials = (session?.member?.displayName ?? "?")
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const avatar = fileUrl(session?.member?.avatarFileId, "thumb");
+  const handleSignOut = () => logout();
 
-  const unreadAnnCount = announcements.filter((a) => a.isUnread).length;
-  const pendingIssuesCount = issues.filter((i) => i.status !== "Đã xong").length;
+  // Huy hiệu từ dữ liệu thật: thông báo chưa đọc của chính mình, sự cố còn mở
+  const unread = useUnreadCount(!!session?.member);
+  const duty = useDutySummary(!!session?.member);
+  const unreadAnnCount = unread?.announcementsUnread ?? 0;
+  const pendingIssuesCount = duty?.openIssuesCount ?? 0;
 
   const NavContent = (
     <div className="flex flex-col h-full justify-between">
@@ -162,12 +165,20 @@ export const Sidebar: React.FC = () => {
         <Menu as="div" className="relative">
           <Menu.Button className="w-full flex items-center justify-between p-2.5 rounded-2xl bg-surface-container-low border border-purple-50 shadow-xs hover:border-purple-200 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-purple-200">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
-                MT
-              </div>
+              {avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shadow-xs shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
+                  {initials}
+                </div>
+              )}
               <div className="flex flex-col text-left min-w-0">
-                <span className="font-bold text-xs text-gray-900 leading-tight truncate">Minh Tuấn</span>
-                <span className="text-[11px] text-purple-700 font-semibold truncate mt-0.5">{currentRole}</span>
+                <span className="font-bold text-xs text-gray-900 leading-tight truncate">{displayName}</span>
+                <span className="text-[11px] text-purple-700 font-semibold truncate mt-0.5">
+                  {currentRole}
+                  {session?.member?.roomCode ? ` · ${session.member.roomCode}` : ""}
+                </span>
               </div>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
@@ -183,27 +194,27 @@ export const Sidebar: React.FC = () => {
             leaveTo="transform opacity-0 scale-95"
           >
             <Menu.Items className="absolute bottom-full left-0 mb-2 w-full origin-bottom-left rounded-2xl bg-white p-1.5 shadow-xl ring-1 ring-black/5 border border-purple-50 focus:outline-none z-50">
-              <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Chuyển vai trò thử nghiệm
+              <div className="px-2.5 py-1.5 text-[11px] text-gray-500 leading-snug">
+                Đăng nhập: <b className="text-gray-800">{session?.user.email}</b>
+                {session && session.roles.length > 1 && (
+                  <div className="mt-0.5 text-[10px] text-gray-400">Vai trò: {session.roleLabel} + {session.roles.length - 1} vai trò khác</div>
+                )}
               </div>
-              {["Trưởng nhà", "Thủ quỹ", "Thành viên", "Admin"].map((role) => (
-                <Menu.Item key={role}>
-                  {({ active }) => (
-                    <button
-                      type="button"
-                      onClick={() => setCurrentRole(role)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors text-left",
-                        active ? "bg-purple-50 text-primary" : "text-gray-700",
-                        currentRole === role && "font-bold text-primary bg-purple-50/50"
-                      )}
-                    >
-                      <span>{role}</span>
-                      {currentRole === role && <Check className="w-3.5 h-3.5 text-primary" />}
-                    </button>
-                  )}
-                </Menu.Item>
-              ))}
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    type="button"
+                    onClick={() => openModal("changePassword")}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors text-left",
+                      active ? "bg-purple-50 text-primary" : "text-gray-700"
+                    )}
+                  >
+                    <Check className="w-3.5 h-3.5 shrink-0" />
+                    <span>Đổi mật khẩu</span>
+                  </button>
+                )}
+              </Menu.Item>
 
               <div className="my-1 border-t border-gray-100" />
 

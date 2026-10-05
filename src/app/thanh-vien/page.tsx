@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
   LayoutGrid,
@@ -19,16 +19,34 @@ import {
   Search,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { Member } from "@/lib/mockData";
+import { useSession } from "@/lib/session";
+import type { Member } from "@/lib/types/members";
+import { useMembers, useMemberDetail, useApplications } from "@/lib/data/members";
+import ApplicationsPanel from "@/components/members/ApplicationsPanel";
+import MemberAdminPanel from "@/components/members/MemberAdminPanel";
+import EditMemberModal from "@/components/members/EditMemberModal";
+import MemberContributionHistory from "@/components/members/MemberContributionHistory";
 import ThanhVienLoading from "./loading";
 import MemberCVModal from "@/components/MemberCVModal";
 import { formatMemberCVForZalo, copyTextToClipboard } from "@/lib/zaloShare";
 
 export default function ThanhVienPage() {
-  const { members, currentRole, setCurrentRole, showToast, openModal, isLoadingSkeleton } = useApp();
+  const { members: activeMembers, rooms, floors, showToast, openModal, isLoadingSkeleton } = useApp();
+  const { can } = useSession();
+  const [tab, setTab] = useState<"directory" | "applications" | "former">("directory");
+  const { members: allMembers } = useMembers({ includeFormer: tab === "former" });
+  const members = tab === "former" ? allMembers.filter((m) => m.status === "alumni" || m.status === "left") : activeMembers;
+  const canReview = can("application.review");
+  const { applications } = useApplications(canReview);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedMemberId, setSelectedMemberId] = useState<string>("1");
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  // Mở thẳng hồ sơ từ Tìm kiếm nhanh (/thanh-vien?member=<id>)
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("member");
+    if (id) setSelectedMemberId(id);
+  }, []);
   const [roomFilter, setRoomFilter] = useState<string>("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -57,13 +75,17 @@ export default function ThanhVienPage() {
     return <ThanhVienLoading />;
   }
 
+  // Lọc theo tầng dựa trên phòng thực tế (rooms.floor), không suy từ tiền tố mã phòng
+  const roomFloor: Record<string, number> = Object.fromEntries(rooms.map((r) => [r.id, r.floor]));
+  const totalBeds = rooms.filter((r) => r.type === "bedroom").reduce((sum, r) => sum + r.capacity, 0);
+  const bedroomCodes = rooms.filter((r) => r.type === "bedroom").map((r) => r.id);
+  const occupied = activeMembers.filter((m) => bedroomCodes.includes(m.room)).length;
+  const leaders = activeMembers.filter((m) => ["Trưởng nhà", "Phó nhà", "Thủ quỹ"].includes(m.role));
   const filteredMembers = members
     .filter((m) => {
       if (roomFilter === "Tất cả") return true;
-      if (roomFilter === "Tầng 1") return m.room.startsWith("P.1");
-      if (roomFilter === "Tầng 2") return m.room.startsWith("P.2");
-      if (roomFilter === "Tầng 3") return m.room.startsWith("P.3");
-      return true;
+      const fl = floors.find((f) => `Tầng ${f.id}` === roomFilter);
+      return fl ? roomFloor[m.room] === fl.id : true;
     })
     .filter(
       (m) =>
@@ -86,11 +108,11 @@ export default function ThanhVienPage() {
               Thành Viên Lưu Xá
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
-              12 Sinh Viên
+              {activeMembers.length} Sinh Viên
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Danh bạ 12 anh em sinh viên Lưu Xá Phanxicô · Niên khóa 2026 – 2027
+            Danh bạ {activeMembers.length} anh em sinh viên Lưu Xá Phanxicô
           </p>
         </div>
 
@@ -117,13 +139,15 @@ export default function ThanhVienPage() {
             </button>
           </div>
 
-          <button
-            onClick={() => openModal("addMember")}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md shadow-primary/20 transition active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm thành viên</span>
-          </button>
+          {can("member.create") && (
+            <button
+              onClick={() => openModal("addMember")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-white font-bold text-xs shadow-md shadow-primary/20 transition active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Thêm thành viên</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -133,9 +157,11 @@ export default function ThanhVienPage() {
           <div>
             <span className="text-xs text-gray-500 font-medium">Sĩ số hiện tại</span>
             <div className="text-2xl font-extrabold text-gray-900 mt-1">
-              12 <span className="text-sm font-semibold text-gray-400">thành viên</span>
+              {activeMembers.length} <span className="text-sm font-semibold text-gray-400">thành viên</span>
             </div>
-            <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">12/14 chỗ ở (P.1 – P.5)</span>
+            <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">
+              {occupied}/{totalBeds} chỗ ở ({bedroomCodes.join(", ")})
+            </span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-purple-100 text-primary flex items-center justify-center font-bold">
             🏠
@@ -146,9 +172,11 @@ export default function ThanhVienPage() {
           <div>
             <span className="text-xs text-gray-500 font-medium">Ban Đại Diện</span>
             <div className="text-2xl font-extrabold text-gray-900 mt-1">
-              03 <span className="text-sm font-semibold text-gray-400">anh em</span>
+              {String(leaders.length).padStart(2, "0")} <span className="text-sm font-semibold text-gray-400">anh em</span>
             </div>
-            <span className="text-[11px] text-purple-700 font-bold mt-1 inline-block">Trưởng nhà, Phó nhà &amp; Thủ quỹ</span>
+            <span className="text-[11px] text-purple-700 font-bold mt-1 inline-block truncate max-w-[220px]">
+              {leaders.map((m) => `${m.name} (${m.role})`).join(" · ") || "Chưa phân công"}
+            </span>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-secondary flex items-center justify-center font-bold">
             ⭐
@@ -193,6 +221,27 @@ export default function ThanhVienPage() {
         </div>
       </div>
 
+      {/* TABS */}
+      <div className="flex items-center gap-2 border-b border-gray-100">
+        {[
+          { k: "directory" as const, label: "Danh bạ" },
+          ...(canReview ? [{ k: "applications" as const, label: `Đơn chờ duyệt${applications.length ? ` (${applications.length})` : ""}` }] : []),
+          { k: "former" as const, label: "Cựu thành viên" },
+        ].map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            className={`px-4 py-2 text-xs font-bold border-b-2 -mb-px transition ${tab === t.k ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "applications" ? (
+        <ApplicationsPanel />
+      ) : (
+      <>
       {/* FILTER CONTROLS & SEARCH */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative">
@@ -207,7 +256,7 @@ export default function ThanhVienPage() {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {["Tất cả", "Tầng 1", "Tầng 2", "Tầng 3"].map((flt) => (
+          {["Tất cả", ...floors.map((f) => `Tầng ${f.id}`)].map((flt) => (
             <button
               key={flt}
               onClick={() => setRoomFilter(flt)}
@@ -264,12 +313,17 @@ export default function ThanhVienPage() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs">
-                          {m.avatarText}
-                        </div>
+                        {m.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.avatarUrl} alt="" className="w-11 h-11 rounded-2xl object-cover shadow-xs" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                            {m.avatarText}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <h3 className="text-xs font-bold text-gray-900 truncate">{m.fullName}</h3>
-                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{m.phone}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{m.phone || (m.hidePhone ? "SĐT đã ẩn" : "—")}</p>
                         </div>
                       </div>
                     </div>
@@ -358,108 +412,17 @@ export default function ThanhVienPage() {
 
         {/* MEMBER DETAIL VIEW (4 COLS) */}
         {selectedMember && (
-          <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
-            <div className="flex flex-col items-center text-center pb-4 border-b border-gray-100">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white font-extrabold text-xl flex items-center justify-center shadow-md shadow-purple-200 mb-3">
-                {selectedMember.avatarText}
-              </div>
-              <h2 className="text-base font-bold text-gray-900">{selectedMember.fullName}</h2>
-              {selectedMember.holyName && (
-                <span className="text-xs font-semibold text-primary mt-0.5">
-                  Tên Thánh: {selectedMember.holyName}
-                </span>
-              )}
-              <span className="mt-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
-                {selectedMember.role}
-              </span>
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                <span className="text-gray-400 flex items-center gap-1.5"><Home className="w-3.5 h-3.5" /> Phòng ở</span>
-                <span className="font-bold text-gray-900">{selectedMember.room}</span>
-              </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                <span className="text-gray-400 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Điện thoại</span>
-                <span className="font-bold text-gray-900 font-mono">{selectedMember.phone}</span>
-              </div>
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                <span className="text-gray-400 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Gia nhập</span>
-                <span className="font-bold text-gray-900">{selectedMember.joined}</span>
-              </div>
-              {selectedMember.hometown && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                  <span className="text-gray-400 flex items-center gap-1.5">🏡 Quê quán</span>
-                  <span className="font-medium text-gray-800 text-right truncate max-w-[170px]">{selectedMember.hometown}</span>
-                </div>
-              )}
-              {selectedMember.university && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                  <span className="text-gray-400 flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> Đại học</span>
-                  <span className="font-medium text-gray-800 text-right truncate max-w-[170px]">{selectedMember.university}</span>
-                </div>
-              )}
-              {selectedMember.parentPhone && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70">
-                  <span className="text-gray-400 flex items-center gap-1.5">🆘 SĐT Khẩn cấp</span>
-                  <span className="font-mono font-bold text-rose-700">{selectedMember.parentPhone}</span>
-                </div>
-              )}
-            </div>
-
-            {/* CONTRIBUTION HISTORY */}
-            <div className="pt-2">
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
-                Lịch sử đóng quỹ 3 tháng gần nhất
-              </span>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 text-emerald-900 font-medium">
-                  <span>Tháng 10 / 2026</span>
-                  <span className="font-bold">350.000đ ✓ Đã đóng</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 text-emerald-900 font-medium">
-                  <span>Tháng 09 / 2026</span>
-                  <span className="font-bold">350.000đ ✓ Đã đóng</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 text-emerald-900 font-medium">
-                  <span>Tháng 08 / 2026</span>
-                  <span className="font-bold">350.000đ ✓ Đã đóng</span>
-                </div>
-              </div>
-            </div>
-
-            {/* CV & EXPORT ACTIONS */}
-            <div className="pt-2 flex flex-col gap-2">
-              <button
-                onClick={() => handleOpenCV(selectedMember)}
-                className="w-full py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white text-xs font-bold shadow-md shadow-primary/20 transition flex items-center justify-center gap-2 active:scale-95"
-              >
-                <FileDown className="w-4 h-4" />
-                <span>Xem &amp; Tải Sơ Yếu Lý Lịch (PDF)</span>
-              </button>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleCopyZalo(selectedMember)}
-                  className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition flex items-center justify-center gap-1.5"
-                >
-                  <Copy className="w-3.5 h-3.5 text-primary" />
-                  <span>Copy Zalo</span>
-                </button>
-                <a
-                  href={`tel:${selectedMember?.phone || ''}`}
-                  className="py-2 px-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone className="w-4 h-4" />
-                  Gọi điện
-                </a>
-              </div>
-            </div>
-          </div>
+          <SelectedDetail member={selectedMember} onOpenCV={handleOpenCV} onCopyZalo={handleCopyZalo} onEdit={() => setEditId(selectedMember.id)} />
+        )}
+        {filteredMembers.length === 0 && (
+          <div className="lg:col-span-12 text-center text-sm text-gray-400 py-10">Không có thành viên phù hợp.</div>
         )}
 
       </div>
+      </>
+      )}
+
+      <EditMemberModal memberId={editId} onClose={() => setEditId(null)} />
 
       {/* MEMBER CV MODAL */}
       <MemberCVModal
@@ -468,6 +431,95 @@ export default function ThanhVienPage() {
         onClose={() => setIsCvModalOpen(false)}
       />
 
+    </div>
+  );
+}
+
+function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Member; onOpenCV: (m: Member) => void; onCopyZalo: (m: Member) => void; onEdit: () => void }) {
+  const { member: detail } = useMemberDetail(member.id);
+  const { session, can } = useSession();
+  const m: Member = detail ? { ...member, ...detail } : member;
+  const row = "flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low/70";
+  return (
+    <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+      <div className="flex flex-col items-center text-center pb-4 border-b border-gray-100">
+        {m.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={m.avatarUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shadow-md mb-3" />
+        ) : (
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white font-extrabold text-xl flex items-center justify-center shadow-md shadow-purple-200 mb-3">
+            {m.avatarText}
+          </div>
+        )}
+        <h2 className="text-base font-bold text-gray-900">{m.fullName}</h2>
+        {m.holyName && <span className="text-xs font-semibold text-primary mt-0.5">Tên Thánh: {m.holyName}</span>}
+        <span className="mt-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">{m.role}</span>
+        {m.duty && <span className="mt-1 text-[11px] text-gray-500">{m.duty}</span>}
+      </div>
+
+      <div className="space-y-2.5 text-xs">
+        <div className={row}>
+          <span className="text-gray-400 flex items-center gap-1.5"><Home className="w-3.5 h-3.5" /> Phòng ở</span>
+          <span className="font-bold text-gray-900">{m.room}</span>
+        </div>
+        <div className={row}>
+          <span className="text-gray-400 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Điện thoại</span>
+          <span className="font-bold text-gray-900 font-mono">{m.phone || (m.hidePhone ? "Đã ẩn" : "—")}</span>
+        </div>
+        <div className={row}>
+          <span className="text-gray-400 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Gia nhập</span>
+          <span className="font-bold text-gray-900">{m.joined}</span>
+        </div>
+        {m.hometown && (
+          <div className={row}>
+            <span className="text-gray-400 flex items-center gap-1.5">🏡 Quê quán</span>
+            <span className="font-medium text-gray-800 text-right truncate max-w-[170px]">{m.hometown}</span>
+          </div>
+        )}
+        {m.university && (
+          <div className={row}>
+            <span className="text-gray-400 flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> Đại học</span>
+            <span className="font-medium text-gray-800 text-right truncate max-w-[170px]">{m.university}</span>
+          </div>
+        )}
+        {m.parentPhone && (
+          <div className={row}>
+            <span className="text-gray-400 flex items-center gap-1.5">🆘 SĐT Khẩn cấp</span>
+            <span className="font-mono font-bold text-rose-700">{m.parentPhone}</span>
+          </div>
+        )}
+      </div>
+
+      {(session?.member?.id === m.id || can("finance.contribution.read_all")) && <MemberContributionHistory memberId={m.id} />}
+
+      <div className="pt-2 flex flex-col gap-2">
+        <button
+          onClick={() => onOpenCV(m)}
+          className="w-full py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white text-xs font-bold shadow-md shadow-primary/20 transition flex items-center justify-center gap-2 active:scale-95"
+        >
+          <FileDown className="w-4 h-4" />
+          <span>Xem &amp; Tải Sơ Yếu Lý Lịch (PDF)</span>
+        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onCopyZalo(m)}
+            className="py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold transition flex items-center justify-center gap-1.5"
+          >
+            <Copy className="w-3.5 h-3.5 text-primary" />
+            <span>Copy Zalo</span>
+          </button>
+          <a
+            href={m.phone ? "tel:" + m.phone.split(" ").join("") : undefined}
+            className={"py-2 px-3 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 " + (m.phone ? "hover:bg-gray-50" : "opacity-40 pointer-events-none")}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Phone className="w-4 h-4" />
+            Gọi điện
+          </a>
+        </div>
+      </div>
+
+      <MemberAdminPanel member={m} canEdit={!!detail?.canEdit} onEdit={onEdit} />
     </div>
   );
 }

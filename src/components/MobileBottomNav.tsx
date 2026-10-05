@@ -13,12 +13,16 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
+import { useUnreadCount } from "@/lib/data/dashboard";
 
 export const MobileBottomNav: React.FC = () => {
   const pathname = usePathname();
-  const { toggleMobileMenu, announcements } = useApp();
+  const { toggleMobileMenu } = useApp();
+  const { session } = useSession();
+  const unread = useUnreadCount(!!session?.member);
 
-  const unreadCount = announcements.filter((a) => a.isUnread).length;
+  const unreadCount = unread?.announcementsUnread ?? 0;
 
   const tabs = [
     { href: "/", label: "Tổng quan", icon: LayoutGrid },

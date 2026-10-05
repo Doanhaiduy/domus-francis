@@ -2,8 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, User } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { api, ApiClientError, errorMessage } from "@/lib/api";
 
 export default function DangNhapPage() {
   const router = useRouter();
@@ -11,82 +11,59 @@ export default function DangNhapPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [university, setUniversity] = useState("");
+  const [message, setMessage] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const nextPath = () => {
+    if (typeof window === "undefined") return "/";
+    const n = new URLSearchParams(window.location.search).get("next") || "/";
+    return n.startsWith("/") && !n.startsWith("//") ? n : "/";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-
-    if (!cleanEmail || !cleanPassword) {
-      setError("Vui lòng nhập đầy đủ email và mật khẩu.");
+    const identifier = email.trim();
+    if (!identifier || !password) {
+      setError(isSignUp ? "Vui lòng nhập đầy đủ email và mật khẩu." : "Vui lòng nhập email/số điện thoại và mật khẩu.");
       return;
     }
-
     if (isSignUp && !fullName.trim()) {
       setError("Vui lòng nhập họ và tên của bạn.");
       return;
     }
 
-    if (cleanPassword.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự.");
-      return;
-    }
-
     startTransition(async () => {
-      const supabase = createClient();
-
-      if (isSignUp) {
-        // Luồng Đăng ký
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: cleanPassword,
-          options: {
-            data: {
-              full_name: fullName.trim(),
-            },
-          },
-        });
-
-        if (signUpError) {
-          setError(`Đăng ký thất bại: ${signUpError.message}`);
-          return;
-        }
-
-        if (data.session) {
-          // Tự động đăng nhập thành công
-          router.push("/");
-          router.refresh();
+      try {
+        if (isSignUp) {
+          await api.post("/api/v1/auth/register", {
+            fullName: fullName.trim(),
+            email: identifier,
+            phone: phone.trim() || null,
+            password,
+            universityName: university.trim() || null,
+            message: message.trim() || null,
+          });
+          router.replace("/cho-phe-duyet");
         } else {
-          setSuccessMsg("Tài khoản đã tạo thành công! Bạn có thể chuyển sang tab Đăng nhập ngay.");
-          setIsSignUp(false);
+          const r = await api.post<{ pending: boolean }>("/api/v1/auth/login", { identifier, password });
+          router.replace(r.pending ? "/cho-phe-duyet" : nextPath());
         }
-      } else {
-        // Luồng Đăng nhập
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: cleanPassword,
-        });
-
-        if (authError) {
-          if (authError.message.includes("Invalid login credentials")) {
-            setError("Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.");
-          } else if (authError.message.includes("Email not confirmed")) {
-            setError("Email chưa được xác nhận. Vui lòng kiểm tra hộp thư của bạn.");
-          } else {
-            setError(`Đăng nhập thất bại: ${authError.message}`);
-          }
+        router.refresh();
+      } catch (err) {
+        if (err instanceof ApiClientError && err.code === "CSRF") {
+          // Cookie bảo vệ CSRF chưa có (mở trang từ cache) — tải lại để nhận cookie mới
+          window.location.reload();
           return;
         }
-
-        router.push("/");
-        router.refresh();
+        setError(errorMessage(err));
       }
     });
   };
@@ -173,15 +150,15 @@ export default function DangNhapPage() {
           {/* Email */}
           <div>
             <label htmlFor="email" className="block text-xs font-semibold text-gray-600 mb-1.5">
-              Email *
+              {isSignUp ? "Email *" : "Email hoặc số điện thoại *"}
             </label>
             <input
               id="email"
-              type="email"
+              type={isSignUp ? "email" : "text"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ten@gmail.com"
-              autoComplete="email"
+              placeholder={isSignUp ? "ten@gmail.com" : "ten@gmail.com hoặc 09xx xxx xxx"}
+              autoComplete={isSignUp ? "email" : "username"}
               disabled={isPending}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition disabled:opacity-60 disabled:cursor-not-allowed"
             />
@@ -212,6 +189,32 @@ export default function DangNhapPage() {
               </button>
             </div>
           </div>
+
+          {isSignUp && (
+            <>
+              <p className="text-[11px] text-gray-400 -mt-1">Tối thiểu 8 ký tự, có cả chữ và số.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="phone" className="block text-xs font-semibold text-gray-600 mb-1.5">Số điện thoại</label>
+                  <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xx xxx xxx" disabled={isPending}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition disabled:opacity-60" />
+                </div>
+                <div>
+                  <label htmlFor="university" className="block text-xs font-semibold text-gray-600 mb-1.5">Trường đang học</label>
+                  <input id="university" type="text" value={university} onChange={(e) => setUniversity(e.target.value)} placeholder="ĐH Bách Khoa Hà Nội" disabled={isPending}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition disabled:opacity-60" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="message" className="block text-xs font-semibold text-gray-600 mb-1.5">Lời nhắn cho Ban điều hành</label>
+                <textarea id="message" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Giới thiệu ngắn: giáo xứ, năm học, nguyện vọng…" disabled={isPending}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition disabled:opacity-60 resize-none" />
+              </div>
+              <p className="text-[11px] text-gray-500 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
+                Sau khi đăng ký, tài khoản cần Ban điều hành duyệt trước khi sử dụng đầy đủ chức năng.
+              </p>
+            </>
+          )}
 
           {/* Error Message */}
           {error && (

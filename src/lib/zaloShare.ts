@@ -1,5 +1,8 @@
 import { formatVND } from "./utils";
-import { Member, Expense, Contribution } from "./mockData";
+// Kiểu tối thiểu cho bản tin Zalo cũ (hàm formatFinancialReportForZalo); báo cáo tài chính thật dùng finance-format.ts
+type Expense = { name: string; amount: number; category?: string; paidBy?: string; date?: string };
+type Contribution = { name: string; room?: string; amount: number };
+import type { Member } from "./types/members";
 
 /**
  * Universal safe copy to clipboard with fallback

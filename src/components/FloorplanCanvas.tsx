@@ -24,7 +24,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { Room, RoomType, Member, Floor } from "@/lib/mockData";
+import type { Room, RoomType, Member, Floor } from "@/lib/types/members";
 import { cn } from "@/lib/utils";
 
 export interface FloorplanCanvasProps {
@@ -43,7 +43,12 @@ export interface FloorplanCanvasProps {
   onDuplicateRoom?: (room: Room) => void;
   onEditRoom?: (room: Room) => void;
   onDeleteRoom?: (roomId: string) => void;
+  /** Không có quyền xếp phòng: tắt kéo thả thành viên */
+  readOnly?: boolean;
 }
+
+// Các phòng đã có hình vẽ cố định trong bản vẽ Tầng 1/Tầng 2; phòng khác được vẽ động theo tọa độ layout_x/y/w/h trong DB
+const FIXED_ROOM_CODES = new Set(["P.XE", "P.1", "P.2", "P.WC_P2", "P.3", "P.SANH1", "P.WC_NGOAI", "P.4", "P.WC_P4", "P.WC_P5", "P.5", "P.SANH2"]);
 
 export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
   floors,
@@ -54,6 +59,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
   roomOccupantsMap,
   onMoveMember,
   onSelectRoom,
+  readOnly = false,
 }) => {
   const { showToast } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +122,11 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
 
   // Drag and Drop handlers
   const handleDragStartMember = (memberId: string, e: React.DragEvent) => {
+    if (readOnly) {
+      e.preventDefault();
+      showToast("info", "Chỉ Trưởng nhà/Phó nhà được xếp phòng.");
+      return;
+    }
     setDraggedMemberId(memberId);
     e.dataTransfer.setData("text/plain", memberId);
     e.dataTransfer.effectAllowed = "move";
@@ -176,6 +187,48 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
     setDragOverRoomId(null);
   };
 
+  /** Vẽ các phòng không có hình cố định: theo tọa độ DB, phòng chưa có tọa độ xếp thành hàng phía dưới bản vẽ. */
+  const renderDynamicRooms = (floorId: number, onlyNonFixed: boolean) => {
+    const list = rooms.filter((r) => r.floor === floorId && (!onlyNonFixed || !FIXED_ROOM_CODES.has(r.id)));
+    let auto = 0;
+    return list.map((r) => {
+      const hasLayout = r.x !== undefined && r.y !== undefined && r.w !== undefined && r.h !== undefined;
+      const idx = hasLayout ? 0 : auto++;
+      const x = hasLayout ? r.x! : 30 + (idx % 6) * 106;
+      const y = hasLayout ? r.y! : 300 + Math.floor(idx / 6) * 56;
+      const w = hasLayout ? r.w! : 98;
+      const h = hasLayout ? r.h! : 48;
+      const occs = roomOccupantsMap[r.id] || [];
+      const isBed = r.type === "bedroom";
+      const isDragOver = dragOverRoomId === r.id;
+      const isHovered = hoveredRoomId === r.id;
+      const isFull = isBed && occs.length >= r.capacity;
+      const fill = isDragOver ? (isFull ? "#fee2e2" : "#dcfce7") : isHovered ? "#ede9fe" : isBed ? "#faf5ff" : "#f1efe8";
+      return (
+        <g
+          key={r.id}
+          className="cursor-pointer"
+          onClick={() => onSelectRoom(r)}
+          onMouseEnter={() => setHoveredRoomId(r.id)}
+          onMouseLeave={() => setHoveredRoomId(null)}
+          onDragOver={(e) => handleRoomDragOver(r.id, e)}
+          onDragLeave={() => handleRoomDragLeave(r.id)}
+          onDrop={(e) => handleRoomDrop(r.id, e)}
+        >
+          <rect x={x} y={y} width={w} height={h} rx="3" fill={fill} stroke={isBed ? "#7c3aed" : "#5f5e5a"} strokeWidth="2" strokeDasharray={hasLayout ? undefined : "5 3"} />
+          <text x={x + w / 2} y={y + h / 2 - (isBed ? 7 : 0)} textAnchor="middle" dominantBaseline="central" fill="#3f3f3c" fontSize="11" fontWeight="700">
+            {r.name.length > 18 ? r.name.slice(0, 17) + "…" : r.name}
+          </text>
+          {isBed && (
+            <text x={x + w / 2} y={y + h / 2 + 9} textAnchor="middle" dominantBaseline="central" fill={isFull ? "#b91c1c" : "#6d28d9"} fontSize="10" fontWeight="700">
+              {occs.length}/{r.capacity} chỗ
+            </text>
+          )}
+        </g>
+      );
+    });
+  };
+
   if (!mounted) return null;
 
   return (
@@ -204,9 +257,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-purple-200/80">
-              {activeFloorId === 1
-                ? "Mặt bằng Tầng 1 (Trệt): Nhà để xe, Phòng 1 - 2 - 3, Sảnh chung, Cụm WC ngoài"
-                : "Mặt bằng Tầng 2 (Lầu 1): Phòng 4 - 5, Sảnh nguyện đọc kinh, NVS khép kín"}
+              {currentFloor ? `${currentFloor.name}: ${currentFloor.description}` : ""}
             </p>
           </div>
         </div>
@@ -1030,6 +1081,16 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
                   <text x="246" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
                     Bồn cầu
                   </text>
+                  {renderDynamicRooms(1, true)}
+                </svg>
+              ) : activeFloorId !== 2 ? (
+                /* Tầng thêm mới: chưa có bản vẽ cố định — vẽ phòng theo tọa độ trong DB */
+                <svg viewBox="0 0 680 420" className="w-full h-auto select-none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="20" y="10" width="650" height="395" rx="6" fill="#fcfbfa" stroke="#94a3b8" strokeWidth="1" strokeDasharray="6 4" />
+                  <text x="345" y="34" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="600">
+                    {currentFloor?.name ?? "Tầng mới"} — phòng chưa có tọa độ được xếp tạm phía dưới
+                  </text>
+                  {renderDynamicRooms(activeFloorId, false)}
                 </svg>
               ) : (
                 /* ============================================================= */
@@ -1647,6 +1708,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
                   <text x="236" y="374" dominantBaseline="central" fill="#52514e" fontSize="11" fontWeight="600">
                     Bồn cầu
                   </text>
+                  {renderDynamicRooms(2, true)}
                 </svg>
               )}
             </div>
@@ -1693,7 +1755,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
                 return (
                   <div
                     key={m.id}
-                    draggable
+                    draggable={!readOnly}
                     onDragStart={(e) => handleDragStartMember(m.id, e)}
                     onDragEnd={handleDragEnd}
                     className={cn(

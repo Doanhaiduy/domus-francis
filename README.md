@@ -1,70 +1,99 @@
-# 🕊️ Lưu Xá Phanxicô - Student Community Management System
+# 🕊️ Lưu Xá Phanxicô — Hệ thống quản lý cộng đoàn sinh viên
 
-> **A comprehensive, modern web portal designed for Catholic student dormitories and residential communities.** Built with Next.js 14, React 18, TypeScript, and Tailwind CSS.
+Ứng dụng web nội bộ cho lưu xá sinh viên Công giáo: thành viên & sơ đồ nhà, trực nhật & hậu cần, thu chi minh bạch,
+học tập, lịch sự kiện & điểm danh QR, thông báo, diễn đàn, phụng vụ, bếp cơm, khoảnh khắc.
 
----
+**Chạy hoàn toàn trên máy (local-first):** PostgreSQL 16 portable, tệp lưu trên ổ đĩa, font tự lưu trữ — không gọi
+Supabase hay dịch vụ bên ngoài nào khi chạy.
 
-## ✨ Key Features
+## Kiến trúc
 
-- **🏠 Architecture & Floorplan (`/so-do-nha`):** Visual interactive house floorplan with drag-and-drop room assignments.
-- **🧹 House Duties & Logistics (`/hau-can`):** 6 cleaning zones, weekly rosters, check-in with device photo evidence, duty swaps, and review workflows.
-- **🎓 Academic Management (`/hoc-tap`):** Semester transcript logging, midterm & final scores, automatic GPA (10 & 4.0 scale), letter grades, portal transcript evidence upload, and peer tutoring indicators.
-- **💰 Financial Treasury (`/thu-chi`):** Transparent bookkeeping, expense logging with invoice receipt uploads, 12-month member contribution matrix, and PDF financial reports.
-- **📅 Events & Calendar (`/lich-su-kien`):** Activity scheduling, recurring liturgies, QR attendance check-in, and real-time interactive polls & voting.
-- **📸 Moments & Photo Gallery (`/khoanh-khac`):** Album management, cover photo upload, batch multi-photo upload from device, and fullscreen lightbox viewer.
-- **📢 Community Board & Forum (`/thong-bao`, `/dien-dan`):** Pinned announcements with read tracking, discussion threads, and anonymous prayer intentions.
-- **📤 Local File Uploads:** Integrated dropzone component supporting direct device file selection with instant base64 preview across all modals.
+| Lớp | Công nghệ | Ghi chú |
+|---|---|---|
+| Giao diện | Next.js 14 (App Router), React 18, Tailwind | dữ liệu qua SWR từ `/api/v1/*` |
+| API | Next.js Route Handlers (`src/app/api/v1`) | lỗi RFC 9457 `application/problem+json`, CSRF double-submit + kiểm Origin |
+| Xác thực | Argon2id · JWT EdDSA 15 phút (cookie HttpOnly) · refresh token 30 ngày xoay vòng + phát hiện dùng lại | khóa tạm sau 5 lần sai, đổi mật khẩu thu hồi phiên khác |
+| Phân quyền | **Row-Level Security trong PostgreSQL** | mỗi request: `SET LOCAL ROLE luuxa_app` + `app.current_user_id`; quyền giao diện đọc từ `role_permissions` |
+| CSDL | PostgreSQL 16.14 — DDL thiết kế 141 bảng (`db/migrations/01…52`) + 6 bản vá kiểm định (`kiem-dinh/sql/70…75`) + phần bổ sung ứng dụng (`db/app/9x`) | |
+| Tệp | `.local/storage` | kiểm định dạng thật (magic bytes), xóa EXIF/GPS, ảnh thu nhỏ WebP, SHA-256, pHash |
+| Dữ liệu nhạy cảm | CCCD, SĐT phụ huynh mã hóa AES-256-GCM ở tầng ứng dụng | xem CCCD đầy đủ phải nêu lý do, có ghi nhật ký kiểm toán |
 
----
+Tài liệu nguồn: `TAI_LIEU_THIET_KE_BACKEND_PGSQL_LUU_XA_PHANXICO.md` (thiết kế) và `KIEM_DINH_DOC_LAP_THIET_KE_BACKEND.md` (kiểm định).
 
-## 🛠️ Tech Stack
+## Bắt đầu nhanh
 
-- **Framework:** Next.js 14 (App Router)
-- **UI Library:** React 18, Tailwind CSS, Headless UI
-- **Icons:** Lucide React
-- **Language:** TypeScript
-- **PDF Generation:** Custom sanitized canvas & jsPDF export
-- **Database Architecture:** PostgreSQL 16 (Complete DDL specification in [`PROMPT_BACKEND_PGSQL_DDL.md`](./PROMPT_BACKEND_PGSQL_DDL.md))
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js >= 18.18.0
-- pnpm (recommended) or npm / yarn
-
-### Installation
+Yêu cầu: Node.js ≥ 18.18 (đã thử 22), pnpm. Không cần cài PostgreSQL hay Docker.
 
 ```bash
-# Clone the repository
-git clone https://github.com/<your-username>/<repo-name>.git
-
-# Navigate to project folder
-cd <repo-name>
-
-# Install dependencies
-pnpm install
-
-# Run development server
-pnpm dev
+pnpm install          # cài thư viện (gồm PostgreSQL 16.14 portable)
+pnpm setup:local      # khởi động PostgreSQL local, sinh .env.local, dựng DB "luuxa", nạp dữ liệu demo
+pnpm dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to view the application.
+Tài khoản demo (mật khẩu chung **`LuuXa@2026`**), danh sách đầy đủ in ra sau `setup:local` và lưu ở `.local/demo-accounts.txt`:
 
-### Production Build
+| Email | Vai trò |
+|---|---|
+| duc.tran@luuxa.local | Trưởng nhà |
+| long.le@luuxa.local | Phó nhà |
+| bao.pham@luuxa.local | Thủ quỹ |
+| viet.vu@luuxa.local | Admin kỹ thuật |
+| phong.dang@luuxa.local · khoi.hoang@luuxa.local · khoa.ngo@luuxa.local | Trưởng ban Phụng vụ · Ẩm thực · Truyền thông |
+| tuan.nguyen@luuxa.local (và hieu.bui, kiet.do, nam.phan, phuoc.ly) | Thành viên |
+| an.tran@luuxa.local | Đơn đăng ký đang chờ duyệt |
 
-```bash
-# Build production bundle
-pnpm build
+## Lệnh thường dùng
 
-# Start production server
-pnpm start
+| Lệnh | Việc |
+|---|---|
+| `pnpm setup:reset` | **xóa** DB `luuxa` và dựng lại từ đầu + dữ liệu demo |
+| `pnpm db:start` / `db:stop` / `db:status` | điều khiển PostgreSQL local (127.0.0.1:54329, dữ liệu ở `.local/pgdata`) |
+| `pnpm db:audit` | chạy lại **toàn bộ bộ kiểm định độc lập** trên DB thử nghiệm riêng (báo cáo `.local/audit/report.md`) |
+| `pnpm db:audit:quick` | như trên, bỏ bước đối chứng DB gốc và dry-run |
+| `pnpm test:api` | kiểm thử API tích hợp trên DB + máy chủ thử nghiệm riêng (cổng 3100) |
+| `pnpm test:e2e -- --user <email>` | mở từng trang bằng Edge/Chrome có sẵn, báo lỗi console/HTTP/request ra ngoài, chụp ảnh `.local/e2e/` |
+| `pnpm db:sql -d luuxa <file.sql>` | chạy một file SQL (tương đương `psql -f`, bản portable không kèm psql) |
+| `pnpm typecheck` · `pnpm build` | kiểm tra kiểu · build production |
+
+## Bộ kiểm định (`pnpm db:audit`)
+
+Chạy lại đúng quy trình của `kiem-dinh/README.md` trên PostgreSQL local, với tiêu chí đạt cho từng mục:
+
+1. DDL gốc 01…52 + `60_smoke_tests.sql` nguyên văn của tài liệu (S2→S14).
+2. DDL + bản vá 70…75 (chạy 2 lần — idempotent) + `60_smoke_tests_reviewed.sql` + các check `sec/biz/api/cov_check.sql`, `ai_gate.sql`, `idx.sql`, `catalog_checks.sql`.
+3. `80_concurrency_tests.js`: DB gốc phải **thất bại 13/13** (đối chứng), DB đã vá phải **đạt 13/13**.
+4. `dryrun.js` 8 kịch bản nghiệp vụ — so từng bước với kết quả đúng. Script gốc viết cứng ngày/giờ chạy kiểm định
+   (03/10/2026, buổi sáng); bản chạy được dời ngày tương ứng và dùng ca "ngày kia" cho KB7 (BR-DUTY-11: xin đổi ca trước ≥ 12 giờ).
+5. Lặp lại smoke + check trên DB của ứng dụng (có thêm `db/app/*.sql`) để chứng minh phần bổ sung không phá vỡ thiết kế.
+
+## Cấu trúc thư mục chính
+
+```
+db/migrations/         DDL trích nguyên văn từ tài liệu thiết kế (pnpm db:extract)
+db/app/                SQL bổ sung cho ứng dụng (vai trò đăng nhập luuxa_api, bảng còn thiếu…)
+kiem-dinh/             sản phẩm kiểm định độc lập: bản vá, bộ test, bằng chứng
+scripts/db/            pg.mjs (PostgreSQL portable), build/sql/audit, seed/ (dữ liệu demo)
+scripts/e2e/           kiểm thử giao diện bằng trình duyệt có sẵn
+src/server/            lõi backend: db (transaction + RLS), http (bọc route), auth, storage, modules/<phân hệ>
+src/app/api/v1/        REST API
+src/lib/data/          hook SWR theo phân hệ · src/lib/types/ DTO dùng chung
 ```
 
----
+## Bảo mật & quyền riêng tư (tóm tắt)
 
-## 📄 Backend & Database Blueprint
+- Mọi truy vấn của người dùng chạy dưới vai trò DB `luuxa_app` (không BYPASSRLS); kết nối đăng nhập `luuxa_api` là NOINHERIT
+  nên không có quyền gì nếu quên `SET ROLE`. Bước hệ thống tin cậy (xác lập thuộc tính tệp, dọn dẹp hằng giờ) dùng `luuxa_worker`.
+- Thông tin tầng 2 (ngày sinh, quê quán, phụ huynh) chỉ chính chủ/Ban điều hành; tầng 3 (tôn giáo) cần đồng ý chia sẻ.
+- Tệp chỉ xem được khi người xem có quyền với thực thể chứa tệp (RLS `storage_files`).
+- `DATABASE_URL` bắt buộc trỏ tới localhost; trình kiểm thử e2e báo lỗi nếu trang gửi request ra ngoài.
 
-Looking for the complete PostgreSQL DDL and backend architecture specification?  
-See [`PROMPT_BACKEND_PGSQL_DDL.md`](./PROMPT_BACKEND_PGSQL_DDL.md) for the full all-in-one system design prompt.
+## Trợ lý AI (tùy chọn)
+
+Mặc định **tắt**. Mặc định dùng **Groq**, nếu lỗi/hết hạn mức thì tự chuyển **Gemini**.
+
+1. Thêm `GROQ_API_KEY` (và tùy chọn `GEMINI_API_KEY`) vào `.env.local`, khởi động lại `pnpm dev`. Khóa chỉ nằm ở file này.
+2. Đăng nhập Trưởng nhà/Admin → Cài đặt → **Trợ lý AI** → bật công tắc tổng và từng tác vụ.
+3. Mỗi thành viên đồng ý một lần (`ai_processing`) trước khi dùng.
+
+Tác vụ có sẵn: hỏi đáp nội quy (nút "Trợ lý AI"), soạn tin nhắc quỹ (Thu Chi), phân loại sự cố (Báo hỏng), soạn bản tin (Đăng thông báo), soát nội dung (Tạo chủ đề). AI chỉ gợi ý; dữ liệu được ẩn danh hóa trước khi gửi; có ngân sách tháng, giới hạn 20 lượt/giờ/người, cache 24 giờ.
+`pnpm test:api` dùng máy chủ giả loopback — không bao giờ gọi Groq/Gemini thật. `AI_OFFLINE=1` chặn mọi lệnh gọi ra ngoài.
