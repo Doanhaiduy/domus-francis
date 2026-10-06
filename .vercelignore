@@ -11,3 +11,6 @@ build_docx.py
 scripts/e2e
 scripts/test-api
 scripts/perf
+.env.staging
+.env.production
+.env.*.local

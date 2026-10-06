@@ -21,6 +21,10 @@
     "test:api": "node --no-warnings scripts/test-api.mjs",
     "db:bundle": "node scripts/db/bundle.mjs",
     "db:migrate": "node scripts/db/migrate.mjs",
+    "db:migrate:staging": "node --no-warnings scripts/db/migrate.mjs --env staging",
+    "db:migrate:production": "node --no-warnings scripts/db/migrate.mjs --env production",
+    "dev:staging": "node scripts/env/dev-staging.mjs",
+    "env:keys": "node --no-warnings scripts/env/gen-keys.mjs",
     "test:e2e": "node scripts/e2e/smoke.mjs"
   },
   "dependencies": {

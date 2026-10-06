@@ -11,6 +11,8 @@
 //   pnpm db:migrate                                   # DB local "luuxa"
 //   pnpm db:migrate -- --db luuxa_test                # DB local khác
 //   pnpm db:migrate -- --url "postgresql://…" --allow-remote   # DB ở xa (Supabase) — chỉ khi được phép
+//   pnpm db:migrate -- --env staging                 # DB của môi trường: đọc MIGRATE_DATABASE_URL (tài khoản chủ DB) trong .env.staging
+//   pnpm db:migrate -- --env production --dry-run     # .env.production — luôn dry-run trước khi áp lên production
 //   thêm --dry-run để chỉ liệt kê, --only-data / --only-app để giới hạn
 // =====================================================================
 import pg from "pg";
@@ -91,7 +93,26 @@ export async function migrate(client, { dryRun = false, log = console.log, ...se
 async function main() {
   const args = process.argv.slice(2);
   const get = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
-  const url = get("--url");
+  let url = get("--url");
+  const envName = get("--env");
+  if (envName) {
+    // Môi trường có tên: .env.<tên> (staging, production…) — chuỗi kết nối chủ DB nằm ở MIGRATE_DATABASE_URL (KHÁC DATABASE_URL của ứng dụng)
+    if (!/^[a-z][a-z0-9-]*$/.test(envName)) {
+      console.error("✗ Tên môi trường không hợp lệ.");
+      process.exit(2);
+    }
+    const file = path.join(ROOT, `.env.${envName}`);
+    if (!existsSync(file)) {
+      console.error(`✗ Không thấy ${path.basename(file)} ở thư mục dự án.`);
+      process.exit(2);
+    }
+    const m = /^MIGRATE_DATABASE_URL=(.*)$/m.exec(readFileSync(file, "utf8"));
+    url = m?.[1]?.trim().replace(/^["']|["']$/g, "");
+    if (!url) {
+      console.error(`✗ ${path.basename(file)} chưa điền MIGRATE_DATABASE_URL (chuỗi kết nối tài khoản chủ DB, vd. postgres.<project-ref>).`);
+      process.exit(2);
+    }
+  }
   let client;
   if (url) {
     if (/^https?:\/\//.test(url)) {
@@ -100,12 +121,12 @@ async function main() {
     }
     const u = new URL(url);
     const local = ["127.0.0.1", "localhost", "::1", "[::1]"].includes(u.hostname);
-    if (!local && !args.includes("--allow-remote")) {
+    if (!local && !args.includes("--allow-remote") && !envName) {
       console.error(`✗ ${u.hostname} không phải localhost. Thêm --allow-remote nếu bạn được phép áp migration lên DB đó.`);
       process.exit(2);
     }
     client = new pg.Client({ connectionString: url, ssl: local || args.includes("--no-ssl") ? undefined : { rejectUnauthorized: false } });
-    console.log(`▶ Migration tăng dần → ${u.hostname}${u.pathname}`);
+    console.log(`▶ Migration tăng dần${envName ? ` [${envName.toUpperCase()}]` : ""} → ${u.hostname}${u.pathname}`);
   } else {
     const db = get("--db") ?? "luuxa";
     client = new pg.Client(pgConfig({ database: db }));

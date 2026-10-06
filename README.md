@@ -42,6 +42,19 @@ Tài khoản demo (mật khẩu chung **`LuuXa@2026`**), danh sách đầy đủ
 | tuan.nguyen@luuxa.local (và hieu.bui, kiet.do, nam.phan, phuoc.ly) | Thành viên |
 | an.tran@luuxa.local | Đơn đăng ký đang chờ duyệt |
 
+## Môi trường: local · staging · production
+
+| Môi trường | Nhánh / Vercel | Dữ liệu | File cấu hình (không commit) |
+|---|---|---|---|
+| local | máy bạn | PostgreSQL portable (`pnpm dev`) | `.env.local` |
+| staging | nhánh `staging` → **Preview** | Supabase staging | `.env.staging` (`pnpm dev:staging` chạy máy bạn với DB staging) |
+| production | nhánh `master` → **Production** | Supabase production | `.env.production` |
+
+- Mỗi môi trường có **dự án Supabase riêng** và **bộ khóa riêng** (`pnpm env:keys` sinh `AUTH_JWT_*`, `PII_*`, `CRON_SECRET` mới). Đừng dùng chung khóa giữa staging và production.
+- Trên Vercel: biến phạm vi **Production** lấy từ `.env.production`; phạm vi **Preview** (nhánh `staging`) lấy từ `.env.staging`.
+- Migration theo môi trường: `pnpm db:migrate:staging -- --dry-run`, rồi bỏ `--dry-run`; production: `pnpm db:migrate:production -- --dry-run`. Cần `MIGRATE_DATABASE_URL` (tài khoản chủ DB) trong file `.env.<môi trường>` — biến này **không** đưa lên Vercel.
+- Các file `.env.staging`/`.env.production` đã nằm trong `.gitignore` và `.vercelignore`; chỉ `.env.example` được commit.
+
 ## Lệnh thường dùng
 
 | Lệnh | Việc |

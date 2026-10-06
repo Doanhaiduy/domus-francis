@@ -24,6 +24,11 @@ next-env.d.ts.bak
 .env.test.local
 .env.production.local
 *.env
+# Môi trường triển khai: chứa khóa thật (DB, JWT, API) — KHÔNG commit. Chỉ .env.example được commit.
+.env.staging
+.env.production
+.env.*
+!.env.example
 
 # =========================================================================
 # Logs & Process Dumps
