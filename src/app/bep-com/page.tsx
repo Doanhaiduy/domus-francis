@@ -249,8 +249,7 @@ export default function BepComPage() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900 uppercase">Đang mở</span>
               </div>
               <p className="text-xs text-emerald-800/90 mt-0.5">
-                Đăng ký suất trước giờ chốt: trưa <b>{week.settings.lunchCutoff}</b>, tối <b>{week.settings.dinnerCutoff}</b> · Giá tham chiếu{" "}
-                <b>{vnd(week.settings.pricePerServing)}</b>/suất · Sau giờ chốt chỉ Ban Ẩm thực sửa được suất.
+                Đăng ký suất trước giờ chốt: trưa <b>{week.settings.lunchCutoff}</b>, tối <b>{week.settings.dinnerCutoff}</b> · Sau giờ chốt chỉ Ban Ẩm thực sửa được suất.
               </p>
             </div>
           </div>
@@ -589,7 +588,7 @@ export default function BepComPage() {
                   <div className="flex items-center justify-between text-xs font-bold text-purple-900 mb-2">
                     <span>☀️ Bữa Trưa (11:30)</span>
                     <span className="text-[11px] text-gray-500 font-normal">
-                      {sel.lunch.dishes.length} món · {vnd(sel.lunch.costPerServing)}/suất
+                      {sel.lunch.dishes.length} món
                     </span>
                   </div>
                   {menuList(sel.lunch, "bg-primary")}
@@ -598,7 +597,7 @@ export default function BepComPage() {
                   <div className="flex items-center justify-between text-xs font-bold text-emerald-900 mb-2">
                     <span>🌙 Bữa Tối (18:30)</span>
                     <span className="text-[11px] text-gray-500 font-normal">
-                      {sel.dinner.dishes.length} món · {vnd(sel.dinner.costPerServing)}/suất
+                      {sel.dinner.dishes.length} món
                     </span>
                   </div>
                   {menuList(sel.dinner, "bg-secondary")}
@@ -685,7 +684,6 @@ export default function BepComPage() {
               const ratingCount = rated.reduce((t, r) => t + r.count, 0);
               const ratingAvg = ratingCount ? rated.reduce((t, r) => t + r.avg * r.count, 0) / ratingCount : 0;
               const canFeedback = (d.isPast || d.isToday) && (d.lunch.menuId || d.dinner.menuId);
-              const cost = d.lunch.costPerServing === d.dinner.costPerServing ? vnd(d.lunch.costPerServing) : `${vnd(d.lunch.costPerServing)} / ${vnd(d.dinner.costPerServing)}`;
               return (
                 <div
                   key={d.date}
@@ -754,7 +752,7 @@ export default function BepComPage() {
 
                   <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] gap-2">
                     <span className="text-gray-400">
-                      Định mức: {cost}/suất
+                      {ratingCount === 0 && "Chưa có đánh giá"}
                       {ratingCount > 0 && (
                         <span className="ml-1.5 inline-flex items-center gap-0.5 text-amber-600 font-semibold">
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
@@ -784,7 +782,7 @@ export default function BepComPage() {
       {/* ========================================================================= */}
       {activeTab === "kho-do" && <PantryTab />}
 
-      <MenuEditModal day={editDay} defaultPrice={week.settings.pricePerServing} onClose={() => setEditDay(null)} />
+      <MenuEditModal day={editDay} onClose={() => setEditDay(null)} />
       <FeedbackModal day={feedback ? week.days.find((d) => d.date === feedback.day.date) ?? feedback.day : null} initialMeal={feedback?.meal} canManage={canManage} onClose={() => setFeedback(null)} />
       <MealSettingsModal open={settingsOpen} week={week} onClose={() => setSettingsOpen(false)} />
       <ConfirmDialog

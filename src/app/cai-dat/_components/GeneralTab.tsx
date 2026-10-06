@@ -42,7 +42,6 @@ export const FUND_KEYS = [
   "finance.dues_cycle_start_month",
   "finance.dues_cycle_due_day",
   "finance.utility_due_day",
-  "meal.price_per_serving_vnd",
   "liturgy.night_prayer_time",
   "meal.lunch_cutoff_time",
   "meal.dinner_cutoff_time",
@@ -58,7 +57,7 @@ export const FINANCE_CONTROL_KEYS = [
 ];
 /** Khóa tài chính cũ / có màn hình riêng — không hiện ở tab này:
  *  quỹ tháng (đã thay bằng quỹ định kỳ), tài khoản nhận quỹ (Thủ quỹ sửa ở trang Thu chi → thẻ "Tài khoản nhận quỹ", có mã QR). */
-const HIDDEN_FINANCE_KEYS = ["finance.monthly_dues_vnd", "finance.dues_due_day", "finance.dues_bank_account", "finance.receiving_account"];
+const HIDDEN_FINANCE_KEYS = ["meal.price_per_serving_vnd", "finance.monthly_dues_vnd", "finance.dues_due_day", "finance.dues_bank_account", "finance.receiving_account"];
 /** Khóa có tab riêng (Phân hệ) — không lặp lại ở tham số nâng cao. */
 const MANAGED_ELSEWHERE = ["ui.disabled_modules"];
 const INTEGRATION_PREFIX = "integration.";
@@ -246,8 +245,8 @@ export default function GeneralTab({ draft, roles }: Props) {
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Quản lý quỹ &amp; Định mức ăn uống</h2>
-              <p className="text-xs text-gray-500">Thiết lập tài chính cố định, giá suất ăn và khung giờ khóa điểm danh cơm</p>
+              <h2 className="text-base font-bold text-gray-900">Quản lý quỹ &amp; Giờ chốt cơm</h2>
+              <p className="text-xs text-gray-500">Thiết lập tài chính cố định và khung giờ khóa điểm danh cơm</p>
             </div>
           </div>
 
@@ -275,7 +274,6 @@ export default function GeneralTab({ draft, roles }: Props) {
                   . Tiền điện nước: Thủ quỹ nhập tổng hóa đơn hằng tháng ở trang Thu chi, hệ thống chia đều cho người đang ở.
                 </p>
               )}
-              <NumberSetting draft={draft} k="meal.price_per_serving_vnd" label="Tiền suất cơm trưa / tối tham chiếu (VNĐ / suất)" />
               <TimeSetting draft={draft} k="liturgy.night_prayer_time" label="Giờ cử hành Kinh Tối chung hàng ngày" />
               <TimeSetting draft={draft} k="meal.lunch_cutoff_time" label="Giờ chốt điểm danh cơm trưa" />
               <TimeSetting draft={draft} k="meal.dinner_cutoff_time" label="Giờ chốt điểm danh cơm tối" />

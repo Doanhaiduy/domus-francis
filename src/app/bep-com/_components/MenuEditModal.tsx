@@ -11,7 +11,6 @@ import KitchenModal, { btnGhost, btnPrimary } from "./KitchenModal";
 
 interface Props {
   day: MealDayDto | null;
-  defaultPrice: number;
   onClose: () => void;
 }
 
@@ -32,17 +31,16 @@ interface MealForm {
   title: string;
   dishes: string;
   status: MenuStatus;
-  cost: string;
   cutoff: string;
 }
 
-/** Ban Ẩm thực lập / sửa thực đơn một ngày: món trưa, món tối, trạng thái, giá suất, giờ chốt riêng và người trực bếp. */
-export default function MenuEditModal({ day, defaultPrice, onClose }: Props) {
+/** Ban Ẩm thực lập / sửa thực đơn một ngày: món trưa, món tối, trạng thái, giờ chốt riêng và người trực bếp. */
+export default function MenuEditModal({ day, onClose }: Props) {
   const { members, showToast } = useApp();
   const [cooks, setCooks] = useState<{ memberId: string; role: CookRole }[]>([]);
   const [form, setForm] = useState<Record<MealType, MealForm>>({
-    lunch: { title: "", dishes: "", status: "open", cost: "", cutoff: "" },
-    dinner: { title: "", dishes: "", status: "open", cost: "", cutoff: "" },
+    lunch: { title: "", dishes: "", status: "open", cutoff: "" },
+    dinner: { title: "", dishes: "", status: "open", cutoff: "" },
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +56,12 @@ export default function MenuEditModal({ day, defaultPrice, onClose }: Props) {
         title: s.title ?? "",
         dishes: s.dishes.join("\n"),
         status: s.status ?? "open",
-        cost: s.menuId && s.costPerServing !== defaultPrice ? String(s.costPerServing) : "",
         cutoff: "",
       };
     };
     setForm({ lunch: f("lunch"), dinner: f("dinner") });
     setError(null);
-  }, [day, defaultPrice]);
+  }, [day]);
 
   const memberOptions = useMemo(
     () => members.filter((m) => m.status === "active" || m.status === "on_leave").map((m) => ({ value: m.id, label: m.name, subLabel: m.fullName })),
@@ -79,13 +76,11 @@ export default function MenuEditModal({ day, defaultPrice, onClose }: Props) {
     setError(null);
     for (const m of ["lunch", "dinner"] as MealType[]) {
       if (form[m].cutoff && !/^([01]\d|2[0-3]):[0-5]\d$/.test(form[m].cutoff)) return setError("Giờ chốt phải có dạng HH:mm, ví dụ 09:30.");
-      if (form[m].cost && !(Number(form[m].cost) >= 0)) return setError("Giá suất phải là số tiền hợp lệ.");
     }
     const meal = (m: MealType) => ({
       title: form[m].title.trim() || null,
       dishes: form[m].dishes.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
       status: form[m].status,
-      costPerServing: form[m].cost ? Math.round(Number(form[m].cost)) : null,
       cutoffTime: form[m].cutoff || null,
     });
     setBusy(true);
@@ -120,16 +115,6 @@ export default function MenuEditModal({ day, defaultPrice, onClose }: Props) {
           onChange={(e) => setMeal(m, { dishes: e.target.value })}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <CustomInput
-            label="Giá một suất (để trống = giá chung)"
-            type="number"
-            min={0}
-            step={1000}
-            placeholder={String(defaultPrice)}
-            rightSuffix="đ"
-            value={f.cost}
-            onChange={(e) => setMeal(m, { cost: e.target.value })}
-          />
           <CustomInput
             label={`Đổi giờ chốt (hiện ${vnTime(s.cutoffAt)})`}
             placeholder="HH:mm"

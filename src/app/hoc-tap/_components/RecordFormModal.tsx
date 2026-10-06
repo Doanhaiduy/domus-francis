@@ -1,5 +1,6 @@
 "use client";
 
+import { MajorSelect } from "@/components/members/StudyFields";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { GraduationCap, X, Plus, Loader2, Send, Save, AlertTriangle, Info } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
@@ -294,7 +295,7 @@ export default function RecordFormModal({
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <CustomInput label="Chuyên Ngành" placeholder="VD: Khoa học máy tính" value={major} onChange={(e) => setMajor(e.target.value)} maxLength={200} />
+                <MajorSelect label="Chuyên ngành" value={major} onChange={setMajor} />
                 <CustomInput label="Mã Số Sinh Viên (MSSV)" placeholder="VD: 20210892" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} maxLength={40} />
               </div>
 

@@ -210,7 +210,6 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   // --- Bếp & Cơm ---
   "meal.dinner_cutoff_time": { label: "Giờ chốt suất cơm tối" },
   "meal.lunch_cutoff_time": { label: "Giờ chốt suất cơm trưa" },
-  "meal.price_per_serving_vnd": { label: "Giá tham chiếu một suất cơm" },
 
   // --- Thông tin cộng đoàn ---
   "org.about": { label: "Giới thiệu lưu xá", help: "Đoạn giới thiệu (Markdown) hiện ở trang công khai “Giới thiệu”." },

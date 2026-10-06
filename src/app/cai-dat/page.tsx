@@ -1,14 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, MessageCircle, BellRing, Save, RotateCcw, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User, ScrollText } from "lucide-react";
+import { Settings, Building, MessageCircle, BellRing, Save, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User, ScrollText } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { useCategories, useRbacMatrix } from "@/lib/data/settings";
-import { sameSettingValue } from "@/lib/types/settings";
-import { settingLabel } from "@/lib/settings-catalog";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import CaiDatLoading from "./loading";
 import { FormCardsSkeleton } from "./_components/TabSkeletons";
@@ -48,7 +45,6 @@ export default function CaiDatPage() {
   const roleCodes = useMemo(() => (matrix?.roles ?? []).map((r) => r.code), [matrix]);
   const draft = useSettingsDraft(roleCodes);
   const { categories } = useCategories();
-  const [confirmReset, setConfirmReset] = useState(false);
 
   // Cảnh báo khi rời trang còn thay đổi chưa lưu
   const dirtyCount = draft.dirtyKeys.length;
@@ -61,21 +57,6 @@ export default function CaiDatPage() {
     window.addEventListener("beforeunload", h);
     return () => window.removeEventListener("beforeunload", h);
   }, [dirtyCount]);
-
-  // "Khôi phục mặc định": mọi khóa của tab hiện tại (chung hoặc Zalo) mà người dùng được sửa và đang khác mặc định
-  const resetScope = activeTab === "zalo" ? "zalo" : "general";
-  const resettable = useMemo(
-    () =>
-      [...draft.byKey.values()].filter(
-        (m) =>
-          m.canWrite &&
-          m.defaultValue !== null &&
-          m.defaultValue !== "" && // khóa không có mặc định thật (hotline, STK…) không bị xóa trắng hàng loạt
-          (resetScope === "zalo" ? !isGeneralKey(m.key) : isGeneralKey(m.key)) &&
-          !sameSettingValue(m.value, m.defaultValue),
-      ),
-    [draft.byKey, resetScope],
-  );
 
   useEffect(() => {
     const el = tabsRef.current?.querySelector<HTMLElement>("button.text-primary");
@@ -91,11 +72,6 @@ export default function CaiDatPage() {
   const handleSave = async () => {
     const r = await draft.save();
     showToast(r.ok ? "success" : "error", r.message);
-  };
-
-  const handleReset = async () => {
-    const r = await draft.resetToDefaults(resettable.map((m) => m.key));
-    showToast(r.ok ? "info" : "error", r.message);
   };
 
   const readOnly = !settingsLoading && !draft.anyWritable;
@@ -149,16 +125,6 @@ export default function CaiDatPage() {
                   </button>
                 )}
                 <button
-                  onClick={() =>
-                    resettable.length ? setConfirmReset(true) : showToast("info", "Các cấu hình bạn được sửa ở tab này đều đang ở giá trị mặc định.")
-                  }
-                  disabled={draft.saving}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs transition disabled:opacity-60"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Khôi phục mặc định</span>
-                </button>
-                <button
                   onClick={handleSave}
                   disabled={draft.saving || dirtyCount === 0}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-purple-200 active:scale-95 transition disabled:opacity-50 disabled:active:scale-100"
@@ -186,7 +152,7 @@ export default function CaiDatPage() {
                 <h4 className="font-bold">Bạn đang xem cài đặt hệ thống ở chế độ chỉ đọc</h4>
                 <p className="text-[11px] text-amber-700 mt-0.5">
                   Thay đổi cấu hình hệ thống chỉ dành cho người có quyền tương ứng: thông tin cộng đoàn &amp; tham số vận hành (Admin, Trưởng nhà), định
-                  mức quỹ &amp; ngưỡng chi (Trưởng nhà), giá suất ăn &amp; giờ chốt cơm (Ban Ẩm thực, Trưởng nhà), giờ Kinh Tối (Ban Phụng vụ,
+                  mức quỹ &amp; ngưỡng chi (Trưởng nhà), giờ chốt cơm (Ban Ẩm thực, Trưởng nhà), giờ Kinh Tối (Ban Phụng vụ,
                   Trưởng nhà).
                 </p>
               </div>
@@ -304,28 +270,6 @@ export default function CaiDatPage() {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={confirmReset}
-        onClose={() => setConfirmReset(false)}
-        onConfirm={handleReset}
-        title="Khôi phục giá trị mặc định"
-        message={
-          <span>
-            Đưa <b>{resettable.length}</b> cấu hình bạn được quyền sửa trong tab {resetScope === "zalo" ? "Tích hợp Zalo" : "Cấu hình chung"}{" "}
-            về giá trị mặc định và lưu ngay:
-            <span className="block mt-2 max-h-40 overflow-y-auto text-[11px] text-gray-500">
-              {resettable.map((m) => (
-                <span key={m.key} className="block">
-                  • {settingLabel(m.key, m.description)}
-                </span>
-              ))}
-            </span>
-          </span>
-        }
-        confirmText="Khôi phục"
-        cancelText="Hủy bỏ"
-        variant="warning"
-      />
     </div>
   );
 }

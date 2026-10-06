@@ -31,6 +31,8 @@ export const MemberProfileSchema = z.object({
   universityId: z.string().uuid().nullable().optional(),
   major: opt(200),
   academicYear: opt(60),
+  enrollmentYear: z.number().int().min(1990, "Năm nhập học không hợp lệ.").max(2100, "Năm nhập học không hợp lệ.").nullable().optional(),
+  expectedGraduationYear: z.number().int().min(1990, "Năm ra trường không hợp lệ.").max(2110, "Năm ra trường không hợp lệ.").nullable().optional(),
   studentCode: opt(30),
   studentStatus: z.enum(["studying", "graduated", "suspended", "dropped_out"]).nullable().optional(),
   customDuesVnd: z.number().int().min(0).max(50_000_000).nullable().optional(),

@@ -5,18 +5,20 @@
 ## Mục lục
 
 1. [Bắt đầu: đăng nhập & làm quen giao diện](#bat-dau) — Mọi người
-2. [Thông báo, Lịch & Sự kiện](#lich-su-kien) — Thành viên, Mọi người
-3. [Phụng vụ & check-in đi lễ](#phung-vu) — Thành viên, Mọi người
-4. [Thu chi: đóng quỹ & tiền điện nước](#dong-quy) — Thành viên, Mọi người
-5. [Bếp & Cơm](#bep-com) — Thành viên, Mọi người
-6. [Hậu cần, trực vệ sinh & luật nhà](#hau-can) — Thành viên, Mọi người
-7. [Diễn đàn, Học tập, Khoảnh khắc & Trợ lý AI](#cong-dong) — Thành viên, Mọi người
-8. [Thủ quỹ: quỹ, điện nước, phiếu chi](#thu-quy) — Thủ quỹ
-9. [Trưởng nhà: điều hành nhà](#truong-nha) — Trưởng nhà
-10. [Nhắc tự động & nhóm Zalo](#zalo-tu-dong) — Trưởng nhà, Admin
-11. [Admin: tài khoản, vai trò, phân hệ, hệ thống](#admin) — Admin
-12. [Trưởng ban (vai trò tự tạo)](#truong-ban) — Trưởng ban (vai trò tự tạo)
-13. [Câu hỏi thường gặp & phím tắt](#hoi-dap) — Mọi người
+2. [Thông báo, Lịch, Sự kiện & Xin phép](#lich-su-kien) — Thành viên, Mọi người
+3. [Bảo mật & thông báo của tôi](#bao-mat) — Mọi người
+4. [Phụng vụ & check-in đi lễ](#phung-vu) — Thành viên, Mọi người
+5. [Thu chi: đóng quỹ & tiền điện nước](#dong-quy) — Thành viên, Mọi người
+6. [Bếp & Cơm](#bep-com) — Thành viên, Mọi người
+7. [Hậu cần, trực vệ sinh & luật nhà](#hau-can) — Thành viên, Mọi người
+8. [Thành viên, hồ sơ, sơ đồ nhà & cựu thành viên](#thanh-vien) — Thành viên, Mọi người
+9. [Diễn đàn, Học tập, Khoảnh khắc & Trợ lý AI](#cong-dong) — Thành viên, Mọi người
+10. [Thủ quỹ: quỹ, điện nước, phiếu chi](#thu-quy) — Thủ quỹ
+11. [Trưởng nhà: điều hành nhà](#truong-nha) — Trưởng nhà
+12. [Nhắc tự động & nhóm Zalo](#zalo-tu-dong) — Trưởng nhà, Admin
+13. [Admin: tài khoản, vai trò, phân hệ, hệ thống](#admin) — Admin
+14. [Trưởng ban (vai trò tự tạo)](#truong-ban) — Trưởng ban (vai trò tự tạo)
+15. [Câu hỏi thường gặp & phím tắt](#hoi-dap) — Mọi người
 
 ## Giới thiệu
 
@@ -25,7 +27,7 @@
 - **Thành viên** — Mọi anh em trong nhà: xem thông báo, lịch, đăng ký cơm, lịch trực vệ sinh, luật nhà, đóng quỹ, nhập bảng điểm…
 - **Thủ quỹ** — Giữ quỹ: lập kỳ thu quỹ, nhập tiền điện nước, ghi thu, lập/duyệt phiếu chi, sổ quỹ.
 - **Trưởng nhà** — Điều hành: duyệt đơn vào nhà, thành viên & phòng ở, trực nhật, đồng ký chi, thông báo, nhắc tự động qua Zalo, cấu hình chung.
-- **Admin** — Quản trị hệ thống: tài khoản, vai trò & quyền, ẩn/hiện phân hệ, danh mục, trợ lý AI, nhật ký hoạt động. Admin không duyệt chi, không đổi tài khoản nhận quỹ và không xem dữ liệu nhạy cảm của thành viên.
+- **Admin** — Quản trị hệ thống với **toàn quyền**: có mọi quyền của mọi vai trò (kể cả quyền được thêm về sau) — tài khoản, vai trò & quyền, phân hệ, danh mục, trợ lý AI, nhật ký hoạt động, và cả duyệt chi, duyệt đơn xin phép, ghi thu, đăng bài công khai… Chỉ các quy tắc **tách người** (không tự duyệt phiếu/đơn của chính mình) vẫn áp dụng cho mọi người.
 - **Trưởng ban (vai trò tự tạo)** — Trưởng ban Phụng vụ, Ẩm thực, Truyền thông… do Admin tạo và chọn quyền.
 
 <a id="bat-dau"></a>
@@ -40,7 +42,7 @@
 2. **Đăng nhập** — Mở ứng dụng, nhập email và mật khẩu tạm. _(minh họa trong ứng dụng)_
 3. **Đổi mật khẩu** — Lần đầu hệ thống bắt buộc đặt mật khẩu mới: **ít nhất 10 ký tự**, nên có cả chữ và số.
 
-> **Quên mật khẩu?** — Nhờ Admin hoặc Trưởng nhà vào **Cài đặt → Tài khoản → Đặt lại mật khẩu**. Bạn sẽ nhận mật khẩu tạm mới và phải đổi ngay khi đăng nhập.
+> **Quên mật khẩu?** — Ở trang đăng nhập bấm **Quên mật khẩu?**, nhập email — ứng dụng gửi đường dẫn đặt lại (có hiệu lực **30 phút**, dùng một lần). Nếu chưa nhận được thư hoặc nhà chưa cấu hình email, nhờ Admin/Trưởng nhà vào **Cài đặt → Tài khoản → Đặt lại mật khẩu** để nhận mật khẩu tạm.
 
 ### Làm quen giao diện
 
@@ -48,7 +50,7 @@
 
 _[Minh họa giao diện: Giao diện trên máy tính — xem trong ứng dụng]_
 
-- **① Thanh bên trái** liệt kê các phân hệ.
+- **① Thanh bên trái** liệt kê các phân hệ. Vài mục **gộp chung** cho gọn (*Thông báo & Diễn đàn*, *Lịch & Xin phép*, *Thu Chi & Báo cáo*, *Thành Viên & Nhà*, *Cài Đặt & Hướng dẫn*) — trong trang có **thanh tab** để chuyển qua lại giữa các phần.
 - **② Tìm kiếm nhanh** (phím tắt `Ctrl + K`): mở trang, tìm anh em, tạo nhanh việc.
 - **③ Chuông**: thông báo dành cho bạn (ca trực, phiếu chi cần duyệt, phản hồi…).
 - **④ Tài khoản**: hồ sơ, đổi mật khẩu, đăng xuất.
@@ -60,17 +62,49 @@ _[Minh họa giao diện: Giao diện trên điện thoại — xem trong ứng 
 - **Thanh điều hướng dưới cùng**: các mục chính. Mục không có ở đó nằm trong nút **Thêm**.
 - Chạm vào một bài viết/thông báo/thành viên sẽ mở trang chi tiết; bấm **Quay lại** (hoặc nút Back của điện thoại) để trở về.
 
-> **Dùng như một ứng dụng** — Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** để mở ứng dụng nhanh như app cài sẵn.
+> **Dùng như một ứng dụng** — Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** (iPhone: nút Chia sẻ → Thêm vào Màn hình chính) để mở ứng dụng nhanh như app cài sẵn và nhận **thông báo đẩy** — xem mục “Bảo mật & thông báo của tôi”.
 
-> **Giao diện tối** — Bấm biểu tượng **mặt trăng/mặt trời** ở thanh trên cùng để đổi giữa giao diện sáng và tối. Muốn tự theo cài đặt của máy: **Cài đặt → Hồ sơ cá nhân → Giao diện → Hệ thống**. Lựa chọn nhớ riêng cho từng thiết bị.
+> **Giao diện tối** — Bấm biểu tượng **mặt trăng/mặt trời** ở thanh trên cùng để đổi giữa giao diện sáng và tối. Muốn tự theo cài đặt của máy: **Cài đặt → Hồ sơ cá nhân → Giao diện → Hệ thống**. Ở đó cũng chọn được **cỡ chữ** (Vừa / Lớn / Rất lớn) cho dễ đọc. Lựa chọn nhớ riêng cho từng thiết bị.
 
 > **ℹ️ Lưu ý** — Mục bị làm mờ với nhãn **Bảo trì**: Admin đang tạm ẩn phân hệ đó. Dữ liệu vẫn giữ nguyên, bật lại là dùng tiếp.
 
 #### Khai báo tài khoản nhận tiền của tôi
 
-1. **Mở hồ sơ** _(Thành Viên → Chính tôi)_ — Chọn chính mình để xem hồ sơ; bấm **Sửa hồ sơ** để cập nhật thông tin được phép.
+1. **Mở hồ sơ** _(Thành Viên & Nhà → Chính tôi)_ — Chọn chính mình để xem hồ sơ; bấm **Sửa hồ sơ** để cập nhật thông tin được phép.
 2. **Khai báo tài khoản** _(Hồ sơ → Tài khoản nhận tiền → Khai báo tài khoản)_ — Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản (có thể tải ảnh QR của ngân hàng).
 3. **Xong** — Ứng dụng tự tạo mã **VietQR** để anh em hoặc Thủ quỹ chuyển khoản/hoàn ứng cho bạn nhanh và đúng.
+
+<a id="bao-mat"></a>
+
+## Bảo mật & thông báo của tôi
+
+*Dành cho: Mọi người* — Bật xác thực 2 bước, cài ứng dụng, nhận thông báo đẩy, chỉnh quyền riêng tư và cỡ chữ.
+
+Mở ở: **Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật / Thông báo / Hồ sơ cá nhân**
+
+#### Bật xác thực 2 bước (khuyến nghị — bắt buộc với vai trò quyền cao)
+
+1. **Mở tab Bảo mật** — Bấm **Bật xác thực 2 bước**.
+2. **Quét mã QR** — Dùng ứng dụng như Google Authenticator, Microsoft Authenticator, Authy hoặc 1Password quét mã, rồi nhập **mã 6 số** đang hiển thị để xác nhận.
+3. **Lưu 8 mã khôi phục** — Các mã chỉ hiện **một lần**; mỗi mã dùng được một lần khi mất điện thoại. Hãy chép hoặc tải về cất nơi an toàn.
+
+> **ℹ️ Lưu ý** — Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản (rồi bật lại).
+
+#### Nhận thông báo đẩy trên điện thoại / máy tính
+
+1. **Cài ứng dụng lên màn hình chính** _(Cài đặt → Thông báo)_ — Android/máy tính: bấm **Cài ứng dụng**. iPhone/iPad (iOS 16.4+): Safari → Chia sẻ → **Thêm vào Màn hình chính**, rồi mở ứng dụng từ biểu tượng mới.
+2. **Bật thông báo trên thiết bị này** — Bấm **Bật thông báo đẩy** và cho phép khi trình duyệt hỏi. Mỗi thiết bị bật riêng.
+3. **Chọn loại muốn nhận** — Tắt từng nhóm (Lịch & sự kiện, Trực nhật, Thu chi…) và đặt **giờ yên tĩnh** — trong giờ đó thông báo được giữ lại, gửi sau (trừ thông báo khẩn).
+
+> **⚠️ Chú ý** — Nếu trang báo “máy chủ chưa bật thông báo đẩy”, nhờ Admin cấu hình khóa VAPID (xem mục Admin). Thông báo trong ứng dụng (chuông) vẫn hoạt động bình thường.
+
+### Quyền riêng tư & đồng ý
+
+Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho Ban điều hành xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay.
+
+### Giao diện & cỡ chữ
+
+**Cài đặt → Hồ sơ cá nhân → Giao diện**: chọn Sáng / Tối / Theo hệ thống và **cỡ chữ** Vừa / Lớn / Rất lớn (phóng cả giao diện). Bàn phím: nhấn `Tab` rồi `Enter` ở liên kết **“Bỏ qua đến nội dung chính”** để nhảy thẳng tới nội dung.
 
 <a id="hoi-dap"></a>
 
@@ -80,7 +114,7 @@ _[Minh họa giao diện: Giao diện trên điện thoại — xem trong ứng 
 
 #### Không thấy một mục trên thanh bên / mục bị mờ “Bảo trì”
 
-Admin đang tạm ẩn phân hệ đó, hoặc vai trò của bạn không có quyền.
+Admin đang tạm ẩn phân hệ đó, hoặc vai trò của bạn không có quyền. Lưu ý một số mục đã **gộp chung**: *Diễn đàn* nằm ở tab trong **Thông báo & Diễn đàn**, *Xin phép* trong **Lịch & Xin phép**, *Báo cáo* trong **Thu Chi & Báo cáo**, *Sơ đồ nhà* trong **Thành Viên & Nhà**, *Bắt đầu thiết lập* và *Hướng dẫn* trong **Cài Đặt & Hướng dẫn**.
 
 #### Bấm nút báo “Không có quyền”
 
@@ -92,7 +126,15 @@ Tải lại trang (kéo xuống trên điện thoại hoặc `F5`).
 
 #### Quên mật khẩu
 
-Nhờ Admin/Trưởng nhà đặt lại; bạn nhận mật khẩu tạm và đổi ngay khi đăng nhập.
+Ở trang đăng nhập bấm **Quên mật khẩu?** để nhận email đặt lại (hiệu lực 30 phút). Chưa nhận được thư: kiểm tra mục Thư rác, hoặc nhờ Admin/Trưởng nhà đặt lại — bạn nhận mật khẩu tạm và đổi ngay khi đăng nhập.
+
+#### Mất điện thoại đang dùng xác thực 2 bước
+
+Đăng nhập bằng một **mã khôi phục** (đã lưu lúc bật 2 bước). Hết mã: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản, rồi bật lại và lưu bộ mã mới.
+
+#### Không nhận được thông báo đẩy
+
+Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình.
 
 #### Muốn dùng AI
 
@@ -106,13 +148,15 @@ _[Minh họa giao diện: Phím tắt — xem trong ứng dụng]_
 
 <a id="lich-su-kien"></a>
 
-## Thông báo, Lịch & Sự kiện
+## Thông báo, Lịch, Sự kiện & Xin phép
 
-*Dành cho: Thành viên, Mọi người* — Đọc thông báo, báo tham dự, điểm danh bằng QR và biểu quyết.
+*Dành cho: Thành viên, Mọi người* — Đọc thông báo, báo tham dự, điểm danh bằng QR, biểu quyết và gửi đơn xin phép.
 
-### Thông báo
+### Thông báo & Diễn đàn
 
-Vào **Thông báo** để đọc bảng tin. Thông báo có nút **Xác nhận đã đọc** thì bấm để Ban điều hành biết bạn đã nắm.
+Mở ở: **Thông báo & Diễn đàn**
+
+Mục này có hai tab: **Thông báo** (bảng tin chính thức, luật nhà) và **Diễn đàn** (trao đổi, góp ý). Thông báo có nút **Xác nhận đã đọc** thì bấm để Ban điều hành biết bạn đã nắm. Chuông ở góc trên là **thông báo dành riêng cho bạn** (ca trực, phiếu cần duyệt, kết quả đơn xin phép…).
 
 ### Lịch & Sự kiện
 
@@ -130,6 +174,18 @@ _[Minh họa giao diện: Thử bấm — đây chỉ là minh họa — xem tro
 ### Biểu quyết
 
 Chọn phương án trong thẻ biểu quyết **trước hạn chót**. Với biểu quyết cho phép, bạn có thể đổi hoặc rút phiếu cho tới khi đóng. Biểu quyết ẩn danh không ai thấy bạn chọn gì.
+
+### Xin phép (vắng, về muộn, ngủ ngoài, đi xa)
+
+Mở ở: **Lịch & Xin phép → Xin phép**
+
+#### Gửi đơn xin phép
+
+1. **Bấm “Gửi đơn xin phép”** — Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · tạm vắng nhiều ngày.
+2. **Điền thông tin** — Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ), ghi **lý do**; ngủ ngoài / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc.
+3. **Chờ duyệt** — Trưởng nhà/Ban điều hành nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được.
+
+> **💡 Mẹo** — Đơn **vắng sự kiện được duyệt** thì điểm danh sự kiện đó ghi **“có phép”** và không bị trừ điểm chuyên cần. Không ai tự duyệt được đơn của chính mình.
 
 <a id="phung-vu"></a>
 
@@ -173,7 +229,7 @@ Bấm vào một ngày: khung **Phụng vụ** cho biết tên lễ, bậc lễ,
 
 #### Đóng một khoản
 
-1. **Chọn khoản** _(Thu Chi → Các khoản thu)_ — Chọn chip khoản cần xem (“Quỹ T7–T12”, “ĐN T9”…) để biết bạn đã đóng hay chưa. _(minh họa trong ứng dụng)_
+1. **Chọn khoản** _(Thu Chi & Báo cáo → Các khoản thu)_ — Chọn chip khoản cần xem (“Quỹ T7–T12”, “ĐN T9”…) để biết bạn đã đóng hay chưa. _(minh họa trong ứng dụng)_
 2. **Nộp qua QR** — Khoản chưa đóng có nút **Nộp qua QR**: mã QR tài khoản nhận quỹ đã có sẵn **số tiền và nội dung chuyển khoản** — quét bằng app ngân hàng là xong. _(minh họa trong ứng dụng)_
 3. **Bấm “Tôi đã đóng”** — Chuyển khoản hoặc đưa tiền mặt xong, bấm nút này để báo. Thủ quỹ/Trưởng nhà đối chiếu rồi **Xác nhận** (hoặc từ chối kèm lý do) — bạn nhận thông báo kết quả.
 
@@ -220,11 +276,33 @@ Mở ở: **Thông báo → Luật nhà**
 
 Nội quy chia theo mục (giờ giấc, vệ sinh, khách…), có bảng **giờ giấc chung**. Bấm **Tải PDF** để lưu hoặc in. Trưởng nhà/Admin soạn, sửa, sắp xếp từng mục.
 
+<a id="thanh-vien"></a>
+
+## Thành viên, hồ sơ, sơ đồ nhà & cựu thành viên
+
+*Dành cho: Thành viên, Mọi người* — Danh bạ, cập nhật hồ sơ của mình (ngành, niên khóa, ngày vào nhà), xem sơ đồ nhà và mạng lưới cựu.
+
+Mở ở: **Thành Viên & Nhà**
+
+Mục này có hai tab: **Thành viên** (danh bạ, đơn xin vào nhà, cựu thành viên) và **Sơ đồ nhà** (phòng ở, ai ở phòng nào).
+
+#### Cập nhật hồ sơ của tôi
+
+1. **Mở hồ sơ** _(Cài Đặt & Hướng dẫn → Cài đặt → Hồ sơ cá nhân)_ — Hoặc ở danh bạ chọn chính mình rồi bấm **Sửa hồ sơ**.
+2. **Học vụ & Tình trạng** — Chọn **trường**, **ngành học** (chọn trong danh sách ngành phổ biến — ngành khác thì chọn **Khác** rồi tự nhập), **khóa** (ví dụ K66), **niên khóa** (năm nhập học → năm dự kiến ra trường), mã sinh viên và tình trạng (đang học, đã tốt nghiệp, bảo lưu, thôi học).
+3. **Thông tin riêng tư & Công giáo** — Ngày sinh, quê quán, phụ huynh… chỉ bạn và Ban điều hành xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật.
+
+> **ℹ️ Lưu ý** — **Tháng/năm vào nhà lưu xá** do Ban điều hành cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ.
+
+### Cựu thành viên
+
+Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc Ban điều hành sửa hồ sơ cựu bằng nút bút chì trên thẻ.
+
 <a id="cong-dong"></a>
 
 ## Diễn đàn, Học tập, Khoảnh khắc & Trợ lý AI
 
-*Dành cho: Thành viên, Mọi người* — Trao đổi, nhập bảng điểm, xem album ảnh và hỏi trợ lý AI.
+*Dành cho: Thành viên, Mọi người* — Trao đổi (tab Diễn đàn), nhập bảng điểm, xem album ảnh và hỏi trợ lý AI.
 
 - **Diễn đàn** — Tạo chủ đề, bình luận, thích; nội dung vi phạm có thể **báo cáo**.
 - **Học tập** — Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; Ban điều hành xác minh.
@@ -254,7 +332,7 @@ Nút **Trợ lý AI** (góc dưới) trả lời câu hỏi về nội quy, thô
 
 Chọn ngân hàng, nhập số tài khoản, tên chủ tài khoản (có thể tải ảnh QR của ngân hàng). Thành viên sẽ thấy QR có sẵn số tiền + nội dung khi nộp.
 
-> **ℹ️ Lưu ý** — Thủ quỹ và Trưởng nhà sửa được; **Admin không đổi được nơi nhận tiền**.
+> **ℹ️ Lưu ý** — Thủ quỹ, Trưởng nhà và Admin sửa được. Hãy đảm bảo tài khoản đứng tên pháp nhân/Ban điều hành (tránh tài khoản cá nhân) để minh bạch.
 
 #### Lập kỳ quỹ (6 tháng/lần)
 
@@ -293,8 +371,21 @@ _[Minh họa giao diện: Trạng thái phiếu chi — xem trong ứng dụng]_
 
 Phiếu đã duyệt có người ứng tiền: chi tiết phiếu hiện **mã QR hoàn ứng** của người đó (có sẵn số tiền + nội dung). Chi xong bấm **Đã chi**; sổ quỹ tự ghi.
 
+#### Giao dịch ngân hàng tự động (ghi thu nhanh)
+
+**Thu Chi & Báo cáo → Tổng quan → Giao dịch ngân hàng**
+
+Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), mỗi khoản **tiền vào** tài khoản hiện ở thẻ này kèm **gợi ý** khoản phải thu khớp (theo tên người nộp trong nội dung chuyển khoản, mã kỳ quỹ và đúng số tiền).
+
+1. **Xem gợi ý** — Nhãn **Khớp cao** = đúng tên + đúng số tiền; **Có thể** = khớp tên nhưng lệch số tiền; **Tham khảo** = chỉ đúng tiền + mã kỳ.
+2. **Bấm Ghi thu** — Tạo phiếu thu thật cho khoản đó (đúng số tiền giao dịch). Giao dịch nhỏ hơn số còn nợ thì ghi thu **một phần**; lớn hơn thì ghi thủ công ở bảng quỹ.
+3. **Hoặc Bỏ qua** — Tiền không phải quỹ (ủng hộ, hoàn tiền…): bỏ qua kèm lý do; khôi phục lại được.
+
+> **ℹ️ Lưu ý** — Hệ thống **không bao giờ tự ghi sổ** từ ngân hàng — luôn do Thủ quỹ bấm xác nhận. Bấm hai lần không ghi thu hai lần.
+
 #### Báo cáo, thống kê & nhắc quỹ
 
+- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, Ban điều hành hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.
 - Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.
 - **Tải báo cáo PDF**, **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.
 - Thẻ **AI nhận xét thu chi tháng** so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn bản mới.
@@ -311,9 +402,32 @@ Phiếu đã duyệt có người ứng tiền: chi tiết phiếu hiện **mã 
 
 #### Thành viên & phòng ở
 
-- **Thành Viên → Đơn chờ duyệt**: duyệt đơn xin vào nhà và xếp phòng.
-- **Thêm thành viên** (có thể cấp tài khoản ngay — mật khẩu tạm hiện **một lần**, hãy gửi riêng cho người đó).
-- **Sơ đồ nhà**: xếp/chuyển phòng (máy tính: kéo thả; điện thoại: danh sách thẻ), sửa cấu trúc phòng.
+- **Thành Viên & Nhà → Thành viên → Đơn chờ duyệt**: duyệt đơn xin vào nhà và xếp phòng.
+- **Thêm thành viên** (có thể cấp tài khoản ngay — mật khẩu tạm hiện **một lần**, hãy gửi riêng cho người đó). Nhớ chọn **tháng/năm vào nhà** — quỹ theo kỳ chỉ tính cho người đã vào nhà trước hạn nộp.
+- **Sửa hồ sơ** thành viên: trường, **ngành** (chọn trong danh sách hoặc tự nhập), **niên khóa**, **tháng/năm vào nhà**, tình trạng học tập.
+- **Sơ đồ nhà** (tab cạnh Thành viên): xếp/chuyển phòng (máy tính: kéo thả; điện thoại: danh sách thẻ), sửa cấu trúc phòng.
+
+#### Nhập nhiều thành viên từ Excel / CSV
+
+**Thành Viên & Nhà → Thành viên → Nhập từ Excel**
+
+1. **Tải tệp mẫu** — Bấm **Tải tệp mẫu (.xlsx)**, điền mỗi người một dòng. Chỉ cột **Họ và tên** là bắt buộc; có thể bỏ cột không dùng.
+2. **Chọn tệp để kiểm tra** — Hệ thống kiểm tra **từng dòng** trước khi thêm: số điện thoại/email sai hoặc **trùng** (trong tệp hoặc với người đã có), ngày sai định dạng, trường/phòng không có trong danh mục… Dòng lỗi bị bỏ qua, dòng có cảnh báo vẫn thêm được.
+3. **Xác nhận thêm** — Bấm **Thêm N thành viên**. Tối đa 300 dòng mỗi lần.
+
+> **ℹ️ Lưu ý** — Nhập hàng loạt **không** gồm tên thánh/giáo xứ (cần chính thành viên đồng ý) và **không** cấp tài khoản đăng nhập — cấp riêng ở Cài đặt → Tài khoản.
+
+#### Đơn xin phép của anh em
+
+**Lịch & Xin phép → Xin phép → Chờ tôi duyệt**
+
+Đơn mới gửi thông báo cho Trưởng nhà/Admin; số đơn chờ hiện ở thanh bên. Bấm **Duyệt** hoặc **Từ chối** (từ chối phải ghi lý do ≥ 5 ký tự, người xin sẽ thấy). Đơn **vắng sự kiện** được duyệt tự ghi điểm danh “có phép”. Bạn không duyệt được đơn của chính mình.
+
+#### Cựu thành viên
+
+**Thành Viên & Nhà → Thành viên → Cựu thành viên**
+
+Khi thành viên ra trường hoặc rời nhà, đổi **trạng thái** ở hồ sơ (Cựu thành viên / Đã rời). Ở tab **Cựu thành viên** bấm bút chì để ghi **năm ra trường, nghề nghiệp, nơi làm việc, thành phố**. Chỉ bật **“Còn giữ liên lạc & đồng ý chia sẻ”** sau khi đã hỏi ý kiến người đó — khi bật, các thành viên khác mới xem được. Có nút **Xuất Excel** danh sách cựu.
 
 #### Trực vệ sinh theo tuần
 
@@ -329,19 +443,42 @@ _[Minh họa giao diện: duty-week — xem trong ứng dụng]_
 
 Soạn từng mục, thêm giờ giấc, sắp xếp thứ tự, tải PDF. Thành viên đọc và tải PDF ở cùng chỗ.
 
-#### Bài viết công khai (tuyển sinh, tin tức)
+#### Trang công khai: bài viết, hỏi đáp, đăng ký tìm hiểu
 
-**Bài viết công khai → Viết bài mới**
+**Trang công khai**
 
-Bài viết **đã đăng** có đường link công khai dạng `/tin-tuc/ten-bai` — **ai cũng xem được, không cần đăng nhập**. Trang chung của mọi bài ở `/tin-tuc` (đường link này cũng nằm ở chân trang).
+Người ngoài xem được (**không cần đăng nhập**): `/tin-tuc` (bản tin, tuyển sinh), `/gioi-thieu`, `/lien-he` (đăng ký tìm hiểu), `/hoi-dap`, `/thu-vien` (album), `/ung-ho`. Các liên kết chính cũng nằm ở chân trang. Mục **Trang công khai** ở thanh bên có ba tab: **Bài viết**, **Hỏi đáp**, **Đăng ký tìm hiểu**.
 
-1. **Soạn bài** — Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**. Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; bên phải là bản xem trước.
-2. **Lưu nháp hoặc đăng** — **Lưu nháp** thì chỉ Ban điều hành thấy. **Đăng công khai** thì bài lên trang công khai ngay.
-3. **Chia sẻ** — Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt sẽ hiện đẹp khi chia sẻ.
+#### Bài viết
+
+1. **Soạn bài** _(Trang công khai → Viết bài mới)_ — Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**, thêm **thẻ** (vd. “tuyển sinh 2026”). Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; khung **Trợ lý AI** bên phải giúp gợi ý đề tài, viết nháp, chỉnh văn (khi Admin đã bật AI).
+2. **Lưu nháp, đăng hoặc hẹn giờ** — **Lưu nháp** thì chỉ Ban điều hành thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy).
+3. **Lịch sử chỉnh sửa** — Nút **Lịch sử** ở trình soạn giữ 25 bản gần nhất; xem lại và **Khôi phục** khi lỡ sửa nhầm.
+4. **Chia sẻ** — Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt hiện đẹp khi chia sẻ.
 
 > **Lưu ý** — Đừng đăng số điện thoại, địa chỉ cá nhân hay hình ảnh của người chưa đồng ý. Muốn bài hiện lớn đầu trang, bấm ngôi sao **Nổi bật**. Gỡ bài về bản nháp hoặc xóa bài thì link cũ không mở được nữa.
 
-Quyền này (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Cài đặt → Phân quyền & Vai trò.
+#### Hỏi đáp
+
+Tab **Hỏi đáp**: thêm câu hỏi thường gặp (chi phí, điều kiện vào ở, giờ giấc…), sắp thứ tự bằng mũi tên, **ẩn** câu chưa cần hiện. Câu trả lời hỗ trợ **đậm**, danh sách, liên kết. Trang `/hoi-dap` giúp Google hiển thị câu trả lời trực tiếp.
+
+#### Đăng ký tìm hiểu
+
+Người ngoài điền biểu mẫu ở `/lien-he` → xuất hiện ở tab **Đăng ký tìm hiểu** (kèm thông báo và huy hiệu số đơn mới). Liên hệ rồi đổi trạng thái (Mới → Đã liên hệ → Đã đến thăm → Đã nhận / Không nhận / Rác) và ghi chú để cả nhóm theo dõi. Biểu mẫu có chống thư rác (ô bẫy, giới hạn 3 đơn/giờ mỗi địa chỉ). Quyền xử lý: `application.review`.
+
+#### Giới thiệu, thư viện ảnh & ủng hộ
+
+- **Giới thiệu**: viết ở **Cài đặt → Cấu hình chung → Nội dung trang công khai** (hỗ trợ ## tiêu đề, **đậm**, danh sách). Để trống thì dùng đoạn mặc định.
+- **Thư viện ảnh**: ở **Khoảnh Khắc → Sửa album** (người có quyền kiểm duyệt album) bật **“Hiện ở trang công khai”** — người ngoài xem được TOÀN BỘ ảnh album, nên chỉ bật khi những người trong ảnh đã đồng ý.
+- **Ủng hộ**: cũng ở Nội dung trang công khai — bật **Trang Ủng hộ** để hiện mã VietQR của tài khoản nhận quỹ (Thủ quỹ cài ở Thu chi) cùng lời nhắn.
+
+Quyền đăng bài (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Cài đặt → Phân quyền & Vai trò.
+
+#### Báo cáo hoạt động quý / năm
+
+**Thu Chi & Báo cáo → Báo cáo hoạt động**
+
+Chọn **theo quý** hoặc **theo năm**: xem nhanh sĩ số, vào/ra nhà, thu chi và tỉ lệ thu quỹ, số sự kiện và tỉ lệ có mặt, ca trực hoàn thành, báo hỏng. Bấm **Tải báo cáo PDF** để có bản in có khung chữ ký. Quyền xem: `report.read` (Trưởng nhà, Admin, Thủ quỹ). Báo cáo **không có dữ liệu cá nhân**.
 
 #### Thông báo, sự kiện, diễn đàn
 
@@ -419,6 +556,7 @@ Danh sách anh em kèm trạng thái (Đang hoạt động / Bị khóa / Vô hi
 | **Cấp tài khoản** | Nhập email → mật khẩu tạm hiện **một lần**, hãy gửi riêng cho người đó |
 | **Đặt lại mật khẩu** | Mật khẩu tạm mới; mọi phiên đăng nhập cũ bị đăng xuất; lần sau phải đổi mật khẩu |
 | **Khóa / Mở khóa**, **Vô hiệu / Kích hoạt lại** | Chặn hoặc cho phép đăng nhập |
+| **Gỡ xác thực 2 bước** | Khi người đó mất điện thoại và mã khôi phục: họ đăng nhập chỉ bằng mật khẩu, bị đăng xuất mọi thiết bị và cần bật lại 2 bước |
 | **Vai trò** | Đánh dấu các vai trò người đó giữ (hệ thống và tự tạo) |
 
 > **ℹ️ Lưu ý** — Không thao tác được trên **chính tài khoản của mình**. Muốn đổi mật khẩu của mình: menu tài khoản → Đổi mật khẩu.
@@ -427,7 +565,7 @@ Danh sách anh em kèm trạng thái (Đang hoạt động / Bị khóa / Vô hi
 
 **Cài Đặt → Phân quyền & Vai trò**
 
-- Bốn vai trò hệ thống (Admin, Trưởng nhà, Thủ quỹ, Thành viên) không xóa được và bộ quyền cố định.
+- Bốn vai trò hệ thống (Admin, Trưởng nhà, Thủ quỹ, Thành viên) không xóa được và bộ quyền cố định (**Admin luôn có toàn bộ quyền**).
 - **Thêm vai trò** cho các ban (ví dụ Trưởng ban Ẩm thực): đặt tên, mô tả, chọn quyền theo nhóm phân hệ (có ô tìm quyền), rồi gán cho người phụ trách ở tab Tài khoản.
 - **Sửa / Xóa** vai trò tự tạo. Vai trò còn lịch sử sẽ được lưu trữ, người đang giữ mất quyền ngay.
 
@@ -448,7 +586,7 @@ Lịch phụng vụ do ứng dụng tự tính cho mọi năm (theo luật phụ
 
 #### Trợ lý AI
 
-**Cài Đặt → Trợ lý AI**: bật công tắc tổng và từng tính năng (hỏi đáp nội quy, soạn tin nhắc quỹ, phân loại sự cố, tóm tắt, soát nội dung, nhận xét thu chi, nhận xét học tập), đặt ngân sách tháng, xem nhật ký. Khóa API Groq/Gemini đặt trong file `.env.local` của máy chủ.
+**Cài Đặt → Trợ lý AI**: bật công tắc tổng và từng tính năng (hỏi đáp nội quy, soạn tin nhắc quỹ, phân loại sự cố, tóm tắt, soát nội dung, nhận xét thu chi, nhận xét học tập), đặt ngân sách tháng, xem nhật ký. Khóa API Groq/Gemini đặt ở biến môi trường của máy chủ (`GROQ_API_KEY`, `GEMINI_API_KEY` — trên Vercel).
 
 ### Nhật ký hoạt động (chỉ Admin)
 
@@ -462,7 +600,18 @@ _[Minh họa giao diện: Mỗi thao tác: ai, làm gì, kết quả, giờ, thi
 
 Lọc theo **người dùng**, khoảng thời gian, phân hệ, kết quả hoặc tìm theo từ khóa. Nhật ký giữ **180 ngày**. Hồ sơ cá nhân nhạy cảm và điểm học tập chỉ Trưởng nhà xem được nên không hiện ở đây.
 
-> **Giới hạn của Admin** — Admin **không** duyệt chi, không đổi tài khoản nhận quỹ, không xem dữ liệu nhạy cảm (CCCD, thông tin phụ huynh, hồ sơ Công giáo, điểm chi tiết của người khác) — những việc đó thuộc Trưởng nhà/Thủ quỹ.
+> **Admin có toàn quyền** — Admin có **mọi quyền** của hệ thống — và quyền thêm về sau cũng tự được cấp. Admin cũng được tính là Trưởng nhà + Thủ quỹ khi duyệt chi. Những điều vẫn giữ nguyên cho MỌI người, kể cả Admin: **không tự duyệt phiếu chi / đơn xin phép do chính mình lập** (cần người khác duyệt), và dữ liệu cần sự **đồng ý của thành viên** (hồ sơ Công giáo, chia sẻ bảng điểm…) chỉ xem được khi họ đã đồng ý. Mỗi lần xem CCCD đầy đủ đều phải nhập lý do và được ghi vào nhật ký.
+
+#### Bảo mật tài khoản: 2 bước, quên mật khẩu, thông báo đẩy, email
+
+- **Xác thực 2 bước** (TOTP + 8 mã khôi phục) bắt buộc với vai trò quyền cao (Admin, Trưởng nhà, Thủ quỹ — cấu hình ở **Cài đặt → Cấu hình chung → Bảo mật đăng nhập**). Người mất điện thoại và mã khôi phục: **Cài đặt → Tài khoản → Quản lý → Gỡ xác thực 2 bước**.
+- **Quên mật khẩu** tự phục vụ qua email cần biến `RESEND_API_KEY` và `EMAIL_FROM` (tên miền đã xác minh ở Resend). Thiếu thì người dùng nhờ Admin đặt lại mật khẩu.
+- **Thông báo đẩy** cần `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (sinh bằng `pnpm env:keys`). Thiếu thì chỉ có thông báo trong ứng dụng.
+- Biến môi trường đặt ở **Vercel → Settings → Environment Variables** rồi **deploy lại**. Chi tiết và cách xoay khóa: file `VAN_HANH.md` trong mã nguồn.
+
+#### Giao dịch ngân hàng tự động (SePay / Casso)
+
+Đặt biến `BANK_WEBHOOK_SECRET` (≥ 16 ký tự) rồi trong SePay/Casso tạo webhook tới `https://<tên miền>/api/v1/public/bank-webhook` với cùng khóa xác thực. Tiền vào tài khoản sẽ hiện ở **Thu Chi & Báo cáo → Tổng quan → Giao dịch ngân hàng** để Thủ quỹ xác nhận ghi thu (xem mục Thủ quỹ). Webhook chỉ **lưu** giao dịch, không tự ghi sổ.
 
 <a id="truong-ban"></a>
 

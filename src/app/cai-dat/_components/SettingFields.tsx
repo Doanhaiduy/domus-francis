@@ -2,11 +2,11 @@
 // Ô nhập gắn với một khóa settings: tự khóa (disabled + lý do) khi người dùng không có write_permission của khóa,
 // báo lỗi theo kiểu/min/max, gợi ý giới hạn và giá trị mặc định (có nút đưa ô về mặc định — lưu khi bấm "Lưu").
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Lock, RotateCcw } from "lucide-react";
+import { Lock } from "lucide-react";
 import { CustomInput, CustomTextarea, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
 import { AddressPicker } from "@/components/ui/GeoPicker";
 import { cn } from "@/lib/utils";
-import { feastToLabel, labelToFeast, sameSettingValue, type SettingDto } from "@/lib/types/settings";
+import { feastToLabel, labelToFeast, type SettingDto } from "@/lib/types/settings";
 import type { SettingsDraft } from "./useSettingsDraft";
 
 const vnd = (n: number) => `${n.toLocaleString("vi-VN")} đ`;
@@ -57,7 +57,7 @@ export function CardLockNote({ reason }: { reason: string | null }) {
   );
 }
 
-/** Dòng gợi ý dưới ô: lý do bị khóa, hoặc giới hạn + giá trị mặc định (kèm nút khôi phục ô). */
+/** Dòng gợi ý dưới ô: lý do bị khóa, hoặc giới hạn cho phép. */
 export function FieldHint({ draft, k, showBounds = true }: { draft: SettingsDraft; k: string; showBounds?: boolean }) {
   const m = draft.meta(k);
   const lock = draft.lockReason(k);
@@ -80,25 +80,8 @@ export function FieldHint({ draft, k, showBounds = true }: { draft: SettingsDraf
           ? `Tối thiểu ${formatSettingValue(m, m.min)}`
           : `Tối đa ${formatSettingValue(m, m.max)}`
       : null;
-  const hasDefault = m.defaultValue !== null && m.defaultValue !== undefined && m.defaultValue !== "";
-  const atDefault = hasDefault && sameSettingValue(cur, m.defaultValue);
-  if (!bounds && (!hasDefault || atDefault)) return null;
-  return (
-    <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[10.5px] text-gray-400">
-      {bounds && <span>{bounds}</span>}
-      {hasDefault && !atDefault && (
-        <button
-          type="button"
-          onClick={() => draft.set(k, m.defaultValue)}
-          className="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline"
-          title="Đưa ô này về giá trị mặc định (bấm Lưu để áp dụng)"
-        >
-          <RotateCcw className="w-2.5 h-2.5" />
-          Mặc định: {formatSettingValue(m, m.defaultValue)}
-        </button>
-      )}
-    </p>
-  );
+  if (!bounds) return null;
+  return <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[10.5px] text-gray-400"><span>{bounds}</span></p>;
 }
 
 interface FieldProps {

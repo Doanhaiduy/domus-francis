@@ -62,7 +62,6 @@ export const SurveyOptionSchema = z.object({ label: z.string().trim().min(2, "TÃ
 
 export const MealSettingsSchema = z.object({
   enabled: z.boolean().optional(),
-  pricePerServing: z.number().int().min(0).max(1_000_000).optional(),
   lunchCutoff: zTime.optional(),
   dinnerCutoff: zTime.optional(),
 });

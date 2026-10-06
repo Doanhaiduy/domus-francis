@@ -51,6 +51,7 @@ const MEMBER_SELECT = `
          pos.position_code, pos.position_name, mp.responsibilities,
          cp.holy_name, cp.parish_name, d.name AS diocese_name,
          COALESCE(sp.major, ds.major) AS major, COALESCE(sp.cohort_label, ds.cohort_label) AS cohort_label, sp.student_code,
+         sp.enrollment_year, sp.expected_graduation_year,
          app.fn_member_student_status(m.id) AS student_status, m.custom_dues_vnd, app.fn_member_dues_amount(m.id) AS effective_dues_vnd,
          un.name AS university_name,
          to_char(mpd.birth_date, 'DD/MM/YYYY') AS birth_dmy
@@ -99,6 +100,8 @@ function toMemberDto(r: MemberRow): MemberDto {
     university: r.university_name ?? undefined,
     major: r.major ?? undefined,
     academicYear: r.cohort_label ?? undefined,
+    enrollmentYear: r.enrollment_year ?? undefined,
+    expectedGraduationYear: r.expected_graduation_year ?? undefined,
     studentCode: r.student_code ?? undefined,
     studentStatus: (r.student_status as MemberDto["studentStatus"]) ?? "studying",
     customDuesVnd: r.custom_dues_vnd !== null && r.custom_dues_vnd !== undefined ? Number(r.custom_dues_vnd) : null,
@@ -226,6 +229,9 @@ export interface MemberProfileInput {
   universityId?: string | null;
   major?: string | null;
   academicYear?: string | null;
+  /** Niên khóa: năm nhập học → năm dự kiến ra trường */
+  enrollmentYear?: number | null;
+  expectedGraduationYear?: number | null;
   studentCode?: string | null;
   studentStatus?: "studying" | "graduated" | "suspended" | "dropped_out" | null;
   customDuesVnd?: number | null;
@@ -351,11 +357,20 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
   }
 
   // Học vụ
-  const t4 = ["universityId", "major", "academicYear", "studentCode", "studentStatus"] as const;
+  const t4 = ["universityId", "major", "academicYear", "enrollmentYear", "expectedGraduationYear", "studentCode", "studentStatus"] as const;
   if (t4.some((k) => has(p, k))) {
-    const cur = (await tx.query<{ id: string; university_id: string }>("SELECT id, university_id FROM student_profiles WHERE member_id = $1 AND is_current AND deleted_at IS NULL", [memberId])).rows[0];
+    const cur = (await tx.query<{ id: string; university_id: string; enrollment_year: number | null; expected_graduation_year: number | null }>("SELECT id, university_id, enrollment_year, expected_graduation_year FROM student_profiles WHERE member_id = $1 AND is_current AND deleted_at IS NULL", [memberId])).rows[0];
     const uni = has(p, "universityId") ? p.universityId : cur?.university_id;
     const years = /(\d{4})\s*[–-]\s*(\d{4})/.exec(p.academicYear ?? "");
+    // Niên khóa nhập riêng (enrollmentYear/expectedGraduationYear) ưu tiên hơn năm suy ra từ chữ "K66 (2021 – 2026)"
+    const enrExplicit = has(p, "enrollmentYear");
+    const gradExplicit = has(p, "expectedGraduationYear");
+    const enrYear = enrExplicit ? (p.enrollmentYear ?? null) : years ? Number(years[1]) : null;
+    const gradYear = gradExplicit ? (p.expectedGraduationYear ?? null) : years ? Number(years[2]) : null;
+    // Kiểm tra cả khi chỉ gửi một trong hai năm: so với năm còn lại đang lưu
+    const effEnr = enrYear ?? (enrExplicit ? null : (cur?.enrollment_year ?? null));
+    const effGrad = gradYear ?? (gradExplicit ? null : (cur?.expected_graduation_year ?? null));
+    if (effEnr !== null && effGrad !== null && effGrad < effEnr) throw new ApiError(400, "BAD_COHORT_YEARS", "Năm dự kiến ra trường phải sau (hoặc bằng) năm nhập học.");
     const stStatus = p.studentStatus ?? undefined;
     if (cur) {
       await tx.query(
@@ -363,7 +378,8 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
                 major = CASE WHEN $9 THEN $3 ELSE major END,
                 cohort_label = CASE WHEN $10 THEN $4 ELSE cohort_label END,
                 student_code = CASE WHEN $11 THEN $5 ELSE student_code END,
-                enrollment_year = COALESCE($6, enrollment_year), expected_graduation_year = COALESCE($7, expected_graduation_year),
+                enrollment_year = CASE WHEN $12 THEN $6 ELSE COALESCE($6, enrollment_year) END,
+                expected_graduation_year = CASE WHEN $13 THEN $7 ELSE COALESCE($7, expected_graduation_year) END,
                 status = COALESCE($8::student_status_t, status)
           WHERE id = $1`,
         [
@@ -372,19 +388,21 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
           p.major ?? null,
           p.academicYear ?? null,
           p.studentCode ?? null,
-          years ? Number(years[1]) : null,
-          years ? Number(years[2]) : null,
+          enrYear,
+          gradYear,
           stStatus ?? null,
           has(p, "major"),
           has(p, "academicYear"),
           has(p, "studentCode"),
+          enrExplicit,
+          gradExplicit,
         ]
       );
     } else if (uni) {
       await tx.query(
         `INSERT INTO student_profiles (member_id, university_id, major, cohort_label, student_code, enrollment_year, expected_graduation_year, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::student_status_t, 'studying'))`,
-        [memberId, uni, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, years ? Number(years[1]) : null, years ? Number(years[2]) : null, stStatus ?? null]
+        [memberId, uni, p.major ?? null, p.academicYear ?? null, p.studentCode ?? null, enrYear, gradYear, stStatus ?? null]
       );
     } else if (stStatus) {
       const defaultUni = (await tx.query<{ id: string }>("SELECT id FROM universities WHERE is_active AND deleted_at IS NULL ORDER BY name LIMIT 1")).rows[0]?.id;

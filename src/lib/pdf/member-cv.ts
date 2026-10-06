@@ -1,7 +1,7 @@
 "use client";
 
 import type { Content, TableCell } from "pdfmake/interfaces";
-import type { Member } from "@/lib/types/members";
+import { cohortLabel, type Member } from "@/lib/types/members";
 import { C, FONT, baseDoc, doubleRule, downloadPdf, fileSlug, imageToDataUrl, plain, sectionBar, signatures } from "./core";
 
 export interface MemberCvPdfInput {
@@ -125,7 +125,7 @@ export async function downloadMemberCvPdf(p: MemberCvPdfInput) {
     kvGrid([
       { k: "Trường Đại học", v: m.university || "", bold: true, full: true },
       { k: "Ngành / Chuyên ngành", v: m.major || "" },
-      { k: "Niên khóa", v: m.academicYear || "" },
+      { k: "Niên khóa", v: cohortLabel(m) },
       { k: "Tình trạng", v: (m.studentStatus && STATUS[m.studentStatus]) || "Đang học (sinh viên)", color: m.studentStatus === "graduated" ? C.primaryDark : C.ink, bold: m.studentStatus === "graduated" },
       { k: "Mã số sinh viên", v: m.studentCode || "", mono: true },
       { k: "Quê quán", v: m.hometown || "", full: true },

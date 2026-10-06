@@ -11,24 +11,18 @@ import {
   UtensilsCrossed,
   Wrench,
   Church,
-  MessagesSquare,
   Users,
   Settings,
   ChevronDown,
   X,
   ExternalLink,
-  Building2,
   Camera,
   Check,
   GraduationCap,
   LogOut,
   Wrench as WrenchIcon,
-  BookOpen,
   User,
   Newspaper,
-  Rocket,
-  CalendarOff,
-  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -41,6 +35,7 @@ import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
 import { useModules } from "@/lib/data/modules";
 import { useInquiries } from "@/lib/data/public-site";
 import { usePendingLeaveCount } from "@/lib/data/leave";
+import { groupPaths, isInPath } from "@/lib/nav-groups";
 import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
 
 export const NAV_ITEMS: {
@@ -50,29 +45,24 @@ export const NAV_ITEMS: {
   badgeKey?: string;
   isPaused?: boolean;
   badgeDot?: boolean;
-  isNew?: boolean;
   isDividerBefore?: boolean;
+  /** Các trang con gộp chung mục này (xem lib/nav-groups.ts) — mục sáng lên khi đang ở một trong các trang đó */
+  paths?: string[];
   /** Chỉ hiện với người có một trong các quyền này */
   requires?: string | string[];
 }[] = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
-  { href: "/thong-bao", label: "Thông báo", icon: Bell, badgeKey: "announcements" },
-  { href: "/lich-su-kien", label: "Lịch & Sự kiện", icon: Calendar },
-  { href: "/xin-phep", label: "Xin phép", icon: CalendarOff, isNew: true, badgeKey: "leave" },
-  { href: "/thu-chi", label: "Thu Chi", icon: Wallet },
+  { href: "/thong-bao", label: "Thông báo & Diễn đàn", icon: Bell, badgeKey: "announcements", paths: groupPaths("/thong-bao") },
+  { href: "/lich-su-kien", label: "Lịch & Xin phép", icon: Calendar, badgeKey: "leave", paths: groupPaths("/lich-su-kien") },
+  { href: "/thu-chi", label: "Thu Chi & Báo cáo", icon: Wallet, paths: groupPaths("/thu-chi") },
   { href: "/bep-com", label: "Bếp & Cơm", icon: UtensilsCrossed, isPaused: false },
   { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench, badgeDot: true },
   { href: "/phung-vu", label: "Phụng Vụ", icon: Church },
-  { href: "/dien-dan", label: "Diễn Đàn", icon: MessagesSquare, isNew: true },
-  { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, isNew: true, requires: ["article.manage", "application.review"], badgeKey: "inquiries" },
-  { href: "/thanh-vien", label: "Thành Viên", icon: Users },
-  { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap, isNew: true },
-  { href: "/so-do-nha", label: "Sơ đồ nhà", icon: Building2 },
-  { href: "/bao-cao", label: "Báo cáo", icon: FileText, isNew: true, requires: "report.read" },
-  { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera, isNew: true },
-  { href: "/khoi-tao", label: "Bắt đầu thiết lập", icon: Rocket, requires: "setting.write", isDividerBefore: true },
-  { href: "/cai-dat", label: "Cài Đặt", icon: Settings },
-  { href: "/huong-dan", label: "Hướng dẫn sử dụng", icon: BookOpen },
+  { href: "/thanh-vien", label: "Thành Viên & Nhà", icon: Users, paths: groupPaths("/thanh-vien") },
+  { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap },
+  { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera },
+  { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, requires: ["article.manage", "application.review"], badgeKey: "inquiries", isDividerBefore: true },
+  { href: "/cai-dat", label: "Cài Đặt & Hướng dẫn", icon: Settings, paths: groupPaths("/cai-dat") },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -141,7 +131,7 @@ export const Sidebar: React.FC = () => {
         {/* NAVIGATION LIST */}
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.filter((item) => !item.requires || [item.requires].flat().some((p) => can(p))).map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+            const isActive = item.href === "/" ? pathname === "/" : (item.paths ?? [item.href]).some((h) => isInPath(pathname, h));
             const Icon = item.icon;
             const paused = modules.disabled[item.href];
 
@@ -204,11 +194,6 @@ export const Sidebar: React.FC = () => {
                     <span className="w-2 h-2 rounded-full bg-error shrink-0" />
                   )}
 
-                  {item.isNew && !paused && (
-                    <span className="bg-primary text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">
-                      MỚI
-                    </span>
-                  )}
 
                   {item.isPaused && (
                     <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">

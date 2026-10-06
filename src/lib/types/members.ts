@@ -25,6 +25,9 @@ export interface MemberDto {
   university?: string;
   major?: string;
   academicYear?: string;
+  /** Niên khóa: năm nhập học → năm dự kiến ra trường */
+  enrollmentYear?: number;
+  expectedGraduationYear?: number;
   studentCode?: string;
   studentStatus?: "studying" | "graduated" | "suspended" | "dropped_out";
   /** Định mức quỹ riêng theo thành viên (null = tính tự động theo sinh viên/đã ra trường) */
@@ -115,3 +118,13 @@ export type Member = MemberDto & Partial<Omit<MemberDetailDto, keyof MemberDto>>
 export type Room = RoomDto;
 export type Floor = FloorDto;
 export type RoomType = RoomDto["type"];
+
+/** Niên khóa hiển thị: "K66 · 2022 – 2026" (khóa + năm nhập học → ra trường; thiếu phần nào bỏ phần đó). */
+export function cohortLabel(m: { academicYear?: string | null; enrollmentYear?: number | null; expectedGraduationYear?: number | null }): string {
+  const e = m.enrollmentYear;
+  const g = m.expectedGraduationYear;
+  const years = e && g ? `${e} – ${g}` : e ? `từ ${e}` : g ? `đến ${g}` : "";
+  const label = (m.academicYear ?? "").trim();
+  // Chữ khóa cũ đã kèm năm ("K66 (2021 – 2026)") thì không ghép thêm năm trùng lặp
+  return label && years && !/\d{4}/.test(label) ? `${label} · ${years}` : label || years;
+}

@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Calendar,
 } from "lucide-react";
-import type { Member } from "@/lib/types/members";
+import { cohortLabel, type Member } from "@/lib/types/members";
 import { useMemberDetail } from "@/lib/data/members";
 import { useOrgSettings } from "@/lib/data/settings";
 import { copyTextToClipboard, formatMemberCVForZalo } from "@/lib/zaloShare";
@@ -299,7 +299,7 @@ export default function MemberCVModal({
               </div>
               <div className="flex">
                 <span className="w-32 font-bold text-gray-700">Niên khóa:</span>
-                <span>{member.academicYear || "---"}</span>
+                <span>{cohortLabel(member) || "---"}</span>
               </div>
               <div className="flex">
                 <span className="w-32 font-bold text-gray-700">Tình trạng:</span>

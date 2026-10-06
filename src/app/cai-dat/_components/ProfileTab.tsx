@@ -4,11 +4,13 @@ import React, { useEffect, useState } from "react";
 import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
 import { CustomInput, CustomSelect, CustomToggle, uploadFile } from "@/components/ui/FormControls";
 import { ProfileSkeleton } from "./TabSkeletons";
+import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
 import { AppearanceCard } from "./AppearanceCard";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage, fileUrl } from "@/lib/api";
+import { cohortLabel } from "@/lib/types/members";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
 import { consentsApi, useMyConsents } from "@/lib/data/consents";
 
@@ -36,6 +38,7 @@ export default function ProfileTab() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
+  const canManageMembers = can("member.update");
   const canManageDues = can("member.update") || can("finance.contribution.plan.manage") || can("finance.settings.write");
 
   const resetForm = React.useCallback(() => {
@@ -66,6 +69,9 @@ export default function ProfileTab() {
       universityId: member.universityId ?? "",
       major: member.major ?? "",
       academicYear: member.academicYear ?? "",
+      enrollmentYear: member.enrollmentYear ?? null,
+      expectedGraduationYear: member.expectedGraduationYear ?? null,
+      joinedOn: member.joinedOn ?? "",
       studentCode: member.studentCode ?? "",
       studentStatus: member.studentStatus ?? "studying",
       customDuesVnd: member.customDuesVnd ?? "",
@@ -116,10 +122,13 @@ export default function ProfileTab() {
       universityId: f.universityId || null,
       major: f.major || null,
       academicYear: f.academicYear || null,
+      enrollmentYear: f.enrollmentYear ?? null,
+      expectedGraduationYear: f.expectedGraduationYear ?? null,
       studentCode: f.studentCode || null,
       studentStatus: f.studentStatus || "studying",
     };
 
+    if (canManageMembers && f.joinedOn) body.joinedOn = f.joinedOn;
     if (canManageDues && f.customDuesVnd !== undefined) {
       body.customDuesVnd = f.customDuesVnd !== "" && f.customDuesVnd !== null ? Number(f.customDuesVnd) : null;
     }
@@ -254,7 +263,7 @@ export default function ProfileTab() {
           <p className="text-xs text-gray-500">
             {member.holyName ? `Tên Thánh: ${member.holyName} · ` : ""}
             {member.university || "Chưa cập nhật trường"}
-            {member.academicYear ? ` · ${member.academicYear}` : ""}
+            {cohortLabel(member) ? ` · ${cohortLabel(member)}` : ""}
           </p>
 
           <p className="text-[11px] text-gray-400 pt-1">
@@ -382,9 +391,21 @@ export default function ProfileTab() {
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <CustomInput label="Ngành học" value={f.major ?? ""} onChange={set("major")} placeholder="VD: Công nghệ thông tin" />
-              <CustomInput label="Khóa học" value={f.academicYear ?? ""} onChange={set("academicYear")} placeholder="VD: K66 (2021 – 2026)" />
+              <MajorSelect value={f.major ?? ""} onChange={set("major")} />
+              <CustomInput label="Khóa" value={f.academicYear ?? ""} onChange={set("academicYear")} placeholder="VD: K66" />
             </div>
+
+            <StudyYears
+              enrollmentYear={f.enrollmentYear}
+              graduationYear={f.expectedGraduationYear}
+              onChange={(v) => setF((p: any) => ({ ...p, ...v }))}
+            />
+
+            {canManageMembers ? (
+              <JoinedMonthYear value={f.joinedOn ?? ""} onChange={set("joinedOn")} />
+            ) : (
+              member.joinedOn && <p className="text-xs text-gray-500">Vào nhà lưu xá: <b className="text-gray-800">{`${member.joinedOn.slice(5, 7)}/${member.joinedOn.slice(0, 4)}`}</b> (do Ban điều hành cập nhật)</p>
+            )}
 
             <CustomInput label="Mã sinh viên" value={f.studentCode ?? ""} onChange={set("studentCode")} placeholder="VD: 20210001" />
 

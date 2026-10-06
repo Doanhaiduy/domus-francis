@@ -52,11 +52,11 @@ function Login() {
 // ---------------------------------------------------------------- Bố cục máy tính / điện thoại
 const NAV = [
   { icon: <LayoutGrid className="w-3.5 h-3.5" />, label: "Tổng quan" },
-  { icon: <Bell className="w-3.5 h-3.5" />, label: "Thông báo" },
-  { icon: <CalendarIcon className="w-3.5 h-3.5" />, label: "Lịch & Sự kiện", on: true },
-  { icon: <Wallet className="w-3.5 h-3.5" />, label: "Thu Chi" },
+  { icon: <Bell className="w-3.5 h-3.5" />, label: "Thông báo & Diễn đàn" },
+  { icon: <CalendarIcon className="w-3.5 h-3.5" />, label: "Lịch & Xin phép", on: true },
+  { icon: <Wallet className="w-3.5 h-3.5" />, label: "Thu Chi & Báo cáo" },
   { icon: <UtensilsCrossed className="w-3.5 h-3.5" />, label: "Bếp & Cơm" },
-  { icon: <Settings className="w-3.5 h-3.5" />, label: "Cài Đặt" },
+  { icon: <Settings className="w-3.5 h-3.5" />, label: "Cài Đặt & Hướng dẫn" },
 ];
 
 function LayoutDesktop() {

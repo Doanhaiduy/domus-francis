@@ -75,7 +75,7 @@ export const mealsApi = {
   deleteSurvey: (id: string) => api.del<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}`),
   vote: (id: string, optionIds: string[]) => api.put<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}/votes`, { optionIds }),
   suggest: (id: string, label: string) => api.post<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}/options`, { label }),
-  updateSettings: (b: { enabled?: boolean; pricePerServing?: number; lunchCutoff?: string; dinnerCutoff?: string }) =>
+  updateSettings: (b: { enabled?: boolean; lunchCutoff?: string; dinnerCutoff?: string }) =>
     api.patch<MealSettingsDto>(`${MEALS_KEY}/settings`, b),
 };
 

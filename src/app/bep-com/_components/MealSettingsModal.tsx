@@ -9,12 +9,11 @@ import { kitchenErrorText } from "@/lib/kitchen-format";
 import type { MealsWeekDto } from "@/lib/types/kitchen";
 import KitchenModal, { btnGhost, btnPrimary } from "./KitchenModal";
 
-/** Giờ chốt suất trưa/tối, giá tham chiếu một suất (Ban Ẩm thực) và bật/tắt phân hệ (người có quyền Cài đặt hệ thống). */
+/** Giờ chốt suất trưa/tối (Ban Ẩm thực) và bật/tắt phân hệ (người có quyền Cài đặt hệ thống). */
 export default function MealSettingsModal({ open, week, onClose }: { open: boolean; week: MealsWeekDto; onClose: () => void }) {
   const { showToast } = useApp();
   const [lunch, setLunch] = useState("");
   const [dinner, setDinner] = useState("");
-  const [price, setPrice] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +22,6 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
     if (!open) return;
     setLunch(week.settings.lunchCutoff);
     setDinner(week.settings.dinnerCutoff);
-    setPrice(String(week.settings.pricePerServing));
     setEnabled(week.enabled);
     setError(null);
   }, [open, week]);
@@ -31,12 +29,10 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
   const save = async () => {
     const re = /^([01]\d|2[0-3]):[0-5]\d$/;
     if (week.canManage && (!re.test(lunch) || !re.test(dinner))) return setError("Giờ chốt phải có dạng HH:mm, ví dụ 09:00.");
-    if (week.canManage && !(Number(price) >= 0)) return setError("Giá suất phải là số tiền hợp lệ.");
     const body: Parameters<typeof mealsApi.updateSettings>[0] = {};
     if (week.canManage) {
       if (lunch !== week.settings.lunchCutoff) body.lunchCutoff = lunch;
       if (dinner !== week.settings.dinnerCutoff) body.dinnerCutoff = dinner;
-      if (Number(price) !== week.settings.pricePerServing) body.pricePerServing = Math.round(Number(price));
     }
     if (week.canToggleFeature && enabled !== week.enabled) body.enabled = enabled;
     if (!Object.keys(body).length) return onClose();
@@ -74,7 +70,6 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
             <CustomInput label="Giờ chốt suất trưa" value={lunch} onChange={(e) => setLunch(e.target.value)} placeholder="09:00" maxLength={5} />
             <CustomInput label="Giờ chốt suất tối" value={dinner} onChange={(e) => setDinner(e.target.value)} placeholder="15:00" maxLength={5} />
           </div>
-          <CustomInput label="Giá tham chiếu một suất" type="number" min={0} step={1000} rightSuffix="đ" value={price} onChange={(e) => setPrice(e.target.value)} />
         </>
       )}
       {week.canToggleFeature && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { JoinedMonthYear } from "@/components/members/StudyFields";
 import React, { useMemo, useState } from "react";
 import { Users, X, KeyRound, Copy, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -21,6 +22,7 @@ export default function AddMemberModal() {
   const [room, setRoom] = useState("");
   const [role, setRole] = useState("Thành viên");
   const [avatar, setAvatar] = useState("");
+  const [joinedOn, setJoinedOn] = useState(() => `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`);
   const [createAccount, setCreateAccount] = useState(canCreateAccount);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function AddMemberModal() {
         email: email.trim() || null,
         roomCode: room || null,
         avatarFileId: avatar || null,
+        joinedOn,
         role,
         createAccount,
       });
@@ -175,6 +178,8 @@ export default function AddMemberModal() {
               )}
             </div>
           )}
+
+          <JoinedMonthYear value={joinedOn} onChange={setJoinedOn} />
 
           <ImageUploadDropzone label="Ảnh đại diện (tùy chọn)" bucket="avatars" value={avatar} onChange={setAvatar} />
 

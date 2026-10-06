@@ -9,6 +9,7 @@ import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
+import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
 
 const SACRAMENTS = ["Rửa tội", "Thánh thể", "Thêm sức", "Hòa giải"];
 const splitParent = (s?: string) => {
@@ -61,6 +62,9 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       universityId: member.universityId ?? "",
       major: member.major ?? "",
       academicYear: member.academicYear ?? "",
+      enrollmentYear: member.enrollmentYear ?? null,
+      expectedGraduationYear: member.expectedGraduationYear ?? null,
+      joinedOn: member.joinedOn ?? "",
       studentCode: member.studentCode ?? "",
       studentStatus: member.studentStatus ?? "studying",
       customDuesVnd: member.customDuesVnd ?? "",
@@ -85,6 +89,9 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       universityId: f.universityId || null,
       major: f.major || null,
       academicYear: f.academicYear || null,
+      enrollmentYear: f.enrollmentYear ?? null,
+      expectedGraduationYear: f.expectedGraduationYear ?? null,
+      ...(f.joinedOn ? { joinedOn: f.joinedOn } : {}),
       studentCode: f.studentCode || null,
       studentStatus: f.studentStatus || "studying",
     };
@@ -186,8 +193,10 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                     onChange={set("universityId")}
                     options={[{ value: "", label: "— Chọn trường —" }, ...lookups.universities.map((u) => ({ value: u.id, label: u.name }))]}
                   />
-                  <CustomInput label="Ngành học" value={f.major ?? ""} onChange={set("major")} />
-                  <CustomInput label="Khóa (VD: K66 (2021 – 2026))" value={f.academicYear ?? ""} onChange={set("academicYear")} />
+                  <MajorSelect value={f.major ?? ""} onChange={set("major")} />
+                  <CustomInput label="Khóa (VD: K66)" value={f.academicYear ?? ""} onChange={set("academicYear")} />
+                  <StudyYears enrollmentYear={f.enrollmentYear} graduationYear={f.expectedGraduationYear} onChange={(v) => setF((p: any) => ({ ...p, ...v }))} />
+                  <JoinedMonthYear value={f.joinedOn ?? ""} onChange={set("joinedOn")} />
                   <CustomInput label="Mã sinh viên" value={f.studentCode ?? ""} onChange={set("studentCode")} />
                   {canManageDues && (
                     <div>

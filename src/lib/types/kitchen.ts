@@ -29,7 +29,7 @@ export interface MealSlotDto {
   pastCutoff: boolean;
   /** Thành viên thường không còn tự sửa được (quá giờ chốt / bữa không mở / phân hệ tắt) */
   locked: boolean;
-  costPerServing: number; // VND — riêng của bữa hoặc giá tham chiếu meal.price_per_serving_vnd
+  costPerServing: number | null; // VND — chi phí riêng của bữa (không bắt buộc)
   cooks: MealCookDto[];
   eaters: number;
   guests: number;
@@ -62,7 +62,6 @@ export interface MealRosterRowDto {
 }
 
 export interface MealSettingsDto {
-  pricePerServing: number;
   lunchCutoff: string; // HH:mm
   dinnerCutoff: string;
 }

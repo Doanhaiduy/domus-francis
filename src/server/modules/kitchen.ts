@@ -78,12 +78,11 @@ async function requireManage(tx: Tx, what: string) {
 
 async function readSettings(tx: Tx) {
   const r = (
-    await tx.query<{ price: number; lunch: string; dinner: string }>(
-      `SELECT app.setting_int('meal.price_per_serving_vnd') AS price, app.setting_text('meal.lunch_cutoff_time') AS lunch,
-              app.setting_text('meal.dinner_cutoff_time') AS dinner`
+    await tx.query<{ lunch: string; dinner: string }>(
+      `SELECT app.setting_text('meal.lunch_cutoff_time') AS lunch, app.setting_text('meal.dinner_cutoff_time') AS dinner`
     )
   ).rows[0];
-  return { pricePerServing: Number(r.price ?? 0), lunchCutoff: hhmm(r.lunch, "09:00"), dinnerCutoff: hhmm(r.dinner, "15:00") };
+  return { lunchCutoff: hhmm(r.lunch, "09:00"), dinnerCutoff: hhmm(r.dinner, "15:00") };
 }
 
 const regState = (eat: boolean | null, guests: number | null, note: string | null, by: string | null): RegStateDto | null =>
@@ -157,7 +156,7 @@ export async function getMealsWeek(tx: Tx, date: string | null): Promise<MealsWe
       cutoffAt: iso(r.cutoff_at)!,
       pastCutoff: !!r.past_cutoff,
       locked,
-      costPerServing: r.cost_per_serving_vnd ?? settings.pricePerServing,
+      costPerServing: r.cost_per_serving_vnd ?? null,
       cooks: (r.cooks ?? []) as MealCookDto[],
       eaters: c?.eaters ?? 0,
       guests: c?.guests ?? 0,
@@ -570,14 +569,13 @@ export async function suggestOption(tx: Tx, id: string, label: string) {
 // ---------------------------------------------------------------------
 export async function updateMealSettings(
   tx: Tx,
-  b: { enabled?: boolean; pricePerServing?: number; lunchCutoff?: string; dinnerCutoff?: string }
+  b: { enabled?: boolean; lunchCutoff?: string; dinnerCutoff?: string }
 ) {
   const set = async (key: string, value: unknown, label: string) => {
     const r = await tx.query("UPDATE settings SET value = $2::jsonb, updated_by = app.current_user_id() WHERE key = $1", [key, JSON.stringify(value)]);
     if (!r.rowCount) throw forbidden(`Bạn không có quyền đổi ${label}.`);
   };
   if (b.enabled !== undefined) await set("feature.meals.enabled", b.enabled, "trạng thái bật/tắt phân hệ Bếp & Cơm (cần quyền Cài đặt hệ thống)");
-  if (b.pricePerServing !== undefined) await set("meal.price_per_serving_vnd", b.pricePerServing, "giá tham chiếu một suất");
   for (const [meal, v] of [["lunch", b.lunchCutoff], ["dinner", b.dinnerCutoff]] as const) {
     if (v === undefined) continue;
     await set(`meal.${meal}_cutoff_time`, v, `giờ chốt suất ${meal === "lunch" ? "trưa" : "tối"}`);

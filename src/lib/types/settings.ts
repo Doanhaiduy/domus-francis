@@ -60,7 +60,6 @@ export interface OrgSettingsDto {
   duesBankAccount: string;
   monthlyDuesVnd: number | null;
   duesDueDay: number | null;
-  mealPricePerServingVnd: number | null;
   lunchCutoffTime: string | null;
   dinnerCutoffTime: string | null;
   nightPrayerTime: string | null;

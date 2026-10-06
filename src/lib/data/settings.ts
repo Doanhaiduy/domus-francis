@@ -40,7 +40,6 @@ const EMPTY_ORG: OrgSettingsDto = {
   duesBankAccount: "",
   monthlyDuesVnd: null,
   duesDueDay: null,
-  mealPricePerServingVnd: null,
   lunchCutoffTime: null,
   dinnerCutoffTime: null,
   nightPrayerTime: null,

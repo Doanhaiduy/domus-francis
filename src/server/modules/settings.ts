@@ -169,7 +169,6 @@ export async function getPublicSettings(tx: Tx): Promise<OrgSettingsDto> {
     duesBankAccount: str(values["finance.dues_bank_account"]),
     monthlyDuesVnd: num(values["finance.monthly_dues_vnd"]),
     duesDueDay: num(values["finance.dues_due_day"]),
-    mealPricePerServingVnd: num(values["meal.price_per_serving_vnd"]),
     lunchCutoffTime: str(values["meal.lunch_cutoff_time"]) || null,
     dinnerCutoffTime: str(values["meal.dinner_cutoff_time"]) || null,
     nightPrayerTime: str(values["liturgy.night_prayer_time"]) || null,

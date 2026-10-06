@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionTabs } from "./SectionTabs";
 import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
@@ -72,6 +73,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           </div>
         )}
         <main id="main-content" tabIndex={-1} className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6 focus:outline-none">
+          <SectionTabs />
           <ModuleGate>{children}</ModuleGate>
         </main>
         {/* Chân trang (chừa chỗ cho thanh điều hướng dưới trên điện thoại) */}
