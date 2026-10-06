@@ -44,7 +44,8 @@ function inline(text: string, base: string): React.ReactNode[] {
 
 const BLOCK_START = /^(#{1,3} |> |[-*] |\d+\. |---+\s*$|!\[[^\]]*\]\([^)]+\)\s*$)/;
 
-export function ArticleMarkdown({ source, className = "" }: { source: string; className?: string }) {
+/** `compact`: tiêu đề/khoảng cách nhỏ hơn cho bản xem trước trong trình soạn và hộp thoại (trang công khai dùng cỡ đầy đủ). */
+export function ArticleMarkdown({ source, className = "", compact = false }: { source: string; className?: string; compact?: boolean }) {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -61,9 +62,9 @@ export function ArticleMarkdown({ source, className = "" }: { source: string; cl
       const level = m[1].length;
       blocks.push(
         level === 3 ? (
-          <h3 key={k} className="text-xl font-bold text-gray-900 mt-8 mb-2 leading-snug">{inline(m[2], k)}</h3>
+          <h3 key={k} className={compact ? "text-base font-bold text-gray-900 mt-5 mb-1.5 leading-snug" : "text-xl font-bold text-gray-900 mt-8 mb-2 leading-snug"}>{inline(m[2], k)}</h3>
         ) : (
-          <h2 key={k} className="text-2xl sm:text-[1.7rem] font-extrabold text-gray-900 mt-11 mb-3 leading-tight tracking-tight">{inline(m[2], k)}</h2>
+          <h2 key={k} className={compact ? "text-lg font-extrabold text-gray-900 mt-6 mb-2 leading-tight tracking-tight" : "text-2xl sm:text-[1.7rem] font-extrabold text-gray-900 mt-11 mb-3 leading-tight tracking-tight"}>{inline(m[2], k)}</h2>
         )
       );
       i++;
@@ -94,7 +95,7 @@ export function ArticleMarkdown({ source, className = "" }: { source: string; cl
       const items: string[] = [];
       while (i < lines.length && /^[-*] /.test(lines[i])) items.push(lines[i++].slice(2));
       blocks.push(
-        <ul key={k} className="my-5 pl-6 list-disc space-y-2 marker:text-primary/70">
+        <ul key={k} className={`${compact ? "my-3" : "my-5"} pl-6 list-disc space-y-2 marker:text-primary/70`}>
           {items.map((t, j) => <li key={j} className="pl-1">{inline(t, `${k}-${j}`)}</li>)}
         </ul>
       );
@@ -102,7 +103,7 @@ export function ArticleMarkdown({ source, className = "" }: { source: string; cl
       const items: string[] = [];
       while (i < lines.length && /^\d+\. /.test(lines[i])) items.push(lines[i++].replace(/^\d+\. /, ""));
       blocks.push(
-        <ol key={k} className="my-5 pl-6 list-decimal space-y-2 marker:text-primary/70 marker:font-bold">
+        <ol key={k} className={`${compact ? "my-3" : "my-5"} pl-6 list-decimal space-y-2 marker:text-primary/70 marker:font-bold`}>
           {items.map((t, j) => <li key={j} className="pl-1">{inline(t, `${k}-${j}`)}</li>)}
         </ol>
       );
@@ -110,7 +111,7 @@ export function ArticleMarkdown({ source, className = "" }: { source: string; cl
       const buf: string[] = [];
       while (i < lines.length && lines[i].trim() && !BLOCK_START.test(lines[i])) buf.push(lines[i++]);
       if (!buf.length) buf.push(lines[i++]); // dòng lạ không khớp khối nào: coi là đoạn văn một dòng, tránh lặp vô hạn
-      blocks.push(<p key={k} className="my-5">{inline(buf.join(" "), k)}</p>);
+      blocks.push(<p key={k} className={compact ? "my-3" : "my-5"}>{inline(buf.join(" "), k)}</p>);
     }
   }
   return <div className={`text-[17px] leading-8 text-gray-700 ${className}`}>{blocks}</div>;

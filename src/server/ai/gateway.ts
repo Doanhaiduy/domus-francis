@@ -161,7 +161,7 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
   // 4. Gọi nhà cung cấp; đầu ra sai lược đồ ⇒ thử nhà cung cấp kế (hoặc báo lỗi, người dùng làm thủ công).
   let llm: Awaited<ReturnType<typeof generate<AiOutputMap[C]>>>;
   try {
-    llm = await generate({ system: prep.p.system, user: prep.p.user }, (text) => prep.p.parse(extractJson(text)));
+    llm = await generate({ system: prep.p.system, user: prep.p.user, temperature: prep.p.temperature, maxOutputTokens: prep.p.maxOutputTokens, timeoutMs: prep.p.timeoutMs }, (text) => prep.p.parse(extractJson(text)));
   } catch (e) {
     const msg = e instanceof NoProviderError || e instanceof ProviderError ? e.message : "Lỗi không xác định khi gọi AI";
     await ctx.dbAs("luuxa_worker", (tx) =>

@@ -10,6 +10,7 @@ import { articlesApi, useArticles } from "@/lib/data/articles";
 import { formatArticleDate } from "@/lib/articles-format";
 import { ARTICLE_CATEGORIES, articleCategoryLabel, type ArticleListItem, type ArticleStatus } from "@/lib/types/articles";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { CategoryChip } from "@/components/public/ArticleCard";
 import { cn } from "@/lib/utils";
 
@@ -111,24 +112,16 @@ export default function ArticlesAdminPage() {
             </button>
           ))}
         </div>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200"
-          aria-label="Lọc theo chuyên mục"
-        >
-          <option value="">Mọi chuyên mục</option>
-          {ARTICLE_CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-        </select>
-        <label className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm theo tiêu đề…"
-            className="w-full h-9 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+        <div className="w-44">
+          <CustomSelect
+            value={category}
+            onChange={setCategory}
+            options={[{ value: "", label: "Mọi chuyên mục" }, ...ARTICLE_CATEGORIES.map((c) => ({ value: c.code, label: c.label }))]}
           />
-        </label>
+        </div>
+        <div className="flex-1 min-w-[180px] max-w-xs">
+          <CustomInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề…" leftIcon={<Search className="w-3.5 h-3.5" />} aria-label="Tìm bài viết" />
+        </div>
       </div>
 
       {/* DANH SÁCH */}

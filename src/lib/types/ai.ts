@@ -10,6 +10,7 @@ export const AI_TASK_CODES = [
   "finance.monthly_insight",
   "academic.insight",
   "academic.house_insight",
+  "content.article_assist",
 ] as const;
 export type AiTaskCode = (typeof AI_TASK_CODES)[number];
 
@@ -168,6 +169,24 @@ export interface AcademicInsightOutput {
   compare: { currentLabel: string; previousLabel: string | null; rows: AcademicInsightRow[] } | null;
 }
 
+// Trợ lý viết bài công khai (Ban điều hành/Truyền thông): gợi ý đề tài, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt.
+// Chỉ gửi nội dung người soạn đang viết + thông tin giới thiệu cộng đoàn đã công khai; không có dữ liệu cá nhân của thành viên.
+export type ArticleTone = "warm" | "formal" | "lively";
+export type ArticleLength = "short" | "medium" | "long";
+export type ArticleImproveMode = "polish" | "shorter" | "longer" | "warmer" | "formal" | "catchy";
+
+export type ArticleAssistInput =
+  | { action: "ideas"; category: string; note?: string }
+  | { action: "draft"; topic: string; keyPoints?: string; category: string; tone?: ArticleTone; length?: ArticleLength }
+  | { action: "improve"; text: string; mode: ArticleImproveMode }
+  | { action: "meta"; content: string; title?: string };
+
+export type ArticleAssistOutput =
+  | { action: "ideas"; ideas: { title: string; angle: string }[] }
+  | { action: "draft"; title: string; summary: string; content: string }
+  | { action: "improve"; text: string }
+  | { action: "meta"; titles: string[]; summary: string };
+
 export interface AiInputMap {
   "finance.dues_message": DuesMessageInput;
   "community.policy_rag": PolicyRagInput;
@@ -177,6 +196,7 @@ export interface AiInputMap {
   "finance.monthly_insight": FinanceInsightInput;
   "academic.insight": AcademicInsightInput;
   "academic.house_insight": AcademicHouseInsightInput;
+  "content.article_assist": ArticleAssistInput;
 }
 export interface AiOutputMap {
   "finance.dues_message": DuesMessageOutput;
@@ -187,6 +207,7 @@ export interface AiOutputMap {
   "finance.monthly_insight": FinanceInsightOutput;
   "academic.insight": AcademicInsightOutput;
   "academic.house_insight": AcademicInsightOutput;
+  "content.article_assist": ArticleAssistOutput;
 }
 
 export interface AiResultDto<C extends AiTaskCode = AiTaskCode> {

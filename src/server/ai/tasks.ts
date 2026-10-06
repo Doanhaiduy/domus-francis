@@ -5,6 +5,7 @@ import { badRequest, forbidden } from "../errors";
 import type { AcademicInsightOutput, AcademicInsightRow, AiOutputMap, AiTaskCode } from "@/lib/types/ai";
 import { maskText, sanitizeOutput } from "./mask";
 import { retrieve } from "./retrieval";
+import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
 
 // ---------------------------------------------------------------------
 // Bộ xử lý từng tác vụ LLM: kiểm đầu vào → ẩn danh hóa → dựng prompt → kiểm lược đồ đầu ra.
@@ -26,6 +27,10 @@ export interface Prepared<C extends AiTaskCode> {
   entity?: { table: string; id: string };
   /** Có đủ ngữ cảnh để trả lời mà không cần mô hình (ví dụ không tìm thấy tài liệu liên quan). */
   shortCircuit?: AiOutputMap[C];
+  /** Tác vụ sinh văn bản dài (viết bài): ghi đè nhiệt độ, giới hạn token đầu ra và thời gian chờ. */
+  temperature?: number;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
   parse(raw: unknown): AiOutputMap[C];
 }
 
@@ -882,6 +887,171 @@ const academicHouseTask: TaskDef<"academic.house_insight"> = {
   },
 };
 
+// ======================= 9) Trợ lý viết bài công khai =======================
+// Người soạn (article.manage) nhờ AI: gợi ý đề tài, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt. Bài sẽ đăng CÔNG KHAI nên mô hình
+// chỉ được dùng dữ kiện người soạn cung cấp + thông tin giới thiệu cộng đoàn đã công khai; chỗ thiếu dữ kiện phải để dấu "[cần bổ sung: …]".
+const ARTICLE_CATS = ARTICLE_CATEGORIES.map((c) => c.code) as [string, ...string[]];
+const articleIn = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("ideas"), category: z.enum(ARTICLE_CATS), note: z.string().trim().max(300).optional() }),
+  z.object({
+    action: z.literal("draft"),
+    topic: z.string().trim().min(5).max(400),
+    keyPoints: z.string().trim().max(2000).optional(),
+    category: z.enum(ARTICLE_CATS),
+    tone: z.enum(["warm", "formal", "lively"]).default("warm"),
+    length: z.enum(["short", "medium", "long"]).default("medium"),
+  }),
+  z.object({
+    action: z.literal("improve"),
+    text: z.string().trim().min(5).max(8000),
+    mode: z.enum(["polish", "shorter", "longer", "warmer", "formal", "catchy"]),
+  }),
+  z.object({ action: z.literal("meta"), content: z.string().trim().min(30).max(14000), title: z.string().trim().max(200).optional() }),
+]);
+type ArticleIn = z.infer<typeof articleIn>;
+
+const ARTICLE_SYSTEM = [
+  BASE_SYSTEM,
+  "Vai trò: biên tập viên truyền thông của cộng đoàn, viết cho NGƯỜI NGOÀI đọc (sinh viên, phụ huynh, giáo dân) trên trang tin công khai.",
+  "Văn phong báo chí gần gũi, ấm áp, rõ ràng, đúng tinh thần Công giáo; câu ngắn, đoạn ngắn; mở bài cuốn hút, kết bài có lời mời hành động nhẹ nhàng.",
+  "TUYỆT ĐỐI không bịa ngày giờ, địa điểm, học phí, số lượng, điều kiện, tên người hay trích dẫn. Chỉ dùng dữ kiện trong khối <du_lieu>; chỗ cần dữ kiện mà chưa có thì viết đúng dạng [cần bổ sung: mô tả ngắn thứ còn thiếu].",
+  "Trường văn bản bài viết dùng Markdown giới hạn: '## ' tiêu đề mục, '### ' tiêu đề nhỏ, '- ' danh sách, '1. ' danh sách đánh số, '> ' trích dẫn ngắn, **chữ đậm**. Không dùng bảng, HTML, hình ảnh hay liên kết. Không lặp lại tiêu đề bài ở đầu nội dung.",
+].join("\n");
+
+const TONE_TXT = { warm: "thân thiện, ấm áp, gần gũi", formal: "trang trọng, lịch sự, chững chạc", lively: "tươi trẻ, năng động, truyền cảm hứng" } as const;
+const LEN_TXT = { short: "khoảng 250 từ, 3–4 đoạn", medium: "khoảng 450 từ, có 2–3 tiêu đề mục", long: "khoảng 750 từ, có 3–5 tiêu đề mục" } as const;
+const LEN_TOKENS = { short: 1300, medium: 2200, long: 3400 } as const;
+const IMPROVE_TXT = {
+  polish: "Sửa lỗi chính tả, ngữ pháp và làm câu văn mượt mà, mạch lạc hơn; giữ nguyên ý, độ dài và cấu trúc.",
+  shorter: "Rút gọn còn khoảng một nửa, giữ ý chính và dữ kiện quan trọng.",
+  longer: "Mở rộng thêm khoảng 50% bằng cách diễn giải, làm rõ ý; KHÔNG thêm dữ kiện mới không có trong văn bản gốc.",
+  warmer: "Viết lại với giọng thân thiện, ấm áp, gần gũi hơn; giữ nguyên dữ kiện.",
+  formal: "Viết lại với giọng trang trọng, lịch sự, chững chạc hơn; giữ nguyên dữ kiện.",
+  catchy: "Viết lại cho cuốn hút, giàu hình ảnh và dễ đọc hơn; mở đầu thật thu hút; giữ nguyên dữ kiện.",
+} as const;
+
+const articleOut = z.object({
+  ideas: z.array(z.object({ title: str(120, 3), angle: str(200, 3) })).max(8).optional(),
+  title: str(200, 3).optional(),
+  summary: str(400, 3).optional(),
+  content: str(14000, 10).optional(),
+  text: str(14000, 1).optional(),
+  titles: z.array(str(200, 3)).max(8).optional(),
+});
+
+/** Giữ nguyên xuống dòng của Markdown; bỏ thẻ HTML và ký tự điều khiển (không cắt liên kết ảnh của người soạn vì AI không được tạo ảnh). */
+const cleanMd = (s: string, max: number) =>
+  s.replace(/<[^>]*>/g, "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max);
+
+const articleTask: TaskDef<"content.article_assist"> = {
+  code: "content.article_assist",
+  suggestionType: "article_draft",
+  input: articleIn,
+  async prepare(tx, input: ArticleIn) {
+    const org = ((await tx.query("SELECT app.fn_public_org_info() AS o")).rows[0]?.o ?? {}) as Record<string, string>;
+    const today = (await tx.query<{ d: string }>("SELECT app.local_today()::text AS d")).rows[0].d.split("-").reverse().join("/");
+    const orgBlock = [
+      `Tên cộng đoàn: ${org["org.house_name"] ?? "Lưu Xá Phanxicô"}`,
+      org["org.motto"] && `Khẩu hiệu: ${org["org.motto"]}`,
+      org["org.patron_name"] && `Bổn mạng: ${org["org.patron_name"]}`,
+      org["org.order_name"] && `Thuộc: ${org["org.order_name"]}`,
+      org["org.address"] && `Địa chỉ: ${org["org.address"]}`,
+      org["org.contact_phone"] && `Hotline: ${org["org.contact_phone"]}`,
+      `Hôm nay: ${today}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const common = (hashInput: string, inputRef: Record<string, unknown>) => ({ system: ARTICLE_SYSTEM, hashInput, inputRef: { kind: "article_assist", ...inputRef } });
+
+    if (input.action === "ideas") {
+      const user = [
+        "Gợi ý 5 đề tài bài viết cho trang tin công khai của cộng đoàn, hợp thời điểm hôm nay và đúng chuyên mục được chọn.",
+        "Mỗi đề tài gồm: title (tiêu đề hấp dẫn ≤ 100 ký tự) và angle (1 câu nêu góc viết / ý chính ≤ 180 ký tự). Các đề tài phải khác nhau rõ rệt và thực tế với một lưu xá sinh viên.",
+        'Lược đồ: {"ideas":[{"title":"…","angle":"…"}]}',
+        block(`${orgBlock}\nChuyên mục: ${articleCategoryLabel(input.category)}${input.note ? `\nGhi chú của người soạn: ${input.note}` : ""}`),
+      ].join("\n");
+      return {
+        ...common(`ideas|${input.category}|${input.note ?? ""}|${today}`, { action: "ideas" }),
+        user,
+        temperature: 0.8,
+        maxOutputTokens: 900,
+        parse(raw) {
+          const o = articleOut.parse(raw);
+          const ideas = (o.ideas ?? [])
+            .slice(0, 6)
+            .map((i) => ({ title: sanitizeOutput(i.title, 120), angle: sanitizeOutput(i.angle, 200) }))
+            .filter((i) => i.title);
+          if (!ideas.length) throw new Error("thiếu ideas");
+          return { action: "ideas", ideas };
+        },
+      };
+    }
+
+    if (input.action === "draft") {
+      const user = [
+        "Viết một bài đăng hoàn chỉnh cho trang tin công khai của cộng đoàn theo chủ đề và các ý chính dưới đây.",
+        `Giọng văn: ${TONE_TXT[input.tone]}. Độ dài: ${LEN_TXT[input.length]}.`,
+        "title: tiêu đề hấp dẫn ≤ 110 ký tự, không viết IN HOA toàn bộ; summary: 1–2 câu tóm tắt gợi tò mò ≤ 300 ký tự; content: thân bài Markdown (không lặp lại tiêu đề).",
+        'Lược đồ: {"title":"…","summary":"…","content":"…"}',
+        block(`${orgBlock}\nChuyên mục: ${articleCategoryLabel(input.category)}\nChủ đề: ${input.topic}${input.keyPoints ? `\nCác ý chính / dữ kiện cần có:\n${input.keyPoints}` : ""}`),
+      ].join("\n");
+      return {
+        ...common(`draft|${input.category}|${input.topic}|${input.keyPoints ?? ""}|${input.tone}|${input.length}`, { action: "draft", length: input.length }),
+        user,
+        temperature: 0.7,
+        maxOutputTokens: LEN_TOKENS[input.length],
+        timeoutMs: 60_000,
+        parse(raw) {
+          const o = articleOut.parse(raw);
+          if (!o.title || !o.content) throw new Error("thiếu title/content");
+          return { action: "draft", title: sanitizeOutput(o.title, 200), summary: sanitizeOutput(o.summary ?? "", 400), content: cleanMd(o.content, 14000) };
+        },
+      };
+    }
+
+    if (input.action === "improve") {
+      const user = [
+        `Nhiệm vụ: ${IMPROVE_TXT[input.mode]}`,
+        "Giữ nguyên định dạng Markdown của văn bản gốc (tiêu đề ##, danh sách, chữ đậm; các dòng ![…](…) nếu có phải giữ NGUYÊN VẸN). Không thêm lời dẫn hay giải thích, chỉ trả về văn bản đã chỉnh.",
+        'Lược đồ: {"text":"…"}',
+        block(`Văn bản cần chỉnh:\n${input.text}`),
+      ].join("\n");
+      return {
+        ...common(`improve|${input.mode}|${input.text}`, { action: "improve", mode: input.mode }),
+        user,
+        temperature: 0.5,
+        maxOutputTokens: 2600,
+        timeoutMs: 45_000,
+        parse(raw) {
+          const o = articleOut.parse(raw);
+          if (!o.text) throw new Error("thiếu text");
+          return { action: "improve", text: cleanMd(o.text, 14000) };
+        },
+      };
+    }
+
+    // meta
+    const user = [
+      "Đọc bài viết dưới đây và gợi ý: 4 tiêu đề khác nhau (hấp dẫn, ≤ 100 ký tự, trung thực với nội dung) và 1 đoạn tóm tắt 1–2 câu (≤ 300 ký tự) dùng khi chia sẻ link lên Zalo/Facebook.",
+      'Lược đồ: {"titles":["…","…","…","…"],"summary":"…"}',
+      block(`${input.title ? `Tiêu đề hiện tại: ${input.title}\n` : ""}Nội dung:\n${input.content}`),
+    ].join("\n");
+    return {
+      ...common(`meta|${input.title ?? ""}|${input.content}`, { action: "meta" }),
+      user,
+      temperature: 0.6,
+      maxOutputTokens: 700,
+      parse(raw) {
+        const o = articleOut.parse(raw);
+        const titles = (o.titles ?? []).map((t) => sanitizeOutput(t, 200)).filter(Boolean).slice(0, 5);
+        if (!titles.length || !o.summary) throw new Error("thiếu titles/summary");
+        return { action: "meta", titles, summary: sanitizeOutput(o.summary, 400) };
+      },
+    };
+  },
+};
+
 export const TASKS: { [C in AiTaskCode]: TaskDef<C> } = {
   "finance.dues_message": duesTask,
   "community.policy_rag": ragTask,
@@ -891,6 +1061,7 @@ export const TASKS: { [C in AiTaskCode]: TaskDef<C> } = {
   "finance.monthly_insight": financeInsightTask,
   "academic.insight": academicSelfTask,
   "academic.house_insight": academicHouseTask,
+  "content.article_assist": articleTask,
 };
 
 export function parseInput(code: AiTaskCode, raw: unknown) {

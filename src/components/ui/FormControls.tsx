@@ -148,6 +148,8 @@ export function CustomSelect<T = string>({
 export interface CustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  /** Dòng gợi ý nhỏ dưới ô (ẩn khi đang có lỗi). */
+  hint?: React.ReactNode;
   leftIcon?: React.ReactNode;
   rightSuffix?: string;
 }
@@ -155,6 +157,7 @@ export interface CustomInputProps extends React.InputHTMLAttributes<HTMLInputEle
 export const CustomInput: React.FC<CustomInputProps> = ({
   label,
   error,
+  hint,
   leftIcon,
   rightSuffix,
   className = "",
@@ -187,7 +190,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           </div>
         )}
       </div>
-      {error && <p className="mt-1 text-[11px] text-rose-500">{error}</p>}
+      {error ? <p className="mt-1 text-[11px] text-rose-500">{error}</p> : hint ? <div className="mt-1 text-[11px] text-gray-400">{hint}</div> : null}
     </div>
   );
 };
@@ -196,15 +199,15 @@ export interface CustomTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  /** Dòng gợi ý nhỏ dưới ô (ẩn khi đang có lỗi). */
+  hint?: React.ReactNode;
 }
 
-export const CustomTextarea: React.FC<CustomTextareaProps> = ({
-  label,
-  error,
-  className = "",
-  rows = 3,
-  ...props
-}) => {
+/** Có forwardRef để nơi dùng đọc/đặt vị trí con trỏ (trình soạn bài chèn định dạng vào chỗ đang chọn). */
+export const CustomTextarea = React.forwardRef<HTMLTextAreaElement, CustomTextareaProps>(function CustomTextarea(
+  { label, error, hint, className = "", rows = 3, ...props },
+  ref
+) {
   return (
     <div className="w-full">
       {label && (
@@ -214,6 +217,7 @@ export const CustomTextarea: React.FC<CustomTextareaProps> = ({
       )}
       <div className="relative rounded-xl shadow-2xs">
         <textarea
+          ref={ref}
           rows={rows}
           className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all leading-relaxed ${
             error ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : ""
@@ -221,10 +225,10 @@ export const CustomTextarea: React.FC<CustomTextareaProps> = ({
           {...props}
         />
       </div>
-      {error && <p className="mt-1 text-[11px] text-rose-500">{error}</p>}
+      {error ? <p className="mt-1 text-[11px] text-rose-500">{error}</p> : hint ? <div className="mt-1 text-[11px] text-gray-400">{hint}</div> : null}
     </div>
   );
-};
+});
 
 interface CustomToggleProps {
   checked: boolean;

@@ -15,6 +15,9 @@ export interface LlmRequest {
   system: string;
   user: string;
   temperature?: number;
+  /** Ghi đè giới hạn token đầu ra / thời gian chờ cho tác vụ sinh văn bản dài (mặc định AI_LIMITS). */
+  maxOutputTokens?: number;
+  timeoutMs?: number;
 }
 
 export interface LlmResult {
@@ -70,9 +73,9 @@ const noteSuccess = (id: ProviderId) => breakers.delete(id);
 // --- Gọi HTTP -------------------------------------------------------------------
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function post(url: string, headers: Record<string, string>, body: unknown, provider: ProviderId): Promise<unknown> {
+async function post(url: string, headers: Record<string, string>, body: unknown, provider: ProviderId, timeoutMs: number = AI_LIMITS.timeoutMs): Promise<unknown> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), AI_LIMITS.timeoutMs);
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -113,10 +116,11 @@ async function callGroq(p: ProviderConfig, req: LlmRequest): Promise<RawOut> {
         { role: "user", content: req.user },
       ],
       temperature: req.temperature ?? 0.2,
-      max_tokens: AI_LIMITS.maxOutputTokens,
+      max_tokens: req.maxOutputTokens ?? AI_LIMITS.maxOutputTokens,
       response_format: { type: "json_object" },
     },
     "groq",
+    req.timeoutMs,
   )) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
   const text = data.choices?.[0]?.message?.content;
   if (typeof text !== "string" || !text.trim()) throw new ProviderError("groq trả về nội dung rỗng", "groq", false);
@@ -132,11 +136,14 @@ async function callGemini(p: ProviderConfig, req: LlmRequest): Promise<RawOut> {
       contents: [{ role: "user", parts: [{ text: req.user }] }],
       generationConfig: {
         temperature: req.temperature ?? 0.2,
-        maxOutputTokens: AI_LIMITS.maxOutputTokens,
+        maxOutputTokens: req.maxOutputTokens ?? AI_LIMITS.maxOutputTokens,
         responseMimeType: "application/json",
+        // Gemini 2.5 "suy nghĩ" tốn token đầu ra: với văn bản dài dễ cắt cụt JSON ⇒ tắt (mô hình đời khác không nhận tham số này)
+        ...(/gemini-2\.5/.test(p.model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
       },
     },
     "gemini",
+    req.timeoutMs,
   )) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
