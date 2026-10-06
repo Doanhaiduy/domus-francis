@@ -35,6 +35,11 @@ function inline(text: string, keyBase: string): React.ReactNode[] {
   return out;
 }
 
+/** Chỉ phần chữ trong dòng (**đậm**, `mã`, liên kết) — dùng trong tiêu đề/ô bảng/thẻ nơi không muốn bọc thành đoạn. */
+export function Inline({ text }: { text: string }) {
+  return <>{inline(text, "i")}</>;
+}
+
 export function MiniMarkdown({ source, className = "" }: { source: string; className?: string }) {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: React.ReactNode[] = [];
