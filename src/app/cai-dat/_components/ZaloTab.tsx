@@ -12,6 +12,7 @@ import { TextSetting, ToggleSetting } from "./SettingFields";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
 import { FormCardsSkeleton } from "./TabSkeletons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import ZaloScheduleCard from "./ZaloScheduleCard";
 import { ZALO_TEMPLATES, renderTemplate, sampleVars, templateFor, validateTemplate } from "@/lib/zalo-templates";
 import { ChevronDown, RotateCcw } from "lucide-react";
 
@@ -374,6 +375,8 @@ export default function ZaloTab({ draft }: { draft: SettingsDraft }) {
             <TemplateRow key={k} draft={draft} k={k} />
           ))}
         </div>
+
+        <ZaloScheduleCard />
 
         <div className="p-4 rounded-2xl border border-amber-100 bg-amber-50/40 flex flex-col gap-3">
           <div>

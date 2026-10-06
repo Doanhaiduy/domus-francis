@@ -6,6 +6,7 @@ import { postToZaloGroup, renderZaloEvent } from "../integrations/zalo";
 import type { ZaloEventKey } from "@/lib/types/settings";
 import { buildGroupReminderVars } from "../modules/finance-ops";
 import { addDays, dutyWeekVars } from "@/lib/duty-format";
+import { EVENTS_SQL, planEvents, type EventRow } from "./plan";
 
 // =====================================================================
 // Tác vụ hằng ngày do Vercel Cron gọi (gói miễn phí: mỗi tác vụ cron chạy tối đa 1 lần/ngày, lệch tới ~1 giờ):
@@ -36,8 +37,6 @@ export interface DailyResult {
   notes: string[];
 }
 
-const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-const WEEKDAY = ["", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chúa Nhật"];
 
 export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}): Promise<DailyResult> {
   const dry = !!opts.dry;
@@ -123,34 +122,18 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
       }
     });
 
-    // 4. Sự kiện hôm nay / ngày mai (một tin gộp cho mỗi ngày)
+    // 4. Sự kiện hôm nay + ngày mai: MỘT tin gộp (sự kiện lặp hằng ngày không bị báo hai lần)
     await step("events", async () => {
-      const rows = (
-        await W((tx) =>
-          tx.query<{ title: string; hm: string; d: string; loc: string | null }>(
-            `SELECT e.title, to_char(e.starts_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI') AS hm,
-                    (e.starts_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date::text AS d,
-                    COALESCE(NULLIF(btrim(e.location_text), ''), (SELECT r.name FROM rooms r WHERE r.id = e.location_room_id)) AS loc
-               FROM events e
-              WHERE e.deleted_at IS NULL AND e.status <> 'cancelled'
-                AND (e.starts_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date IN ($1::date, $1::date + 1)
-              ORDER BY e.starts_at`,
-            [today],
-          ),
-        )
-      ).rows;
-      for (const [day, label] of [
-        [today, "HÔM NAY"],
-        [addDays(today, 1), "NGÀY MAI"],
-      ] as const) {
-        const list = rows.filter((r) => r.d === day);
-        if (!list.length) continue;
-        const lines = list.map((r) => `• ${r.hm} — ${r.title}${r.loc ? ` @ ${r.loc}` : ""}`);
-        const wd = WEEKDAY[(new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7 + 1];
-        await announce(`evday:${day}:${label === "HÔM NAY" ? "today" : "tomorrow"}`, "event_reminder", { day_label: label, date: `${wd} ${dm(day)}`, list: lines.join("\n") }, {
-          app: { type: "event.reminder", title: `${label === "HÔM NAY" ? "Hôm nay" : "Ngày mai"} có ${list.length} sự kiện`, body: lines.join("\n"), link: "/lich-su-kien" },
-        });
+      const rows = (await W((tx) => tx.query<EventRow>(EVENTS_SQL, [today, addDays(today, 1)]))).rows;
+      const plan = planEvents(rows, today);
+      if (!plan) return;
+      // Khóa kiểu cũ (mỗi ngày một tin; khóa ":tomorrow" mang NGÀY CỦA SỰ KIỆN) — hôm nay đã gửi theo cách cũ thì không gửi lại bản gộp
+      const legacy = await W((tx) => tx.query("SELECT 1 FROM system_post_log WHERE key = ANY($1::text[])", [[`evday:${today}:today`, `evday:${addDays(today, 1)}:tomorrow`]]));
+      if (!dry && legacy.rowCount) {
+        items.push({ key: plan.key, event: "event_reminder", text: await renderZaloEvent(ctxW, "event_reminder", plan.vars), status: "duplicate", inApp: true });
+        return;
       }
+      await announce(plan.key, "event_reminder", plan.vars, { app: { type: "event.reminder", title: plan.appTitle, body: plan.appBody, link: "/lich-su-kien" } });
     });
 
     // 4b. Sinh nhật thành viên hôm nay (ngày/tháng sinh trong hồ sơ; không nêu năm sinh hay tuổi)

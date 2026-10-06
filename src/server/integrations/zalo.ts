@@ -112,13 +112,42 @@ async function senderFooter(ctx: PostCtx): Promise<string> {
   return `— Thao tác bởi ${name ?? "Ban điều hành"}`;
 }
 
+/** Ghi nhật ký tin gửi nhóm Zalo (db/app/1017_zalo_message_log.sql). Không bao giờ ném lỗi. */
+export async function logZaloMessage(
+  ctx: PostCtx,
+  e: { event: string | null; chatId: string | null; text: string; status: "sent" | "failed" | "skipped"; error?: string | null },
+): Promise<void> {
+  try {
+    await ctx.dbAs("luuxa_worker", (tx) =>
+      tx.query("INSERT INTO zalo_message_log (event, mode, user_id, chat_id, body, status, error) VALUES ($1, $2, $3, $4, $5, $6, $7)", [
+        e.event,
+        ctx.userId ? "manual" : "auto",
+        ctx.userId ?? null,
+        e.chatId,
+        e.text.slice(0, 8000),
+        e.status,
+        e.error ? e.error.slice(0, 500) : null,
+      ]),
+    );
+  } catch (err) {
+    console.error("[zalo] không ghi được nhật ký tin:", (err as Error).message);
+  }
+}
+
 async function deliver(ctx: PostCtx, cfg: ZaloConfig, event: ZaloEventKey | null, text: string): Promise<ZaloPostResult> {
-  if (!cfg.enabled) return { sent: false, reason: "Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo)." };
-  if (!cfg.tokenConfigured) return { sent: false, reason: "Máy chủ chưa có ZALO_BOT_TOKEN." };
-  if (!cfg.chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
-  if (event && !zaloEventOn(cfg.events, event)) return { sent: false, reason: `Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.` };
-  const r = await sendZaloText(cfg.chatId, `${text}
-${await senderFooter(ctx)}`);
+  // Tin tự động bị bỏ qua cũng được ghi (để Admin biết vì sao hôm đó không có tin); tin thủ công thì người bấm thấy lý do ngay
+  const skip = async (reason: string): Promise<ZaloPostResult> => {
+    if (!ctx.userId) await logZaloMessage(ctx, { event, chatId: cfg.chatId || null, text, status: "skipped", error: reason });
+    return { sent: false, reason };
+  };
+  if (!cfg.enabled) return skip("Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo).");
+  if (!cfg.tokenConfigured) return skip("Máy chủ chưa có ZALO_BOT_TOKEN.");
+  if (!cfg.chatId) return skip("Chưa nhập mã nhóm Zalo (chat_id).");
+  if (event && !zaloEventOn(cfg.events, event)) return skip(`Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.`);
+  const full = `${text}
+${await senderFooter(ctx)}`;
+  const r = await sendZaloText(cfg.chatId, full);
+  await logZaloMessage(ctx, { event, chatId: cfg.chatId, text: full, status: r.ok ? "sent" : "failed", error: r.error });
   return r.ok ? { sent: true } : { sent: false, reason: r.error };
 }
 

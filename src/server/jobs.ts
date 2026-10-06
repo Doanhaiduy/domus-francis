@@ -14,6 +14,7 @@ export async function housekeeping() {
     const r = await withTx({ requestId: crypto.randomUUID() }, "luuxa_worker", async (tx) => {
       const out = (await tx.query("SELECT app.fn_housekeeping() AS r")).rows[0].r;
       await purgeActivity(tx); // nhật ký hoạt động quá 180 ngày
+      await tx.query("DELETE FROM zalo_message_log WHERE sent_at < now() - interval '180 days'");
       // Tệp đã đánh dấu xóa quá hạn giữ: xóa nội dung trên Supabase Storage / đĩa local
       const purge = (
         await tx.query<{ id: string; bucket: Bucket; object_key: string; variants: Record<string, string> }>(

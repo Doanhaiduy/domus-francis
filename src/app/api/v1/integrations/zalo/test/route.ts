@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { api } from "@/server/http";
 import { forbidden } from "@/server/errors";
-import { readZaloConfig, sendZaloText } from "@/server/integrations/zalo";
+import { logZaloMessage, readZaloConfig, sendZaloText } from "@/server/integrations/zalo";
 
 const Schema = z.object({
   text: z.string().trim().max(1000).optional(),
@@ -20,5 +20,6 @@ export const POST = api({}, async (ctx) => {
   if (!chatId) return { sent: false, reason: "Chưa nhập mã nhóm Zalo (chat_id)." };
   const text = b.text || "🔔 Tin thử từ hệ thống Lưu Xá Phanxicô — nếu thấy tin này trong nhóm nghĩa là kết nối Zalo đã hoạt động.";
   const r = await sendZaloText(chatId, text);
+  await logZaloMessage(ctx, { event: "test", chatId, text, status: r.ok ? "sent" : "failed", error: r.error });
   return r.ok ? { sent: true } : { sent: false, reason: r.error };
 });
