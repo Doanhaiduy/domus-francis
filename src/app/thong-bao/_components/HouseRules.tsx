@@ -208,7 +208,7 @@ function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { in
         {sections.map((s, idx) => (
           <div key={s.id} style={{ marginBottom: 18, pageBreakInside: "avoid" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: "2px solid #5f3add", paddingBottom: 4, marginBottom: 8 }}>
-              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "4px 9px 3px", lineHeight: 1.6, fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
+              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "3px 9px 7px", lineHeight: 1.6, fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
               <span style={{ fontSize: 16, fontWeight: 800 }}>
                 {s.icon ? `${s.icon} ` : ""}
                 {s.title}
