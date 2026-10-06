@@ -88,6 +88,11 @@ export function humanizeErrorMessage(raw: string | null | undefined): string {
   if (!raw) return "";
   let m = String(raw);
 
+  // 0. Thiếu đồng ý lưu hồ sơ Công giáo (trigger require_consent): nói rõ ai cần làm gì
+  if (/chưa đồng ý xử lý dữ liệu tôn giáo/i.test(m)) {
+    return "Hồ sơ Công giáo chỉ được lưu khi thành viên đã đồng ý. Hãy vào Cài đặt → Hồ sơ cá nhân → mục “Hồ sơ Công giáo & Bí tích” và bấm “Đồng ý lưu hồ sơ Công giáo” (với người khác: họ cần tự bấm đồng ý trên tài khoản của mình).";
+  }
+
   // 1. Mã quy tắc ở đầu câu ("BR-FIN-06: …", "BR-COM-05/BR-COM-21: …") và trong ngoặc ("(BR-FIN-17)")
   m = m.replace(/^\s*(?:BR-[A-Z]+-\d+[a-z]?\s*\/\s*)*BR-[A-Z]+-\d+[a-z]?\s*[:：—–-]\s*/, "");
   m = m.replace(/\s*\((?:BR|E|D)-[A-Z]*-?\d+[a-z]?\)/g, "");

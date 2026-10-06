@@ -3,6 +3,7 @@ import { batch, type Tx } from "../db";
 import { badRequest, conflict, forbidden, notFound } from "../errors";
 import { providerConfigs } from "../ai/config";
 import { breakerState } from "../ai/providers";
+import { writeConsent } from "./consents";
 import {
   AI_CONSENT_PURPOSES,
   AI_TASK_CODES,
@@ -80,28 +81,7 @@ export async function getStatus(tx: Tx): Promise<AiStatusDto> {
  */
 export async function setConsent(tx: Tx, granted: boolean, ip: string | null, purpose: AiConsentPurpose = "ai_processing") {
   if (!(AI_CONSENT_PURPOSES as readonly string[]).includes(purpose)) throw badRequest("Mục đích đồng ý không hợp lệ.");
-  const me = (await tx.query<{ id: string | null }>("SELECT app.current_member_id() AS id")).rows[0].id;
-  if (!me) throw forbidden("Chỉ thành viên đã được duyệt mới thiết lập được đồng ý.");
-  if (granted) {
-    await tx.query(
-      `INSERT INTO consents (member_id, purpose_code, policy_version, method, ip)
-       SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = $3
-       ON CONFLICT (member_id, purpose_code) WHERE withdrawn_at IS NULL DO NOTHING`,
-      [me, ip, purpose],
-    );
-    // Đồng ý cũ theo phiên bản điều khoản đã lỗi thời: rút rồi ghi lại bản mới.
-    const ok = (await tx.query<{ ok: boolean }>("SELECT app.has_active_consent($1, $2) AS ok", [me, purpose])).rows[0].ok;
-    if (!ok) {
-      await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = $2 AND withdrawn_at IS NULL", [me, purpose]);
-      await tx.query(
-        `INSERT INTO consents (member_id, purpose_code, policy_version, method, ip)
-         SELECT $1, cp.code, cp.current_version, 'in_app', $2::inet FROM consent_purposes cp WHERE cp.code = $3`,
-        [me, ip, purpose],
-      );
-    }
-  } else {
-    await tx.query("UPDATE consents SET withdrawn_at = now() WHERE member_id = $1 AND purpose_code = $2 AND withdrawn_at IS NULL", [me, purpose]);
-  }
+  await writeConsent(tx, granted, ip, purpose);
   return { purpose, consented: granted };
 }
 

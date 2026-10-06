@@ -10,6 +10,7 @@ import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage, fileUrl } from "@/lib/api";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
+import { consentsApi, useMyConsents } from "@/lib/data/consents";
 
 const SACRAMENTS = ["Rửa tội", "Thánh thể", "Thêm sức", "Hòa giải"];
 const splitParent = (s?: string) => {
@@ -23,6 +24,10 @@ export default function ProfileTab() {
   const memberId = session?.member?.id;
   const { member, isLoading, mutate } = useMemberDetail(memberId);
   const lookups = useLookups();
+  const { consents } = useMyConsents(!!memberId);
+  const [consentBusy, setConsentBusy] = useState(false);
+  // Chưa tải xong trạng thái đồng ý ⇒ coi như chưa đồng ý (không gửi dữ liệu Công giáo, tránh lỗi)
+  const catholicOk = !!consents?.catholic_profile;
 
   const [f, setF] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
@@ -132,7 +137,7 @@ export default function ProfileTab() {
       if (f.nationalId) body.nationalId = f.nationalId;
     }
 
-    if (member.canViewCatholic) {
+    if (member.canViewCatholic && catholicOk) {
       Object.assign(body, {
         holyName: f.holyName || null,
         dioceseId: f.dioceseId || null,
@@ -153,6 +158,18 @@ export default function ProfileTab() {
       showToast("error", errorMessage(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleConsent = async (purpose: "catholic_profile" | "catholic_share_leadership", granted: boolean) => {
+    setConsentBusy(true);
+    try {
+      await consentsApi.set(purpose, granted);
+      showToast("success", granted ? "Đã ghi nhận đồng ý của bạn." : "Đã rút đồng ý.");
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setConsentBusy(false);
     }
   };
 
@@ -441,9 +458,39 @@ export default function ProfileTab() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          {!catholicOk ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 flex flex-col gap-2.5">
+              <p className="leading-relaxed">
+                Tên Thánh, giáo xứ, giáo phận và Bí tích là <b>dữ liệu nhạy cảm về tôn giáo</b>. Hệ thống chỉ lưu khi chính bạn đồng ý; bạn có thể rút đồng ý bất cứ lúc nào.
+                Chưa đồng ý thì các ô dưới đây bị khóa và các phần khác của hồ sơ vẫn lưu bình thường.
+              </p>
+              <button
+                type="button"
+                onClick={() => toggleConsent("catholic_profile", true)}
+                disabled={consentBusy || !consents}
+                className="self-start px-4 py-2 rounded-xl bg-primary hover:bg-primary-container text-white font-bold disabled:opacity-60 transition active:scale-95"
+              >
+                {consentBusy ? "Đang lưu…" : "Đồng ý lưu hồ sơ Công giáo"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <CustomToggle
+                checked={!!consents?.catholic_share_leadership}
+                onChange={(v) => toggleConsent("catholic_share_leadership", v)}
+                disabled={consentBusy}
+                label="Cho Ban điều hành xem hồ sơ Công giáo"
+                description="Để phục vụ sinh hoạt phụng vụ (Trưởng nhà, Trưởng ban Phụng vụ)."
+              />
+              <button type="button" onClick={() => toggleConsent("catholic_profile", false)} disabled={consentBusy} className="text-[11px] font-semibold text-gray-400 hover:text-rose-600 transition">
+                Rút đồng ý lưu hồ sơ Công giáo
+              </button>
+            </div>
+          )}
+
+          <div className={`space-y-3 ${catholicOk ? "" : "opacity-60 pointer-events-none select-none"}`} aria-disabled={!catholicOk}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <CustomInput label="Tên Thánh (Bổn mạng)" value={f.holyName ?? ""} onChange={set("holyName")} placeholder="VD: Phêrô, Giuse, Maria..." />
+              <CustomInput label="Tên Thánh (Bổn mạng)" value={f.holyName ?? ""} onChange={set("holyName")} placeholder="VD: Phêrô, Giuse, Maria..." disabled={!catholicOk} />
               <CustomSelect
                 label="Giáo phận"
                 value={f.dioceseId ?? ""}

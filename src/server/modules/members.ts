@@ -330,11 +330,15 @@ export async function saveMemberProfile(tx: Tx, memberId: string, p: MemberProfi
     if (has(p, "parish")) fields.parish_name = p.parish?.trim() || null;
     if (has(p, "pastor")) fields.pastor_name = p.pastor?.trim() || null;
     const cols = Object.keys(fields);
-    await tx.query(
-      `INSERT INTO catholic_profiles (member_id, ${cols.join(", ")}) VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(", ")})
-       ON CONFLICT (member_id) DO UPDATE SET ${cols.map((c) => `${c} = EXCLUDED.${c}`).join(", ")}`,
-      [memberId, ...cols.map((c) => fields[c])]
-    );
+    // Chưa có hồ sơ Công giáo mà các ô đều trống: không tạo dòng rỗng (tránh vướng yêu cầu đồng ý khi chỉ sửa thông tin khác)
+    const hasRow = (await tx.query("SELECT 1 FROM catholic_profiles WHERE member_id = $1", [memberId])).rowCount;
+    if (hasRow || cols.some((c) => fields[c] !== null)) {
+      await tx.query(
+        `INSERT INTO catholic_profiles (member_id, ${cols.join(", ")}) VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(", ")})
+         ON CONFLICT (member_id) DO UPDATE SET ${cols.map((c) => `${c} = EXCLUDED.${c}`).join(", ")}`,
+        [memberId, ...cols.map((c) => fields[c])]
+      );
+    }
   }
   if (has(p, "sacraments") && p.sacraments) {
     const want = new Set(p.sacraments.map((s) => SACRAMENT_CODE[s] ?? s).filter((s) => s in SACRAMENT_LABEL));
