@@ -11,6 +11,8 @@ export interface SessionInfo {
     roomName: string | null;
     positionLabel: string | null;
   } | null;
+  /** Xác thực 2 bước: đã bật chưa, và vai trò của người này có BẮT BUỘC bật không (settings auth.mfa_required_roles). */
+  mfa: { enabled: boolean; required: boolean };
   /** Mã vai trò đang hiệu lực, xếp theo hạng (quyền cao trước): admin, house_head, treasurer, vai trò tự tạo (các ban…), member */
   roles: string[];
   primaryRole: string;

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // Font tự lưu trữ từ gói npm @fontsource (không tải từ Google Fonts lúc chạy hay lúc build).
 // Be Vietnam Pro: thiết kế riêng cho tiếng Việt (dấu chồng Ậ Ể Ữ… cân đối), đủ độ đậm 400–900 và chữ nghiêng.
 // QUAN TRỌNG: nhập file "<độ đậm>.css" (kèm unicode-range cho từng bộ ký tự: vietnamese/latin-ext/latin) — KHÔNG nhập các file
@@ -18,10 +18,22 @@ import { AppProvider } from "@/lib/store";
 import { SessionProvider } from "@/lib/session";
 import { THEME_INIT_SCRIPT, ThemeProvider } from "@/lib/theme";
 import { AppShell } from "@/components/AppShell";
+import { PwaRegister } from "@/components/PwaRegister";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Lưu Xá Phanxicô - Quản Lý Cộng Đoàn Sinh Viên",
   description: "Ứng dụng nội bộ quản lý sinh hoạt, thu chi, cơm nước, phụng vụ cho anh em Lưu Xá Phanxicô Assisi",
+  applicationName: "Lưu Xá Phanxicô",
+  appleWebApp: { capable: true, title: "Lưu Xá", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#5f3add" },
+    { media: "(prefers-color-scheme: dark)", color: "#12111a" },
+  ],
 };
 
 export default function RootLayout({
@@ -44,6 +56,14 @@ export default function RootLayout({
             </AppProvider>
           </SessionProvider>
         </ThemeProvider>
+        <PwaRegister />
+        {/* Số liệu truy cập + tốc độ thật (chỉ hoạt động trên Vercel khi đã bật Web Analytics / Speed Insights trong dự án) */}
+        {process.env.VERCEL ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

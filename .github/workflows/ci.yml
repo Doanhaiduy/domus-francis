@@ -1,0 +1,70 @@
+name: CI
+
+# Chạy trên mọi push/PR vào master và staging: kiểm tra kiểu, build, và dựng toàn bộ schema DB từ file SQL
+# (bắt lỗi migration trước khi chạm staging/production).
+on:
+  push:
+    branches: [master, staging]
+  pull_request:
+    branches: [master, staging]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Build không cần DB thật; chỉ cần biến tồn tại để module nạp được.
+      DATABASE_URL: postgresql://luuxa_api:ci@127.0.0.1:5432/ci
+      ALLOW_REMOTE_DB: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Dựng DB từ đầu như setup-local (từng file: 01…52 → vá kiểm định 70…75 → db/app), rồi áp db/data
+      - name: Cấu hình kết nối PostgreSQL của CI
+        run: |
+          echo "PG_SUPERUSER_PASSWORD=postgres" > .env.local
+          echo "PGPORT_LOCAL=5432" >> .env.local
+      - run: node --no-warnings scripts/db/build.mjs --db luuxa_ci --stage app
+      - run: node --no-warnings scripts/db/migrate.mjs --db luuxa_ci
+      # Chạy lại: mọi file phải idempotent (không lỗi, không áp lại gì)
+      - run: node --no-warnings scripts/db/migrate.mjs --db luuxa_ci

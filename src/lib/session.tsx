@@ -21,7 +21,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // Trang đăng nhập và trang công khai (/tin-tuc) không cần phiên
-  const skip = pathname === "/dang-nhap" || pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
+  const skip = ["/dang-nhap", "/quen-mat-khau", "/dat-lai-mat-khau"].includes(pathname) || pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
   const { data, isLoading, mutate } = useSWR<SessionInfo>(skip ? null : "/api/v1/auth/me", swrFetcher, {
     revalidateOnFocus: true,
     dedupingInterval: 15_000,

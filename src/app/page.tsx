@@ -27,6 +27,7 @@ import { FinancialBarChart, ExpenseDonutChart, BarChartDataPoint, DonutDataPoint
 import { useDutySummaryQ, useFinanceSummaryQ, useLatestAnnouncementsQ, useUnreadCount, useUpcomingEventsQ } from "@/lib/data/dashboard";
 import { useOrgSettings } from "@/lib/data/settings";
 import LiturgyTodayCard from "@/components/LiturgyTodayCard";
+import SetupCard from "@/components/SetupCard";
 import type { FinanceSummaryDto, PlanSummaryDto } from "@/lib/types/finance";
 
 const GREETING: Record<string, string> = {
@@ -167,6 +168,9 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Admin/Trưởng nhà: nhắc hoàn tất thiết lập hệ thống mới */}
+      <SetupCard />
 
       {/* Phụng vụ hôm nay + lễ lớn sắp tới */}
       <LiturgyTodayCard />

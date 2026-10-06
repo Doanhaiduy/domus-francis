@@ -34,3 +34,38 @@ export const randomToken = (bytes = 32) => randomBytes(bytes).toString("base64ur
 
 /** DB chỉ lưu SHA-256 (hex) của token. */
 export const sha256Hex = (s: string) => createHash("sha256").update(s).digest("hex");
+
+// ---------------------------------------------------------------------
+// Token trung gian bước 2 đăng nhập (MFA): ký bằng cùng khóa Ed25519 nhưng audience riêng, sống 5 phút, chỉ dùng được ở
+// /api/v1/auth/mfa/verify (không phải access token ⇒ không vào được API nào khác).
+// ---------------------------------------------------------------------
+const MFA_AUDIENCE = "luuxa-mfa";
+let mfaPublicKey: CryptoKey | Uint8Array | null = null;
+
+export async function signMfaToken(userId: string): Promise<string> {
+  const key = await getPrivateKey();
+  return new SignJWT({ typ: "mfa" })
+    .setProtectedHeader({ alg: "EdDSA", kid })
+    .setSubject(userId)
+    .setIssuer(JWT_ISSUER)
+    .setAudience(MFA_AUDIENCE)
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(key);
+}
+
+/** Trả về users.id nếu token hợp lệ, null nếu sai/hết hạn. */
+export async function verifyMfaToken(token: string): Promise<string | null> {
+  try {
+    const { jwtVerify } = await import("jose");
+    if (!mfaPublicKey) {
+      const raw = process.env.AUTH_JWT_PUBLIC_JWK;
+      if (!raw) return null;
+      mfaPublicKey = await importJWK(JSON.parse(raw), "EdDSA");
+    }
+    const { payload } = await jwtVerify(token, mfaPublicKey, { issuer: JWT_ISSUER, audience: MFA_AUDIENCE, algorithms: ["EdDSA"] });
+    return payload.typ === "mfa" && typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}

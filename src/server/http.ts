@@ -6,6 +6,8 @@ import { COOKIE, CSRF_HEADER, verifyAccessToken, type AccessClaims } from "@/lib
 import { withTx, type DbRole, type Tx } from "./db";
 import { ApiError, badRequest, forbidden, problemResponse, toApiError, unauthorized } from "./errors";
 import { recordActivity } from "./activity";
+import { waitUntil } from "@vercel/functions";
+import { dispatchPendingPush, pushConfigured } from "./push";
 
 export interface Ctx {
   req: NextRequest;
@@ -165,6 +167,14 @@ export function api(opts: RouteOptions, handler: Handler) {
       res.headers.set("x-request-id", requestId);
       res.headers.set("cache-control", res.headers.get("cache-control") ?? "no-store");
       await track(res.status, null);
+      // Sau mỗi thao tác ghi thành công có thể đã phát sinh thông báo ⇒ gửi đẩy nền (không làm chậm phản hồi)
+      if (res.status < 400 && !["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase()) && pushConfigured()) {
+        try {
+          waitUntil(dispatchPendingPush());
+        } catch {
+          // ngoài Vercel không có waitUntil: bỏ qua, tác vụ cron sẽ gửi
+        }
+      }
       return res;
     } catch (e) {
       const err = toApiError(e);

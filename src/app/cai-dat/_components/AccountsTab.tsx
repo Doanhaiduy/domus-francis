@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyRound,
+  ShieldOff,
   UserPlus,
   Search,
   Lock,
@@ -306,7 +307,7 @@ function AccountDialog({ account: a, list, onClose }: { account: AccountDto; lis
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState(a.contactEmail ?? "");
   const [secret, setSecret] = useState<{ title: string; lines: [string, string][] } | null>(null);
-  const [confirm, setConfirm] = useState<null | "reset" | AccountAction>(null);
+  const [confirm, setConfirm] = useState<null | "reset" | "resetMfa" | AccountAction>(null);
   // Vai trò hiển thị ngay sau khi gán/thu hồi (không chờ tải lại cả danh sách)
   const [roleCodes, setRoleCodes] = useState<string[]>(a.roles.map((r) => r.code));
 
@@ -351,6 +352,12 @@ function AccountDialog({ account: a, list, onClose }: { account: AccountDto; lis
       ok: "Đặt lại",
       variant: "warning",
     },
+    resetMfa: {
+      title: "Gỡ xác thực 2 bước?",
+      message: `${a.fullName} sẽ đăng nhập chỉ bằng mật khẩu và bị đăng xuất khỏi mọi thiết bị; họ cần bật lại xác thực 2 bước ở Cài đặt → Bảo mật. Chỉ làm khi họ mất điện thoại và không còn mã khôi phục.`,
+      ok: "Gỡ xác thực 2 bước",
+      variant: "warning",
+    },
     lock: { title: "Khóa tài khoản?", message: `${a.fullName} sẽ không đăng nhập được và bị đăng xuất khỏi mọi thiết bị cho tới khi được mở khóa.`, ok: "Khóa", variant: "warning" },
     unlock: { title: "Mở khóa tài khoản?", message: `${a.fullName} sẽ đăng nhập lại được.`, ok: "Mở khóa", variant: "info" },
     disable: {
@@ -372,6 +379,9 @@ function AccountDialog({ account: a, list, onClose }: { account: AccountDto; lis
       if (what === "reset") {
         const r = await accountsApi.resetPassword(uid);
         setSecret({ title: `Mật khẩu tạm của ${a.fullName}`, lines: [["Đăng nhập", a.email ?? ""], ["Mật khẩu tạm", r.temporaryPassword]] });
+      } else if (what === "resetMfa") {
+        await accountsApi.resetMfa(uid);
+        showToast("success", `Đã gỡ xác thực 2 bước của ${a.fullName}.`);
       } else {
         const r = await accountsApi.setStatus(uid, what);
         showToast("success", r.message);
@@ -471,6 +481,14 @@ function AccountDialog({ account: a, list, onClose }: { account: AccountDto; lis
                         className={`${btn} border-amber-200 text-amber-700 hover:bg-amber-50 col-span-2 sm:col-span-1`}
                       >
                         <KeyRound className="w-3.5 h-3.5" /> Đặt lại mật khẩu
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || !canAct}
+                        onClick={() => setConfirm("resetMfa")}
+                        className={`${btn} border-gray-200 text-gray-700 hover:bg-gray-50 col-span-2 sm:col-span-1`}
+                      >
+                        <ShieldOff className="w-3.5 h-3.5" /> Gỡ xác thực 2 bước
                       </button>
                       {statusActions.map((s) => (
                         <button key={s.action} type="button" disabled={busy || !canAct} onClick={() => setConfirm(s.action)} className={`${btn} ${s.cls}`}>

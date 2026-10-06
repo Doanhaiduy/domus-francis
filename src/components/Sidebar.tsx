@@ -26,6 +26,7 @@ import {
   BookOpen,
   User,
   Newspaper,
+  Rocket,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -63,7 +64,8 @@ export const NAV_ITEMS: {
   { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap, isNew: true },
   { href: "/so-do-nha", label: "Sơ đồ nhà", icon: Building2 },
   { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera, isNew: true },
-  { href: "/cai-dat", label: "Cài Đặt", icon: Settings, isDividerBefore: true },
+  { href: "/khoi-tao", label: "Bắt đầu thiết lập", icon: Rocket, requires: "setting.write", isDividerBefore: true },
+  { href: "/cai-dat", label: "Cài Đặt", icon: Settings },
   { href: "/huong-dan", label: "Hướng dẫn sử dụng", icon: BookOpen },
 ];
 

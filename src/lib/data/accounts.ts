@@ -30,6 +30,7 @@ export const accountsApi = {
   /** Cấp tài khoản cho thành viên chưa có ⇒ mật khẩu tạm hiện MỘT lần */
   create: (memberId: string, email: string) => api.post<{ email: string; temporaryPassword: string }>(ACCOUNTS_KEY, { memberId, email }),
   resetPassword: (userId: string) => api.post<{ temporaryPassword: string }>(`${ACCOUNTS_KEY}/${enc(userId)}/password-reset`),
+  resetMfa: (userId: string) => api.del<{ ok: boolean }>(`${ACCOUNTS_KEY}/${enc(userId)}/mfa`),
   setStatus: (userId: string, action: AccountAction) => api.patch<{ ok: true; message: string }>(`${ACCOUNTS_KEY}/${enc(userId)}`, { action }),
   setRole: (userId: string, role: string, grant: boolean) => api.post<MemberRolesDto>(`${ACCOUNTS_KEY}/${enc(userId)}/roles`, { role, grant }),
   /** Theo hồ sơ thành viên (màn hình Thành viên) */

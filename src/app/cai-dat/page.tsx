@@ -14,6 +14,8 @@ import CaiDatLoading from "./loading";
 import { FormCardsSkeleton } from "./_components/TabSkeletons";
 import { useSettingsDraft } from "./_components/useSettingsDraft";
 import ProfileTab from "./_components/ProfileTab";
+import SecurityTab from "./_components/SecurityTab";
+import NotificationsTab from "./_components/NotificationsTab";
 import GeneralTab, { isGeneralKey } from "./_components/GeneralTab";
 import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
@@ -26,8 +28,8 @@ import AcademicConfigTab from "./_components/AcademicConfigTab";
 import ActivityTab from "./_components/ActivityTab";
 import { useAiStatus } from "@/lib/data/ai";
 
-type ActiveTab = "profile" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules" | "activity";
-const TABS: readonly ActiveTab[] = ["profile", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules", "activity"];
+type ActiveTab = "profile" | "security" | "notifications" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules" | "activity";
+const TABS: readonly ActiveTab[] = ["profile", "security", "notifications", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules", "activity"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -212,6 +214,15 @@ export default function CaiDatPage() {
           <User className="w-4 h-4" />
           <span>Hồ sơ cá nhân</span>
         </button>
+        <button onClick={() => setActiveTab("security")} className={tabBtn("security")}>
+          <ShieldCheck className="w-4 h-4" />
+          <span>Bảo mật</span>
+          {session?.mfa.required && !session.mfa.enabled && <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
+        </button>
+        <button onClick={() => setActiveTab("notifications")} className={tabBtn("notifications")}>
+          <BellRing className="w-4 h-4" />
+          <span>Thông báo</span>
+        </button>
         <button onClick={() => setActiveTab("general")} className={tabBtn("general")}>
           <Building className="w-4 h-4" />
           <span>Cấu hình chung &amp; Định mức</span>
@@ -267,6 +278,8 @@ export default function CaiDatPage() {
       </div>
 
       {activeTab === "profile" && <ProfileTab />}
+      {activeTab === "security" && <SecurityTab />}
+      {activeTab === "notifications" && <NotificationsTab />}
       {activeTab === "general" && (settingsLoading ? <FormCardsSkeleton cards={4} /> : <GeneralTab draft={draft} roles={matrix?.roles ?? []} />)}
       {activeTab === "categories" && <CategoriesTab />}
       {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}

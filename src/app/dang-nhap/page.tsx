@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api, ApiClientError, errorMessage } from "@/lib/api";
 import { AppFooter } from "@/components/AppFooter";
 import { ThemeToggle } from "@/lib/theme";
@@ -20,6 +21,9 @@ export default function DangNhapPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  // Tài khoản bật xác thực 2 bước: mật khẩu đúng thì chuyển sang nhập mã (token trung gian sống 5 phút)
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
 
   const nextPath = () => {
     if (typeof window === "undefined") return "/";
@@ -55,7 +59,12 @@ export default function DangNhapPage() {
           });
           router.replace("/cho-phe-duyet");
         } else {
-          const r = await api.post<{ pending: boolean }>("/api/v1/auth/login", { identifier, password });
+          const r = await api.post<{ pending?: boolean; mfaRequired?: boolean; mfaToken?: string }>("/api/v1/auth/login", { identifier, password });
+          if (r.mfaRequired && r.mfaToken) {
+            setMfaToken(r.mfaToken);
+            setMfaCode("");
+            return;
+          }
           router.replace(r.pending ? "/cho-phe-duyet" : nextPath());
         }
         router.refresh();
@@ -69,6 +78,67 @@ export default function DangNhapPage() {
       }
     });
   };
+
+  const handleMfa = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (mfaCode.trim().length < 6) {
+      setError("Nhập mã 6 số trong ứng dụng, hoặc một mã khôi phục.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const r = await api.post<{ pending: boolean }>("/api/v1/auth/mfa/verify", { mfaToken, code: mfaCode.trim() });
+        router.replace(r.pending ? "/cho-phe-duyet" : nextPath());
+        router.refresh();
+      } catch (err) {
+        const expired = err instanceof ApiClientError && err.code === "MFA_EXPIRED";
+        if (expired) {
+          setMfaToken(null);
+          setPassword("");
+        }
+        setError(errorMessage(err));
+      }
+    });
+  };
+
+  if (mfaToken) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-4 relative">
+        <ThemeToggle className="absolute top-4 right-4" />
+        <form onSubmit={handleMfa} className="w-full max-w-[420px] bg-white rounded-3xl p-8 border border-purple-100 shadow-[0_20px_60px_-15px_rgba(95,58,221,0.12)] flex flex-col gap-5">
+          <div className="text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-purple-300/60">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-extrabold text-gray-900">Xác thực 2 bước</h1>
+            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">Nhập mã 6 số trong ứng dụng Authenticator trên điện thoại của bạn. Mất điện thoại? Dùng một mã khôi phục (dạng <span className="font-mono">abcde-12345</span>).</p>
+          </div>
+          {error && (
+            <div role="alert" className="flex items-start gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+          <input
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value)}
+            autoFocus
+            autoComplete="one-time-code"
+            inputMode="text"
+            aria-label="Mã xác thực"
+            placeholder="123456"
+            maxLength={20}
+            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 text-center text-xl tracking-[0.35em] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+          />
+          <button type="submit" disabled={isPending} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#5f3add] to-[#7857f8] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            {isPending ? "Đang kiểm tra…" : (<>Xác nhận <ArrowRight className="w-4 h-4" /></>)}
+          </button>
+          <button type="button" onClick={() => { setMfaToken(null); setMfaCode(""); setError(null); }} className="text-xs font-semibold text-gray-400 hover:text-gray-700">← Quay lại đăng nhập</button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-4 relative">
@@ -172,6 +242,13 @@ export default function DangNhapPage() {
             <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1.5">
               Mật khẩu *
             </label>
+            {!isSignUp && (
+              <div className="text-right -mt-6 mb-1.5 relative z-10 h-4">
+                <Link href="/quen-mat-khau" className="text-[11px] font-semibold text-primary hover:underline">
+                  Quên mật khẩu?
+                </Link>
+              </div>
+            )}
             <div className="relative">
               <input
                 id="password"

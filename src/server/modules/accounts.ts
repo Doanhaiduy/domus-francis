@@ -4,6 +4,7 @@ import type { Ctx } from "../http";
 import { batch, type Tx } from "../db";
 import { ApiError, forbidden, notFound } from "../errors";
 import { hashPassword } from "../auth/password";
+import { resetMfaForUser } from "../auth/mfa";
 import type {
   AccountAction,
   AccountDto,
@@ -136,6 +137,25 @@ export async function resetUserPassword(ctx: Ctx, target: AccountTarget) {
     ]);
   });
   return { temporaryPassword: pw };
+}
+
+/** Gỡ xác thực 2 bước của người mất điện thoại (cùng điều kiện như đặt lại mật khẩu) + đăng xuất mọi thiết bị của họ. */
+export async function resetUserMfa(ctx: Ctx, target: AccountTarget) {
+  const userId = await ctx.db(async (tx) => {
+    const [okR, tR] = await batch(tx, [
+      ["SELECT app.has_permission('auth.user.manage') AS ok, app.has_permission('auth.role.assign') AS assign"],
+      targetQuery(target),
+    ]);
+    const me = okR.rows[0] as { ok: boolean; assign: boolean };
+    if (!me.ok) throw forbidden("Chỉ Trưởng nhà hoặc Admin được gỡ xác thực 2 bước của người khác.");
+    const uid = resolveTarget(target, tR.rows[0] as { user_id: string | null; found: boolean } | undefined);
+    if (uid === ctx.userId) throw new ApiError(422, "SELF_RESET", "Không gỡ xác thực 2 bước của chính mình ở đây — hãy dùng Cài đặt → Bảo mật.");
+    const p = (await tx.query<{ p: boolean }>("SELECT app.is_privileged_user($1) AS p", [uid])).rows[0].p;
+    if (p && !me.assign) throw new ApiError(403, "BR-AUTH-22", "Tài khoản giữ vai trò đặc quyền chỉ Trưởng nhà hoặc Admin được thao tác.");
+    return uid;
+  });
+  await resetMfaForUser(userId, { ip: ctx.ip, userAgent: null, requestId: ctx.requestId });
+  return { ok: true };
 }
 
 /** Giữ tên cũ cho route /api/v1/members/{id}/password-reset. */

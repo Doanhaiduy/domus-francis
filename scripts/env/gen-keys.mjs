@@ -8,8 +8,10 @@
 //   • PII_KEY_V1 / PII_BIDX_KEY : khóa mã hóa CCCD, SĐT phụ huynh. ĐỔI KHÓA = dữ liệu đã mã hóa cũ không giải mã được.
 //       ⇒ DB production MỚI (không sao chép dữ liệu từ staging): dùng khóa mới. Nếu sao chép DB staging sang production: GIỮ NGUYÊN khóa của staging.
 //   • CRON_SECRET : mật khẩu cho Vercel Cron gọi /api/cron/daily.
+//   • VAPID_*     : khóa thông báo đẩy. Đổi khóa = mọi thiết bị đã đăng ký phải bật lại thông báo.
 import { randomBytes } from "node:crypto";
 import { exportJWK, generateKeyPair } from "jose";
+import webpush from "web-push";
 
 const { publicKey, privateKey } = await generateKeyPair("EdDSA", { crv: "Ed25519", extractable: true });
 const kid = randomBytes(6).toString("hex");
@@ -22,3 +24,8 @@ console.log(`AUTH_JWT_PUBLIC_JWK=${pub}`);
 console.log(`PII_KEY_V1=${randomBytes(32).toString("base64")}`);
 console.log(`PII_BIDX_KEY=${randomBytes(32).toString("base64")}`);
 console.log(`CRON_SECRET=${randomBytes(24).toString("base64url")}`);
+// Thông báo đẩy (Web Push): cặp khóa VAPID riêng cho mỗi môi trường. VAPID_SUBJECT là liên hệ của bạn (mailto:… hoặc https://…).
+const vapid = webpush.generateVAPIDKeys();
+console.log(`VAPID_PUBLIC_KEY=${vapid.publicKey}`);
+console.log(`VAPID_PRIVATE_KEY=${vapid.privateKey}`);
+console.log("VAPID_SUBJECT=mailto:admin@luuxa.example");

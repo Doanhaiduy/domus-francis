@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runDailyJobs, type DailySlot } from "@/server/cron/daily";
+import { dispatchPendingPush } from "@/server/push";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,6 +16,8 @@ export async function GET(req: NextRequest) {
   const slot: DailySlot = req.nextUrl.searchParams.get("slot") === "evening" ? "evening" : "morning";
   try {
     const r = await runDailyJobs(slot);
+    // Thông báo phát sinh trong lượt chạy (và thông báo đang chờ hết giờ yên tĩnh) được gửi đẩy luôn
+    await dispatchPendingPush();
     return NextResponse.json({ ok: true, slot, date: r.date, items: r.items.map((i) => ({ key: i.key, status: i.status, reason: i.reason })), notes: r.notes });
   } catch (e) {
     console.error("[cron] daily lỗi:", (e as Error).message);

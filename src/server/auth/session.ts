@@ -4,6 +4,7 @@ import { batch, withTx, type Tx } from "../db";
 import { ApiError } from "../errors";
 import { hashPassword, passwordProblem, verifyPassword } from "./password";
 import { randomToken, sha256Hex, signAccessToken } from "./tokens";
+import { hasMfa, verifySecondFactor } from "./mfa";
 import {
   ACCESS_TTL_SECONDS,
   COOKIE,
@@ -87,7 +88,9 @@ export function clearSessionCookies(res: NextResponse) {
 // Đăng nhập
 // ---------------------------------------------------------------------
 type LoginOutcome =
-  | { ok: true; userId: string; sid: string; refresh: string; pending: boolean }
+  | { ok: true; mfa?: false; userId: string; sid: string; refresh: string; pending: boolean }
+  /** Mật khẩu đúng nhưng tài khoản bật xác thực 2 bước: chưa tạo phiên — chờ mã ở /api/v1/auth/mfa/verify. */
+  | { ok: true; mfa: true; userId: string }
   | { ok: false; error: ApiError };
 
 export async function login(identifier: string, password: string, meta: ReqMeta): Promise<LoginOutcome> {
@@ -149,6 +152,11 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       await attempt(u.id, false, "disabled");
       return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản đã bị vô hiệu hóa. Liên hệ Ban điều hành nếu đây là nhầm lẫn.") };
     }
+    // Có xác thực 2 bước ⇒ dừng ở đây: ghi nhận bước mật khẩu đã đúng, phiên chỉ tạo sau khi nhập đúng mã
+    if (await hasMfa(tx, u.id)) {
+      await attempt(u.id, true, null); // ràng buộc DB: lần thử thành công không có lý do thất bại
+      return { ok: true, mfa: true, userId: u.id };
+    }
     // Đăng nhập đúng: ghi lần thử + cập nhật người dùng + tạo phiên/refresh token + kiểm tra chờ duyệt ⇒ 1 vòng mạng
     const refresh = randomToken();
     const [, , sess, mem] = await batch(tx, [
@@ -161,6 +169,31 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       ["SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [u.id]],
     ]);
     return { ok: true, userId: u.id, sid: sess.rows[0].id as string, refresh, pending: mem.rowCount === 0 };
+  });
+}
+
+/** Bước 2 đăng nhập: mã TOTP/mã khôi phục đúng ⇒ tạo phiên như đăng nhập thường. */
+export async function completeMfaLogin(userId: string, code: string, meta: ReqMeta): Promise<LoginOutcome> {
+  return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx): Promise<LoginOutcome> => {
+    const u = (await tx.query<{ status: string; locked: boolean }>("SELECT status::text, (locked_until IS NOT NULL AND locked_until > now()) AS locked FROM users WHERE id = $1 AND deleted_at IS NULL", [userId])).rows[0];
+    if (!u || u.status === "disabled" || u.status === "locked") return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản không thể đăng nhập. Liên hệ Ban điều hành.") };
+    let good = false;
+    try {
+      good = await verifySecondFactor(tx, userId, code, meta);
+    } catch (e) {
+      if (e instanceof ApiError) return { ok: false, error: e };
+      throw e;
+    }
+    // Không ném lỗi khi sai mã: lần thử sai phải COMMIT (đếm chống dò mã)
+    if (!good) return { ok: false, error: new ApiError(401, "BAD_CODE", "Mã không đúng hoặc đã hết hạn. Thử mã mới trong ứng dụng, hoặc dùng mã khôi phục.") };
+    const refresh = randomToken();
+    const [, sess, mem] = await batch(tx, [
+      ["INSERT INTO login_attempts (identifier, user_id, ip, user_agent, success, failure_reason) VALUES ($1, $2, $3::inet, $4, true, NULL)", [`user:${userId}`, userId, meta.ip, meta.userAgent?.slice(0, 400) ?? null]],
+      createSessionItem(userId, meta, refresh),
+      ["SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [userId]],
+    ]);
+    await tx.query("UPDATE users SET last_login_at = now(), locked_until = NULL WHERE id = $1", [userId]);
+    return { ok: true, userId, sid: sess.rows[0].id as string, refresh, pending: mem.rowCount === 0 };
   });
 }
 

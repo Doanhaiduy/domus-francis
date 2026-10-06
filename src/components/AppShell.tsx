@@ -13,11 +13,12 @@ import { AppFooter } from "./AppFooter";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useAiStatus } from "@/lib/data/ai";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const isAuthPage = pathname === "/dang-nhap" || pathname === "/cho-phe-duyet";
+  const isAuthPage = ["/dang-nhap", "/cho-phe-duyet", "/quen-mat-khau", "/dat-lai-mat-khau"].includes(pathname);
   // Trang công khai (/tin-tuc/…) tự có đầu/chân trang riêng, không dùng khung ứng dụng và không cần phiên đăng nhập
   const isPublicSite = pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
   const { activeModal, openModal } = useApp();
@@ -58,6 +59,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* MAIN APPLICATION AREA */}
       <div className="md:pl-64 flex flex-col min-h-screen">
         <Header />
+        {/* Vai trò bắt buộc xác thực 2 bước mà chưa bật: nhắc trên mọi trang (trừ chính trang Cài đặt) */}
+        {session?.mfa.required && !session.mfa.enabled && !pathname.startsWith("/cai-dat") && (
+          <Link
+            href="/cai-dat?tab=security"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition"
+            role="alert"
+          >
+            <ShieldAlert className="w-4 h-4 shrink-0" /> Vai trò của bạn cần bật xác thực 2 bước để bảo vệ tài khoản — bấm để thiết lập (2 phút)
+          </Link>
+        )}
         <main className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6">
           <ModuleGate>{children}</ModuleGate>
         </main>

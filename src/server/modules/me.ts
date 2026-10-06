@@ -7,7 +7,7 @@ export type { SessionInfo };
 /** Thông tin phiên của người gọi — đọc dưới vai trò luuxa_app (RLS áp dụng). */
 export async function loadSessionInfo(tx: Tx): Promise<SessionInfo> {
   // Gộp các truy vấn độc lập: 1 vòng mạng thay vì 4–5 (đơn đăng ký chỉ dùng khi chưa có hồ sơ thành viên)
-  const [uR, mR, rolesR, permsR, appR] = await batch(tx, [
+  const [uR, mR, rolesR, permsR, appR, mfaR] = await batch(tx, [
     [`SELECT id, email::text, phone_e164, status::text, must_change_password FROM users WHERE id = app.current_user_id()`],
     [
       `SELECT m.id, m.full_name, m.display_name, m.avatar_file_id, m.gender::text,
@@ -31,6 +31,10 @@ export async function loadSessionInfo(tx: Tx): Promise<SessionInfo> {
     [
       `SELECT id, status::text, full_name, email::text, created_at, review_note
              FROM member_applications WHERE user_id = app.current_user_id() ORDER BY created_at DESC LIMIT 1`,
+    ],
+    [
+      `SELECT app.fn_mfa_required() AS required,
+              EXISTS (SELECT 1 FROM user_mfa_factors WHERE user_id = app.current_user_id() AND confirmed_at IS NOT NULL) AS enabled`,
     ],
   ]);
   const u = uR.rows[0];
@@ -58,6 +62,7 @@ export async function loadSessionInfo(tx: Tx): Promise<SessionInfo> {
           positionLabel: m.position_name,
         }
       : null,
+    mfa: { enabled: !!mfaR.rows[0]?.enabled, required: !!mfaR.rows[0]?.required },
     roles,
     primaryRole,
     roleLabel: roleNames[primaryRole] ?? ROLE_LABEL[primaryRole] ?? "Thành viên",

@@ -6,7 +6,15 @@ import { badRequest, forbidden } from "../errors";
 // còn hiệu lực (trigger trg_catholic_profiles__require_consent). Các đồng ý về AI nằm ở modules/ai.ts (cùng cách ghi).
 
 /** Mục đích thành viên được tự đồng ý ở Cài đặt → Hồ sơ cá nhân. */
-export const SELF_CONSENT_PURPOSES = ["catholic_profile", "catholic_share_leadership"] as const;
+export const SELF_CONSENT_PURPOSES = [
+  "catholic_profile",
+  "catholic_share_leadership",
+  "academic_share_leadership",
+  "academic_share_tutoring",
+  "academic_public_ranking",
+  "photo_tagging",
+  "channel_messaging",
+] as const;
 export type SelfConsentPurpose = (typeof SELF_CONSENT_PURPOSES)[number];
 
 async function myMemberId(tx: Tx): Promise<string> {
