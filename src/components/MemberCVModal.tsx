@@ -21,7 +21,7 @@ import { useOrgSettings } from "@/lib/data/settings";
 import { copyTextToClipboard, formatMemberCVForZalo } from "@/lib/zaloShare";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
-import { exportElementToPdf } from "@/lib/pdfExport";
+import { downloadMemberCvPdf } from "@/lib/pdf/member-cv";
 import useSWR from "swr";
 import { swrFetcher } from "@/lib/api";
 import type { MemberContributionRow } from "@/lib/types/finance";
@@ -68,19 +68,21 @@ export default function MemberCVModal({
   if (!isOpen || !member) return null;
 
   const handleExportPdf = async () => {
-    if (!printRef.current || isExporting) return;
+    if (isExporting) return;
     setIsExporting(true);
     try {
-      const success = await exportElementToPdf({
-        element: printRef.current,
-        filename: `So_Yeu_Ly_Lich_${member.fullName.replace(/\s+/g, "_")}`,
-        margin: 8,
+      await downloadMemberCvPdf({
+        member,
+        org,
+        houseHeadName: houseHead?.fullName ?? null,
+        dues:
+          duesError || !dues
+            ? null
+            : duesOwing.length === 0
+            ? { text: dues.length ? "Đã nộp đủ các khoản" : "Chưa có khoản phải thu", tone: "ok" }
+            : { text: `Còn nợ ${duesOwedVnd.toLocaleString("vi-VN")} đ (${duesOwing.length} khoản)`, tone: "owe" },
       });
-      if (success) {
-        showToast("success", `Đã tải PDF sơ yếu lý lịch ${member.fullName}!`);
-      } else {
-        showToast("error", "Không thể xuất PDF. Vui lòng thử lại!");
-      }
+      showToast("success", `Đã tải PDF sơ yếu lý lịch ${member.fullName}!`);
     } catch (err) {
       console.error(err);
       showToast("error", "Đã xảy ra lỗi khi tạo file PDF. Vui lòng thử lại!");
@@ -187,7 +189,7 @@ export default function MemberCVModal({
         </div>
 
         {/* PRINTABLE A4 CONTENT */}
-        <div ref={printRef} className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-10 space-y-6 text-gray-800 printable-area font-serif bg-white">
+        <div ref={printRef} className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-10 space-y-6 text-gray-800 printable-area bg-white">
           {/* HEADER FORM */}
           <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4">
             <div>

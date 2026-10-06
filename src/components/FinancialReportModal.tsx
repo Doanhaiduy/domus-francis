@@ -6,7 +6,7 @@ import { formatVND } from "@/lib/utils";
 import { useZaloSend } from "@/lib/zalo-client";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
-import { exportElementToPdf } from "@/lib/pdfExport";
+import { downloadFinancialReportPdf } from "@/lib/pdf/financial-report";
 import { dmy, formatFinanceReportForZalo, vnToday, type FinanceReportText } from "@/lib/finance-format";
 import {
   CONTRIBUTION_STATUS_LABEL,
@@ -96,11 +96,11 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
   const orderName = o?.org.orderName ?? "Dòng Anh Em Hèn Mọn Việt Nam (OFM)";
 
   const handleExportPdf = async () => {
-    if (!printableRef.current || isExporting) return;
+    if (isExporting) return;
     setIsExporting(true);
     try {
-      const success = await exportElementToPdf({ element: printableRef.current, filename: fileBase, margin: 8 });
-      showToast(success ? "success" : "error", success ? "Đã tải file PDF báo cáo thu chi thành công!" : "Không thể xuất PDF. Vui lòng thử lại!");
+      await downloadFinancialReportPdf({ periodLabel, report, overview: o, plan, canSeeAllExpenses: props.canSeeAllExpenses });
+      showToast("success", "Đã tải file PDF báo cáo thu chi thành công!");
     } catch (err) {
       console.error(err);
       showToast("error", "Đã xảy ra lỗi khi tạo file PDF. Vui lòng thử lại!");
@@ -190,7 +190,7 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
             </div>
 
             {/* PRINTABLE A4 CONTENT */}
-            <div ref={printableRef} className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-10 space-y-6 text-gray-800 printable-area font-serif bg-white">
+            <div ref={printableRef} className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-10 space-y-6 text-gray-800 printable-area bg-white">
               {/* HEADER */}
               <div className="flex items-start justify-between border-b-2 border-gray-900 pb-4">
                 <div>

@@ -8,7 +8,7 @@ import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { houseRulesApi, minutesOf, refreshHouseRules, useHouseRules } from "@/lib/data/house-rules";
 import { HOUSE_RULE_TEMPLATES, type HouseRuleInput, type HouseRuleItemDto, type HouseRuleSectionDto } from "@/lib/types/house-rules";
-import { exportElementToPdf } from "@/lib/pdfExport";
+import { downloadHouseRulesPdf } from "@/lib/pdf/house-rules";
 import { CustomInput, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -174,74 +174,6 @@ function SectionEditor({
 }
 
 // ---------------------------------------------------------------------
-// Bản in PDF
-// ---------------------------------------------------------------------
-function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { innerRef: React.RefObject<HTMLDivElement>; houseName: string; sections: HouseRuleSectionDto[]; updatedAt: string | null; timetable: { time: string; text: string; section: string }[] }) {
-  const clauses = sections.reduce((a, x) => a + x.items.length, 0);
-  return (
-    <div style={{ position: "fixed", left: -10000, top: 0 }} aria-hidden>
-      <div ref={innerRef} style={{ width: 760, padding: "34px 40px", background: "#fff", color: "#111827", fontFamily: "'Be Vietnam Pro', Arial, Helvetica, sans-serif", fontSize: 13, lineHeight: 1.55 }}>
-        <div style={{ textAlign: "center", paddingBottom: 14, borderBottom: "3px double #5f3add", marginBottom: 18 }}>
-          <div style={{ fontSize: 12, letterSpacing: 2, color: "#5f3add", fontWeight: 700 }}>✝ {houseName.toUpperCase()}</div>
-          <div style={{ fontSize: 30, fontWeight: 800, marginTop: 6, letterSpacing: 1 }}>LUẬT NHÀ</div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-            {sections.length} mục · {clauses} điều khoản{updatedAt ? ` · cập nhật ngày ${fmtDate(updatedAt)}` : ""}
-          </div>
-        </div>
-
-        {timetable.length > 0 && (
-          <div style={{ marginBottom: 20, border: "1px solid #d8d1f5", borderRadius: 10, overflow: "hidden", pageBreakInside: "avoid" }}>
-            <div style={{ background: "#5f3add", color: "#fff", padding: "7px 12px", lineHeight: 1.5, fontWeight: 800, fontSize: 13 }}>GIỜ GIẤC CHUNG</div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>
-                {timetable.map((t, i) => (
-                  <tr key={i} style={{ background: i % 2 ? "#faf5ff" : "#fff" }}>
-                    <td style={{ width: 120, padding: "5px 12px", fontWeight: 800, color: "#5f3add", verticalAlign: "top", whiteSpace: "nowrap" }}>{t.time}</td>
-                    <td style={{ padding: "5px 12px" }}>{t.text}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {sections.map((s, idx) => (
-          <div key={s.id} style={{ marginBottom: 18, pageBreakInside: "avoid" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: "2px solid #5f3add", paddingBottom: 4, marginBottom: 8 }}>
-              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "3px 9px 7px", lineHeight: 1.6, fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
-              <span style={{ fontSize: 16, fontWeight: 800 }}>
-                {s.icon ? `${s.icon} ` : ""}
-                {s.title}
-              </span>
-            </div>
-            {s.description && <div style={{ color: "#4b5563", fontStyle: "italic", marginBottom: 6 }}>{s.description}</div>}
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>
-                {s.items.map((it, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ width: 52, padding: "4px 6px", color: "#6b7280", fontWeight: 700, verticalAlign: "top" }}>
-                      {idx + 1}.{i + 1}
-                    </td>
-                    <td style={{ padding: "4px 6px" }}>
-                      {it.time && <b style={{ color: "#5f3add" }}>[{it.time}] </b>}
-                      {it.text}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-
-        <div style={{ marginTop: 24, paddingTop: 10, borderTop: "1px solid #e5e7eb", textAlign: "center", color: "#6b7280", fontSize: 12 }}>
-          Mọi thành viên có trách nhiệm tuân thủ luật nhà. Pax et Bonum! 🕊️
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------
 // Màn hình chính
 // ---------------------------------------------------------------------
 export default function HouseRules() {
@@ -252,7 +184,6 @@ export default function HouseRules() {
   const [template, setTemplate] = useState<HouseRuleInput | null>(null);
   const [deleting, setDeleting] = useState<HouseRuleSectionDto | null>(null);
   const [exporting, setExporting] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const sections = rules?.sections ?? [];
   const visible = useMemo(() => sections.filter((s) => s.isActive || rules?.canManage), [sections, rules?.canManage]);
@@ -313,11 +244,15 @@ export default function HouseRules() {
     if (exporting) return;
     setExporting(true);
     try {
-      await new Promise((r) => setTimeout(r, 60));
-      if (!printRef.current) throw new Error("no element");
-      const ok = await exportElementToPdf({ element: printRef.current, filename: "Luat_Nha", margin: 8 });
-      showToast(ok ? "success" : "error", ok ? "Đã tải PDF luật nhà." : "Không thể xuất PDF. Vui lòng thử lại!");
-    } catch {
+      await downloadHouseRulesPdf({
+        houseName: rules?.houseName ?? "Lưu Xá Phanxicô",
+        sections: sections.filter((x) => x.isActive),
+        updatedAt: rules?.updatedAt ?? null,
+        timetable,
+      });
+      showToast("success", "Đã tải PDF luật nhà.");
+    } catch (e) {
+      console.error(e);
       showToast("error", "Không thể xuất PDF. Vui lòng thử lại!");
     } finally {
       setExporting(false);
@@ -526,7 +461,6 @@ export default function HouseRules() {
         message={<>Mục <b>{deleting?.title}</b> sẽ bị xóa khỏi luật nhà. Nếu chỉ muốn tạm gỡ, hãy sửa mục và tắt “Hiển thị với thành viên”.</>}
         confirmText="Xóa mục"
       />
-      {exporting && <Printable innerRef={printRef} houseName={rules.houseName ?? "Lưu Xá Phanxicô"} sections={activeForPdf} updatedAt={rules.updatedAt} timetable={timetable} />}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, BookOpen, Link2, Printer, Search, Users, X } from "lucide-react";
+import { ArrowUp, BookOpen, Download, Link2, Loader2, Search, Users, X } from "lucide-react";
+import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import {
   GUIDE_AUDIENCE_LABEL, GUIDE_INTRO, GUIDE_QUICK, GUIDE_ROLES, GUIDE_SECTIONS,
@@ -34,6 +35,8 @@ const sectionText = (s: GuideSection) => norm(`${s.title} ${s.summary} ${s.block
 /** Hướng dẫn sử dụng theo vai trò — mặc định chỉ hiện phần dành cho vai trò của người đang xem. */
 export default function HuongDanPage() {
   const { session } = useSession();
+  const { showToast } = useApp();
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<string>(GUIDE_SECTIONS[0].id);
@@ -101,6 +104,22 @@ export default function HuongDanPage() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  const downloadPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const list = GUIDE_SECTIONS.filter((s) => showAll || s.audience.some((a) => mine.has(a)));
+      const { downloadGuidePdf } = await import("@/lib/pdf/guide");
+      await downloadGuidePdf(list, showAll ? "Mọi vai trò" : myLabels.join(", ") || "Thành viên");
+      showToast("success", `Đã tải PDF hướng dẫn (${list.length} mục).`);
+    } catch (e) {
+      console.error(e);
+      showToast("error", "Không thể tạo PDF. Vui lòng thử lại!");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const go = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     setActive(id);
@@ -131,8 +150,14 @@ export default function HuongDanPage() {
               <p className="text-xs sm:text-sm text-white/80 mt-1 max-w-xl"><Inline text={GUIDE_INTRO} /></p>
             </div>
           </div>
-          <button onClick={() => window.print()} className="hidden sm:inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold print:hidden">
-            <Printer className="w-3.5 h-3.5" /> In / Lưu PDF
+          <button
+            onClick={downloadPdf}
+            disabled={pdfBusy}
+            title={showAll ? "Tải PDF hướng dẫn cho mọi vai trò" : "Tải PDF hướng dẫn cho vai trò của bạn"}
+            className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-primary hover:bg-white/90 text-xs font-bold shadow-sm disabled:opacity-70 print:hidden"
+          >
+            {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{pdfBusy ? "Đang tạo PDF…" : "Tải PDF"}</span>
           </button>
         </div>
 

@@ -9,7 +9,7 @@ import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import { dmy } from "@/lib/finance-format";
 import { useFinanceStats } from "@/lib/data/finance";
-import { exportElementToPdf } from "@/lib/pdfExport";
+import { downloadStatsPdf } from "@/lib/pdf/stats";
 import type { FinanceStatsDto, StatsGranularity } from "@/lib/types/finance";
 import { CustomSelect } from "@/components/ui/FormControls";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -125,7 +125,6 @@ export default function StatsPanel() {
   const [count, setCount] = useState<number>(DEFAULT_COUNT.month);
   const { stats, error, isLoading } = useFinanceStats(granularity, count);
   const [busy, setBusy] = useState<"xlsx" | "pdf" | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const unit = GRAN.find((g) => g.value === granularity)!.unit;
   const title = stats ? `Thống kê thu chi ${GRAN.find((g) => g.value === granularity)!.label.toLowerCase()} · ${stats.periods[0].label} – ${stats.periods[stats.periods.length - 1].label}` : "Thống kê thu chi";
@@ -146,16 +145,14 @@ export default function StatsPanel() {
     }
   };
   const onPdf = async () => {
-    if (!stats || busy || !printRef.current) return;
+    if (!stats || busy) return;
     setBusy("pdf");
     try {
-      const ok = await exportElementToPdf({
-        element: printRef.current,
-        filename: `Thong_ke_thu_chi_${granularity}_${slug(stats.periods[0].label)}_${slug(stats.periods[stats.periods.length - 1].label)}`,
-        margin: 8,
-        orientation: "landscape",
-      });
-      showToast(ok ? "success" : "error", ok ? "Đã tải file PDF thống kê." : "Không thể xuất PDF. Vui lòng thử lại!");
+      await downloadStatsPdf(stats);
+      showToast("success", "Đã tải file PDF thống kê.");
+    } catch (e) {
+      console.error(e);
+      showToast("error", "Không thể xuất PDF. Vui lòng thử lại!");
     } finally {
       setBusy(null);
     }
@@ -287,82 +284,6 @@ export default function StatsPanel() {
               Thu/chi là số thuần (đã trừ bút toán đảo); chuyển quỹ nội bộ không tính là thu hay chi. Nguồn: sổ quỹ.
               {stats.totals.adjustmentVnd !== 0 && <> Số dư cuối − đầu còn gồm {formatVND(stats.totals.adjustmentVnd)} “số dư đầu kỳ” nhập tay giữa các kỳ (không phải thu/chi).</>}
             </p>
-          </div>
-
-          {/* Bản in PDF (ẩn khỏi màn hình) */}
-          <div style={{ position: "fixed", left: -10000, top: 0 }} aria-hidden>
-            <div ref={printRef} style={{ width: 1040, padding: 28, background: "#fff", color: "#111827", fontFamily: "'Be Vietnam Pro', Arial, Helvetica, sans-serif", fontSize: 12, lineHeight: 1.45 }}>
-              <div style={{ textAlign: "center", marginBottom: 14 }}>
-                <div style={{ fontSize: 11, letterSpacing: 1, color: "#5f3add", fontWeight: 700 }}>{(stats.houseName ?? "Lưu Xá Phanxicô").toUpperCase()}</div>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>THỐNG KÊ THU CHI</div>
-                <div style={{ color: "#6b7280" }}>
-                  {stats.periods[0].label} – {stats.periods[stats.periods.length - 1].label} · xuất ngày {new Date(stats.generatedAt).toLocaleDateString("vi-VN")}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                {[
-                  ["Tổng thu", stats.totals.incomeVnd],
-                  ["Tổng chi", stats.totals.expenseVnd],
-                  ["Chênh lệch", stats.totals.netVnd],
-                  ["Số dư cuối kỳ", stats.totals.closingVnd],
-                ].map(([k, v]) => (
-                  <div key={k as string} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px", background: "#faf5ff" }}>
-                    <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 700 }}>{k as string}</div>
-                    <div style={{ fontSize: 15, fontWeight: 800 }}>{formatVND(v as number)}</div>
-                  </div>
-                ))}
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#ede9fe" }}>
-                    {["Kỳ", "Đầu kỳ", "Thu", "Chi", "Chênh lệch", "Cuối kỳ", "Tỷ lệ thu quỹ"].map((h, i) => (
-                      <th key={h} style={{ padding: "6px 8px", textAlign: i === 0 ? "left" : "right", border: "1px solid #d8d1f5", fontSize: 11 }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.periods.map((p) => (
-                    <tr key={p.key}>
-                      <td style={{ padding: "5px 8px", border: "1px solid #e5e7eb", fontWeight: 700 }}>{p.label}</td>
-                      {[p.openingVnd, p.incomeVnd, p.expenseVnd, p.netVnd, p.closingVnd].map((v, i) => (
-                        <td key={i} style={{ padding: "5px 8px", border: "1px solid #e5e7eb", textAlign: "right" }}>
-                          {num(v)}
-                        </td>
-                      ))}
-                      <td style={{ padding: "5px 8px", border: "1px solid #e5e7eb", textAlign: "right" }}>{p.collectionRatePct === null ? "—" : `${p.collectionRatePct}%`}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ fontWeight: 800, background: "#f9fafb" }}>
-                    <td style={{ padding: "6px 8px", border: "1px solid #e5e7eb" }}>Tổng cộng</td>
-                    {[stats.totals.openingVnd, stats.totals.incomeVnd, stats.totals.expenseVnd, stats.totals.netVnd, stats.totals.closingVnd].map((v, i) => (
-                      <td key={i} style={{ padding: "6px 8px", border: "1px solid #e5e7eb", textAlign: "right" }}>
-                        {num(v)}
-                      </td>
-                    ))}
-                    <td style={{ border: "1px solid #e5e7eb" }} />
-                  </tr>
-                </tbody>
-              </table>
-              {stats.expenseByCategory.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ fontWeight: 800, marginBottom: 4 }}>Chi theo hạng mục (tổng các kỳ)</div>
-                  <table style={{ width: "60%", borderCollapse: "collapse" }}>
-                    <tbody>
-                      {stats.expenseByCategory.map((c) => (
-                        <tr key={c.code}>
-                          <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb" }}>{c.name}</td>
-                          <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", textAlign: "right" }}>{c.count} phiếu</td>
-                          <td style={{ padding: "4px 8px", border: "1px solid #e5e7eb", textAlign: "right", fontWeight: 700 }}>{num(c.amountVnd)} đ</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div style={{ marginTop: 14, fontSize: 10, color: "#6b7280" }}>Thu/chi là số thuần (đã trừ bút toán đảo), chuyển quỹ nội bộ không tính. Nguồn: sổ quỹ Lưu Xá.</div>
-            </div>
           </div>
         </>
       )}
