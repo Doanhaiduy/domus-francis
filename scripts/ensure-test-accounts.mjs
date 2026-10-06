@@ -1,10 +1,14 @@
 import pg from "pg";
 import { hash, Algorithm } from "@node-rs/argon2";
 
-const SUPABASE_SUPERUSER_URL = "postgresql://postgres.mxwlphjyxnrwrnfgiinr:iywilI3xpJ4z1MgS@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres";
 const DEMO_PASSWORD = "LuuXa@2026";
 
-const url = process.argv.slice(2).find((a) => a.startsWith("--url="))?.split("=")[1] || SUPABASE_SUPERUSER_URL;
+// Chuỗi kết nối chủ DB KHÔNG viết cứng trong mã: truyền --url=… hoặc đặt biến môi trường MIGRATE_DATABASE_URL.
+const url = process.argv.slice(2).find((a) => a.startsWith("--url="))?.slice(6) || process.env.MIGRATE_DATABASE_URL;
+if (!url) {
+  console.error("✗ Thiếu --url=postgresql://… hoặc biến MIGRATE_DATABASE_URL.");
+  process.exit(2);
+}
 
 async function run() {
   const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
