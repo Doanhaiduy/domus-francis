@@ -11,6 +11,7 @@ import AddMemberModal from "./modals/AddMemberModal";
 import CreateAnnouncementModal from "./modals/CreateAnnouncementModal";
 import CreateThreadModal from "./modals/CreateThreadModal";
 import ChangePasswordModal from "./modals/ChangePasswordModal";
+import ChangeEmailModal from "./modals/ChangeEmailModal";
 import AiAssistantModal from "./modals/AiAssistantModal";
 
 // Mỗi modal toàn cục là một file trong components/modals; mở bằng openModal("<tên>").
@@ -23,6 +24,7 @@ const REGISTRY: Record<string, React.ComponentType> = {
   createAnnouncement: CreateAnnouncementModal,
   createThread: CreateThreadModal,
   changePassword: ChangePasswordModal,
+  changeEmail: ChangeEmailModal,
   aiAssistant: AiAssistantModal,
 };
 

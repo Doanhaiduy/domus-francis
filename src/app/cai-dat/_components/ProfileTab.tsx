@@ -330,7 +330,7 @@ export default function ProfileTab() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <CustomInput label="Số điện thoại" value={f.phone ?? ""} onChange={set("phone")} placeholder="0901234567" />
-              <CustomInput label="Email liên hệ" type="email" value={f.email ?? ""} onChange={set("email")} placeholder="ban@gmail.com" />
+              <CustomInput label="Email liên hệ" type="email" value={f.email ?? ""} onChange={set("email")} placeholder="ban@gmail.com" hint="Chỉ để liên hệ — không phải email đăng nhập. Đổi email đăng nhập ở tab Bảo mật." />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">

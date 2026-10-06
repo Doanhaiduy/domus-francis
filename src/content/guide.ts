@@ -65,7 +65,8 @@ export const GUIDE_QUICK: { icon: GuideIcon; title: string; text: string; target
   { icon: "wallet", title: "Đóng quỹ bằng QR", text: "Quét mã, bấm “Tôi đã đóng”", target: "dong-quy" },
   { icon: "calendar", title: "Điểm danh sự kiện", text: "Quét QR hoặc nhập mã 6 số", target: "lich-su-kien" },
   { icon: "meal", title: "Đăng ký cơm", text: "Trước giờ chốt 09:00 / 15:00", target: "bep-com" },
-  { icon: "shield", title: "Bảo mật & thông báo", text: "Xác thực 2 bước, thông báo đẩy, cỡ chữ", target: "bao-mat" },
+  { icon: "bell", title: "Cài app & bật thông báo", text: "Đưa ra màn hình chính, nhận thông báo đẩy", target: "cai-ung-dung" },
+  { icon: "shield", title: "Bảo mật tài khoản", text: "Xác thực 2 bước, đổi email, mật khẩu, cỡ chữ", target: "bao-mat" },
 ];
 
 export const GUIDE_SECTIONS: GuideSection[] = [
@@ -103,7 +104,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             blocks: [
               { t: "demo", name: "layout-mobile", caption: "Giao diện trên điện thoại" },
               { t: "md", text: "- **Thanh điều hướng dưới cùng**: các mục chính. Mục không có ở đó nằm trong nút **Thêm**.\n- Chạm vào một bài viết/thông báo/thành viên sẽ mở trang chi tiết; bấm **Quay lại** (hoặc nút Back của điện thoại) để trở về." },
-              { t: "callout", tone: "tip", title: "Dùng như một ứng dụng", text: "Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** (iPhone: nút Chia sẻ → Thêm vào Màn hình chính) để mở ứng dụng nhanh như app cài sẵn và nhận **thông báo đẩy** — xem mục “Bảo mật & thông báo của tôi”." },
+              { t: "callout", tone: "tip", title: "Dùng như một ứng dụng", text: "Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** (iPhone: nút Chia sẻ → Thêm vào Màn hình chính) để mở ứng dụng nhanh như app cài sẵn và nhận **thông báo đẩy** — làm theo từng bước ở mục “Cài ứng dụng & bật thông báo” ngay bên dưới." },
             ],
           },
         ],
@@ -117,6 +118,110 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Mở hồ sơ", path: ["Thành Viên & Nhà", "Chính tôi"], text: "Chọn chính mình để xem hồ sơ; bấm **Sửa hồ sơ** để cập nhật thông tin được phép." },
           { title: "Khai báo tài khoản", path: ["Hồ sơ", "Tài khoản nhận tiền", "Khai báo tài khoản"], text: "Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản (có thể tải ảnh QR của ngân hàng)." },
           { title: "Xong", text: "Ứng dụng tự tạo mã **VietQR** để anh em hoặc Thủ quỹ chuyển khoản/hoàn ứng cho bạn nhanh và đúng." },
+        ],
+      },
+    ],
+  },
+
+  // ---------------------------------------------------------------- Cài ứng dụng & bật thông báo
+  {
+    id: "cai-ung-dung",
+    title: "Cài ứng dụng & bật thông báo",
+    summary: "Đưa ứng dụng ra màn hình chính điện thoại và bật thông báo đẩy — làm một lần cho mỗi thiết bị, có hướng dẫn riêng cho iPhone, Android và máy tính.",
+    icon: "bell",
+    audience: ["all"],
+    blocks: [
+      { t: "callout", tone: "info", title: "Để làm gì?", text: "Cài ứng dụng ra **màn hình chính** thì mở nhanh như app thường, toàn màn hình. Bật **thông báo đẩy** thì điện thoại báo ngay khi có thông báo mới (ca trực, sự kiện, kết quả đơn xin phép, phiếu cần duyệt…) **kể cả khi bạn không mở ứng dụng**. Chỉ cần làm **một lần cho mỗi thiết bị**." },
+      { t: "callout", tone: "warn", title: "iPhone / iPad: bắt buộc cài ra màn hình chính trước", text: "iPhone chỉ nhận thông báo đẩy khi ứng dụng đã được **Thêm vào Màn hình chính** và bạn mở ứng dụng từ biểu tượng đó. Máy cần **iOS 16.4 trở lên** (xem ở Cài đặt → Cài đặt chung → Giới thiệu → Phiên bản iOS; thấp hơn thì vào Cài đặt chung → Cập nhật phần mềm)." },
+
+      { t: "heading", text: "Bước 1 — Đưa ứng dụng ra màn hình chính" },
+      {
+        t: "tabs",
+        tabs: [
+          {
+            label: "iPhone / iPad",
+            blocks: [
+              {
+                t: "steps",
+                items: [
+                  { title: "Mở bằng Safari", text: "Mở ứng dụng **Safari** (biểu tượng la bàn xanh), vào địa chỉ ứng dụng của nhà rồi đăng nhập. Đừng mở từ trong Zalo, Messenger hay Facebook — trình duyệt nhúng trong các ứng dụng đó **không có** nút thêm vào màn hình chính." },
+                  { title: "Bấm nút Chia sẻ", text: "Là biểu tượng **ô vuông có mũi tên hướng lên**: ở thanh dưới cùng (iPhone) hoặc góc trên bên phải (iPad)." },
+                  { title: "Chọn “Thêm vào Màn hình chính”", text: "Vuốt danh sách hiện ra lên trên, tìm dòng **Thêm vào Màn hình chính** (biểu tượng dấu +) và bấm vào." },
+                  { title: "Bấm “Thêm”", text: "Để nguyên tên gợi ý rồi bấm **Thêm** ở góc trên bên phải. Biểu tượng ứng dụng xuất hiện ở màn hình chính." },
+                  { title: "Mở ứng dụng từ biểu tượng mới", text: "Từ giờ **luôn mở bằng biểu tượng này**, không mở lại bằng Safari. Làm Bước 2 ngay trong cửa sổ vừa mở." },
+                ],
+              },
+            ],
+          },
+          {
+            label: "Android",
+            blocks: [
+              {
+                t: "steps",
+                items: [
+                  { title: "Mở bằng Chrome", text: "Vào địa chỉ ứng dụng của nhà bằng **Chrome** và đăng nhập." },
+                  { title: "Cài ứng dụng", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Thông báo"], text: "Ở thẻ **Cài ứng dụng lên màn hình chính** bấm **Cài ứng dụng**, rồi bấm **Cài đặt** khi Chrome hỏi." },
+                  { title: "Hoặc cài bằng menu Chrome", text: "Nếu không thấy nút trên: bấm **dấu ba chấm ⋮** góc trên bên phải của Chrome → **Cài đặt ứng dụng** (hoặc **Thêm vào màn hình chính**) → xác nhận. Tên mục có thể hơi khác tùy máy." },
+                  { title: "Mở từ biểu tượng mới", text: "Biểu tượng xuất hiện ở màn hình chính hoặc trong danh sách ứng dụng. Mở ứng dụng bằng biểu tượng đó rồi làm Bước 2." },
+                ],
+              },
+            ],
+          },
+          {
+            label: "Máy tính",
+            blocks: [
+              {
+                t: "steps",
+                items: [
+                  { title: "Mở bằng Chrome hoặc Edge", text: "Vào địa chỉ ứng dụng và đăng nhập." },
+                  { title: "Cài ứng dụng (không bắt buộc)", text: "Bấm biểu tượng **cài đặt** ở bên phải thanh địa chỉ (hình màn hình nhỏ có mũi tên), hoặc menu **⋮** → **Cài đặt ứng dụng**; hoặc bấm nút **Cài ứng dụng** ở Cài đặt → Thông báo. Ứng dụng sẽ mở thành cửa sổ riêng, có biểu tượng trên màn hình nền." },
+                ],
+              },
+              { t: "callout", tone: "tip", text: "Trên máy tính **không cần cài** vẫn bật được thông báo ở Bước 2 — cài chỉ để mở cho tiện." },
+            ],
+          },
+        ],
+      },
+
+      { t: "heading", text: "Bước 2 — Bật thông báo đẩy trên thiết bị này" },
+      {
+        t: "steps",
+        items: [
+          { title: "Mở ứng dụng và đăng nhập", text: "iPhone: mở bằng **biểu tượng ở màn hình chính** (Bước 1)." },
+          { title: "Vào tab Thông báo", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Thông báo"] },
+          { title: "Bấm “Bật thông báo đẩy”", text: "Nút nằm ở thẻ **Thông báo đẩy trên thiết bị này**." },
+          { title: "Bấm “Cho phép”", text: "Điện thoại/trình duyệt hiện hộp thoại hỏi quyền gửi thông báo — chọn **Cho phép** (Allow). Nếu lỡ bấm *Không cho phép*, xem mục “Gặp sự cố?” bên dưới." },
+          { title: "Kiểm tra đã bật", text: "Thành công khi ứng dụng báo **Đã bật thông báo đẩy trên thiết bị này**, nút đổi thành **Tắt trên thiết bị này** và dòng “Bạn có N thiết bị đã đăng ký” tăng thêm 1." },
+          { title: "Chọn loại muốn nhận (tùy chọn)", text: "Ở thẻ **Nhận thông báo đẩy về…** tắt nhóm không cần (Lịch & sự kiện, Trực nhật, Thu chi…) và đặt **giờ yên tĩnh** — trong giờ đó thông báo được giữ lại, gửi sau khi hết giờ (trừ thông báo khẩn). Thông báo bắt buộc luôn được gửi." },
+        ],
+      },
+      { t: "heading", text: "Cần biết" },
+      { t: "md", text: "- Mỗi thiết bị bật **riêng**: dùng cả điện thoại lẫn laptop thì bật trên cả hai.\n- Thông báo do **chính bạn** tạo (đăng thông báo, bình luận…) **không gửi ngược lại cho bạn**. Muốn thử, nhờ một người khác đăng thông báo hoặc gửi cho bạn.\n- Không bật thông báo đẩy thì bạn vẫn thấy mọi thông báo ở **chuông** trong ứng dụng." },
+
+      { t: "heading", text: "Gặp sự cố?" },
+      {
+        t: "accordion",
+        items: [
+          {
+            title: "Trang báo “Bạn đã chặn thông báo cho trang này”",
+            blocks: [{ t: "md", text: "Bạn đã lỡ chọn không cho phép nên phải mở lại quyền:\n- **Chrome/Edge (máy tính, Android trong trình duyệt)**: bấm biểu tượng **ổ khóa** cạnh địa chỉ → **Thông báo** → **Cho phép**, rồi tải lại trang và bấm **Bật thông báo đẩy**.\n- **Android (đã cài ứng dụng)**: nhấn giữ biểu tượng ứng dụng → **Thông tin ứng dụng** → **Thông báo** → bật.\n- **iPhone**: **Cài đặt → Thông báo** → chọn ứng dụng trên màn hình chính → bật **Cho phép thông báo**." }],
+          },
+          {
+            title: "iPhone báo “trình duyệt chưa hỗ trợ” hoặc không thấy nút bật",
+            blocks: [{ t: "md", text: "Gần như luôn do **chưa mở từ biểu tượng ở màn hình chính**, hoặc máy dưới iOS 16.4. Làm lại Bước 1 bằng **Safari**, xóa biểu tượng cũ nếu đã thêm sai rồi thêm lại, và mở ứng dụng bằng biểu tượng mới." }],
+          },
+          {
+            title: "Trang báo “Máy chủ chưa bật thông báo đẩy”",
+            blocks: [{ t: "md", text: "Đây là cấu hình của hệ thống, bạn không tự sửa được — nhờ **Admin** kiểm tra cấu hình thông báo đẩy của hệ thống. Trong lúc chờ, bạn vẫn nhận thông báo ở chuông trong ứng dụng." }],
+          },
+          {
+            title: "Đã bật nhưng không thấy thông báo hiện lên",
+            blocks: [{ t: "md", text: "Kiểm tra lần lượt:\n- Có đang trong **giờ yên tĩnh** không (Cài đặt → Thông báo)? Thông báo được giữ lại tới hết giờ.\n- Nhóm thông báo đó có bị **tắt** ở thẻ **Nhận thông báo đẩy về…** không?\n- Điện thoại có đang bật **Không làm phiền / Tập trung / Tiết kiệm pin** không?\n- Thông báo có phải do **chính bạn** tạo không? (Không gửi ngược lại cho người tạo.)\n- Thông báo được tạo **trước khi** bạn bật thiết bị thì không đẩy lại — nhưng vẫn có trong chuông." }],
+          },
+          {
+            title: "Đổi điện thoại, cài lại máy hoặc xóa ứng dụng",
+            blocks: [{ t: "md", text: "Làm lại Bước 1 và Bước 2 trên thiết bị mới. Thiết bị cũ không còn dùng sẽ tự bị hệ thống bỏ khỏi danh sách khi gửi tới không được." }],
+          },
         ],
       },
     ],
@@ -166,7 +271,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: "bao-mat",
     title: "Bảo mật & thông báo của tôi",
-    summary: "Bật xác thực 2 bước, cài ứng dụng, nhận thông báo đẩy, chỉnh quyền riêng tư và cỡ chữ.",
+    summary: "Bật xác thực 2 bước, đổi email đăng nhập và mật khẩu, chỉnh quyền riêng tư và cỡ chữ. (Cài ứng dụng & thông báo đẩy có mục riêng.)",
     icon: "shield",
     audience: ["all"],
     blocks: [
@@ -181,16 +286,20 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "callout", tone: "info", text: "Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản (rồi bật lại)." },
+      { t: "heading", text: "Email đăng nhập & mật khẩu" },
       {
         t: "steps",
-        title: "Nhận thông báo đẩy trên điện thoại / máy tính",
+        title: "Đổi email đăng nhập",
         items: [
-          { title: "Cài ứng dụng lên màn hình chính", path: ["Cài đặt", "Thông báo"], text: "Android/máy tính: bấm **Cài ứng dụng**. iPhone/iPad (iOS 16.4+): Safari → Chia sẻ → **Thêm vào Màn hình chính**, rồi mở ứng dụng từ biểu tượng mới." },
-          { title: "Bật thông báo trên thiết bị này", text: "Bấm **Bật thông báo đẩy** và cho phép khi trình duyệt hỏi. Mỗi thiết bị bật riêng." },
-          { title: "Chọn loại muốn nhận", text: "Tắt từng nhóm (Lịch & sự kiện, Trực nhật, Thu chi…) và đặt **giờ yên tĩnh** — trong giờ đó thông báo được giữ lại, gửi sau (trừ thông báo khẩn)." },
+          { title: "Mở tab Bảo mật", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Bảo mật"], text: "Thẻ **Email đăng nhập** cho biết email bạn đang dùng để đăng nhập." },
+          { title: "Bấm “Đổi email đăng nhập”", text: "Nhập **email mới** và **mật khẩu hiện tại** để xác nhận, rồi bấm **Đổi email**." },
+          { title: "Đăng nhập lại bằng email mới", text: "Hệ thống **không gửi thư xác nhận**, nên hãy gõ cẩn thận. Từ lần sau chỉ đăng nhập được bằng email mới; email cũ không còn dùng được." },
         ],
       },
-      { t: "callout", tone: "warn", text: "Nếu trang báo “máy chủ chưa bật thông báo đẩy”, nhờ Admin cấu hình khóa VAPID (xem mục Admin). Thông báo trong ứng dụng (chuông) vẫn hoạt động bình thường." },
+      { t: "callout", tone: "warn", title: "Email đăng nhập ≠ Email liên hệ", text: "Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để Ban điều hành liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra." },
+      { t: "md", text: "Đổi mật khẩu cũng ở tab **Bảo mật** (thẻ **Mật khẩu**); đổi xong mọi thiết bị khác bị đăng xuất." },
+      { t: "heading", text: "Thông báo đẩy & cài ứng dụng" },
+      { t: "callout", tone: "tip", title: "Có hướng dẫn riêng, từng bước", text: "Cách đưa ứng dụng ra màn hình chính (iPhone, Android, máy tính) và bật thông báo đẩy được viết chi tiết ở mục **Cài ứng dụng & bật thông báo**. Chọn nhóm thông báo muốn nhận và **giờ yên tĩnh** ở **Cài đặt → Thông báo**." },
       { t: "heading", text: "Quyền riêng tư & đồng ý" },
       { t: "md", text: "Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho Ban điều hành xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay." },
       { t: "heading", text: "Giao diện & cỡ chữ" },
@@ -780,7 +889,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Dữ liệu chưa cập nhật", blocks: [{ t: "md", text: "Tải lại trang (kéo xuống trên điện thoại hoặc `F5`)." }] },
           { title: "Quên mật khẩu", blocks: [{ t: "md", text: "Ở trang đăng nhập bấm **Quên mật khẩu?** để nhận email đặt lại (hiệu lực 30 phút). Chưa nhận được thư: kiểm tra mục Thư rác, hoặc nhờ Admin/Trưởng nhà đặt lại — bạn nhận mật khẩu tạm và đổi ngay khi đăng nhập." }] },
           { title: "Mất điện thoại đang dùng xác thực 2 bước", blocks: [{ t: "md", text: "Đăng nhập bằng một **mã khôi phục** (đã lưu lúc bật 2 bước). Hết mã: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản, rồi bật lại và lưu bộ mã mới." }] },
-          { title: "Không nhận được thông báo đẩy", blocks: [{ t: "md", text: "Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình." }] },
+          { title: "Không nhận được thông báo đẩy", blocks: [{ t: "md", text: "Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Thông báo do **chính bạn** tạo không gửi ngược lại cho bạn. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình. Xem đầy đủ ở mục **Cài ứng dụng & bật thông báo**." }] },
+          { title: "Đổi email xong mà đăng nhập bằng email đó không được", blocks: [{ t: "md", text: "Rất có thể bạn đã sửa **Email liên hệ** trong Hồ sơ — email đó **không dùng để đăng nhập**. Hãy vẫn đăng nhập bằng email cũ, rồi vào **Cài đặt → Bảo mật → Đổi email đăng nhập** để đổi đúng email đăng nhập (cần mật khẩu hiện tại)." }] },
           { title: "Muốn dùng AI", blocks: [{ t: "md", text: "Admin bật trong Cài đặt → Trợ lý AI; lần đầu dùng mỗi người cần bấm đồng ý." }] },
           { title: "Tin Zalo đến muộn hoặc có hai tin gần nhau", blocks: [{ t: "md", text: "Cron gói miễn phí có thể lệch tới ~1 giờ. Hai tin gần nhau thường là hai loại tin khác nhau (vd. sự kiện và lịch nhắc). Admin xem từng tin trong **Tích hợp Zalo → Lịch & lịch sử**." }] },
         ],

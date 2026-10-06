@@ -5,20 +5,21 @@
 ## Mục lục
 
 1. [Bắt đầu: đăng nhập & làm quen giao diện](#bat-dau) — Mọi người
-2. [Thông báo, Lịch, Sự kiện & Xin phép](#lich-su-kien) — Thành viên, Mọi người
-3. [Bảo mật & thông báo của tôi](#bao-mat) — Mọi người
-4. [Phụng vụ & check-in đi lễ](#phung-vu) — Thành viên, Mọi người
-5. [Thu chi: đóng quỹ & tiền điện nước](#dong-quy) — Thành viên, Mọi người
-6. [Bếp & Cơm](#bep-com) — Thành viên, Mọi người
-7. [Hậu cần, trực vệ sinh & luật nhà](#hau-can) — Thành viên, Mọi người
-8. [Thành viên, hồ sơ, sơ đồ nhà & cựu thành viên](#thanh-vien) — Thành viên, Mọi người
-9. [Diễn đàn, Học tập, Khoảnh khắc & Trợ lý AI](#cong-dong) — Thành viên, Mọi người
-10. [Thủ quỹ: quỹ, điện nước, phiếu chi](#thu-quy) — Thủ quỹ
-11. [Trưởng nhà: điều hành nhà](#truong-nha) — Trưởng nhà
-12. [Nhắc tự động & nhóm Zalo](#zalo-tu-dong) — Trưởng nhà, Admin
-13. [Admin: tài khoản, vai trò, phân hệ, hệ thống](#admin) — Admin
-14. [Trưởng ban (vai trò tự tạo)](#truong-ban) — Trưởng ban (vai trò tự tạo)
-15. [Câu hỏi thường gặp & phím tắt](#hoi-dap) — Mọi người
+2. [Cài ứng dụng & bật thông báo](#cai-ung-dung) — Mọi người
+3. [Thông báo, Lịch, Sự kiện & Xin phép](#lich-su-kien) — Thành viên, Mọi người
+4. [Bảo mật & thông báo của tôi](#bao-mat) — Mọi người
+5. [Phụng vụ & check-in đi lễ](#phung-vu) — Thành viên, Mọi người
+6. [Thu chi: đóng quỹ & tiền điện nước](#dong-quy) — Thành viên, Mọi người
+7. [Bếp & Cơm](#bep-com) — Thành viên, Mọi người
+8. [Hậu cần, trực vệ sinh & luật nhà](#hau-can) — Thành viên, Mọi người
+9. [Thành viên, hồ sơ, sơ đồ nhà & cựu thành viên](#thanh-vien) — Thành viên, Mọi người
+10. [Diễn đàn, Học tập, Khoảnh khắc & Trợ lý AI](#cong-dong) — Thành viên, Mọi người
+11. [Thủ quỹ: quỹ, điện nước, phiếu chi](#thu-quy) — Thủ quỹ
+12. [Trưởng nhà: điều hành nhà](#truong-nha) — Trưởng nhà
+13. [Nhắc tự động & nhóm Zalo](#zalo-tu-dong) — Trưởng nhà, Admin
+14. [Admin: tài khoản, vai trò, phân hệ, hệ thống](#admin) — Admin
+15. [Trưởng ban (vai trò tự tạo)](#truong-ban) — Trưởng ban (vai trò tự tạo)
+16. [Câu hỏi thường gặp & phím tắt](#hoi-dap) — Mọi người
 
 ## Giới thiệu
 
@@ -62,7 +63,7 @@ _[Minh họa giao diện: Giao diện trên điện thoại — xem trong ứng 
 - **Thanh điều hướng dưới cùng**: các mục chính. Mục không có ở đó nằm trong nút **Thêm**.
 - Chạm vào một bài viết/thông báo/thành viên sẽ mở trang chi tiết; bấm **Quay lại** (hoặc nút Back của điện thoại) để trở về.
 
-> **Dùng như một ứng dụng** — Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** (iPhone: nút Chia sẻ → Thêm vào Màn hình chính) để mở ứng dụng nhanh như app cài sẵn và nhận **thông báo đẩy** — xem mục “Bảo mật & thông báo của tôi”.
+> **Dùng như một ứng dụng** — Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** (iPhone: nút Chia sẻ → Thêm vào Màn hình chính) để mở ứng dụng nhanh như app cài sẵn và nhận **thông báo đẩy** — làm theo từng bước ở mục “Cài ứng dụng & bật thông báo” ngay bên dưới.
 
 > **Giao diện tối** — Bấm biểu tượng **mặt trăng/mặt trời** ở thanh trên cùng để đổi giữa giao diện sáng và tối. Muốn tự theo cài đặt của máy: **Cài đặt → Hồ sơ cá nhân → Giao diện → Hệ thống**. Ở đó cũng chọn được **cỡ chữ** (Vừa / Lớn / Rất lớn) cho dễ đọc. Lựa chọn nhớ riêng cho từng thiết bị.
 
@@ -74,11 +75,90 @@ _[Minh họa giao diện: Giao diện trên điện thoại — xem trong ứng 
 2. **Khai báo tài khoản** _(Hồ sơ → Tài khoản nhận tiền → Khai báo tài khoản)_ — Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản (có thể tải ảnh QR của ngân hàng).
 3. **Xong** — Ứng dụng tự tạo mã **VietQR** để anh em hoặc Thủ quỹ chuyển khoản/hoàn ứng cho bạn nhanh và đúng.
 
+<a id="cai-ung-dung"></a>
+
+## Cài ứng dụng & bật thông báo
+
+*Dành cho: Mọi người* — Đưa ứng dụng ra màn hình chính điện thoại và bật thông báo đẩy — làm một lần cho mỗi thiết bị, có hướng dẫn riêng cho iPhone, Android và máy tính.
+
+> **Để làm gì?** — Cài ứng dụng ra **màn hình chính** thì mở nhanh như app thường, toàn màn hình. Bật **thông báo đẩy** thì điện thoại báo ngay khi có thông báo mới (ca trực, sự kiện, kết quả đơn xin phép, phiếu cần duyệt…) **kể cả khi bạn không mở ứng dụng**. Chỉ cần làm **một lần cho mỗi thiết bị**.
+
+> **iPhone / iPad: bắt buộc cài ra màn hình chính trước** — iPhone chỉ nhận thông báo đẩy khi ứng dụng đã được **Thêm vào Màn hình chính** và bạn mở ứng dụng từ biểu tượng đó. Máy cần **iOS 16.4 trở lên** (xem ở Cài đặt → Cài đặt chung → Giới thiệu → Phiên bản iOS; thấp hơn thì vào Cài đặt chung → Cập nhật phần mềm).
+
+### Bước 1 — Đưa ứng dụng ra màn hình chính
+
+#### iPhone / iPad
+
+1. **Mở bằng Safari** — Mở ứng dụng **Safari** (biểu tượng la bàn xanh), vào địa chỉ ứng dụng của nhà rồi đăng nhập. Đừng mở từ trong Zalo, Messenger hay Facebook — trình duyệt nhúng trong các ứng dụng đó **không có** nút thêm vào màn hình chính.
+2. **Bấm nút Chia sẻ** — Là biểu tượng **ô vuông có mũi tên hướng lên**: ở thanh dưới cùng (iPhone) hoặc góc trên bên phải (iPad).
+3. **Chọn “Thêm vào Màn hình chính”** — Vuốt danh sách hiện ra lên trên, tìm dòng **Thêm vào Màn hình chính** (biểu tượng dấu +) và bấm vào.
+4. **Bấm “Thêm”** — Để nguyên tên gợi ý rồi bấm **Thêm** ở góc trên bên phải. Biểu tượng ứng dụng xuất hiện ở màn hình chính.
+5. **Mở ứng dụng từ biểu tượng mới** — Từ giờ **luôn mở bằng biểu tượng này**, không mở lại bằng Safari. Làm Bước 2 ngay trong cửa sổ vừa mở.
+
+#### Android
+
+1. **Mở bằng Chrome** — Vào địa chỉ ứng dụng của nhà bằng **Chrome** và đăng nhập.
+2. **Cài ứng dụng** _(Cài Đặt & Hướng dẫn → Cài đặt → Thông báo)_ — Ở thẻ **Cài ứng dụng lên màn hình chính** bấm **Cài ứng dụng**, rồi bấm **Cài đặt** khi Chrome hỏi.
+3. **Hoặc cài bằng menu Chrome** — Nếu không thấy nút trên: bấm **dấu ba chấm ⋮** góc trên bên phải của Chrome → **Cài đặt ứng dụng** (hoặc **Thêm vào màn hình chính**) → xác nhận. Tên mục có thể hơi khác tùy máy.
+4. **Mở từ biểu tượng mới** — Biểu tượng xuất hiện ở màn hình chính hoặc trong danh sách ứng dụng. Mở ứng dụng bằng biểu tượng đó rồi làm Bước 2.
+
+#### Máy tính
+
+1. **Mở bằng Chrome hoặc Edge** — Vào địa chỉ ứng dụng và đăng nhập.
+2. **Cài ứng dụng (không bắt buộc)** — Bấm biểu tượng **cài đặt** ở bên phải thanh địa chỉ (hình màn hình nhỏ có mũi tên), hoặc menu **⋮** → **Cài đặt ứng dụng**; hoặc bấm nút **Cài ứng dụng** ở Cài đặt → Thông báo. Ứng dụng sẽ mở thành cửa sổ riêng, có biểu tượng trên màn hình nền.
+
+> **💡 Mẹo** — Trên máy tính **không cần cài** vẫn bật được thông báo ở Bước 2 — cài chỉ để mở cho tiện.
+
+### Bước 2 — Bật thông báo đẩy trên thiết bị này
+
+1. **Mở ứng dụng và đăng nhập** — iPhone: mở bằng **biểu tượng ở màn hình chính** (Bước 1).
+2. **Vào tab Thông báo** _(Cài Đặt & Hướng dẫn → Cài đặt → Thông báo)_
+3. **Bấm “Bật thông báo đẩy”** — Nút nằm ở thẻ **Thông báo đẩy trên thiết bị này**.
+4. **Bấm “Cho phép”** — Điện thoại/trình duyệt hiện hộp thoại hỏi quyền gửi thông báo — chọn **Cho phép** (Allow). Nếu lỡ bấm *Không cho phép*, xem mục “Gặp sự cố?” bên dưới.
+5. **Kiểm tra đã bật** — Thành công khi ứng dụng báo **Đã bật thông báo đẩy trên thiết bị này**, nút đổi thành **Tắt trên thiết bị này** và dòng “Bạn có N thiết bị đã đăng ký” tăng thêm 1.
+6. **Chọn loại muốn nhận (tùy chọn)** — Ở thẻ **Nhận thông báo đẩy về…** tắt nhóm không cần (Lịch & sự kiện, Trực nhật, Thu chi…) và đặt **giờ yên tĩnh** — trong giờ đó thông báo được giữ lại, gửi sau khi hết giờ (trừ thông báo khẩn). Thông báo bắt buộc luôn được gửi.
+
+### Cần biết
+
+- Mỗi thiết bị bật **riêng**: dùng cả điện thoại lẫn laptop thì bật trên cả hai.
+- Thông báo do **chính bạn** tạo (đăng thông báo, bình luận…) **không gửi ngược lại cho bạn**. Muốn thử, nhờ một người khác đăng thông báo hoặc gửi cho bạn.
+- Không bật thông báo đẩy thì bạn vẫn thấy mọi thông báo ở **chuông** trong ứng dụng.
+
+### Gặp sự cố?
+
+#### Trang báo “Bạn đã chặn thông báo cho trang này”
+
+Bạn đã lỡ chọn không cho phép nên phải mở lại quyền:
+- **Chrome/Edge (máy tính, Android trong trình duyệt)**: bấm biểu tượng **ổ khóa** cạnh địa chỉ → **Thông báo** → **Cho phép**, rồi tải lại trang và bấm **Bật thông báo đẩy**.
+- **Android (đã cài ứng dụng)**: nhấn giữ biểu tượng ứng dụng → **Thông tin ứng dụng** → **Thông báo** → bật.
+- **iPhone**: **Cài đặt → Thông báo** → chọn ứng dụng trên màn hình chính → bật **Cho phép thông báo**.
+
+#### iPhone báo “trình duyệt chưa hỗ trợ” hoặc không thấy nút bật
+
+Gần như luôn do **chưa mở từ biểu tượng ở màn hình chính**, hoặc máy dưới iOS 16.4. Làm lại Bước 1 bằng **Safari**, xóa biểu tượng cũ nếu đã thêm sai rồi thêm lại, và mở ứng dụng bằng biểu tượng mới.
+
+#### Trang báo “Máy chủ chưa bật thông báo đẩy”
+
+Đây là cấu hình của hệ thống, bạn không tự sửa được — nhờ **Admin** kiểm tra cấu hình thông báo đẩy của hệ thống. Trong lúc chờ, bạn vẫn nhận thông báo ở chuông trong ứng dụng.
+
+#### Đã bật nhưng không thấy thông báo hiện lên
+
+Kiểm tra lần lượt:
+- Có đang trong **giờ yên tĩnh** không (Cài đặt → Thông báo)? Thông báo được giữ lại tới hết giờ.
+- Nhóm thông báo đó có bị **tắt** ở thẻ **Nhận thông báo đẩy về…** không?
+- Điện thoại có đang bật **Không làm phiền / Tập trung / Tiết kiệm pin** không?
+- Thông báo có phải do **chính bạn** tạo không? (Không gửi ngược lại cho người tạo.)
+- Thông báo được tạo **trước khi** bạn bật thiết bị thì không đẩy lại — nhưng vẫn có trong chuông.
+
+#### Đổi điện thoại, cài lại máy hoặc xóa ứng dụng
+
+Làm lại Bước 1 và Bước 2 trên thiết bị mới. Thiết bị cũ không còn dùng sẽ tự bị hệ thống bỏ khỏi danh sách khi gửi tới không được.
+
 <a id="bao-mat"></a>
 
 ## Bảo mật & thông báo của tôi
 
-*Dành cho: Mọi người* — Bật xác thực 2 bước, cài ứng dụng, nhận thông báo đẩy, chỉnh quyền riêng tư và cỡ chữ.
+*Dành cho: Mọi người* — Bật xác thực 2 bước, đổi email đăng nhập và mật khẩu, chỉnh quyền riêng tư và cỡ chữ. (Cài ứng dụng & thông báo đẩy có mục riêng.)
 
 Mở ở: **Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật / Thông báo / Hồ sơ cá nhân**
 
@@ -90,13 +170,21 @@ Mở ở: **Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật / Thôn
 
 > **ℹ️ Lưu ý** — Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản (rồi bật lại).
 
-#### Nhận thông báo đẩy trên điện thoại / máy tính
+### Email đăng nhập & mật khẩu
 
-1. **Cài ứng dụng lên màn hình chính** _(Cài đặt → Thông báo)_ — Android/máy tính: bấm **Cài ứng dụng**. iPhone/iPad (iOS 16.4+): Safari → Chia sẻ → **Thêm vào Màn hình chính**, rồi mở ứng dụng từ biểu tượng mới.
-2. **Bật thông báo trên thiết bị này** — Bấm **Bật thông báo đẩy** và cho phép khi trình duyệt hỏi. Mỗi thiết bị bật riêng.
-3. **Chọn loại muốn nhận** — Tắt từng nhóm (Lịch & sự kiện, Trực nhật, Thu chi…) và đặt **giờ yên tĩnh** — trong giờ đó thông báo được giữ lại, gửi sau (trừ thông báo khẩn).
+#### Đổi email đăng nhập
 
-> **⚠️ Chú ý** — Nếu trang báo “máy chủ chưa bật thông báo đẩy”, nhờ Admin cấu hình khóa VAPID (xem mục Admin). Thông báo trong ứng dụng (chuông) vẫn hoạt động bình thường.
+1. **Mở tab Bảo mật** _(Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật)_ — Thẻ **Email đăng nhập** cho biết email bạn đang dùng để đăng nhập.
+2. **Bấm “Đổi email đăng nhập”** — Nhập **email mới** và **mật khẩu hiện tại** để xác nhận, rồi bấm **Đổi email**.
+3. **Đăng nhập lại bằng email mới** — Hệ thống **không gửi thư xác nhận**, nên hãy gõ cẩn thận. Từ lần sau chỉ đăng nhập được bằng email mới; email cũ không còn dùng được.
+
+> **Email đăng nhập ≠ Email liên hệ** — Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để Ban điều hành liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra.
+
+Đổi mật khẩu cũng ở tab **Bảo mật** (thẻ **Mật khẩu**); đổi xong mọi thiết bị khác bị đăng xuất.
+
+### Thông báo đẩy & cài ứng dụng
+
+> **Có hướng dẫn riêng, từng bước** — Cách đưa ứng dụng ra màn hình chính (iPhone, Android, máy tính) và bật thông báo đẩy được viết chi tiết ở mục **Cài ứng dụng & bật thông báo**. Chọn nhóm thông báo muốn nhận và **giờ yên tĩnh** ở **Cài đặt → Thông báo**.
 
 ### Quyền riêng tư & đồng ý
 
@@ -134,7 +222,11 @@ Tải lại trang (kéo xuống trên điện thoại hoặc `F5`).
 
 #### Không nhận được thông báo đẩy
 
-Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình.
+Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Thông báo do **chính bạn** tạo không gửi ngược lại cho bạn. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình. Xem đầy đủ ở mục **Cài ứng dụng & bật thông báo**.
+
+#### Đổi email xong mà đăng nhập bằng email đó không được
+
+Rất có thể bạn đã sửa **Email liên hệ** trong Hồ sơ — email đó **không dùng để đăng nhập**. Hãy vẫn đăng nhập bằng email cũ, rồi vào **Cài đặt → Bảo mật → Đổi email đăng nhập** để đổi đúng email đăng nhập (cần mật khẩu hiện tại).
 
 #### Muốn dùng AI
 

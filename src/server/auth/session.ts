@@ -327,3 +327,29 @@ export async function changePassword(userId: string, currentSid: string, current
     );
   });
 }
+
+// ---------------------------------------------------------------------
+// Đổi email đăng nhập (users.email). Khác với "Email liên hệ" ở hồ sơ (members.contact_email) — email liên hệ KHÔNG dùng để đăng nhập.
+// Phải nhập lại mật khẩu hiện tại. Giữ nguyên các phiên đang đăng nhập (định danh đổi, không phải thông tin bí mật).
+// ---------------------------------------------------------------------
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+export async function changeLoginEmail(userId: string, password: string, newEmail: string, meta: ReqMeta): Promise<{ email: string }> {
+  const email = newEmail.trim().toLowerCase();
+  if (email.length > 254 || !EMAIL_RE.test(email)) throw new ApiError(400, "BAD_EMAIL", "Email không hợp lệ.");
+  return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx) => {
+    const u = (await tx.query<{ email: string | null; password_hash: string | null }>("SELECT email::text, password_hash FROM users WHERE id = $1 AND deleted_at IS NULL", [userId])).rows[0];
+    if (!u || !(await verifyPassword(u.password_hash, password))) throw new ApiError(400, "BAD_PASSWORD", "Mật khẩu hiện tại không đúng.");
+    if (u.email?.toLowerCase() === email) throw new ApiError(400, "SAME_EMAIL", "Đây đang là email đăng nhập của bạn.");
+    const dup = await tx.query("SELECT 1 FROM users WHERE email = $1::citext AND deleted_at IS NULL AND id <> $2", [email, userId]);
+    if (dup.rowCount) throw new ApiError(409, "EMAIL_TAKEN", "Email này đã được dùng cho tài khoản khác.");
+    await tx.query("SELECT set_config('app.current_user_id', $1, true)", [userId]);
+    try {
+      await tx.query("UPDATE users SET email = $2 WHERE id = $1", [userId, email]);
+    } catch (e) {
+      if ((e as { code?: string }).code === "23505") throw new ApiError(409, "EMAIL_TAKEN", "Email này đã được dùng cho tài khoản khác.");
+      throw e;
+    }
+    return { email };
+  });
+}

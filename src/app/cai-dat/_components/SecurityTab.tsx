@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import useSWR, { mutate as globalMutate } from "swr";
-import { AlertTriangle, CheckCircle2, Copy, Download, KeyRound, Loader2, Lock, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Download, KeyRound, Loader2, Lock, Mail, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { api, errorMessage, swrFetcher } from "@/lib/api";
@@ -187,6 +187,20 @@ export default function SecurityTab() {
             <button type="button" onClick={() => { setDisabling(false); setPassword(""); }} className={btnGhost}>Hủy</button>
           </div>
         )}
+      </div>
+
+      <div className={card}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-primary flex items-center justify-center shrink-0"><Mail className="w-5 h-5" /></div>
+            <div className="min-w-0">
+              <h3 className="text-base font-extrabold text-gray-900">Email đăng nhập</h3>
+              <p className="text-xs text-gray-500 mt-0.5 break-all">Đang dùng: <b className="text-gray-800">{session?.user.email ?? "—"}</b></p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Khác với “Email liên hệ” ở Hồ sơ — email liên hệ không dùng để đăng nhập.</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => openModal("changeEmail")} className={btnGhost}>Đổi email đăng nhập</button>
+        </div>
       </div>
 
       <div className={card}>
