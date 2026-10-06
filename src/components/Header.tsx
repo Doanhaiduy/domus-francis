@@ -24,6 +24,7 @@ import { useSession } from "@/lib/session";
 import { fileUrl } from "@/lib/api";
 import { useUnreadCount } from "@/lib/data/dashboard";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/lib/theme";
 
 const ROLE_CONFIGS: Record<
   string,
@@ -161,6 +162,9 @@ export const Header: React.FC = () => {
               <span className="hidden sm:inline">Trực nhật &amp; Hậu cần</span>
             </Link>
           )}
+
+          {/* ĐỔI GIAO DIỆN SÁNG / TỐI */}
+          <ThemeToggle />
 
           {/* NOTIFICATION BELL */}
           <button

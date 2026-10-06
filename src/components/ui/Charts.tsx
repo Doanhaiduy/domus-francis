@@ -84,11 +84,11 @@ export const FinancialBarChart: React.FC<BarChartProps> = ({
                 {/* Hover Tooltip */}
                 {isHovered && (
                   <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-30 px-2.5 py-1.5 rounded-xl bg-gray-950 text-white text-[10px] font-medium shadow-xl pointer-events-none whitespace-nowrap animate-in fade-in duration-100 flex flex-col gap-0.5">
-                    <span className="font-bold text-gray-300">{d.label}</span>
+                    <span className="font-bold text-[#d1d5db]">{d.label}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-emerald-400">Thu: {formatVND(d.thu)}</span>
                       <span>·</span>
-                      <span className="text-purple-300">Chi: {formatVND(d.chi)}</span>
+                      <span className="text-[#d8b4fe]">Chi: {formatVND(d.chi)}</span>
                     </div>
                   </div>
                 )}

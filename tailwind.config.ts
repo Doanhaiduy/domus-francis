@@ -1,6 +1,12 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
+import { paletteVariables, solidBackgrounds, themedColors, whiteSurface } from "./tailwind.palette";
+
+const palette = paletteVariables();
 
 const config: Config = {
+  // Giao diện tối: thêm lớp "dark" lên <html> (xem src/lib/theme.tsx). Màu đã đảo qua biến CSS nên hầu hết giao diện không cần lớp dark:.
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,37 +14,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        surface: "#faf8ff",
-        "surface-dim": "#d2d9f4",
-        "surface-bright": "#faf8ff",
-        "surface-container-lowest": "#ffffff",
-        "surface-container-low": "#f2f3ff",
-        "surface-container": "#eaedff",
-        "surface-container-high": "#e2e7ff",
-        "surface-container-highest": "#dae2fd",
-        "on-surface": "#131b2e",
-        "on-surface-variant": "#484555",
-        primary: "#5f3add",
-        "primary-container": "#7857f8",
-        "on-primary": "#ffffff",
-        "primary-fixed": "#e6deff",
-        "primary-fixed-dim": "#cabeff",
-        "on-primary-fixed": "#1c0062",
-        "on-primary-fixed-variant": "#4918c8",
-        secondary: "#006c49",
-        "secondary-container": "#6cf8bb",
-        "secondary-fixed": "#6ffbbe",
-        "on-secondary-fixed-variant": "#005236",
-        tertiary: "#825100",
-        "tertiary-fixed": "#ffddb8",
-        "tertiary-fixed-dim": "#ffb95f",
-        error: "#ba1a1a",
-        "error-container": "#ffdad6",
-        "on-error-container": "#93000a",
-        outline: "#797587",
-        "outline-variant": "#c9c4d8",
-      },
+      colors: themedColors(),
+      backgroundColor: { ...solidBackgrounds(), white: whiteSurface },
+      gradientColorStops: { ...solidBackgrounds(), white: whiteSurface },
+      ringColor: { white: whiteSurface },
+      ringOffsetColor: { white: whiteSurface },
       fontFamily: {
         sans: ["\"Be Vietnam Pro\"", "system-ui", "-apple-system", "\"Segoe UI\"", "Roboto", "sans-serif"],
         mono: ["\"JetBrains Mono\"", "ui-monospace", "monospace"],
@@ -78,6 +58,14 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(({ addBase }) => {
+      addBase({
+        ":root": palette.light,
+        // @media screen: khi in luôn dùng bảng màu sáng cho đỡ tốn mực
+        "@media screen": { "html.dark": { ...palette.dark, colorScheme: "dark" } },
+      });
+    }),
+  ],
 };
 export default config;

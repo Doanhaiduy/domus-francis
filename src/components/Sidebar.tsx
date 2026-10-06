@@ -25,6 +25,7 @@ import {
   Wrench as WrenchIcon,
   BookOpen,
   User,
+  Newspaper,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -37,7 +38,18 @@ import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
 import { useModules } from "@/lib/data/modules";
 import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
 
-export const NAV_ITEMS = [
+export const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badgeKey?: string;
+  isPaused?: boolean;
+  badgeDot?: boolean;
+  isNew?: boolean;
+  isDividerBefore?: boolean;
+  /** Chỉ hiện với người có quyền này */
+  requires?: string;
+}[] = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
   { href: "/thong-bao", label: "Thông báo", icon: Bell, badgeKey: "announcements" },
   { href: "/lich-su-kien", label: "Lịch & Sự kiện", icon: Calendar },
@@ -46,6 +58,7 @@ export const NAV_ITEMS = [
   { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench, badgeDot: true },
   { href: "/phung-vu", label: "Phụng Vụ", icon: Church },
   { href: "/dien-dan", label: "Diễn Đàn", icon: MessagesSquare, isNew: true },
+  { href: "/bai-viet", label: "Bài viết công khai", icon: Newspaper, isNew: true, requires: "article.manage" },
   { href: "/thanh-vien", label: "Thành Viên", icon: Users },
   { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap, isNew: true },
   { href: "/so-do-nha", label: "Sơ đồ nhà", icon: Building2 },
@@ -63,7 +76,7 @@ export const Sidebar: React.FC = () => {
     mobileMenuOpen,
     setMobileMenuOpen,
   } = useApp();
-  const { session, logout } = useSession();
+  const { session, logout, can } = useSession();
 
   const displayName = session?.member?.displayName ?? session?.user.email ?? "…";
   const initials = (session?.member?.displayName ?? "?")
@@ -117,8 +130,8 @@ export const Sidebar: React.FC = () => {
 
         {/* NAVIGATION LIST */}
         <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+          {NAV_ITEMS.filter((item) => !item.requires || can(item.requires)).map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
             const Icon = item.icon;
             const paused = modules.disabled[item.href];
 

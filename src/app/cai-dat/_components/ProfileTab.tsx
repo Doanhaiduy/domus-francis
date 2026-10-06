@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
 import { CustomInput, CustomSelect, CustomToggle, uploadFile } from "@/components/ui/FormControls";
 import { ProfileSkeleton } from "./TabSkeletons";
+import { AppearanceCard } from "./AppearanceCard";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -278,6 +279,8 @@ export default function ProfileTab() {
           <span>Thông tin hồ sơ đã được lưu thành công.</span>
         </div>
       )}
+
+      <AppearanceCard />
 
       {/* 2. MAIN FORMS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

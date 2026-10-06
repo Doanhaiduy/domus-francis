@@ -9,6 +9,7 @@ import { Modals } from "./Modals";
 import { CommandPalette } from "./CommandPalette";
 import { ModuleGate } from "./ModuleGate";
 import { ToastContainer } from "./ToastContainer";
+import { AppFooter } from "./AppFooter";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useAiStatus } from "@/lib/data/ai";
@@ -17,15 +18,26 @@ import { Sparkles } from "lucide-react";
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const isAuthPage = pathname === "/dang-nhap" || pathname === "/cho-phe-duyet";
+  // Trang công khai (/tin-tuc/…) tự có đầu/chân trang riêng, không dùng khung ứng dụng và không cần phiên đăng nhập
+  const isPublicSite = pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
   const { activeModal, openModal } = useApp();
   const { session } = useSession();
-  const { status: aiStatus } = useAiStatus(!isAuthPage && !!session?.member);
+  const { status: aiStatus } = useAiStatus(!isAuthPage && !isPublicSite && !!session?.member);
   const showAssistant = !!aiStatus?.available.includes("community.policy_rag");
 
   // Mật khẩu tạm (do Ban điều hành cấp/đặt lại) ⇒ bắt buộc đổi trước khi dùng tiếp
   useEffect(() => {
     if (!isAuthPage && session?.user.mustChangePassword && activeModal !== "changePassword") openModal("changePassword");
   }, [isAuthPage, session?.user.mustChangePassword, activeModal, openModal]);
+
+  if (isPublicSite) {
+    return (
+      <>
+        {children}
+        <ToastContainer />
+      </>
+    );
+  }
 
   if (isAuthPage) {
     return (
@@ -46,9 +58,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* MAIN APPLICATION AREA */}
       <div className="md:pl-64 flex flex-col min-h-screen">
         <Header />
-        <main className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-24 md:pb-8">
+        <main className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6">
           <ModuleGate>{children}</ModuleGate>
         </main>
+        {/* Chân trang (chừa chỗ cho thanh điều hướng dưới trên điện thoại) */}
+        <AppFooter />
       </div>
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}

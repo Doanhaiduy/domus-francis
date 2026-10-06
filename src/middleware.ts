@@ -3,6 +3,8 @@ import { COOKIE, COOKIE_SECURE, verifyAccessToken } from "@/lib/auth-shared";
 
 // Trang không cần đăng nhập
 const PUBLIC_PAGES = ["/dang-nhap"];
+// Trang CÔNG KHAI (bài viết cho người ngoài): ai cũng xem được, đã đăng nhập hay chưa, đã duyệt hay chưa — không chuyển hướng.
+const OPEN_PAGES = ["/tin-tuc"];
 // Trang dành cho tài khoản đã đăng ký nhưng chưa được duyệt
 const PENDING_PAGES = ["/cho-phe-duyet"];
 
@@ -32,10 +34,11 @@ export async function middleware(req: NextRequest) {
 
   const claims = await verifyAccessToken(req.cookies.get(COOKIE.access)?.value);
   const isPublic = PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const isOpen = OPEN_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const isPendingPage = PENDING_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (!claims) {
-    if (isPublic) return securityHeaders(ensureCsrfCookie(req, NextResponse.next()));
+    if (isPublic || isOpen) return securityHeaders(ensureCsrfCookie(req, NextResponse.next()));
     // Access token hết hạn/thiếu: thử làm mới bằng refresh token (cookie chỉ gửi tới /api/v1/auth) rồi quay lại trang.
     const url = req.nextUrl.clone();
     url.pathname = "/api/v1/auth/refresh";
@@ -43,6 +46,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (isOpen) return securityHeaders(ensureCsrfCookie(req, NextResponse.next()));
   if (claims.pnd && !isPendingPage) return NextResponse.redirect(new URL("/cho-phe-duyet", req.url));
   if (!claims.pnd && isPendingPage) return NextResponse.redirect(new URL("/", req.url));
   if (isPublic) return NextResponse.redirect(new URL("/", req.url));

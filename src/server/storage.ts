@@ -294,6 +294,62 @@ export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket): Promise
   return { id, bucket, mime: kind.mime, width, height, sizeBytes: body.length, url: `/api/v1/files/${id}` };
 }
 
+/** Đọc nội dung đối tượng: đĩa cục bộ trước (rất nhanh), không có thì tải từ Supabase Storage rồi đệm lại vào đĩa. */
+async function loadObject(bucket: Bucket, key: string): Promise<Buffer> {
+  let data: Buffer | null = null;
+
+  // 1. Kiểm tra cache đĩa cục bộ trước (< 1ms, tránh vòng mạng từ xa)
+  try {
+    data = await readFile(abs(key));
+  } catch {
+    // Chưa có ở đĩa cục bộ
+  }
+
+  // 2. Nếu đĩa chưa có, tải từ Supabase Storage và lưu đệm lại vào đĩa
+  if (!data) {
+    const supaCfg = getSupabaseStorageConfig();
+    if (supaCfg) {
+      const { bucket: b, path: p } = splitBucketAndPath(bucket, key);
+      try {
+        data = await downloadFromSupabase(supaCfg, b, p);
+        if (data) {
+          const localPath = abs(key);
+          mkdir(path.dirname(localPath), { recursive: true })
+            .then(() => writeFile(localPath, data!))
+            .catch(() => {});
+        }
+      } catch (e) {
+        console.warn(`[storage] Supabase download error for ${key}:`, (e as Error).message);
+      }
+    }
+  }
+
+  if (!data) throw new ApiError(404, "NOT_FOUND", "Tệp không còn trên máy chủ.");
+  return data;
+}
+
+/**
+ * Ảnh CÔNG KHAI (không cần đăng nhập) — chỉ tệp đang được một bài viết công khai đã đăng sử dụng
+ * (app.fn_public_article_file). Ảnh được lưu đệm công khai 1 giờ để chịu được lượng truy cập khi bài được chia sẻ.
+ */
+export async function servePublicFile(ctx: Ctx, id: string, variant: string | null): Promise<Response> {
+  const f = await ctx.db(async (tx) => (await tx.query("SELECT * FROM app.fn_public_article_file($1)", [id])).rows[0] as
+    | { bucket: Bucket; object_key: string; detected_mime: string; variants: Record<string, string> }
+    | undefined);
+  if (!f) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy tệp.");
+  const useVariant = variant && f.variants?.[variant];
+  const data = await loadObject(f.bucket, useVariant ? f.variants[variant!] : f.object_key);
+  return new Response(new Uint8Array(data), {
+    status: 200,
+    headers: {
+      "content-type": useVariant ? "image/webp" : f.detected_mime,
+      "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+    },
+  });
+}
+
 interface FileMeta {
   bucket: Bucket;
   object_key: string;
@@ -334,37 +390,7 @@ export async function serveFile(ctx: Ctx, id: string, variant: string | null): P
   if (!f) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy tệp.");
   const useVariant = variant && f.variants?.[variant];
   const key = useVariant ? f.variants[variant!] : f.object_key;
-  let data: Buffer | null = null;
-
-  // 1. Kiểm tra cache đĩa cục bộ trước (< 1ms, tránh vòng mạng từ xa)
-  try {
-    data = await readFile(abs(key));
-  } catch {
-    // Chưa có ở đĩa cục bộ
-  }
-
-  // 2. Nếu đĩa chưa có, tải từ Supabase Storage và lưu đệm lại vào đĩa
-  if (!data) {
-    const supaCfg = getSupabaseStorageConfig();
-    if (supaCfg) {
-      const { bucket: b, path: p } = splitBucketAndPath(f.bucket, key);
-      try {
-        data = await downloadFromSupabase(supaCfg, b, p);
-        if (data) {
-          const localPath = abs(key);
-          mkdir(path.dirname(localPath), { recursive: true })
-            .then(() => writeFile(localPath, data!))
-            .catch(() => {});
-        }
-      } catch (e) {
-        console.warn(`[storage] Supabase download error for ${key}:`, (e as Error).message);
-      }
-    }
-  }
-
-  if (!data) {
-    throw new ApiError(404, "NOT_FOUND", "Tệp không còn trên máy chủ.");
-  }
+  const data = await loadObject(f.bucket, key);
 
   const mime = useVariant ? "image/webp" : f.detected_mime;
   const headers: Record<string, string> = {

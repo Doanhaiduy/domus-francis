@@ -4,6 +4,8 @@ import React, { useState, useTransition } from "react";
 import { Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api, ApiClientError, errorMessage } from "@/lib/api";
+import { AppFooter } from "@/components/AppFooter";
+import { ThemeToggle } from "@/lib/theme";
 
 export default function DangNhapPage() {
   const router = useRouter();
@@ -69,7 +71,8 @@ export default function DangNhapPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f4ff] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-4 relative">
+      <ThemeToggle className="absolute top-4 right-4" />
       {/* FLOATING AUTH WINDOW */}
       <div className="w-full max-w-[440px] bg-white rounded-3xl p-8 sm:p-10 shadow-[0_20px_60px_-15px_rgba(95,58,221,0.12),0_4px_20px_rgba(0,0,0,0.03)] border border-purple-100 flex flex-col items-center text-center relative overflow-hidden">
         {/* Top Ambient Glow */}
@@ -250,11 +253,9 @@ export default function DangNhapPage() {
             <Lock className="w-3.5 h-3.5 text-emerald-600" />
             <span>Bảo mật nội bộ · Lưu Xá Phanxicô Assisi</span>
           </div>
-          <p className="text-[11px] text-gray-400 mt-2">
-            © 2026 Lưu Xá Phanxicô Assisi • Pax et Bonum
-          </p>
         </div>
       </div>
+      <AppFooter variant="minimal" className="mt-3" />
     </div>
   );
 }

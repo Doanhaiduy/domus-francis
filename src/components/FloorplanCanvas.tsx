@@ -244,7 +244,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
       {/* ========================================================================= */}
       <div className="bg-purple-900 text-white px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-purple-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-800/80 text-amber-300 flex items-center justify-center font-bold shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-purple-800/80 text-[#fcd34d] flex items-center justify-center font-bold shadow-inner">
             <Compass className="w-5 h-5" />
           </div>
           <div>
@@ -252,11 +252,11 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
               <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
                 Sơ Đồ Kiến Trúc Nhà Lưu Xá
               </h2>
-              <span className="text-[10px] bg-purple-700/80 text-purple-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+              <span className="text-[10px] bg-purple-700/80 text-[#e9d5ff] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                 Bản vẽ phác thảo chuẩn
               </span>
             </div>
-            <p className="text-[11px] text-purple-200/80">
+            <p className="text-[11px] text-[#e9d5ff]/80">
               {currentFloor ? `${currentFloor.name}: ${currentFloor.description}` : ""}
             </p>
           </div>
@@ -276,7 +276,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
                     "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5",
                     isActive
                       ? "bg-amber-400 text-purple-950 shadow-sm"
-                      : "text-purple-200 hover:text-white hover:bg-purple-800/50"
+                      : "text-[#e9d5ff] hover:text-white hover:bg-purple-800/50"
                   )}
                 >
                   <Layers className="w-3.5 h-3.5" />
@@ -291,21 +291,21 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
             <button
               onClick={handleZoomOut}
               title="Thu nhỏ"
-              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+              className="p-1.5 rounded-lg text-[#e9d5ff] hover:text-white hover:bg-purple-800/60 transition"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
             <button
               onClick={handleResetZoom}
               title="Tỉ lệ chuẩn 100%"
-              className="px-2 py-1 rounded-lg text-[11px] font-bold text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+              className="px-2 py-1 rounded-lg text-[11px] font-bold text-[#e9d5ff] hover:text-white hover:bg-purple-800/60 transition"
             >
               {Math.round(zoom * 100)}%
             </button>
             <button
               onClick={handleZoomIn}
               title="Phóng to"
-              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+              className="p-1.5 rounded-lg text-[#e9d5ff] hover:text-white hover:bg-purple-800/60 transition"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
@@ -313,7 +313,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
-              className="p-1.5 rounded-lg text-purple-200 hover:text-white hover:bg-purple-800/60 transition"
+              className="p-1.5 rounded-lg text-[#e9d5ff] hover:text-white hover:bg-purple-800/60 transition"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -326,7 +326,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
               "px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border",
               isMemberDockOpen
                 ? "bg-purple-800 text-white border-purple-700"
-                : "bg-purple-950/70 text-purple-200 border-purple-800 hover:text-white"
+                : "bg-purple-950/70 text-[#e9d5ff] border-purple-800 hover:text-white"
             )}
           >
             <Users className="w-3.5 h-3.5" />

@@ -409,23 +409,23 @@ export default function BepComPage() {
             <div className="lg:col-span-5 rounded-3xl p-6 bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white shadow-lg shadow-purple-300/40 flex flex-col justify-between relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md">{week.academicYear ?? "Năm học hiện tại"}</span>
-                <UtensilsCrossed className="w-5 h-5 text-purple-200" />
+                <UtensilsCrossed className="w-5 h-5 text-[#e9d5ff]" />
               </div>
 
               <div className="my-6">
-                <span className="text-sm font-medium text-purple-200 block">
+                <span className="text-sm font-medium text-[#e9d5ff] block">
                   {sel.weekdayLong}
                   {sel.isToday ? " · Hôm nay" : ""}
                 </span>
                 <div className="text-4xl sm:text-5xl font-extrabold tracking-tight mt-1">{dayMonthLong(sel.date)}</div>
-                <p className="text-xs text-purple-200 mt-2">
+                <p className="text-xs text-[#e9d5ff] mt-2">
                   {sel.liturgy ? `${sel.liturgy} · ` : ""}Tuần {week.weekNo} · Cộng đoàn Thánh Phanxicô Assisi
                 </p>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-purple-200 font-semibold block text-[10px] uppercase tracking-wider">Trực bếp {sel.isToday ? "hôm nay" : `ngày ${dm(sel.date)}`}:</span>
+                  <span className="text-[#e9d5ff] font-semibold block text-[10px] uppercase tracking-wider">Trực bếp {sel.isToday ? "hôm nay" : `ngày ${dm(sel.date)}`}:</span>
                   <span className="font-bold text-white mt-0.5 block">{dayCookTeam(sel) || "Chưa phân công"}</span>
                 </div>
                 <span className="text-xl">👨‍🍳</span>

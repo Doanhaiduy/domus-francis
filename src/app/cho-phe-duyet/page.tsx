@@ -6,6 +6,8 @@ import { Hourglass, RefreshCw, Contact, XCircle } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { api, errorMessage } from "@/lib/api";
+import { AppFooter } from "@/components/AppFooter";
+import { ThemeToggle } from "@/lib/theme";
 
 const STATUS_LABEL: Record<string, string> = {
   submitted: "Mới đăng ký",
@@ -46,7 +48,8 @@ export default function ChoPheDuyetPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f4ff] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-4 relative">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-[480px] bg-white rounded-3xl p-8 sm:p-10 shadow-[0_20px_60px_-15px_rgba(95,58,221,0.12),0_4px_20px_rgba(0,0,0,0.03)] border border-purple-100 flex flex-col items-center text-center relative overflow-hidden">
         <div className="absolute -top-16 -right-16 w-36 h-36 bg-amber-200/50 rounded-full blur-3xl pointer-events-none" />
 
@@ -127,10 +130,8 @@ export default function ChoPheDuyetPage() {
           </button>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-100 w-full text-center">
-          <p className="text-[11px] text-gray-400">Lưu Xá Phanxicô Assisi • Bình An và Thiện Hảo</p>
-        </div>
       </div>
+      <AppFooter variant="minimal" className="mt-3" />
     </div>
   );
 }

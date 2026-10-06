@@ -21,6 +21,7 @@ import {
   Camera,
   GraduationCap,
   ScrollText,
+  Newspaper,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -51,12 +52,13 @@ export const CommandPalette: React.FC = () => {
     { label: "Lịch & Sự kiện", href: "/lich-su-kien", icon: Calendar, category: "Điều hướng" },
     { label: "Phụng vụ & Kinh tối", href: "/phung-vu", icon: Church, category: "Điều hướng" },
     { label: "Diễn đàn trao đổi", href: "/dien-dan", icon: MessagesSquare, category: "Điều hướng" },
+    { label: "Bài viết công khai (bản tin cho người ngoài)", href: "/bai-viet", icon: Newspaper, category: "Điều hướng", perm: "article.manage" },
     { label: "Danh bạ thành viên", href: "/thanh-vien", icon: Users, category: "Điều hướng" },
     { label: "Quản lý Học tập & Điểm số", href: "/hoc-tap", icon: GraduationCap, category: "Điều hướng" },
     { label: "Sơ đồ nhà & Phòng ở", href: "/so-do-nha", icon: Building2, category: "Điều hướng" },
     { label: "Lưu Khoảnh Khắc & Kỷ niệm", href: "/khoanh-khac", icon: Camera, category: "Điều hướng" },
     { label: "Cài đặt & Quản lý danh mục", href: "/cai-dat", icon: Settings, category: "Điều hướng" },
-  ];
+  ].filter((n) => !("perm" in n) || !n.perm || can(n.perm));
 
   const ACTION_ITEMS = [
     { label: "Xem sơ đồ nhà tương tác", action: () => { setCommandPaletteOpen(false); router.push("/so-do-nha"); }, icon: Building2, category: "Hành động nhanh" },

@@ -107,7 +107,7 @@ export function PhotoLightbox({ album, index, onIndex, onClose, onToggleAlbumLik
                 onClick={() => onTogglePhotoLike(photo)}
                 className={cn(
                   "px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95",
-                  photo.isLiked ? "bg-rose-500 text-white shadow-md shadow-rose-500/30" : "bg-white/10 hover:bg-white/20 text-rose-300"
+                  photo.isLiked ? "bg-rose-500 text-white shadow-md shadow-rose-500/30" : "bg-white/10 hover:bg-white/20 text-[#fda4af]"
                 )}
                 title={photo.isLiked ? "Bỏ thích ảnh này" : "Thích ảnh này"}
               >

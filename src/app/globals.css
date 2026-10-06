@@ -11,9 +11,26 @@
     font-synthesis: none;
   }
   body {
-    background-color: #faf8ff;
-    color: #131b2e;
+    background-color: rgb(var(--c-surface));
+    color: rgb(var(--c-on-surface));
     overscroll-behavior: none;
+  }
+  /* Vùng chọn văn bản theo màu thương hiệu ở cả hai giao diện */
+  ::selection {
+    background-color: rgb(var(--c-primary) / 0.25);
+  }
+  /* Giao diện tối: ô nhập không tự đặt nền (dựa vào nền trắng mặc định của trình duyệt) vẫn phải hợp bảng màu.
+     Dùng :where() (độ ưu tiên 0) để các lớp tiện ích nền/chữ trên chính ô nhập vẫn thắng. */
+  @media screen {
+:where(html.dark) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"]), textarea, select) {
+      background-color: rgb(var(--c-gray-50));
+      color: rgb(var(--c-gray-900));
+    }
+    html.dark input:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 1000px rgb(var(--c-gray-100)) inset;
+      -webkit-text-fill-color: rgb(var(--c-gray-900));
+      caret-color: rgb(var(--c-gray-900));
+    }
   }
 }
 
@@ -23,7 +40,7 @@
 }
 
 .custom-scroll::-webkit-scrollbar-thumb {
-  background: #d2d9f4;
+  background: rgb(var(--c-surface-dim));
   border-radius: 9999px;
 }
 
@@ -40,7 +57,7 @@
 .shimmer-box {
   position: relative;
   overflow: hidden;
-  background-color: #edeafc;
+  background-color: rgb(var(--c-primary-fixed) / 0.55);
 }
 
 .shimmer-box::after {
@@ -59,6 +76,27 @@
   );
   animation: shimmerWave 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   content: '';
+}
+
+/* GIAO DIỆN TỐI — phần không đi qua bảng màu Tailwind.
+   Nền trắng (bg-white…) đã đổi sang màu thẻ qua tailwind.config; các lớp trắng MỜ dùng làm lớp phủ trên dải màu
+   (bg-white/10…/30) phải giữ là trắng thật, nên khai báo lại ở đây. */
+@media screen {
+  html.dark .bg-white\/10,
+  html.dark .hover\:bg-white\/10:hover,
+  html.dark .active\:bg-white\/10:active { background-color: rgb(255 255 255 / 0.1); }
+  html.dark .bg-white\/15 { background-color: rgb(255 255 255 / 0.15); }
+  html.dark .bg-white\/20,
+  html.dark .hover\:bg-white\/20:hover { background-color: rgb(255 255 255 / 0.2); }
+  html.dark .bg-white\/25,
+  html.dark .hover\:bg-white\/25:hover { background-color: rgb(255 255 255 / 0.25); }
+  html.dark .hover\:bg-white\/30:hover { background-color: rgb(255 255 255 / 0.3); }
+
+  /* Ô nhập, vùng chọn, trình chọn ngày/giờ gốc của trình duyệt */
+  html.dark input, html.dark textarea, html.dark select { color-scheme: dark; }
+  html.dark .shimmer-box::after {
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.07) 30%, rgba(255, 255, 255, 0.07) 60%, rgba(255, 255, 255, 0) 100%);
+  }
 }
 
 /* PRINT MEDIA STYLES */

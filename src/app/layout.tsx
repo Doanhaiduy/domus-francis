@@ -16,6 +16,7 @@ import "@fontsource/jetbrains-mono/600.css";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { SessionProvider } from "@/lib/session";
+import { THEME_INIT_SCRIPT, ThemeProvider } from "@/lib/theme";
 import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -29,13 +30,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    // suppressHydrationWarning: script trong <head> gắn lớp "dark"/color-scheme lên <html> trước khi React chạy
+    <html lang="vi" suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light dark" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="font-sans antialiased">
-        <SessionProvider>
-          <AppProvider>
-            <AppShell>{children}</AppShell>
-          </AppProvider>
-        </SessionProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            <AppProvider>
+              <AppShell>{children}</AppShell>
+            </AppProvider>
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

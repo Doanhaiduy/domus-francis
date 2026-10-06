@@ -62,6 +62,8 @@ _[Minh họa giao diện: Giao diện trên điện thoại — xem trong ứng 
 
 > **Dùng như một ứng dụng** — Trong trình duyệt điện thoại chọn **Thêm vào màn hình chính** để mở ứng dụng nhanh như app cài sẵn.
 
+> **Giao diện tối** — Bấm biểu tượng **mặt trăng/mặt trời** ở thanh trên cùng để đổi giữa giao diện sáng và tối. Muốn tự theo cài đặt của máy: **Cài đặt → Hồ sơ cá nhân → Giao diện → Hệ thống**. Lựa chọn nhớ riêng cho từng thiết bị.
+
 > **ℹ️ Lưu ý** — Mục bị làm mờ với nhãn **Bảo trì**: Admin đang tạm ẩn phân hệ đó. Dữ liệu vẫn giữ nguyên, bật lại là dùng tiếp.
 
 #### Khai báo tài khoản nhận tiền của tôi
@@ -326,6 +328,20 @@ _[Minh họa giao diện: duty-week — xem trong ứng dụng]_
 **Thông báo → Luật nhà**
 
 Soạn từng mục, thêm giờ giấc, sắp xếp thứ tự, tải PDF. Thành viên đọc và tải PDF ở cùng chỗ.
+
+#### Bài viết công khai (tuyển sinh, tin tức)
+
+**Bài viết công khai → Viết bài mới**
+
+Bài viết **đã đăng** có đường link công khai dạng `/tin-tuc/ten-bai` — **ai cũng xem được, không cần đăng nhập**. Trang chung của mọi bài ở `/tin-tuc` (đường link này cũng nằm ở chân trang).
+
+1. **Soạn bài** — Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**. Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; bên phải là bản xem trước.
+2. **Lưu nháp hoặc đăng** — **Lưu nháp** thì chỉ Ban điều hành thấy. **Đăng công khai** thì bài lên trang công khai ngay.
+3. **Chia sẻ** — Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt sẽ hiện đẹp khi chia sẻ.
+
+> **Lưu ý** — Đừng đăng số điện thoại, địa chỉ cá nhân hay hình ảnh của người chưa đồng ý. Muốn bài hiện lớn đầu trang, bấm ngôi sao **Nổi bật**. Gỡ bài về bản nháp hoặc xóa bài thì link cũ không mở được nữa.
+
+Quyền này (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Cài đặt → Phân quyền & Vai trò.
 
 #### Thông báo, sự kiện, diễn đàn
 
