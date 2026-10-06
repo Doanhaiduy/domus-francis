@@ -40,7 +40,7 @@ const config: Config = {
         "outline-variant": "#c9c4d8",
       },
       fontFamily: {
-        sans: ["\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
+        sans: ["\"Be Vietnam Pro\"", "system-ui", "-apple-system", "\"Segoe UI\"", "Roboto", "sans-serif"],
         mono: ["\"JetBrains Mono\"", "ui-monospace", "monospace"],
       },
       spacing: {

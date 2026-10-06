@@ -153,7 +153,6 @@ export default function StatsPanel() {
         element: printRef.current,
         filename: `Thong_ke_thu_chi_${granularity}_${slug(stats.periods[0].label)}_${slug(stats.periods[stats.periods.length - 1].label)}`,
         margin: 8,
-        scale: 2,
         orientation: "landscape",
       });
       showToast(ok ? "success" : "error", ok ? "Đã tải file PDF thống kê." : "Không thể xuất PDF. Vui lòng thử lại!");
@@ -292,7 +291,7 @@ export default function StatsPanel() {
 
           {/* Bản in PDF (ẩn khỏi màn hình) */}
           <div style={{ position: "fixed", left: -10000, top: 0 }} aria-hidden>
-            <div ref={printRef} style={{ width: 1040, padding: 28, background: "#fff", color: "#111827", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 12, lineHeight: 1.45 }}>
+            <div ref={printRef} style={{ width: 1040, padding: 28, background: "#fff", color: "#111827", fontFamily: "'Be Vietnam Pro', Arial, Helvetica, sans-serif", fontSize: 12, lineHeight: 1.45 }}>
               <div style={{ textAlign: "center", marginBottom: 14 }}>
                 <div style={{ fontSize: 11, letterSpacing: 1, color: "#5f3add", fontWeight: 700 }}>{(stats.houseName ?? "Lưu Xá Phanxicô").toUpperCase()}</div>
                 <div style={{ fontSize: 22, fontWeight: 800 }}>THỐNG KÊ THU CHI</div>

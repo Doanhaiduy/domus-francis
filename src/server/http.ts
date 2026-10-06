@@ -34,6 +34,14 @@ export interface RouteOptions {
 type Handler = (ctx: Ctx) => Promise<unknown>;
 type RouteArgs = { params?: Record<string, string | string[]> };
 
+/** Chuẩn hóa mọi chuỗi (kể cả lồng nhau) về NFC để chữ tiếng Việt lưu một dạng duy nhất. */
+function deepNfc(v: unknown): unknown {
+  if (typeof v === "string") return v.normalize("NFC");
+  if (Array.isArray(v)) return v.map(deepNfc);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, deepNfc(x)]));
+  return v;
+}
+
 const IP_RE = /^(\d{1,3}(\.\d{1,3}){3}|[0-9a-f:]+)$/i;
 function clientIp(req: NextRequest): string | null {
   const raw = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "127.0.0.1";
@@ -139,7 +147,7 @@ export function api(opts: RouteOptions, handler: Handler) {
         body: async (schema) => {
           let raw: unknown;
           try {
-            raw = await req.json();
+            raw = deepNfc(await req.json());
           } catch {
             throw badRequest("Body phải là JSON hợp lệ.");
           }

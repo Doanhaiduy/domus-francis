@@ -75,7 +75,6 @@ export default function MemberCVModal({
         element: printRef.current,
         filename: `So_Yeu_Ly_Lich_${member.fullName.replace(/\s+/g, "_")}`,
         margin: 8,
-        scale: 2,
       });
       if (success) {
         showToast("success", `Đã tải PDF sơ yếu lý lịch ${member.fullName}!`);

@@ -180,7 +180,7 @@ function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { in
   const clauses = sections.reduce((a, x) => a + x.items.length, 0);
   return (
     <div style={{ position: "fixed", left: -10000, top: 0 }} aria-hidden>
-      <div ref={innerRef} style={{ width: 760, padding: "34px 40px", background: "#fff", color: "#111827", fontFamily: "Arial, Helvetica, sans-serif", fontSize: 13, lineHeight: 1.55 }}>
+      <div ref={innerRef} style={{ width: 760, padding: "34px 40px", background: "#fff", color: "#111827", fontFamily: "'Be Vietnam Pro', Arial, Helvetica, sans-serif", fontSize: 13, lineHeight: 1.55 }}>
         <div style={{ textAlign: "center", paddingBottom: 14, borderBottom: "3px double #5f3add", marginBottom: 18 }}>
           <div style={{ fontSize: 12, letterSpacing: 2, color: "#5f3add", fontWeight: 700 }}>✝ {houseName.toUpperCase()}</div>
           <div style={{ fontSize: 30, fontWeight: 800, marginTop: 6, letterSpacing: 1 }}>LUẬT NHÀ</div>
@@ -191,7 +191,7 @@ function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { in
 
         {timetable.length > 0 && (
           <div style={{ marginBottom: 20, border: "1px solid #d8d1f5", borderRadius: 10, overflow: "hidden", pageBreakInside: "avoid" }}>
-            <div style={{ background: "#5f3add", color: "#fff", padding: "6px 12px", fontWeight: 800, fontSize: 13 }}>GIỜ GIẤC CHUNG</div>
+            <div style={{ background: "#5f3add", color: "#fff", padding: "7px 12px", lineHeight: 1.5, fontWeight: 800, fontSize: 13 }}>GIỜ GIẤC CHUNG</div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <tbody>
                 {timetable.map((t, i) => (
@@ -208,7 +208,7 @@ function Printable({ innerRef, houseName, sections, updatedAt, timetable }: { in
         {sections.map((s, idx) => (
           <div key={s.id} style={{ marginBottom: 18, pageBreakInside: "avoid" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: "2px solid #5f3add", paddingBottom: 4, marginBottom: 8 }}>
-              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "1px 8px", fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
+              <span style={{ background: "#5f3add", color: "#fff", borderRadius: 6, padding: "4px 9px 3px", lineHeight: 1.6, fontWeight: 800, fontSize: 12 }}>MỤC {idx + 1}</span>
               <span style={{ fontSize: 16, fontWeight: 800 }}>
                 {s.icon ? `${s.icon} ` : ""}
                 {s.title}
@@ -315,7 +315,7 @@ export default function HouseRules() {
     try {
       await new Promise((r) => setTimeout(r, 60));
       if (!printRef.current) throw new Error("no element");
-      const ok = await exportElementToPdf({ element: printRef.current, filename: "Luat_Nha", margin: 8, scale: 2 });
+      const ok = await exportElementToPdf({ element: printRef.current, filename: "Luat_Nha", margin: 8 });
       showToast(ok ? "success" : "error", ok ? "Đã tải PDF luật nhà." : "Không thể xuất PDF. Vui lòng thử lại!");
     } catch {
       showToast("error", "Không thể xuất PDF. Vui lòng thử lại!");

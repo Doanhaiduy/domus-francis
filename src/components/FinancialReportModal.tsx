@@ -99,7 +99,7 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
     if (!printableRef.current || isExporting) return;
     setIsExporting(true);
     try {
-      const success = await exportElementToPdf({ element: printableRef.current, filename: fileBase, margin: 8, scale: 2 });
+      const success = await exportElementToPdf({ element: printableRef.current, filename: fileBase, margin: 8 });
       showToast(success ? "success" : "error", success ? "Đã tải file PDF báo cáo thu chi thành công!" : "Không thể xuất PDF. Vui lòng thử lại!");
     } catch (err) {
       console.error(err);

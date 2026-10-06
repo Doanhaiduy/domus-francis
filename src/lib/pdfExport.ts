@@ -73,16 +73,41 @@ export function replaceOklchWithRgb(str: string): string {
   return converted.replace(/oklch\([^)]+\)/gi, "rgb(95, 58, 221)");
 }
 
+/** Chờ font web nạp đủ các độ đậm (kèm ký tự có dấu) trước khi chụp — tránh chụp khi còn dùng font dự phòng. */
+async function ensureFonts() {
+  if (typeof document === "undefined" || !document.fonts) return;
+  const sample = "ăâêôơưđẠẬỐỂỮỵ";
+  const specs = ["400", "500", "600", "700", "800", "900", "italic 400", "italic 600"].map((w) => `${w} 14px "Be Vietnam Pro"`);
+  await Promise.all(specs.map((f) => document.fonts.load(f, sample).catch(() => [])));
+  await document.fonts.ready;
+}
+
+/** Chuẩn hóa mọi đoạn chữ về dạng NFC (dấu gộp sẵn) để dấu tiếng Việt luôn đặt đúng chỗ khi vẽ lên canvas. */
+function normalizeTextNfc(root: Node) {
+  const doc = (root as Document).createTreeWalker ? (root as Document) : root.ownerDocument;
+  if (!doc) return;
+  const w = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n: Node | null;
+  while ((n = w.nextNode())) {
+    const v = n.nodeValue;
+    if (v) {
+      const t = v.normalize("NFC");
+      if (t !== v) n.nodeValue = t;
+    }
+  }
+}
+
 export async function exportElementToPdf({
   element,
   filename,
   margin = 8,
-  imageQuality = 0.98,
-  scale = 2,
+  imageQuality = 0.95,
+  scale = 3,
   pageFormat = "a4",
   orientation = "portrait",
 }: ExportPdfOptions): Promise<boolean> {
   try {
+    await ensureFonts();
     // Dynamic import to avoid SSR issues
     const html2pdfModule = await import("html2pdf.js");
     let html2pdf = (html2pdfModule as any).default || html2pdfModule;
@@ -98,7 +123,7 @@ export async function exportElementToPdf({
         html2canvas: {
           scale,
           useCORS: true,
-          letterRendering: true,
+          letterRendering: false,
           logging: false,
           onclone: (clonedDoc: Document, clonedEl?: HTMLElement) => {
             // 1. Sanitize all <style> tags in cloned document
@@ -108,6 +133,9 @@ export async function exportElementToPdf({
                 styleTag.textContent = replaceOklchWithRgb(styleTag.textContent);
               }
             });
+
+            // 1b. Chữ tiếng Việt: về NFC để dấu không lệch
+            normalizeTextNfc(clonedDoc.body);
 
             // 2. Expand scroll container so full multi-page document is rendered
             if (clonedEl) {
