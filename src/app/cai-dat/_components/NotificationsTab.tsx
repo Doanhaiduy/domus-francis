@@ -80,7 +80,8 @@ export default function NotificationsTab() {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+      <div className="space-y-6 min-w-0">
       {/* CÀI ỨNG DỤNG */}
       <div className={card}>
         <div className="flex items-start gap-3">
@@ -134,20 +135,6 @@ export default function NotificationsTab() {
         )}
       </div>
 
-      {/* NHÓM NHẬN */}
-      <div className={card}>
-        <div>
-          <h3 className="text-base font-extrabold text-gray-900">Nhận thông báo đẩy về…</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Tắt nhóm nào thì không đẩy về điện thoại nữa (vẫn thấy trong chuông thông báo của ứng dụng). Thông báo bắt buộc luôn được gửi.</p>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {prefs?.categories.map((c) => (
-            <CustomToggle key={c.code} checked={prefs.push[c.code] !== false} onChange={(v) => toggleCategory(c.code, v)} label={c.label} description={c.text} />
-          ))}
-          {!prefs && <div className="shimmer-box h-40 rounded-xl" />}
-        </div>
-      </div>
-
       {/* GIỜ YÊN TĨNH */}
       <div className={card}>
         <div className="flex items-start gap-3">
@@ -165,6 +152,23 @@ export default function NotificationsTab() {
           <button type="button" onClick={() => saveQuiet(false)} disabled={saving || !quietChanged} className={btnPrimary}>Lưu giờ yên tĩnh</button>
           {prefs?.quiet && <button type="button" onClick={() => saveQuiet(true)} disabled={saving} className={btnGhost}>Tắt</button>}
         </div>
+      </div>
+      </div>
+      <div className="space-y-6 min-w-0">
+      {/* NHÓM NHẬN */}
+      <div className={card}>
+        <div>
+          <h3 className="text-base font-extrabold text-gray-900">Nhận thông báo đẩy về…</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Tắt nhóm nào thì không đẩy về điện thoại nữa (vẫn thấy trong chuông thông báo của ứng dụng). Thông báo bắt buộc luôn được gửi.</p>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {prefs?.categories.map((c) => (
+            <CustomToggle key={c.code} checked={prefs.push[c.code] !== false} onChange={(v) => toggleCategory(c.code, v)} label={c.label} description={c.text} />
+          ))}
+          {!prefs && <div className="shimmer-box h-40 rounded-xl" />}
+        </div>
+      </div>
+
       </div>
     </div>
   );

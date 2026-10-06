@@ -55,7 +55,7 @@ export default function LeavePage() {
   };
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="flex flex-col w-full gap-5 max-w-6xl mx-auto pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5"><CalendarOff className="w-6 h-6 text-primary" /> Xin phép</h1>
@@ -89,7 +89,7 @@ export default function LeavePage() {
           {active === "mine" && data?.canRequest && <p className="text-sm text-gray-500 mt-1">Cần vắng hay về muộn? Bấm “Gửi đơn xin phép” ở trên.</p>}
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 xl:grid-cols-2 items-start">
           {shown.map((r) => (
             <li key={r.id} className={cn("bg-white border rounded-2xl p-4 sm:p-5 space-y-2.5", r.status === "pending" ? "border-amber-200" : "border-purple-100", busy === r.id && "opacity-60 pointer-events-none")}>
               <div className="flex flex-wrap items-start justify-between gap-2">

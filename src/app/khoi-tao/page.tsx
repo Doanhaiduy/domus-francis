@@ -16,14 +16,14 @@ export default function SetupPage() {
     return <div className="max-w-md mx-auto mt-16 text-center text-sm text-gray-600">Chỉ Admin hoặc Trưởng nhà xem được trang thiết lập.</div>;
   }
   if (!setup) {
-    return <div className="max-w-3xl space-y-3">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer-box h-20 rounded-2xl" />)}</div>;
+    return <div className="max-w-3xl mx-auto space-y-3">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer-box h-20 rounded-2xl" />)}</div>;
   }
 
   const pct = setup.requiredCount ? Math.round((setup.requiredDone / setup.requiredCount) * 100) : 100;
   const groups = (Object.keys(SETUP_GROUPS) as SetupItem["group"][]).map((g) => ({ g, items: setup.items.filter((i) => i.group === g) })).filter((x) => x.items.length);
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pb-16">
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
           <Rocket className="w-6 h-6 text-primary" /> Bắt đầu thiết lập

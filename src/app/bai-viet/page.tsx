@@ -52,7 +52,7 @@ export default function ArticlesAdminPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="flex flex-col w-full gap-5 max-w-6xl mx-auto pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
