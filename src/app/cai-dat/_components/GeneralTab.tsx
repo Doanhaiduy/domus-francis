@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building, Wallet, ShieldCheck, Sliders, ChevronDown, Lock } from "lucide-react";
+import { Building, Globe, Wallet, ShieldCheck, Sliders, ChevronDown, Lock } from "lucide-react";
 import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
 import { cn } from "@/lib/utils";
 import type { RoleDto, SettingDto } from "@/lib/types/settings";
@@ -15,6 +15,7 @@ import {
   FieldHint,
   LockNoteShown,
   NumberSetting,
+  TextAreaSetting,
   TextSetting,
   TimeSetting,
   ToggleSetting,
@@ -32,6 +33,8 @@ export const ORG_KEYS = [
   "org.order_name",
   "org.chaplain_name",
 ];
+/** Nội dung trang công khai (/gioi-thieu, /ung-ho). */
+export const PUBLIC_KEYS = ["org.about", "org.donation_enabled", "org.donation_note"];
 export const FUND_KEYS = [
   "finance.dues_cycle_amount_vnd",
   "finance.dues_cycle_graduated_amount_vnd",
@@ -115,10 +118,11 @@ export default function GeneralTab({ draft, roles }: Props) {
   // Cả trang chỉ đọc ⇒ băng đầu trang đã giải thích; một thẻ khóa cùng một lý do ⇒ nêu một lần ở đầu thẻ
   const readOnly = !draft.anyWritable;
   const orgLock = commonLock(draft, ORG_KEYS);
+  const publicLock = commonLock(draft, PUBLIC_KEYS);
   const fundLock = commonLock(draft, FUND_KEYS);
   const finLock = commonLock(draft, FINANCE_CONTROL_KEYS);
 
-  const used = new Set([...ORG_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS, ...HIDDEN_FINANCE_KEYS, ...MANAGED_ELSEWHERE]);
+  const used = new Set([...ORG_KEYS, ...PUBLIC_KEYS, ...FUND_KEYS, ...FINANCE_CONTROL_KEYS, ...HIDDEN_FINANCE_KEYS, ...MANAGED_ELSEWHERE]);
   // Xem trước các kỳ quỹ trong năm theo số tháng mỗi kỳ + tháng bắt đầu đang nhập (vd. T1–T6, T7–T12)
   const cycleMonths = Number(draft.value<number>("finance.dues_cycle_months")) || 6;
   const cycleStart = Number(draft.value<number>("finance.dues_cycle_start_month")) || 1;
@@ -197,6 +201,43 @@ export default function GeneralTab({ draft, roles }: Props) {
             </div>
           </LockNoteShown.Provider>
         </div>
+
+        {/* Nội dung trang công khai */}
+        {PUBLIC_KEYS.some(shown) && (
+          <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+              <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Nội dung trang công khai</h2>
+                <p className="text-xs text-gray-500">Phần giới thiệu và trang ủng hộ mà người chưa đăng nhập xem được</p>
+              </div>
+            </div>
+            {!readOnly && <CardLockNote reason={publicLock} />}
+            <LockNoteShown.Provider value={readOnly || !!publicLock}>
+              <div className="flex flex-col gap-4">
+                <TextAreaSetting
+                  draft={draft}
+                  k="org.about"
+                  label="Giới thiệu lưu xá (hiện ở trang “Giới thiệu”)"
+                  rows={8}
+                  placeholder="Kể về lịch sử, tinh thần, đời sống chung của nhà…"
+                  hint="Hỗ trợ Markdown đơn giản: ## tiêu đề, **đậm**, - danh sách, [chữ](https://…). Để trống = dùng đoạn giới thiệu mặc định."
+                />
+                <div className="rounded-2xl bg-purple-50/60 border border-purple-100 p-4 flex flex-col gap-3">
+                  <ToggleSetting
+                    draft={draft}
+                    k="org.donation_enabled"
+                    label="Bật trang “Ủng hộ”"
+                    description="Hiện mã VietQR của tài khoản nhận quỹ (Thủ quỹ cài ở trang Thu chi) để người ngoài ủng hộ lưu xá."
+                  />
+                  <TextAreaSetting draft={draft} k="org.donation_note" label="Lời nhắn trên trang ủng hộ" rows={3} placeholder="VD: Mọi đóng góp dùng để tu sửa nhà và hỗ trợ các bạn sinh viên khó khăn. Xin cảm ơn!" />
+                </div>
+              </div>
+            </LockNoteShown.Provider>
+          </div>
+        )}
 
         {/* Quản lý quỹ & Định mức ăn uống */}
         <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-5">

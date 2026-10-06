@@ -52,6 +52,8 @@ export interface MomentAlbumDto {
   likesCount: number;
   isLiked: boolean;
   isFeatured: boolean;
+  /** Hiện ở trang công khai /thu-vien (người chưa đăng nhập xem được) */
+  isPublic: boolean;
   status: MomentContentStatus;
   visibility: "community" | "leadership" | "private";
   isMine: boolean;

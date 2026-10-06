@@ -42,7 +42,7 @@ export function normalizeTags(tags: string[] | undefined): string[] {
 }
 
 const ALBUM_SELECT = `
-  SELECT a.id, a.title, a.description, a.taken_on, a.location_text, a.author_member_id, a.is_featured, a.tags,
+  SELECT a.id, a.title, a.description, a.taken_on, a.location_text, a.author_member_id, a.is_featured, a.is_public, a.tags,
          a.visibility, a.status::text AS status, a.likes_count, a.photos_count, a.created_at,
          c.id AS category_id, c.code AS category_code, c.name AS category_name, c.color AS category_color,
          am.display_name AS author_name, am.full_name AS author_full_name, am.avatar_file_id AS author_avatar,
@@ -95,6 +95,7 @@ function toAlbumDto(r: Row, canModerate: boolean): MomentAlbumDto {
     likesCount: r.likes_count,
     isLiked: !!r.is_liked,
     isFeatured: !!r.is_featured,
+    isPublic: !!r.is_public,
     status: r.status,
     visibility: r.visibility,
     isMine,
@@ -335,8 +336,8 @@ export async function updateAlbum(tx: Tx, id: string, i: UpdateAlbumInput) {
   const a = await requireAlbum(tx, id);
   const mod = await canModerate(tx);
   if (!a.is_mine && !mod) throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/Ban điều hành mới sửa được album này.");
-  if ((i.isFeatured !== undefined || i.hidden !== undefined) && !mod) {
-    throw forbidden("Chỉ người có quyền kiểm duyệt album mới đánh dấu tiêu biểu hoặc ẩn/hiện album.");
+  if ((i.isFeatured !== undefined || i.hidden !== undefined || i.isPublic !== undefined) && !mod) {
+    throw forbidden("Chỉ người có quyền kiểm duyệt album mới đánh dấu tiêu biểu, ẩn/hiện hoặc công khai album.");
   }
   const sets: string[] = [];
   const vals: unknown[] = [id];
@@ -356,6 +357,7 @@ export async function updateAlbum(tx: Tx, id: string, i: UpdateAlbumInput) {
   if (i.coverFileId !== undefined) set("cover_file_id", i.coverFileId);
   if (i.isFeatured !== undefined) set("is_featured", i.isFeatured);
   if (i.hidden !== undefined) set("status", i.hidden ? "hidden" : "published");
+  if (i.isPublic !== undefined) set("is_public", i.isPublic);
   if (sets.length) {
     const r = await tx.query(`UPDATE albums SET ${sets.join(", ")} WHERE id = $1 AND deleted_at IS NULL`, vals);
     if (!r.rowCount) throw forbidden("Bạn không có quyền sửa album này.");

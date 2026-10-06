@@ -20,6 +20,8 @@ const LINK_BY_TABLE: Record<string, string> = {
   maintenance_issues: "/hau-can",
   academic_records: "/hoc-tap",
   albums: "/khoanh-khac",
+  leave_requests: "/xin-phep",
+  admission_inquiries: "/bai-viet",
 };
 const LINK_BY_CATEGORY: Record<string, string> = {
   announcement: "/thong-bao",

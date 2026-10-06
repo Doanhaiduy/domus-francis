@@ -18,6 +18,7 @@ export const TOGGLEABLE_MODULES: ModuleInfo[] = [
   { href: "/hau-can", label: "Hậu Cần & Trực", description: "Trực nhật, báo hỏng, giặt đồ, tài sản" },
   { href: "/phung-vu", label: "Phụng Vụ", description: "Lịch phụng vụ, ý cầu nguyện, tài liệu" },
   { href: "/dien-dan", label: "Diễn Đàn", description: "Thảo luận, góp ý" },
+  { href: "/xin-phep", label: "Xin phép", description: "Đơn xin vắng, về muộn, ngủ ngoài" },
   { href: "/thanh-vien", label: "Thành Viên", description: "Danh bạ, hồ sơ, đơn xin vào nhà" },
   { href: "/hoc-tap", label: "Học Tập", description: "Bảng điểm, minh chứng, phụ đạo" },
   { href: "/so-do-nha", label: "Sơ đồ nhà", description: "Phòng ở, xếp phòng" },

@@ -8,11 +8,13 @@ import {
   CustomInput,
   CustomSelect,
   CustomTextarea,
+  CustomToggle,
   ImageUploadDropzone,
   MultiImageUploadDropzone,
   SelectOption,
 } from "@/components/ui/FormControls";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { momentsApi } from "@/lib/data/moments";
 import { dmyToIso, isoToDmy, parseTags, todayDmyVN } from "@/lib/moments-format";
@@ -49,7 +51,10 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
   const [coverFileId, setCoverFileId] = useState("");
   const [photoFileIds, setPhotoFileIds] = useState<string[]>([]);
   const [participants, setParticipants] = useState<string[]>([]);
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { can } = useSession();
+  const canPublish = mode === "edit" && can("album.moderate");
 
   // Nạp giá trị mỗi lần mở
   useEffect(() => {
@@ -62,7 +67,9 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
       setLocation(album.location);
       setTags(album.tags.join(", "));
       setParticipants(album.participants.filter((p) => p.status !== "declined").map((p) => p.memberId));
+      setIsPublic(album.isPublic);
     } else {
+      setIsPublic(false);
       setTitle("");
       setDescription("");
       setCategoryId(defaultCategory);
@@ -115,7 +122,9 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
         participantIds: participants,
       };
       const saved =
-        mode === "create" ? await momentsApi.create({ ...common, coverFileId, photoFileIds }) : await momentsApi.update(album!.id, common);
+        mode === "create"
+          ? await momentsApi.create({ ...common, coverFileId, photoFileIds })
+          : await momentsApi.update(album!.id, canPublish && isPublic !== album!.isPublic ? { ...common, isPublic } : common);
       const pending = saved.participants.filter((p) => p.status === "pending").length;
       showToast(
         "success",
@@ -213,6 +222,17 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
 
                   <MultiImageUploadDropzone bucket="moments" label="Thêm các ảnh khác vào Album" values={photoFileIds} onChange={setPhotoFileIds} maxFiles={30} />
                 </>
+              )}
+
+              {canPublish && (
+                <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-3">
+                  <CustomToggle
+                    checked={isPublic}
+                    onChange={setIsPublic}
+                    label="Hiện ở trang công khai (Thư viện)"
+                    description="Người ngoài xem được TOÀN BỘ ảnh album mà không cần đăng nhập. Chỉ bật khi những người trong ảnh đã đồng ý."
+                  />
+                </div>
               )}
 
               {/* Participant picker → thẻ tên album_member_tags */}

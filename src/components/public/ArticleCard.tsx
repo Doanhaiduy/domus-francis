@@ -56,6 +56,7 @@ export function ArticleCard({ article }: { article: ArticleListItem }) {
         <CategoryChip code={article.category} className="self-start" />
         <h3 className="text-lg font-extrabold text-gray-900 leading-snug group-hover:text-primary transition-colors line-clamp-3">{article.title}</h3>
         {article.summary && <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{article.summary}</p>}
+        {article.tags.length > 0 && <p className="text-xs font-semibold text-primary/80 line-clamp-1">{article.tags.map((t) => `#${t}`).join(" ")}</p>}
         <ArticleMeta article={article} className="mt-auto pt-1" />
       </div>
     </Link>

@@ -18,6 +18,7 @@ import {
   GraduationCap,
   HeartHandshake,
   Search,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { MobileDetailSheet } from "@/components/ui/MobileDetailSheet";
@@ -27,6 +28,8 @@ import type { Member } from "@/lib/types/members";
 import { useMembers, useMemberDetail, useApplications } from "@/lib/data/members";
 import ApplicationsPanel from "@/components/members/ApplicationsPanel";
 import MemberAdminPanel from "@/components/members/MemberAdminPanel";
+import ImportMembersModal from "@/components/members/ImportMembersModal";
+import AlumniPanel from "@/components/members/AlumniPanel";
 import EditMemberModal from "@/components/members/EditMemberModal";
 import MemberContributionHistory from "@/components/members/MemberContributionHistory";
 import ThanhVienLoading from "./loading";
@@ -38,6 +41,7 @@ export default function ThanhVienPage() {
   const { members: activeMembers, rooms, floors, showToast, openModal, isLoadingSkeleton } = useApp();
   const { canSend: canZaloSend, send: zaloSend } = useZaloSend();
   const { can } = useSession();
+  const [importOpen, setImportOpen] = useState(false);
   const [tab, setTab] = useState<"directory" | "applications" | "former">("directory");
   const { members: allMembers } = useMembers({ includeFormer: tab === "former" });
   const members = tab === "former" ? allMembers.filter((m) => m.status === "alumni" || m.status === "left") : activeMembers;
@@ -114,6 +118,7 @@ export default function ThanhVienPage() {
 
   return (
     <div className="flex flex-col w-full gap-6">
+      {importOpen && <ImportMembersModal onClose={() => setImportOpen(false)} showToast={showToast} />}
       <ConfirmDialog
         isOpen={!!zaloTarget}
         onClose={() => setZaloTarget(null)}
@@ -167,6 +172,16 @@ export default function ThanhVienPage() {
             </button>
           </div>
 
+          {can("member.create") && (
+            <button
+              onClick={() => setImportOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 text-primary font-bold text-xs transition active:scale-95"
+              title="Thêm nhiều thành viên từ tệp Excel/CSV"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden sm:inline">Nhập từ Excel</span>
+            </button>
+          )}
           {can("member.create") && (
             <button
               onClick={() => openModal("addMember")}
@@ -268,6 +283,8 @@ export default function ThanhVienPage() {
 
       {tab === "applications" ? (
         <ApplicationsPanel />
+      ) : tab === "former" ? (
+        <AlumniPanel />
       ) : (
       <>
       {/* FILTER CONTROLS & SEARCH */}

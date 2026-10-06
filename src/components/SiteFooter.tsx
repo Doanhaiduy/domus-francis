@@ -9,7 +9,7 @@ import type { PublicOrgInfo } from "@/lib/types/articles";
 //   variant "minimal" : trang đăng nhập / chờ duyệt — một dòng căn giữa.
 //   variant "compact" : trong ứng dụng (sau đăng nhập) — một dòng gọn: thương hiệu, liên kết, bản quyền.
 
-const FALLBACK: PublicOrgInfo = { houseName: "Lưu Xá Phanxicô", motto: null, address: null, phone: null, orderName: null, patronName: null };
+const FALLBACK: PublicOrgInfo = { houseName: "Lưu Xá Phanxicô", motto: null, address: null, phone: null, orderName: null, patronName: null, about: null, patronFeast: null };
 
 function Brand({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   return (
@@ -28,7 +28,7 @@ function Brand({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   );
 }
 
-export function SiteFooter({ org, variant = "full", className }: { org?: PublicOrgInfo | null; variant?: "full" | "compact" | "minimal"; className?: string }) {
+export function SiteFooter({ org, variant = "full", className, donationEnabled = false }: { org?: PublicOrgInfo | null; variant?: "full" | "compact" | "minimal"; className?: string; donationEnabled?: boolean }) {
   const o = org ?? FALLBACK;
   const year = new Date().getFullYear();
   const copyright = `© ${year} ${o.houseName}. Bảo lưu mọi quyền.`;
@@ -97,9 +97,13 @@ export function SiteFooter({ org, variant = "full", className }: { org?: PublicO
         <div className="space-y-3">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-900">Khám phá</h3>
           <ul className="space-y-2 text-sm text-gray-600 font-medium">
-            <li><Link href="/tin-tuc" className="hover:text-primary">Bản tin lưu xá</Link></li>
+            <li><Link href="/gioi-thieu" className="hover:text-primary">Giới thiệu lưu xá</Link></li>
+            <li><Link href="/tin-tuc" className="hover:text-primary">Bản tin</Link></li>
             <li><Link href="/tin-tuc?muc=tuyen-sinh" className="hover:text-primary">Thông tin tuyển sinh</Link></li>
-            <li><Link href="/tin-tuc?muc=hoat-dong" className="hover:text-primary">Hoạt động cộng đoàn</Link></li>
+            <li><Link href="/hoi-dap" className="hover:text-primary">Hỏi đáp</Link></li>
+            <li><Link href="/thu-vien" className="hover:text-primary">Thư viện ảnh</Link></li>
+            <li><Link href="/lien-he#dang-ky" className="hover:text-primary">Liên hệ &amp; đăng ký tìm hiểu</Link></li>
+            {donationEnabled && <li><Link href="/ung-ho" className="hover:text-primary">Ủng hộ lưu xá</Link></li>}
             <li><Link href="/dang-nhap" className="hover:text-primary">Đăng nhập thành viên</Link></li>
           </ul>
         </div>

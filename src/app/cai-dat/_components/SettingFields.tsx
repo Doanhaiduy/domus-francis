@@ -3,7 +3,7 @@
 // báo lỗi theo kiểu/min/max, gợi ý giới hạn và giá trị mặc định (có nút đưa ô về mặc định — lưu khi bấm "Lưu").
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Lock, RotateCcw } from "lucide-react";
-import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
+import { CustomInput, CustomTextarea, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
 import { AddressPicker } from "@/components/ui/GeoPicker";
 import { cn } from "@/lib/utils";
 import { feastToLabel, labelToFeast, sameSettingValue, type SettingDto } from "@/lib/types/settings";
@@ -90,7 +90,7 @@ export function FieldHint({ draft, k, showBounds = true }: { draft: SettingsDraf
         <button
           type="button"
           onClick={() => draft.set(k, m.defaultValue)}
-          className="inline-flex items-center gap-0.5 font-semibold text-primary/80 hover:text-primary"
+          className="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline"
           title="Đưa ô này về giá trị mặc định (bấm Lưu để áp dụng)"
         >
           <RotateCcw className="w-2.5 h-2.5" />
@@ -126,6 +126,30 @@ export function TextSetting({ draft, k, label, placeholder, className }: FieldPr
           placeholder={m ? placeholder : "Không có quyền xem"}
           disabled={!m?.canWrite}
           error={draft.errorOf(k)}
+          className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
+        />
+      </div>
+      <FieldHint draft={draft} k={k} showBounds={false} />
+    </div>
+  );
+}
+
+/** Văn bản nhiều dòng (giới thiệu, lời nhắn…). */
+export function TextAreaSetting({ draft, k, label, placeholder, rows = 6, hint, className }: FieldProps & { rows?: number; hint?: React.ReactNode }) {
+  const m = draft.meta(k);
+  const v = draft.value<string>(k);
+  return (
+    <div className={className}>
+      <div className={dirtyRing(draft, k)}>
+        <CustomTextarea
+          label={label}
+          rows={rows}
+          value={typeof v === "string" ? v : ""}
+          onChange={(e) => draft.set(k, e.target.value)}
+          placeholder={m ? placeholder : "Không có quyền xem"}
+          disabled={!m?.canWrite}
+          error={draft.errorOf(k)}
+          hint={hint}
           className={!m?.canWrite ? "bg-gray-50 text-gray-500 cursor-not-allowed" : ""}
         />
       </div>

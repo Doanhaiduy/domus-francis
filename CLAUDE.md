@@ -5,7 +5,7 @@ Hướng dẫn cho các phiên làm việc sau. Đọc kỹ mục **Môi trườ
 ## Dự án
 Ứng dụng quản lý cộng đoàn sinh viên Công giáo. Next.js 14 (App Router) + React 18 + Tailwind 3, PostgreSQL (Supabase) với **Row-Level Security**, deploy Vercel. Giao diện/ghi chú/thông báo lỗi viết **tiếng Việt**. Tổng quan kiến trúc: `README.md`.
 
-Lệnh hay dùng: `pnpm typecheck` · `pnpm build` · `pnpm dev` (cần PostgreSQL local) · `pnpm db:migrate[:staging|:production]` · `pnpm dev:staging` · `pnpm env:keys`.
+Lệnh hay dùng: `pnpm typecheck` · `pnpm build` · `pnpm dev` (cần PostgreSQL local) · `pnpm db:migrate[:staging|:production]` · `pnpm dev:staging` · `pnpm dev:local` · `pnpm env:keys` · `pnpm db:backup`.
 
 ## Môi trường (QUAN TRỌNG)
 
@@ -51,6 +51,16 @@ Lệnh hay dùng: `pnpm typecheck` · `pnpm build` · `pnpm dev` (cần PostgreS
 - **Bài viết công khai** (`/bai-viet` quản lý, quyền `article.manage`; `/tin-tuc` + `/tin-tuc/<slug>` công khai, SSR, Open Graph, bảng `public_articles`, ảnh qua `/api/v1/public/files/<id>`). Trợ lý AI viết bài: tác vụ `content.article_assist` (gợi ý đề tài, viết nháp, chỉnh văn, tiêu đề + tóm tắt) trong `src/server/ai/tasks.ts`.
 - **Cổng AI** (`src/server/ai/*`, Groq → Gemini dự phòng): tác vụ phải có dòng trong `ai_task_types` (migration), công tắc tổng `feature.ai.enabled` (Cài đặt → Trợ lý AI) và khóa `GROQ_API_KEY`/`GEMINI_API_KEY`. Test không ra ngoài: `AI_TEST_BASE_URL=http://127.0.0.1:<cổng>` trỏ máy chủ giả loopback.
 - **Chân trang** (`SiteFooter`/`AppFooter`), **đồng ý (consent) của chính mình** ở Cài đặt → Hồ sơ → Hồ sơ Công giáo (`/api/v1/consents`): hồ sơ Công giáo chỉ lưu khi thành viên đã đồng ý; không ghi sẵn đồng ý thay người khác.
+- **Trang công khai mở rộng** (nhóm route `src/app/(public)/`, không cần đăng nhập; đường dẫn khai ở `src/lib/public-site.ts` `PUBLIC_SITE_PATHS` — thêm trang công khai mới thì thêm vào đó + `matcher` middleware nếu là tệp đặc biệt): `/tin-tuc` (thẻ `?tag=`, RSS `/tin-tuc/rss.xml`, bài **hẹn giờ** = `published_at` tương lai, **lịch sử chỉnh sửa** 25 bản + khôi phục), `/gioi-thieu` (`org.about`), `/lien-he` (biểu mẫu đăng ký tìm hiểu → `admission_inquiries`, chống spam: ô bẫy + thời gian điền + 3 đơn/giờ/IP + Turnstile tùy chọn), `/hoi-dap` (`public_faqs`, JSON-LD FAQPage), `/thu-vien` (album `is_public`, chỉ `album.moderate` bật), `/ung-ho` (VietQR từ tài khoản nhận quỹ khi `org.donation_enabled`), `sitemap.xml`, `robots.txt`, `/og-default.png` (sinh bằng `scripts/gen-icons.mjs`). Quản lý ở `/bai-viet` (tab Bài viết / Hỏi đáp / Đăng ký tìm hiểu).
+- **Đơn xin phép** `/xin-phep` (`leave_requests`; quyền `leave.request` / `leave.review`; không tự duyệt đơn của mình — trigger BR-EVT-07; duyệt đơn vắng sự kiện ⇒ điểm danh `excused`). Thông báo gửi bằng `ctx.dbAs("luuxa_worker", …)` (luuxa_app không gọi được `app.fn_notify`).
+- **Nhập thành viên từ Excel/CSV** (nút ở Thành viên; `POST /api/v1/members/import`, mặc định chỉ kiểm tra `dryRun`; không nhập thông tin Công giáo/tài khoản). **Cựu thành viên** (`alumni_profiles`, tab “Cựu thành viên”; thông tin nghề nghiệp chỉ hiện với thành viên thường khi `keeps_contact`).
+- **Giao dịch ngân hàng tự động**: webhook SePay/Casso `POST /api/v1/public/bank-webhook` (cần `BANK_WEBHOOK_SECRET`) → `bank_statement_lines` + gợi ý khớp; Thủ quỹ (`finance.reconcile`) xác nhận ghi thu ở Thu chi → Tổng quan. Webhook KHÔNG bao giờ tự ghi sổ.
+- **Báo cáo hoạt động quý/năm** `/bao-cao` (quyền `report.read`: Trưởng nhà, Admin, Thủ quỹ; PDF `src/lib/pdf/activity-report.ts`; chỉ số liệu tổng hợp).
+- **Bảo mật & thông báo**: xác thực 2 lớp TOTP + mã dự phòng (`src/server/auth/{totp,mfa}.ts`, bắt buộc theo vai trò), quên/đặt lại mật khẩu qua email Resend (`src/server/email.ts`), thông báo đẩy Web Push + PWA (`src/server/push.ts`, `public/sw.js`, `VAPID_*`), tùy chọn thông báo theo loại/giờ yên tĩnh, 7 mục đồng ý (`consents`).
+- **Vận hành**: `/api/health`, `src/instrumentation.ts` (onRequestError), `scripts/db/backup.mjs`, CI `.github/workflows/ci.yml`, `/khoi-tao` (bắt đầu thiết lập). Sổ tay: `VAN_HANH.md`.
+- **Khả năng tiếp cận**: cỡ chữ Vừa/Lớn/Rất lớn (Cài đặt → Hồ sơ → Giao diện, `luuxa-fontsize`), liên kết “bỏ qua đến nội dung”, nhãn aria ở `FormControls`; bảng màu đã chỉnh để đạt WCAG AA cả sáng/tối (`tailwind.palette.ts`) — kiểm tra bằng `node scripts/e2e/a11y.mjs` (axe-core) sau khi đổi giao diện.
+- Biến môi trường mới (xem `.env.example`): `RESEND_API_KEY`, `EMAIL_FROM`, `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, `BANK_WEBHOOK_SECRET`, tùy chọn `NEXT_PUBLIC_TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`.
+- Kiểm thử API: `pnpm test:api` (dựng DB `luuxa_test` + máy chủ thử) hoặc `node --no-warnings scripts/test-api.mjs --base http://localhost:3000 --no-server --only <tiền tố tên file trong scripts/test-api/>` chạy một bộ trên máy chủ đang có (**ghi dữ liệu thử vào DB của nó** — chỉ dùng DB local). Bộ mới: `public-site`, `leave`, `members-import`, `bank-webhook`, `alumni`, `activity-report`.
 - Production hiện: DB trống + 2 tài khoản Admin; công tắc AI tổng đang tắt (bật ở Cài đặt khi cần).
 
 ## Mẹo làm việc

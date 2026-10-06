@@ -74,7 +74,7 @@ function GeoCombobox<T extends Named>({
           placeholder={loading ? "Đang tải danh mục…" : placeholder}
           autoComplete="off"
         />
-        <ComboboxButton className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+        <ComboboxButton aria-label="Mở danh sách" className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
         </ComboboxButton>
       </div>

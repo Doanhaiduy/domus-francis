@@ -30,6 +30,8 @@ export const UpdateAlbumSchema = z.object({
   /** Chỉ người kiểm duyệt (album.moderate) — trigger BR-COM-06 chặn người khác */
   isFeatured: z.boolean().optional(),
   hidden: z.boolean().optional(),
+  /** Hiện ở trang /thu-vien cho người chưa đăng nhập — chỉ album.moderate (trigger trg_albums__public_guard) */
+  isPublic: z.boolean().optional(),
 });
 export type UpdateAlbumInput = z.infer<typeof UpdateAlbumSchema>;
 

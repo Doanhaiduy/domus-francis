@@ -516,7 +516,7 @@ export default function HomePage() {
 
           {/* Sĩ số & chỗ ở (dữ liệu thật) */}
           <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-center justify-between text-xs text-gray-700">
-            <Link href="/so-do-nha" className="flex items-center gap-2 hover:text-primary">
+            <Link href="/so-do-nha" aria-label={peopleLoading ? "Xem sơ đồ nhà" : undefined} className="flex items-center gap-2 hover:text-primary">
               <Building2 className="w-4 h-4 text-primary shrink-0" />
               {peopleLoading ? (
                 <Skeleton className="w-56 h-4" />

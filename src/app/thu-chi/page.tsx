@@ -67,6 +67,7 @@ import { CellDialog, DuesCycleModal, PayModal, UtilityModal } from "./_component
 import { ReasonDialog } from "./_components/dialogs";
 import { ClaimDialog, QuickPayDialog, RemindDialog } from "./_components/CollectionDialogs";
 import StatsPanel from "./_components/StatsPanel";
+import BankLinesCard from "./_components/BankLinesCard";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
   { label: "Tất cả", statuses: null },
@@ -632,7 +633,8 @@ export default function ThuChiPage() {
           {/* ROW 3: CONTRIBUTIONS & RECENT EXPENSES */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* LEFT: CÁC KHOẢN THU (7 COLS) */}
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              <BankLinesCard />
               <CollectionsCard
                 plans={recentPlans}
                 plan={plan}

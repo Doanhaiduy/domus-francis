@@ -22,6 +22,8 @@ export const ArticleSchema = z.object({
   byline: z.string().trim().max(120, "Người viết tối đa 120 ký tự.").nullable().optional(),
   isFeatured: z.boolean().optional(),
   status: z.enum(["draft", "published"]),
+  tags: z.array(z.string().trim().max(30)).max(12).optional(),
+  publishedAt: z.string().datetime({ offset: true, message: "Thời điểm đăng không hợp lệ." }).nullable().optional(),
 });
 
 export const ArticlePatchSchema = ArticleSchema.partial();

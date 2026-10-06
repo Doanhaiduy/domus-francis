@@ -213,9 +213,12 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "meal.price_per_serving_vnd": { label: "Giá tham chiếu một suất cơm" },
 
   // --- Thông tin cộng đoàn ---
+  "org.about": { label: "Giới thiệu lưu xá", help: "Đoạn giới thiệu (Markdown) hiện ở trang công khai “Giới thiệu”." },
   "org.address": { label: "Địa chỉ cộng đoàn lưu xá" },
   "org.chaplain_name": { label: "Cha linh hướng", help: "Tên Cha linh hướng ký trên sơ yếu lý lịch." },
   "org.contact_phone": { label: "Hotline công khai của lưu xá", help: "Không dùng số điện thoại cá nhân." },
+  "org.donation_enabled": { label: "Bật trang Ủng hộ", help: "Hiện mã VietQR của tài khoản nhận quỹ cho người ngoài ủng hộ." },
+  "org.donation_note": { label: "Lời nhắn trang Ủng hộ" },
   "org.house_name": { label: "Tên lưu xá chính thức" },
   "org.motto": { label: "Khẩu hiệu cộng đoàn" },
   "org.order_name": { label: "Tỉnh Dòng", help: "In trên sơ yếu lý lịch." },

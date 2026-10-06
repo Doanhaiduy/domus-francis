@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useMemo } from "react";
 import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { api, swrFetcher } from "./api";
+import { isPublicSitePath } from "./public-site";
 import type { SessionInfo } from "./types/session";
 
 interface SessionContextValue {
@@ -21,7 +22,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // Trang đăng nhập và trang công khai (/tin-tuc) không cần phiên
-  const skip = ["/dang-nhap", "/quen-mat-khau", "/dat-lai-mat-khau"].includes(pathname) || pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
+  const skip = ["/dang-nhap", "/quen-mat-khau", "/dat-lai-mat-khau"].includes(pathname) || isPublicSitePath(pathname);
   const { data, isLoading, mutate } = useSWR<SessionInfo>(skip ? null : "/api/v1/auth/me", swrFetcher, {
     revalidateOnFocus: true,
     dedupingInterval: 15_000,

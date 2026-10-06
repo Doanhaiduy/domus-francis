@@ -36,7 +36,7 @@ export default function SetupPage() {
           <p className="text-sm font-bold text-gray-900">{setup.requiredDone}/{setup.requiredCount} việc cần làm đã xong</p>
           <p className="text-2xl font-extrabold text-primary">{pct}%</p>
         </div>
-        <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden" role="progressbar" aria-label="Tiến độ thiết lập" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full rounded-full bg-gradient-to-r from-[#5f3add] to-[#7857f8] transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>

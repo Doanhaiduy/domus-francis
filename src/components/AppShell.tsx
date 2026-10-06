@@ -10,6 +10,7 @@ import { CommandPalette } from "./CommandPalette";
 import { ModuleGate } from "./ModuleGate";
 import { ToastContainer } from "./ToastContainer";
 import { AppFooter } from "./AppFooter";
+import { isPublicSitePath } from "@/lib/public-site";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useAiStatus } from "@/lib/data/ai";
@@ -20,7 +21,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const pathname = usePathname();
   const isAuthPage = ["/dang-nhap", "/cho-phe-duyet", "/quen-mat-khau", "/dat-lai-mat-khau"].includes(pathname);
   // Trang công khai (/tin-tuc/…) tự có đầu/chân trang riêng, không dùng khung ứng dụng và không cần phiên đăng nhập
-  const isPublicSite = pathname === "/tin-tuc" || pathname.startsWith("/tin-tuc/");
+  const isPublicSite = isPublicSitePath(pathname);
   const { activeModal, openModal } = useApp();
   const { session } = useSession();
   const { status: aiStatus } = useAiStatus(!isAuthPage && !isPublicSite && !!session?.member);
@@ -61,15 +62,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <Header />
         {/* Vai trò bắt buộc xác thực 2 bước mà chưa bật: nhắc trên mọi trang (trừ chính trang Cài đặt) */}
         {session?.mfa.required && !session.mfa.enabled && !pathname.startsWith("/cai-dat") && (
-          <Link
-            href="/cai-dat?tab=security"
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition"
-            role="alert"
-          >
-            <ShieldAlert className="w-4 h-4 shrink-0" /> Vai trò của bạn cần bật xác thực 2 bước để bảo vệ tài khoản — bấm để thiết lập (2 phút)
-          </Link>
+          <div role="alert">
+            <Link
+              href="/cai-dat?tab=security"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition"
+            >
+              <ShieldAlert className="w-4 h-4 shrink-0" aria-hidden /> Vai trò của bạn cần bật xác thực 2 bước để bảo vệ tài khoản — bấm để thiết lập (2 phút)
+            </Link>
+          </div>
         )}
-        <main className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6">
+        <main id="main-content" tabIndex={-1} className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6 focus:outline-none">
           <ModuleGate>{children}</ModuleGate>
         </main>
         {/* Chân trang (chừa chỗ cho thanh điều hướng dưới trên điện thoại) */}

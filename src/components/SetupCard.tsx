@@ -34,7 +34,7 @@ export default function SetupCard() {
       <div className="min-w-0 flex-1 basis-60">
         <p className="text-sm font-extrabold text-gray-900">Hoàn tất thiết lập hệ thống — {setup.requiredDone}/{setup.requiredCount} việc</p>
         <p className="text-xs text-gray-600 mt-0.5">{next ? `Việc tiếp theo: ${next.title}` : "Gần xong rồi!"}</p>
-        <div className="h-1.5 mt-2.5 rounded-full bg-white/70 overflow-hidden max-w-sm" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-1.5 mt-2.5 rounded-full bg-white/70 overflow-hidden max-w-sm" role="progressbar" aria-label="Tiến độ thiết lập" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full rounded-full bg-violet-600" style={{ width: `${pct}%` }} />
         </div>
       </div>

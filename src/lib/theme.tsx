@@ -9,12 +9,16 @@ import { cn } from "./utils";
 
 export type ThemePreference = "light" | "dark" | "system";
 const STORAGE_KEY = "luuxa-theme";
+const FONT_KEY = "luuxa-fontsize";
+
+export type FontSizePreference = "normal" | "large" | "xlarge";
+const FONT_PERCENT: Record<FontSizePreference, string> = { normal: "", large: "112.5%", xlarge: "125%" };
 
 /**
  * Script chạy NGAY khi HTML tải (trong <head>, trước khi vẽ) để gắn lớp "dark" đúng giao diện — tránh nháy nền sáng
  * rồi mới chuyển tối. Phải giữ đồng bộ với applyTheme() bên dưới.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem("${STORAGE_KEY}");if(p!=="light"&&p!=="dark")p="system";var d=p==="dark"||(p==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";}catch(_){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var p=localStorage.getItem("${STORAGE_KEY}");if(p!=="light"&&p!=="dark")p="system";var d=p==="dark"||(p==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";var f=localStorage.getItem("${FONT_KEY}");if(f==="large")e.style.fontSize="112.5%";else if(f==="xlarge")e.style.fontSize="125%";}catch(_){}})();`;
 
 function readPreference(): ThemePreference {
   try {
@@ -37,7 +41,19 @@ function applyTheme(pref: ThemePreference): boolean {
   return dark;
 }
 
+function readFontSize(): FontSizePreference {
+  try {
+    const v = localStorage.getItem(FONT_KEY);
+    return v === "large" || v === "xlarge" ? v : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
 interface ThemeContextValue {
+  /** Cỡ chữ người dùng chọn (Tailwind dùng rem nên đổi cỡ chữ gốc là phóng cả giao diện). */
+  fontSize: FontSizePreference;
+  setFontSize: (f: FontSizePreference) => void;
   /** Lựa chọn của người dùng (kể cả "theo hệ thống"). */
   preference: ThemePreference;
   /** Giao diện đang hiển thị thật sự. */
@@ -51,8 +67,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Khởi tạo "system" cho khớp HTML phía máy chủ; đọc lựa chọn thật sau khi gắn kết (script ở <head> đã vẽ đúng màu rồi).
   const [preference, setPref] = useState<ThemePreference>("system");
   const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const [fontSize, setFontSizeState] = useState<FontSizePreference>("normal");
 
   useEffect(() => {
+    setFontSizeState(readFontSize());
     const p = readPreference();
     setPref(p);
     setResolved(applyTheme(p) ? "dark" : "light");
@@ -90,7 +108,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setResolved(applyTheme(p) ? "dark" : "light");
   }, []);
 
-  const value = useMemo(() => ({ preference, resolved, setPreference }), [preference, resolved, setPreference]);
+  const setFontSize = useCallback((f: FontSizePreference) => {
+    try {
+      if (f === "normal") localStorage.removeItem(FONT_KEY);
+      else localStorage.setItem(FONT_KEY, f);
+    } catch {
+      // trình duyệt chặn lưu trữ: vẫn đổi được trong phiên này
+    }
+    document.documentElement.style.fontSize = FONT_PERCENT[f];
+    setFontSizeState(f);
+  }, []);
+
+  const value = useMemo(() => ({ preference, resolved, setPreference, fontSize, setFontSize }), [preference, resolved, setPreference, fontSize, setFontSize]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
@@ -144,6 +173,37 @@ export function ThemeSegmented({ className }: { className?: string }) {
             )}
           >
             <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const FONT_OPTIONS: { value: FontSizePreference; label: string; sample: string }[] = [
+  { value: "normal", label: "Vừa", sample: "text-xs" },
+  { value: "large", label: "Lớn", sample: "text-sm" },
+  { value: "xlarge", label: "Rất lớn", sample: "text-base" },
+];
+
+/** Ba cỡ chữ: Vừa / Lớn / Rất lớn (Cài đặt → Hồ sơ → Giao diện). */
+export function FontSizeSegmented({ className }: { className?: string }) {
+  const { fontSize, setFontSize } = useTheme();
+  return (
+    <div role="radiogroup" aria-label="Cỡ chữ" className={cn("inline-flex p-1 rounded-xl bg-gray-100 gap-1", className)}>
+      {FONT_OPTIONS.map(({ value, label, sample }) => {
+        const active = fontSize === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => setFontSize(value)}
+            className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition", sample, active ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-800")}
+          >
+            <span aria-hidden className="font-extrabold">A</span>
             {label}
           </button>
         );

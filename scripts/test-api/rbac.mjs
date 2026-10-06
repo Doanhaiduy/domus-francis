@@ -45,10 +45,11 @@ export async function run({ as, test, eq, ok, section, Client }) {
     ok(!me.permissions.includes("application.review") && !me.permissions.includes("duty.review"), "còn quyền của Phó nhà");
   });
 
-  await test("Admin có quyền gán vai trò, quản lý nhiệm kỳ và trách vụ (auth.role.assign, term.manage, position.manage)", async () => {
+  await test("Admin có toàn quyền, gồm gán vai trò, quản lý nhiệm kỳ và trách vụ (auth.role.assign, term.manage, position.manage)", async () => {
     const me = (await admin.get("/api/v1/auth/me")).json;
     for (const p of ["auth.role.manage", "auth.role.assign", "term.manage", "position.manage", "auth.user.manage"]) ok(me.permissions.includes(p), `Admin thiếu ${p}`);
-    ok(!me.permissions.includes("finance.expense.approve") && !me.permissions.includes("member.national_id.read"), "Admin không được có quyền tài chính / CCCD");
+    // db/app/1002_admin_full_permissions.sql: Admin có TOÀN BỘ quyền (kể cả tài chính, CCCD)
+    ok(me.permissions.includes("finance.expense.approve") && me.permissions.includes("member.national_id.read"), "Admin phải có toàn quyền (1002)");
   });
 
   await test("Thành viên thường: chỉ xem ma trận; thêm vai trò / xem danh sách tài khoản → 403", async () => {

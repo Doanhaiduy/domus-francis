@@ -40,13 +40,26 @@ const DARK_NEUTRAL: Record<Shade, string> = {
   "100": "#272640",
   "200": "#32314a",
   "300": "#45435f",
-  "400": "#7c7a98",
+  "400": "#9593b3", // đạt 4,5:1 trên nền thẻ tối (#1c1b2a) và nền thẻ nhạt (#232234)
   "500": "#9d9bb7",
   "600": "#b7b5cd",
   "700": "#d0cfe2",
   "800": "#e4e3f0",
   "900": "#f3f2f9",
   "950": "#faf9fd",
+};
+
+// Giao diện sáng: chữ xám 400/500 của Tailwind (#9ca3af, #6b7280) không đạt tỉ lệ tương phản WCAG AA (4,5:1) trên nền trắng/nền
+// xám nhạt/nền tím nhạt (#f2f3ff) — đậm hơn một nấc. Chỉ ảnh hưởng chữ/viền/biểu tượng: nền đặc (bg-gray-400…) vẫn dùng giá trị gốc.
+const LIGHT_NEUTRAL_OVERRIDE: Partial<Record<(typeof NEUTRALS)[number], Partial<Record<Shade, string>>>> = {
+  gray: { "400": "#656c7a", "500": "#555e6d" },
+};
+
+// Chữ đỏ/cam đậm hơn một nấc ở giao diện sáng (rose-600 #e11d48 và amber-600 #d97706 chỉ đạt 3,2–4,4:1 trên nền trắng/nhạt).
+const LIGHT_HUE_TEXT_OVERRIDE: Record<string, Partial<Record<Shade, string>>> = {
+  rose: { "600": "#d4143f" },
+  amber: { "600": "#b45309" },
+  orange: { "600": "#c2410c" },
 };
 
 function darkHue(name: string): Record<Shade, Rgb> {
@@ -80,7 +93,7 @@ export const TOKENS: Record<string, [string, string]> = {
   "surface-container-highest": ["#dae2fd", "#3b3a55"],
   "on-surface": ["#131b2e", "#ece9f8"],
   "on-surface-variant": ["#484555", "#b6b2cb"],
-  primary: ["#5f3add", "#8a69f5"],
+  primary: ["#5f3add", "#a384ff"], // tối: đạt 4,5:1 khi làm CHỮ trên nền thẻ tối; nền đặc bg-primary giữ #5f3add (xem solidBackgrounds)
   "primary-container": ["#7857f8", "#6d4ce6"],
   "on-primary": ["#ffffff", "#ffffff"],
   "primary-fixed": ["#e6deff", "#2b2552"],
@@ -122,6 +135,11 @@ export function solidBackgrounds() {
     out[n] = {};
     for (const s of SHADES) out[n][s] = SHADES.indexOf(s) >= SHADES.indexOf("400") ? p[s] : varRef(`${n}-${s}`);
   }
+  // Nút/huy hiệu chữ trắng nền thương hiệu: giữ tím đậm ở cả hai giao diện (tím sáng #8a69f5 của giao diện tối chỉ đạt 3,9:1 với chữ trắng)
+  // Nút xanh lục chữ trắng: emerald-600 (#059669) chỉ đạt 3,8:1 với chữ trắng ⇒ dùng emerald-700
+  out.emerald["600"] = "#047857";
+  (out as Record<string, unknown>).primary = "#5f3add";
+  (out as Record<string, unknown>)["primary-container"] = "#7857f8";
   return out;
 }
 
@@ -135,13 +153,13 @@ export function paletteVariables() {
   for (const n of HUES) {
     const d = darkHue(n);
     for (const s of SHADES) {
-      light[`--c-${n}-${s}`] = triplet(hexToRgb(scaleOf(n)[s]));
+      light[`--c-${n}-${s}`] = triplet(hexToRgb(LIGHT_HUE_TEXT_OVERRIDE[n]?.[s] ?? scaleOf(n)[s]));
       dark[`--c-${n}-${s}`] = triplet(d[s]);
     }
   }
   for (const n of NEUTRALS) {
     for (const s of SHADES) {
-      light[`--c-${n}-${s}`] = triplet(hexToRgb(scaleOf(n)[s]));
+      light[`--c-${n}-${s}`] = triplet(hexToRgb(LIGHT_NEUTRAL_OVERRIDE[n]?.[s] ?? scaleOf(n)[s]));
       dark[`--c-${n}-${s}`] = triplet(hexToRgb(DARK_NEUTRAL[s]));
     }
   }

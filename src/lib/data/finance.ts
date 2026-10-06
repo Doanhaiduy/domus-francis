@@ -2,6 +2,7 @@
 // Hook dữ liệu + thao tác phân hệ Thu Chi (SWR — làm mới sau mỗi thao tác ghi bằng refreshFinance()).
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher, inBackground } from "../api";
+import type { BankLinesDto } from "../types/bank";
 import type {
   BankAccountDto,
   ContributionClaimDto,
@@ -132,6 +133,22 @@ export function useMemberPaymentAccount(memberId: string | null | undefined) {
   });
   return { paymentAccount: data, error, isLoading, mutate };
 }
+
+/** Giao dịch ngân hàng nhận tự động (webhook) + gợi ý khớp — chỉ người có finance.reconcile. */
+export function useBankLines(enabled = true) {
+  const { data, error, isLoading } = useSWR<BankLinesDto>(enabled ? `${FINANCE_KEY}/bank-lines` : null, swrFetcher, {
+    keepPreviousData: true,
+    refreshInterval: 120_000,
+    shouldRetryOnError: false,
+  });
+  return { data, error, isLoading: isLoading && !data };
+}
+
+export const bankLinesApi = {
+  confirm: (id: string, contributionId: string) => api.post(`${FINANCE_KEY}/bank-lines/${id}`, { action: "confirm", contributionId }),
+  ignore: (id: string, reason: string) => api.post(`${FINANCE_KEY}/bank-lines/${id}`, { action: "ignore", reason }),
+  restore: (id: string) => api.post(`${FINANCE_KEY}/bank-lines/${id}`, { action: "restore" }),
+};
 
 /** Làm mới mọi dữ liệu tài chính đang hiển thị (tổng quan, danh sách phiếu, ma trận, chi tiết). */
 export const refreshFinance = (): Promise<void> =>

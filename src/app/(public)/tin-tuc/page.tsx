@@ -1,33 +1,38 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight, MapPin, Newspaper, Phone, Search, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Newspaper, Search, Sparkles } from "lucide-react";
 import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
 import { featuredArticle, listPublished } from "@/server/modules/articles";
-import { getOrgInfo, publicDb, siteOrigin } from "@/server/public";
+import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
+import { getOrgInfo, getSiteInfo, publicDb, siteOrigin } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { ArticleCard, ArticleMeta, CategoryChip, Cover } from "@/components/public/ArticleCard";
+import { JoinCta } from "@/components/public/JoinCta";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { muc?: string; q?: string; page?: string };
+type SearchParams = { muc?: string; q?: string; page?: string; tag?: string };
 const PAGE_SIZE = 9;
 
 const categoryOf = (v?: string) => ARTICLE_CATEGORIES.find((c) => c.code === v)?.code;
+const tagOf = (v?: string) => (v ?? "").trim().toLowerCase().slice(0, 30);
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const org = await getOrgInfo();
   const cat = categoryOf(searchParams.muc);
-  const title = cat ? `${articleCategoryLabel(cat)} — ${org.houseName}` : `Bản tin — ${org.houseName}`;
+  const tag = tagOf(searchParams.tag);
+  const title = tag ? `#${tag} — ${org.houseName}` : cat ? `${articleCategoryLabel(cat)} — ${org.houseName}` : `Bản tin — ${org.houseName}`;
   const description = org.motto
     ? `${org.motto}. Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName}.`
     : `Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName} — cộng đoàn sinh viên Công giáo.`;
-  return { metadataBase: new URL(siteOrigin()), title, description, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName } };
+  return { metadataBase: new URL(siteOrigin()), title, description, alternates: { types: { "application/rss+xml": "/tin-tuc/rss.xml" } }, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
 }
 
-function pageHref(p: { muc?: string; q?: string; page?: number }) {
+function pageHref(p: { muc?: string; q?: string; tag?: string; page?: number }) {
   const qs = new URLSearchParams();
   if (p.muc) qs.set("muc", p.muc);
+  if (p.tag) qs.set("tag", p.tag);
   if (p.q) qs.set("q", p.q);
   if (p.page && p.page > 1) qs.set("page", String(p.page));
   const s = qs.toString();
@@ -37,22 +42,24 @@ function pageHref(p: { muc?: string; q?: string; page?: number }) {
 export default async function PublicHomePage({ searchParams }: { searchParams: SearchParams }) {
   const cat = categoryOf(searchParams.muc);
   const q = (searchParams.q ?? "").trim().slice(0, 80);
+  const tag = tagOf(searchParams.tag);
   const page = Math.max(1, Math.min(500, Number.parseInt(searchParams.page ?? "1", 10) || 1));
-  const filtered = !!cat || !!q;
+  const filtered = !!cat || !!q || !!tag;
 
-  const [org, list, featured] = await Promise.all([
-    getOrgInfo(),
-    publicDb((tx) => listPublished(tx, { category: cat, q, page, pageSize: PAGE_SIZE })),
+  const [site, list, featured] = await Promise.all([
+    getSiteInfo(),
+    publicDb((tx) => listPublished(tx, { category: cat, tag: tag || undefined, q, page, pageSize: PAGE_SIZE })),
     // Bài nổi bật chỉ hiện ở trang đầu, khi không lọc/tìm kiếm
     !filtered && page === 1 ? publicDb((tx) => featuredArticle(tx)) : Promise.resolve(null),
   ]);
+  const org = site.org;
   const articles = featured ? list.articles.filter((a) => a.id !== featured.id) : list.articles;
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const catInfo = ARTICLE_CATEGORIES.find((c) => c.code === cat);
 
   return (
     <>
-      <PublicHeader org={org} activeCategory={cat} />
+      <PublicHeader org={org} section="tin-tuc" activeCategory={cat} donationEnabled={site.donationEnabled} />
 
       {/* HERO */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#4d2dbf] via-[#5f3add] to-[#7857f8] text-white">
@@ -76,6 +83,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
 
           <form action="/tin-tuc" method="get" role="search" className="mt-7 flex max-w-xl gap-2">
             {cat && <input type="hidden" name="muc" value={cat} />}
+            {tag && <input type="hidden" name="tag" value={tag} />}
             <label className="relative flex-1">
               <span className="sr-only">Tìm bài viết</span>
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden />
@@ -123,7 +131,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
           <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
             <div>
               <h2 id="latest" className="text-xl sm:text-2xl font-extrabold text-gray-900">
-                {q ? `Kết quả cho “${q}”` : cat ? articleCategoryLabel(cat) : "Bài viết mới nhất"}
+                {q ? `Kết quả cho “${q}”` : tag ? `Thẻ #${tag}` : cat ? articleCategoryLabel(cat) : "Bài viết mới nhất"}
               </h2>
               <p className="text-sm text-gray-500 mt-0.5">{list.total} bài viết</p>
             </div>
@@ -149,7 +157,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
           {pages > 1 && (
             <nav className="mt-10 flex items-center justify-center gap-3" aria-label="Phân trang">
               {page > 1 ? (
-                <Link href={pageHref({ muc: cat, q, page: page - 1 })} className="inline-flex items-center gap-1 px-4 py-2 rounded-xl border border-purple-100 bg-white text-sm font-bold text-gray-700 hover:text-primary transition">
+                <Link href={pageHref({ muc: cat, q, tag, page: page - 1 })} className="inline-flex items-center gap-1 px-4 py-2 rounded-xl border border-purple-100 bg-white text-sm font-bold text-gray-700 hover:text-primary transition">
                   <ChevronLeft className="w-4 h-4" aria-hidden /> Trước
                 </Link>
               ) : (
@@ -157,7 +165,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
               )}
               <span className="text-sm font-semibold text-gray-500">Trang {page} / {pages}</span>
               {page < pages ? (
-                <Link href={pageHref({ muc: cat, q, page: page + 1 })} className="inline-flex items-center gap-1 px-4 py-2 rounded-xl border border-purple-100 bg-white text-sm font-bold text-gray-700 hover:text-primary transition">
+                <Link href={pageHref({ muc: cat, q, tag, page: page + 1 })} className="inline-flex items-center gap-1 px-4 py-2 rounded-xl border border-purple-100 bg-white text-sm font-bold text-gray-700 hover:text-primary transition">
                   Sau <ChevronRight className="w-4 h-4" aria-hidden />
                 </Link>
               ) : (
@@ -167,31 +175,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
           )}
         </section>
 
-        {/* LỜI MỜI */}
-        <section className="rounded-3xl bg-gradient-to-br from-[#5f3add] to-[#7857f8] text-white p-7 sm:p-10 grid gap-6 md:grid-cols-[1.4fr_1fr] items-center">
-          <div>
-            <h2 className="text-2xl font-extrabold">Bạn muốn tìm hiểu và vào ở lưu xá?</h2>
-            <p className="mt-2 text-purple-100 leading-relaxed">
-              Hãy xem các bài viết về tuyển sinh, hoặc liên hệ trực tiếp với Ban điều hành để được tư vấn và hẹn đến thăm nhà.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2.5">
-              <Link href="/tin-tuc?muc=tuyen-sinh" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff] text-[#5f3add] text-sm font-extrabold hover:bg-[#f3f0ff] transition active:scale-95">
-                Thông tin tuyển sinh <ArrowRight className="w-4 h-4" aria-hidden />
-              </Link>
-              <Link href="/dang-nhap" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-bold hover:bg-white/25 transition active:scale-95">
-                Đăng ký tài khoản
-              </Link>
-            </div>
-          </div>
-          <ul className="space-y-3 text-sm text-purple-50">
-            {org.address && (
-              <li className="flex gap-2.5"><MapPin className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />{org.address}</li>
-            )}
-            {org.phone && (
-              <li className="flex gap-2.5"><Phone className="w-4 h-4 mt-0.5 shrink-0" aria-hidden /><a href={`tel:${org.phone.replace(/[^\d+]/g, "")}`} className="font-bold hover:underline">{org.phone}</a></li>
-            )}
-          </ul>
-        </section>
+        <JoinCta org={org} />
       </div>
     </>
   );

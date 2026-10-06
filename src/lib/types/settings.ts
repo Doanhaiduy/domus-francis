@@ -261,6 +261,8 @@ type Meta = Pick<SettingDto, "key" | "valueType" | "min" | "max">;
 const STRING_RULES: Record<string, { required?: boolean; max?: number; re?: RegExp; hint?: string; check?: (v: string) => string | null }> = {
   "org.house_name": { required: true, max: 120 },
   "org.motto": { max: 160 },
+  "org.about": { max: 6000 },
+  "org.donation_note": { max: 1000 },
   "org.address": { max: 200 },
   "org.order_name": { max: 160 },
   "org.chaplain_name": { max: 120 },

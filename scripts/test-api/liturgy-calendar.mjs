@@ -96,7 +96,12 @@ export async function run({ as, test, eq, ok, section }) {
       eq(by["2026-02-17"].tet, 1);
       ok(/Mồng Hai Tết/.test(by["2026-02-18"].title), "18/2/2026 là Mồng Hai Tết");
       eq(by["2026-02-20"].fasting, "fast_abstinence");
+      // Ngày Bổn mạng lấy từ cấu hình org.patron_feast (db/data đặt mặc định riêng của nhà): đặt 04/10 cho ca này rồi trả lại
+      const admin = await as("viet.vu@luuxa.local");
+      const before = (await admin.get("/api/v1/settings")).json.items?.find((s) => s.key === "org.patron_feast")?.value;
+      eq((await admin.patch("/api/v1/settings", { changes: [{ key: "org.patron_feast", value: "10-04" }] })).status, 200, "đặt Bổn mạng 10-04");
       const oct = await member.get("/api/v1/liturgy/calendar?from=2026-10-01&to=2026-10-31");
+      if (before) await admin.patch("/api/v1/settings", { changes: [{ key: "org.patron_feast", value: before }] });
       eq(oct.json.patron.mmdd, "10-04");
       ok(oct.json.days.find((d) => d.date === "2026-10-04").isPatron, "04/10 là ngày Bổn mạng");
     });

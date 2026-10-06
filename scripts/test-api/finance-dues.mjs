@@ -170,7 +170,7 @@ export async function run({ as, test, eq, ok, section }) {
   });
 
   // ------------------------------------------------------------------ Tài khoản nhận quỹ của nhà
-  await test("Thủ quỹ đặt tài khoản nhận quỹ; thành viên đọc được; Admin sửa ⇒ 403", async () => {
+  await test("Thủ quỹ đặt tài khoản nhận quỹ; thành viên đọc được nhưng không sửa được; Admin (toàn quyền, db/app/1002) sửa được", async () => {
     const body = { bankBin: "970422", bankName: "MB Bank", accountNo: "0904 123 456", accountName: "PHAM GIA BAO", qrFileId: null };
     const r = await put(treasurer, "/api/v1/finance/receiving-account", body);
     eq(r.status, 200, detail(r));
@@ -182,7 +182,8 @@ export async function run({ as, test, eq, ok, section }) {
     eq(m.json.account.accountName, "PHAM GIA BAO");
     eq(m.json.canEdit, false);
     const a = await put(admin, "/api/v1/finance/receiving-account", { ...body, accountNo: "999999999", accountName: "ADMIN DOI NOI NHAN" });
-    eq(a.status, 403, detail(a));
+    eq(a.status, 200, detail(a)); // Admin có toàn bộ quyền (1002)
+    eq((await put(treasurer, "/api/v1/finance/receiving-account", body)).status, 200, "Thủ quỹ đặt lại tài khoản"); // trả lại để các ca sau không bị ảnh hưởng
     const mm = await put(member, "/api/v1/finance/receiving-account", body);
     eq(mm.status, 403, detail(mm));
     const bad = await put(treasurer, "/api/v1/finance/receiving-account", { ...body, bankBin: "97042" });

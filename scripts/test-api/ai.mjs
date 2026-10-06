@@ -81,6 +81,10 @@ export async function run({ as, test, eq, ok, section, Client }) {
     const detail = (r) => r.json?.detail ?? "";
     const rag = (question) => ({ task: "community.policy_rag", input: { question } });
 
+    // db/data/2026-10-07-01_ai_enable.sql bật công tắc tổng + tác vụ viết bài cho môi trường thật; bộ kiểm thử bắt đầu từ trạng thái "tắt hết"
+    eq((await admin.patch("/api/v1/settings", { changes: [{ key: "feature.ai.enabled", value: false }] })).status, 200, "tắt công tắc tổng");
+    await admin.patch("/api/v1/ai/tasks/content.article_assist", { enabled: false });
+
     await test("Chưa đăng nhập: /ai/status → 401", async () => {
       const anon = new Client("anon");
       await anon.init();

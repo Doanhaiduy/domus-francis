@@ -7,12 +7,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bold,
+  CalendarClock,
   Check,
   Circle,
   ExternalLink,
   Eye,
   Heading2,
   Heading3,
+  History,
   ImagePlus,
   Italic,
   Link as LinkIcon,
@@ -31,16 +33,19 @@ import {
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
-import { articlesApi, useArticle, type ArticleFormPayload } from "@/lib/data/articles";
+import { articlesApi, useArticle, useArticles, type ArticleFormPayload } from "@/lib/data/articles";
 import { isValidSlug, slugify } from "@/lib/articles-format";
-import { ARTICLE_CATEGORIES, type ArticleDetail } from "@/lib/types/articles";
+import { ARTICLE_CATEGORIES, isScheduled, type ArticleDetail } from "@/lib/types/articles";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomInput, CustomSelect, CustomTextarea, CustomToggle, ImageUploadDropzone, uploadFile } from "@/components/ui/FormControls";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
+import { TagsInput } from "../_components/TagsInput";
+import { SchedulePicker } from "../_components/SchedulePicker";
+import { RevisionsDialog } from "../_components/RevisionsDialog";
 import { AiAssistCard, DraftDialog, ImproveMenu, IdeasDialog, MetaSuggest, countPlaceholders, type DraftSeed } from "../_components/ArticleAi";
 import { cn } from "@/lib/utils";
 
-const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, byline: "", isFeatured: false, status: "draft" };
+const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, byline: "", isFeatured: false, status: "draft", tags: [], publishedAt: null };
 
 const fromArticle = (a: ArticleDetail): ArticleFormPayload => ({
   title: a.title,
@@ -52,6 +57,8 @@ const fromArticle = (a: ArticleDetail): ArticleFormPayload => ({
   byline: a.byline ?? "",
   isFeatured: a.isFeatured,
   status: a.status,
+  tags: a.tags,
+  publishedAt: isScheduled(a) ? a.publishedAt : null,
 });
 
 const wordCount = (s: string) => s.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim().split(/\s+/).filter(Boolean).length;
@@ -71,6 +78,9 @@ export default function ArticleEditorPage() {
   const { can, isLoading: sessionLoading } = useSession();
   const allowed = can("article.manage");
   const { article, isLoading, error } = useArticle(!isNew && allowed ? id : null);
+  const { articles: allArticles } = useArticles(allowed);
+  const tagSuggestions = useMemo(() => [...new Set(allArticles.flatMap((a) => a.tags))].sort(), [allArticles]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [form, setForm] = useState<ArticleFormPayload>(EMPTY);
   const [saved, setSaved] = useState<ArticleFormPayload>(EMPTY);
@@ -240,13 +250,17 @@ export default function ArticleEditorPage() {
     }
     setSaving(status === "published" ? "publish" : "draft");
     try {
-      const payload: ArticleFormPayload = { ...form, title: form.title.trim(), summary: form.summary?.trim() || null, byline: form.byline?.trim() || null, status };
+      // Hẹn giờ: chỉ gửi mốc tương lai; đang hẹn mà bỏ hẹn thì đăng ngay; bài đang đăng thì giữ nguyên ngày đăng
+      const sched = form.publishedAt && new Date(form.publishedAt).getTime() > Date.now() ? form.publishedAt : null;
+      const publishedAt = status === "published" ? (sched ?? (saved.publishedAt ? new Date().toISOString() : undefined)) : undefined;
+      const payload: ArticleFormPayload = { ...form, title: form.title.trim(), summary: form.summary?.trim() || null, byline: form.byline?.trim() || null, status, publishedAt };
       const r = isNew ? await articlesApi.create(payload) : await articlesApi.update(id, payload);
       const f = fromArticle(r);
+      if (status === "draft") f.publishedAt = form.publishedAt; // nháp vẫn nhớ giờ đã chọn
       setForm(f);
       setSaved(f);
       setUndo(null);
-      showToast("success", status === "published" ? "Đã đăng bài — mọi người xem được qua đường link công khai." : "Đã lưu bản nháp.");
+      showToast("success", status === "published" ? (sched ? "Đã hẹn giờ — bài sẽ tự hiện công khai đúng giờ đã chọn." : "Đã đăng bài — mọi người xem được qua đường link công khai.") : "Đã lưu bản nháp.");
       if (isNew) router.replace(`/bai-viet/${r.id}`);
     } catch (e) {
       showToast("error", errorMessage(e));
@@ -259,6 +273,8 @@ export default function ArticleEditorPage() {
   const saveRef = useRef(save);
   saveRef.current = save;
   const publishedNow = saved.status === "published" && !isNew;
+  const scheduledNow = publishedNow && !!saved.publishedAt && new Date(saved.publishedAt).getTime() > Date.now();
+  const willSchedule = !!form.publishedAt && new Date(form.publishedAt).getTime() > Date.now();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -300,13 +316,18 @@ export default function ArticleEditorPage() {
           <div className="min-w-0">
             <h1 className="text-sm sm:text-base font-extrabold text-gray-900 truncate">{isNew ? "Viết bài mới" : form.title || "Sửa bài viết"}</h1>
             <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
-              {publishedNow ? <span className="text-emerald-700 font-semibold">● Đang công khai</span> : <span>○ Bản nháp — chỉ Ban điều hành thấy</span>}
+              {scheduledNow ? <span className="text-amber-700 font-semibold">⏰ Hẹn giờ đăng</span> : publishedNow ? <span className="text-emerald-700 font-semibold">● Đang công khai</span> : <span>○ Bản nháp — chỉ Ban điều hành thấy</span>}
               {dirty ? <span className="text-amber-600 font-semibold">· Chưa lưu</span> : !isNew && <span className="text-gray-400">· Đã lưu</span>}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {publishedNow && (
+          {!isNew && (
+            <button type="button" onClick={() => setHistoryOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-purple-100 bg-white text-xs font-bold text-gray-700 hover:text-primary transition" title="Xem và khôi phục các bản cũ">
+              <History className="w-3.5 h-3.5" /> Lịch sử
+            </button>
+          )}
+          {publishedNow && !scheduledNow && (
             <a href={`/tin-tuc/${saved.slug}`} target="_blank" rel="noreferrer" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-purple-100 bg-white text-xs font-bold text-gray-700 hover:text-primary transition">
               <ExternalLink className="w-3.5 h-3.5" /> Xem trang công khai
             </a>
@@ -326,7 +347,7 @@ export default function ArticleEditorPage() {
                 {saving === "draft" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Lưu nháp
               </button>
               <button onClick={() => save("published")} disabled={!!saving || !ready} title={ready ? undefined : "Cần có tiêu đề, đường dẫn và nội dung"} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95 disabled:opacity-50">
-                {saving === "publish" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Đăng công khai
+                {saving === "publish" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : willSchedule ? <CalendarClock className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />} {willSchedule ? "Hẹn giờ đăng" : "Đăng công khai"}
               </button>
             </>
           )}
@@ -492,7 +513,12 @@ export default function ArticleEditorPage() {
               }
             />
             <CustomInput label="Người viết / nguồn (tùy chọn)" value={form.byline ?? ""} onChange={(e) => set("byline", e.target.value)} maxLength={120} placeholder="Để trống = tên lưu xá" />
+            <TagsInput value={form.tags} onChange={(t) => set("tags", t)} suggestions={tagSuggestions} />
             <CustomToggle checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} label="Bài nổi bật" description="Hiện lớn ở đầu trang công khai" />
+          </div>
+
+          <div className={card}>
+            <SchedulePicker value={form.publishedAt ?? null} onChange={(v) => set("publishedAt", v)} />
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[11px] text-amber-900 leading-relaxed">
@@ -518,6 +544,21 @@ export default function ArticleEditorPage() {
             set("category", cat);
             setIdeasOpen(false);
             setDraftSeed({ topic: idea.title, keyPoints: idea.angle });
+          }}
+        />
+      )}
+      {historyOpen && !isNew && (
+        <RevisionsDialog
+          articleId={id}
+          onClose={() => setHistoryOpen(false)}
+          onError={(m) => showToast("error", m)}
+          onRestored={(a) => {
+            const f = fromArticle(a);
+            setForm(f);
+            setSaved(f);
+            setUndo(null);
+            setHistoryOpen(false);
+            showToast("success", "Đã khôi phục bản cũ.");
           }}
         />
       )}

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE, COOKIE_SECURE, verifyAccessToken } from "@/lib/auth-shared";
+import { PUBLIC_SITE_PATHS } from "@/lib/public-site";
 
 // Trang không cần đăng nhập
 const PUBLIC_PAGES = ["/dang-nhap", "/quen-mat-khau", "/dat-lai-mat-khau"];
 // Trang CÔNG KHAI (bài viết cho người ngoài): ai cũng xem được, đã đăng nhập hay chưa, đã duyệt hay chưa — không chuyển hướng.
-const OPEN_PAGES = ["/tin-tuc"];
+const OPEN_PAGES = [...PUBLIC_SITE_PATHS];
 // Trang dành cho tài khoản đã đăng ký nhưng chưa được duyệt
 const PENDING_PAGES = ["/cho-phe-duyet"];
 
@@ -56,5 +57,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Tệp tĩnh + tệp PWA (manifest, service worker, trang offline) phải tải được khi chưa đăng nhập
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)"],
 };

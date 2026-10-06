@@ -40,7 +40,18 @@ export const refreshPeople = () =>
 
 const enc = encodeURIComponent;
 
+export interface MemberImportResult {
+  dryRun: boolean;
+  total: number;
+  ok: number;
+  warnings: number;
+  errors: number;
+  created: number;
+  rows: { line: number; fullName: string; status: "ok" | "warning" | "error" | "created" | "failed"; messages: string[] }[];
+}
+
 export const membersApi = {
+  importRows: (rows: Record<string, string>[], dryRun: boolean) => api.post<MemberImportResult>(`${MEMBERS_KEY}/import`, { rows, dryRun }),
   create: (body: Record<string, unknown>) => api.post<{ id: string; account: { email: string; temporaryPassword: string } | null }>(MEMBERS_KEY, body),
   update: (id: string, body: Record<string, unknown>) => api.patch<MemberDetailDto>(`${MEMBERS_KEY}/${id}`, body),
   changeStatus: (id: string, status: string, leftOn?: string | null, reason?: string | null) =>

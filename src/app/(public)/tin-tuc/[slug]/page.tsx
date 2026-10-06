@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Eye, MapPin, Phone } from "lucide-react";
 import { formatArticleDate, publicFileUrl } from "@/lib/articles-format";
 import { articleCategoryLabel } from "@/lib/types/articles";
 import { getPublishedBySlug } from "@/server/modules/articles";
-import { getOrgInfo, publicDb, siteOrigin } from "@/server/public";
+import { getOrgInfo, getSiteInfo, publicDb, siteOrigin } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
 import { ArticleCard, ArticleMeta, CategoryChip, Cover } from "@/components/public/ArticleCard";
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const origin = siteOrigin();
   const description = article.summary ?? article.title;
   const cover = publicFileUrl(article.coverFileId, "medium");
-  const image = cover ? `${origin}${cover}` : undefined;
+  const image = cover ? `${origin}${cover}` : `${origin}/og-default.png`;
   return {
     metadataBase: new URL(origin),
     title: `${article.title} — ${org.houseName}`,
@@ -43,15 +43,16 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       locale: "vi_VN",
       publishedTime: article.publishedAt ?? undefined,
       section: articleCategoryLabel(article.category),
-      images: image ? [{ url: image }] : undefined,
+      images: [{ url: image }],
     },
-    twitter: { card: image ? "summary_large_image" : "summary", title: article.title, description, images: image ? [image] : undefined },
+    twitter: { card: "summary_large_image", title: article.title, description, images: [image] },
   };
 }
 
 export default async function PublicArticlePage({ params }: { params: { slug: string } }) {
-  const [data, org] = await Promise.all([load(params.slug), getOrgInfo()]);
+  const [data, site] = await Promise.all([load(params.slug), getSiteInfo()]);
   if (!data) notFound();
+  const org = site.org;
   const { article, related } = data;
   const origin = siteOrigin();
   const cover = publicFileUrl(article.coverFileId, "medium");
@@ -68,11 +69,12 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
     author: { "@type": "Organization", name: article.byline || org.houseName },
     publisher: { "@type": "Organization", name: org.houseName },
     mainEntityOfPage: `${origin}/tin-tuc/${article.slug}`,
+    keywords: article.tags.length ? article.tags.join(", ") : undefined,
   };
 
   return (
     <>
-      <PublicHeader org={org} activeCategory={article.category} />
+      <PublicHeader org={org} section="tin-tuc" activeCategory={article.category} donationEnabled={site.donationEnabled} />
       <ViewBeacon slug={article.slug} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
@@ -112,7 +114,15 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
       <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 pb-6">
         <ArticleMarkdown source={article.content} className="mt-6" />
 
-        <div className="mt-10 pt-6 border-t border-purple-100">
+        {article.tags.length > 0 && (
+          <ul className="mt-8 flex flex-wrap gap-2" aria-label="Thẻ">
+            {article.tags.map((t) => (
+              <li key={t}><Link href={`/tin-tuc?tag=${encodeURIComponent(t)}`} className="inline-flex px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-xs font-bold text-primary hover:bg-purple-100 transition">#{t}</Link></li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-8 pt-6 border-t border-purple-100">
           <ShareBar title={article.title} />
         </div>
 
@@ -126,9 +136,14 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
               <li className="flex gap-2.5"><Phone className="w-4 h-4 mt-0.5 shrink-0" aria-hidden /><a href={`tel:${org.phone.replace(/[^\d+]/g, "")}`} className="font-bold hover:underline">{org.phone}</a></li>
             )}
           </ul>
-          <Link href="/tin-tuc?muc=tuyen-sinh" className="mt-5 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff] text-[#5f3add] text-sm font-extrabold hover:bg-[#f3f0ff] transition active:scale-95">
-            Thông tin tuyển sinh <ArrowRight className="w-4 h-4" aria-hidden />
-          </Link>
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <Link href="/lien-he#dang-ky" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff] text-[#5f3add] text-sm font-extrabold hover:bg-[#f3f0ff] transition active:scale-95">
+              Đăng ký tìm hiểu <ArrowRight className="w-4 h-4" aria-hidden />
+            </Link>
+            <Link href="/tin-tuc?muc=tuyen-sinh" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-bold hover:bg-white/25 transition active:scale-95">
+              Thông tin tuyển sinh
+            </Link>
+          </div>
         </aside>
       </div>
 

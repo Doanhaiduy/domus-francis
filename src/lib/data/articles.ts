@@ -16,6 +16,9 @@ export interface ArticleFormPayload {
   byline: string | null;
   isFeatured: boolean;
   status: ArticleStatus;
+  tags: string[];
+  /** Hẹn giờ đăng (ISO). Bỏ qua = giữ nguyên / đăng ngay. */
+  publishedAt?: string | null;
 }
 
 export function useArticles(enabled = true) {

@@ -31,6 +31,8 @@ export interface ArticleListItem {
   byline: string | null;
   isFeatured: boolean;
   status: ArticleStatus;
+  /** Thẻ (tối đa 8) */
+  tags: string[];
   publishedAt: string | null;
   updatedAt: string;
   views: number;
@@ -50,6 +52,10 @@ export interface PublicArticleListDto {
 }
 
 export interface PublicOrgInfo {
+  /** Giới thiệu (Markdown) ở /gioi-thieu */
+  about: string | null;
+  /** "DD/MM" */
+  patronFeast: string | null;
   houseName: string;
   motto: string | null;
   address: string | null;
@@ -57,3 +63,16 @@ export interface PublicOrgInfo {
   orderName: string | null;
   patronName: string | null;
 }
+
+/** Một bản cũ của bài (lịch sử chỉnh sửa). */
+export interface ArticleRevision {
+  id: string;
+  title: string;
+  summary: string | null;
+  content: string;
+  createdAt: string;
+  savedByName: string | null;
+}
+
+/** Bài đã đăng nhưng hẹn giờ tương lai. */
+export const isScheduled = (a: Pick<ArticleListItem, "status" | "publishedAt">) => a.status === "published" && !!a.publishedAt && new Date(a.publishedAt).getTime() > Date.now();

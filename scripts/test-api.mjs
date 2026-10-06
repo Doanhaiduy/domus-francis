@@ -19,6 +19,8 @@ import { buildDatabase } from "./db/build.mjs";
 const args = process.argv.slice(2);
 const get = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const NO_SERVER = args.includes("--no-server");
+// --only <tiền tố tên file>: chỉ chạy bộ kiểm thử phân hệ tương ứng (vd. --only public-site), bỏ các suite nền
+const ONLY = get("--only", "");
 const PORT = Number(get("--port", "3100"));
 const BASE = get("--base", `http://localhost:${PORT}`);
 const DB = "luuxa_test";
@@ -155,6 +157,8 @@ async function startServer() {
       // Lời Chúa (lịch phụng vụ): máy chủ giả loopback (scripts/test-api/liturgy-calendar.mjs) thay GitHub
       LITURGY_DATA_BASE_URL: "http://127.0.0.1:3197",
       LITURGY_AUTO_IMPORT: "0",
+      // Webhook ngân hàng (scripts/test-api/bank-webhook.mjs dùng đúng khóa này)
+      BANK_WEBHOOK_SECRET: "test-bank-webhook-secret-0001",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -482,7 +486,7 @@ async function suiteModules() {
   const { readdirSync } = await import("node:fs");
   const dir = path.join(ROOT, "scripts", "test-api");
   if (!existsSync(dir)) return;
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".mjs")).sort()) {
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".mjs") && x.startsWith(ONLY)).sort()) {
     const mod = await import(`./test-api/${f}`);
     await mod.run({ as, test, eq, ok, section, BASE, Client });
   }
@@ -493,12 +497,14 @@ async function suiteModules() {
   const t0 = Date.now();
   try {
     if (!NO_SERVER) await startServer();
-    await suiteAuth();
-    await suiteRegistration();
-    await suiteMembers();
-    await suiteAccountLink();
-    await suiteHouse();
-    await suiteFiles();
+    if (!ONLY) {
+      await suiteAuth();
+      await suiteRegistration();
+      await suiteMembers();
+      await suiteAccountLink();
+      await suiteHouse();
+      await suiteFiles();
+    }
     await suiteModules();
   } catch (e) {
     results.push({ group: "runner", name: "Lỗi bộ chạy", ok: false, err: e.message });

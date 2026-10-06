@@ -12,7 +12,7 @@ type Row = Record<string, any>;
 
 const iso = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
 
-const COLS = `a.id, a.slug, a.title, a.summary, a.category, a.cover_file_id, a.byline, a.is_featured, a.status,
+const COLS = `a.id, a.slug, a.title, a.summary, a.category, a.cover_file_id, a.byline, a.is_featured, a.status, a.tags,
               a.published_at, a.updated_at, a.view_count`;
 
 // ~200 từ/phút: đếm từ bằng SQL để danh sách không phải tải toàn bộ nội dung
@@ -29,6 +29,7 @@ function toItem(r: Row): ArticleListItem {
     byline: r.byline,
     isFeatured: !!r.is_featured,
     status: r.status as ArticleStatus,
+    tags: Array.isArray(r.tags) ? (r.tags as string[]) : [],
     publishedAt: iso(r.published_at),
     updatedAt: iso(r.updated_at) ?? "",
     views: Number(r.view_count) || 0,
@@ -48,11 +49,14 @@ export async function publicOrgInfo(tx: Tx): Promise<PublicOrgInfo> {
     phone: str("org.contact_phone"),
     orderName: str("org.order_name"),
     patronName: str("org.patron_name"),
+    about: str("org.about"),
+    patronFeast: str("org.patron_feast"),
   };
 }
 
 export interface ListQuery {
   category?: string;
+  tag?: string;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -70,6 +74,10 @@ export async function listPublished(tx: Tx, query: ListQuery = {}): Promise<Publ
     params.push(query.category);
     where.push(`a.category = $${params.length}`);
   }
+  if (query.tag) {
+    params.push(query.tag);
+    where.push(`$${params.length} = ANY (a.tags)`);
+  }
   if (query.q?.trim()) {
     params.push(`%${query.q.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     where.push(`(a.title ILIKE $${params.length} OR a.summary ILIKE $${params.length})`);
@@ -84,6 +92,12 @@ export async function listPublished(tx: Tx, query: ListQuery = {}): Promise<Publ
     )
   ).rows;
   return { articles: rows.map(toItem), total, page, pageSize };
+}
+
+/** Các bài đã đăng (chỉ slug + ngày cập nhật) cho sitemap. */
+export async function sitemapArticles(tx: Tx): Promise<{ slug: string; updatedAt: string }[]> {
+  const rows = (await tx.query(`SELECT a.slug, a.updated_at FROM public_articles a WHERE ${PUBLISHED} ORDER BY a.published_at DESC LIMIT 2000`)).rows;
+  return rows.map((r) => ({ slug: r.slug as string, updatedAt: iso(r.updated_at) ?? "" }));
 }
 
 /** Bài nổi bật mới nhất (hiện lớn ở đầu trang công khai). */
@@ -167,7 +181,14 @@ export interface ArticleInput {
   byline?: string | null;
   isFeatured?: boolean;
   status: ArticleStatus;
+  tags?: string[];
+  /** Hẹn giờ đăng (ISO). Bỏ trống = đăng ngay khi status = published. */
+  publishedAt?: string | null;
 }
+
+/** Thẻ: chữ thường, bỏ trùng, tối đa 8 thẻ, mỗi thẻ ≤ 30 ký tự. */
+export const cleanTags = (tags?: string[] | null): string[] =>
+  [...new Set((tags ?? []).map((t) => t.trim().toLowerCase().replace(/\s+/g, " ")).filter((t) => t.length >= 2 && t.length <= 30))].slice(0, 8);
 
 const DUP_SLUG = "Đường dẫn này đã được bài khác dùng — hãy đổi một chút (ví dụ thêm năm).";
 
@@ -177,9 +198,9 @@ export async function createArticle(tx: Tx, b: ArticleInput): Promise<string> {
   try {
     return (
       await tx.query<{ id: string }>(
-        `INSERT INTO public_articles (slug, title, summary, content, category, cover_file_id, byline, status, is_featured)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [b.slug, b.title, b.summary ?? null, b.content, b.category, b.coverFileId ?? null, b.byline ?? null, b.status, !!b.isFeatured]
+        `INSERT INTO public_articles (slug, title, summary, content, category, cover_file_id, byline, status, is_featured, tags, published_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::timestamptz) RETURNING id`,
+        [b.slug, b.title, b.summary ?? null, b.content, b.category, b.coverFileId ?? null, b.byline ?? null, b.status, !!b.isFeatured, cleanTags(b.tags), b.status === "published" ? (b.publishedAt ?? null) : null]
       )
     ).rows[0].id;
   } catch (e) {
@@ -198,6 +219,8 @@ const COLUMN_OF: Record<keyof ArticleInput, string> = {
   byline: "byline",
   isFeatured: "is_featured",
   status: "status",
+  tags: "tags",
+  publishedAt: "published_at",
 };
 
 export async function updateArticle(tx: Tx, id: string, b: Partial<ArticleInput>) {
@@ -207,8 +230,9 @@ export async function updateArticle(tx: Tx, id: string, b: Partial<ArticleInput>
   const vals: unknown[] = [id];
   for (const [k, col] of Object.entries(COLUMN_OF) as [keyof ArticleInput, string][]) {
     if (b[k] === undefined) continue;
-    vals.push(b[k] ?? null);
-    sets.push(`${col} = $${vals.length}`);
+    vals.push(k === "tags" ? cleanTags(b.tags) : (b[k] ?? null));
+    const cast = k === "tags" ? "::text[]" : k === "publishedAt" ? "::timestamptz" : "";
+    sets.push(`${col} = $${vals.length}${cast}`);
   }
   if (!sets.length) return;
   try {

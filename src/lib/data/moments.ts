@@ -55,6 +55,7 @@ export type UpdateAlbumBody = Partial<Omit<CreateAlbumBody, "coverFileId" | "pho
   coverFileId?: string | null;
   isFeatured?: boolean;
   hidden?: boolean;
+  isPublic?: boolean;
 };
 
 export const momentsApi = {

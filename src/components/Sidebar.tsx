@@ -27,6 +27,8 @@ import {
   User,
   Newspaper,
   Rocket,
+  CalendarOff,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -37,6 +39,8 @@ import { useSession } from "@/lib/session";
 import { fileUrl } from "@/lib/api";
 import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
 import { useModules } from "@/lib/data/modules";
+import { useInquiries } from "@/lib/data/public-site";
+import { usePendingLeaveCount } from "@/lib/data/leave";
 import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
 
 export const NAV_ITEMS: {
@@ -48,21 +52,23 @@ export const NAV_ITEMS: {
   badgeDot?: boolean;
   isNew?: boolean;
   isDividerBefore?: boolean;
-  /** Chỉ hiện với người có quyền này */
-  requires?: string;
+  /** Chỉ hiện với người có một trong các quyền này */
+  requires?: string | string[];
 }[] = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
   { href: "/thong-bao", label: "Thông báo", icon: Bell, badgeKey: "announcements" },
   { href: "/lich-su-kien", label: "Lịch & Sự kiện", icon: Calendar },
+  { href: "/xin-phep", label: "Xin phép", icon: CalendarOff, isNew: true, badgeKey: "leave" },
   { href: "/thu-chi", label: "Thu Chi", icon: Wallet },
   { href: "/bep-com", label: "Bếp & Cơm", icon: UtensilsCrossed, isPaused: false },
   { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench, badgeDot: true },
   { href: "/phung-vu", label: "Phụng Vụ", icon: Church },
   { href: "/dien-dan", label: "Diễn Đàn", icon: MessagesSquare, isNew: true },
-  { href: "/bai-viet", label: "Bài viết công khai", icon: Newspaper, isNew: true, requires: "article.manage" },
+  { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, isNew: true, requires: ["article.manage", "application.review"], badgeKey: "inquiries" },
   { href: "/thanh-vien", label: "Thành Viên", icon: Users },
   { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap, isNew: true },
   { href: "/so-do-nha", label: "Sơ đồ nhà", icon: Building2 },
+  { href: "/bao-cao", label: "Báo cáo", icon: FileText, isNew: true, requires: "report.read" },
   { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera, isNew: true },
   { href: "/khoi-tao", label: "Bắt đầu thiết lập", icon: Rocket, requires: "setting.write", isDividerBefore: true },
   { href: "/cai-dat", label: "Cài Đặt", icon: Settings },
@@ -94,6 +100,8 @@ export const Sidebar: React.FC = () => {
   const unread = useUnreadCount(!!session?.member);
   const duty = useDutySummary(!!session?.member);
   const unreadAnnCount = unread?.announcementsUnread ?? 0;
+  const pendingLeave = usePendingLeaveCount(!!session?.member && can("leave.review"));
+  const { newCount: newInquiries } = useInquiries(!!session?.member && can("application.review"), 180_000);
   const pendingIssuesCount = duty?.openIssuesCount ?? 0;
   // Phân hệ Admin tạm ẩn (bảo trì): thành viên thấy mục mờ, không bấm được; người quản trị vẫn vào được
   const modules = useModules(!!session?.member);
@@ -132,7 +140,7 @@ export const Sidebar: React.FC = () => {
 
         {/* NAVIGATION LIST */}
         <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.filter((item) => !item.requires || can(item.requires)).map((item) => {
+          {NAV_ITEMS.filter((item) => !item.requires || [item.requires].flat().some((p) => can(p))).map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
             const Icon = item.icon;
             const paused = modules.disabled[item.href];
@@ -177,6 +185,18 @@ export const Sidebar: React.FC = () => {
                   {item.badgeKey === "announcements" && unreadAnnCount > 0 && (
                     <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
                       {unreadAnnCount}
+                    </span>
+                  )}
+
+                  {item.badgeKey === "leave" && pendingLeave > 0 && (
+                    <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0" title="Đơn xin phép chờ duyệt">
+                      {pendingLeave}
+                    </span>
+                  )}
+
+                  {item.badgeKey === "inquiries" && newInquiries > 0 && (
+                    <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0" title="Đăng ký tìm hiểu mới">
+                      {newInquiries}
                     </span>
                   )}
 

@@ -90,3 +90,5 @@ apply-changes*.mjs
 /kiem-dinh/*
 # Bản vá kiểm định 70…75 là một phần của schema (db:build / CI cần): phải nằm trong git
 !/kiem-dinh/sql/
+# Công cụ phụ trợ (bộ nhớ của trợ lý lập trình)
+.serena/

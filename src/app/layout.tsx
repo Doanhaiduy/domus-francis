@@ -49,6 +49,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased">
+        {/* Liên kết "bỏ qua" cho người dùng bàn phím / trình đọc màn hình: hiện khi được focus */}
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[1000] focus:px-4 focus:py-2 focus:rounded-xl focus:bg-primary focus:text-white focus:text-sm focus:font-bold focus:shadow-lg">
+          Bỏ qua đến nội dung chính
+        </a>
         <ThemeProvider>
           <SessionProvider>
             <AppProvider>

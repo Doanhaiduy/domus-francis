@@ -27,6 +27,8 @@ function setup() {
 export function urlForNotification(entityTable: string | null, typeCode: string): string {
   const t = entityTable ?? "";
   if (/announcement/.test(t)) return "/thong-bao";
+  if (/leave/.test(t)) return "/xin-phep";
+  if (/admission_inquir/.test(t)) return "/bai-viet";
   if (/event|poll|attendance/.test(t)) return "/lich-su-kien";
   if (/duty/.test(t)) return "/hau-can";
   if (/expense|contribution|ledger|fund|due/.test(t)) return "/thu-chi";

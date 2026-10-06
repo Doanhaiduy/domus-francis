@@ -48,3 +48,18 @@ await out("public/icons/icon-maskable-512.png", 512, { radius: 0, scale: 0.78 })
 await out("src/app/icon.png", 512, { radius: 112 });
 await out("src/app/apple-icon.png", 180, { radius: 0 }); // iOS tự bo góc
 await out("public/icons/badge-72.png", 72, { radius: 0, withBg: false }); // thông báo: nền trong suốt, chữ thập trắng
+
+// Ảnh chia sẻ mặc định 1200×630 (Open Graph): nền tím + chữ thập lớn, không chữ để không phụ thuộc phông.
+{
+  const W = 1200;
+  const H = 630;
+  const og = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4d2dbf"/><stop offset="0.55" stop-color="#5f3add"/><stop offset="1" stop-color="#7857f8"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#g)"/>
+    <circle cx="1080" cy="80" r="260" fill="#ffffff" fill-opacity="0.08"/>
+    <circle cx="90" cy="600" r="220" fill="#a5b4fc" fill-opacity="0.15"/>
+    <g transform="translate(${(W - 420) / 2} ${(H - 420) / 2})">${cross(420, "#ffffff")}</g>
+  </svg>`;
+  await sharp(Buffer.from(og)).png({ compressionLevel: 9 }).toFile(path.join(ROOT, "public/og-default.png"));
+  console.log("✓ public/og-default.png 1200×630");
+}

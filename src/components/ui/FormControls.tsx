@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
 import { Switch } from "@headlessui/react";
 import {
   Check,
@@ -29,6 +29,8 @@ interface CustomSelectProps<T = string> {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Tên cho trình đọc màn hình khi không có nhãn hiển thị */
+  "aria-label"?: string;
 }
 
 export function CustomSelect<T = string>({
@@ -39,7 +41,9 @@ export function CustomSelect<T = string>({
   placeholder = "Chọn tùy chọn...",
   className = "",
   disabled = false,
+  "aria-label": ariaLabel,
 }: CustomSelectProps<T>) {
+  const labelId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -84,11 +88,13 @@ export function CustomSelect<T = string>({
 
   return (
     <div className={`w-full ${className}`}>
-      {label && <label className="block text-xs font-bold text-gray-700 mb-1.5">{label}</label>}
+      {label && <label id={labelId} className="block text-xs font-bold text-gray-700 mb-1.5">{label}</label>}
       <button
         ref={btnRef}
         type="button"
         disabled={disabled}
+        aria-labelledby={label ? labelId : undefined}
+        aria-label={label ? undefined : ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => (open ? close() : openList())}
@@ -163,10 +169,12 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   className = "",
   ...props
 }) => {
+  const autoId = useId();
+  const id = props.id ?? autoId;
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor={id} className="block text-xs font-bold text-gray-700 mb-1.5">
           {label}
         </label>
       )}
@@ -177,6 +185,8 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           </div>
         )}
         <input
+          id={id}
+          aria-invalid={error ? true : undefined}
           className={`w-full rounded-xl border border-gray-200 bg-white py-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all ${
             leftIcon ? "pl-10" : "pl-3.5"
           } ${rightSuffix ? "pr-12" : "pr-3.5"} ${
@@ -208,15 +218,19 @@ export const CustomTextarea = React.forwardRef<HTMLTextAreaElement, CustomTextar
   { label, error, hint, className = "", rows = 3, ...props },
   ref
 ) {
+  const autoId = useId();
+  const id = props.id ?? autoId;
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-xs font-bold text-gray-700 mb-1.5">
+        <label htmlFor={id} className="block text-xs font-bold text-gray-700 mb-1.5">
           {label}
         </label>
       )}
       <div className="relative rounded-xl shadow-2xs">
         <textarea
+          id={id}
+          aria-invalid={error ? true : undefined}
           ref={ref}
           rows={rows}
           className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all leading-relaxed ${
@@ -257,6 +271,7 @@ export const CustomToggle: React.FC<CustomToggleProps> = ({
         checked={checked}
         onChange={onChange}
         disabled={disabled}
+        aria-label={label}
         className={`${
           checked ? "bg-primary" : "bg-gray-200"
         } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-200`}
