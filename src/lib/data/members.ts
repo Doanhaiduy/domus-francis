@@ -47,6 +47,8 @@ export interface MemberImportResult {
   warnings: number;
   errors: number;
   created: number;
+  /** Lưu ý chung cho cả lô (vd. thiếu quyền ghi một nhóm cột ⇒ nhóm đó bị bỏ qua) */
+  notices: string[];
   rows: { line: number; fullName: string; status: "ok" | "warning" | "error" | "created" | "failed"; messages: string[] }[];
 }
 

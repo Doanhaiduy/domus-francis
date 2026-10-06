@@ -491,12 +491,14 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               {
                 t: "steps",
                 items: [
-                  { title: "Tải tệp mẫu", text: "Bấm **Tải tệp mẫu (.xlsx)**, điền mỗi người một dòng. Chỉ cột **Họ và tên** là bắt buộc; có thể bỏ cột không dùng." },
-                  { title: "Chọn tệp để kiểm tra", text: "Hệ thống kiểm tra **từng dòng** trước khi thêm: số điện thoại/email sai hoặc **trùng** (trong tệp hoặc với người đã có), ngày sai định dạng, trường/phòng không có trong danh mục… Dòng lỗi bị bỏ qua, dòng có cảnh báo vẫn thêm được." },
+                  { title: "Tải tệp mẫu", text: "Bấm **Tải tệp mẫu (.xlsx)**, điền mỗi người một dòng. Chỉ cột **Họ và tên** là bắt buộc; cột nào chưa có thông tin cứ để trống hoặc xóa cột. Tệp mẫu có 3 sheet: **Thanh vien** (các ô đã đặt dạng Text để Excel không làm mất số 0 đầu của SĐT/CCCD), **Huong dan** (giải thích từng cột kèm ví dụ) và **Danh muc** (trường, phòng, ngành, tình trạng hợp lệ của lưu xá)." },
+                  { title: "Chọn tệp để kiểm tra", text: "Hệ thống kiểm tra **từng dòng** trước khi thêm: số điện thoại/email sai hoặc **trùng** (trong tệp hoặc với người đã có), **CCCD** sai hoặc trùng trong tệp (trùng với người đã có thì dòng đó báo lỗi lúc bấm thêm), ngày hoặc năm sai định dạng, năm ra trường trước năm nhập học, trường/phòng không có trong danh mục… Dòng lỗi bị bỏ qua, dòng có cảnh báo vẫn thêm được." },
                   { title: "Xác nhận thêm", text: "Bấm **Thêm N thành viên**. Tối đa 300 dòng mỗi lần." },
                 ],
               },
-              { t: "callout", tone: "info", text: "Nhập hàng loạt **không** gồm tên thánh/giáo xứ (cần chính thành viên đồng ý) và **không** cấp tài khoản đăng nhập — cấp riêng ở Cài đặt → Tài khoản." },
+              { t: "md", text: "**Nhập được 24 cột:** họ và tên, tên gọi, giới tính, số điện thoại, email, ẩn SĐT, ngày vào nhà (đủ ngày hoặc chỉ tháng/năm), phòng (theo mã hoặc tên), ngày sinh, số CCCD/CMND (lưu mã hóa), quê quán, địa chỉ thường trú, tình trạng học tập, trường, ngành, khóa, **năm nhập học, năm ra trường (niên khóa)**, mã sinh viên, họ tên và SĐT cha/mẹ, định mức quỹ riêng." },
+              { t: "callout", tone: "info", text: "Nhập hàng loạt **không** gồm thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), **ảnh đại diện** và **tài khoản đăng nhập** (cấp riêng ở Cài đặt → Tài khoản)." },
+              { t: "callout", tone: "info", text: "Thông tin học vụ chỉ lưu khi dòng đó xác định được **Trường**. Cột riêng tư (ngày sinh, CCCD, quê quán, địa chỉ, cha/mẹ) cần quyền ghi thông tin riêng tư; ẩn SĐT, học vụ và định mức quỹ cần quyền sửa hồ sơ thành viên (Trưởng nhà và Admin có đủ) — thiếu quyền thì cột đó bị bỏ qua và hệ thống báo ngay ở màn hình kiểm tra." },
             ],
           },
           {

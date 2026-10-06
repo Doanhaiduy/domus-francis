@@ -4,8 +4,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload, X, XCircle } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { errorMessage } from "@/lib/api";
-import { membersApi, refreshPeople, type MemberImportResult } from "@/lib/data/members";
-import { downloadImportTemplate, readImportFile, type ImportRowInput } from "@/lib/members-import-file";
+import { membersApi, refreshPeople, useLookups, type MemberImportResult } from "@/lib/data/members";
+import { IMPORT_COLUMNS, downloadImportTemplate, readImportFile, type ImportRowInput } from "@/lib/members-import-file";
+import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 type Step = "pick" | "preview" | "done";
@@ -20,6 +21,15 @@ export default function ImportMembersModal({ onClose, showToast }: { onClose: ()
   const [busy, setBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { rooms } = useApp();
+  const lookups = useLookups();
+
+  // Tệp mẫu kèm danh mục trường/phòng của chính lưu xá để điền cho khớp
+  const downloadTemplate = () =>
+    void downloadImportTemplate({
+      universities: lookups.universities.map((u) => u.name),
+      rooms: rooms.filter((r) => r.type === "bedroom" && r.status === "active").map((r) => ({ code: r.id, name: r.name })),
+    });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && onClose();
@@ -84,11 +94,18 @@ export default function ImportMembersModal({ onClose, showToast }: { onClose: ()
             {step === "pick" && (
               <>
                 <ol className="space-y-2 text-sm text-gray-700 list-decimal pl-5">
-                  <li>Tải <b>tệp mẫu</b>, điền thông tin mỗi người một dòng (chỉ cần “Họ và tên”).</li>
+                  <li>Tải <b>tệp mẫu</b>, điền thông tin mỗi người một dòng (chỉ cần “Họ và tên”, các cột khác điền được đến đâu hay đến đó).</li>
                   <li>Chọn tệp .xlsx hoặc .csv đã điền — hệ thống <b>kiểm tra từng dòng</b> trước khi thêm.</li>
                   <li>Xem kết quả, rồi xác nhận để thêm các dòng hợp lệ.</li>
                 </ol>
-                <button type="button" onClick={() => void downloadImportTemplate()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-purple-200 bg-purple-50 text-primary text-xs font-bold hover:bg-purple-100 transition">
+                <details className="rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-3 text-xs text-gray-600">
+                  <summary className="cursor-pointer font-bold text-gray-700">Tệp mẫu có {IMPORT_COLUMNS.length} cột — nhập được những gì?</summary>
+                  <p className="mt-2 leading-relaxed">
+                    {IMPORT_COLUMNS.map((c) => c.title).join(" · ")}.
+                  </p>
+                  <p className="mt-1.5 leading-relaxed text-gray-500">Sheet “Huong dan” giải thích từng cột; sheet “Danh muc” liệt kê trường, phòng, ngành, tình trạng hợp lệ của lưu xá.</p>
+                </details>
+                <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-purple-200 bg-purple-50 text-primary text-xs font-bold hover:bg-purple-100 transition">
                   <Download className="w-4 h-4" /> Tải tệp mẫu (.xlsx)
                 </button>
                 <label className={cn("flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 p-8 text-center cursor-pointer hover:bg-purple-50 transition", busy && "opacity-60 pointer-events-none")}>
@@ -97,7 +114,7 @@ export default function ImportMembersModal({ onClose, showToast }: { onClose: ()
                   <span className="text-xs text-gray-500">Tối đa 300 dòng, 5 MB</span>
                   <input ref={fileRef} type="file" accept=".xlsx,.csv,text/csv" className="hidden" onChange={(e) => void pick(e.target.files?.[0])} />
                 </label>
-                <p className="text-[11px] text-gray-500 leading-relaxed">Không nhập hàng loạt: thông tin Công giáo (tên thánh, giáo xứ…) và tài khoản đăng nhập — những mục này cần chính thành viên đồng ý / được cấp riêng.</p>
+                <p className="text-[11px] text-gray-500 leading-relaxed">Không nhập hàng loạt: thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích), ảnh đại diện và tài khoản đăng nhập — những mục này cần chính thành viên đồng ý / được cấp riêng.</p>
               </>
             )}
 
@@ -110,6 +127,13 @@ export default function ImportMembersModal({ onClose, showToast }: { onClose: ()
                   <Stat label={step === "done" ? "Bị bỏ qua / lỗi" : "Lỗi (bỏ qua)"} value={result.errors} tone="err" />
                 </div>
                 {step === "preview" && <p className="text-xs text-gray-500">Tệp: <b>{fileName}</b>{unknown.length ? ` · Cột không nhận ra (bỏ qua): ${unknown.join(", ")}` : ""}</p>}
+                {result.notices?.length > 0 && (
+                  <ul className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
+                    {result.notices.map((n) => (
+                      <li key={n} className="flex gap-2 text-xs text-amber-800"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span>{n}</span></li>
+                    ))}
+                  </ul>
+                )}
 
                 {list.length > 0 ? (
                   <ul className="rounded-2xl border border-gray-100 divide-y divide-gray-100 max-h-[320px] overflow-y-auto custom-scroll">

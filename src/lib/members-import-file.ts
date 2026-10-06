@@ -1,26 +1,84 @@
 // Đọc tệp Excel/CSV nhập thành viên (chạy trong trình duyệt) + tạo tệp mẫu. Tiêu đề cột nhận diện theo tên tiếng Việt (không phân biệt hoa thường, dấu).
+// Danh sách cột phủ MỌI thông tin hồ sơ nhập được hàng loạt; thông tin Công giáo (cần chính thành viên đồng ý), ảnh đại diện và tài khoản thì không.
 
-export const IMPORT_COLUMNS = [
-  { key: "fullName", title: "Họ và tên", aliases: ["ho ten", "ho va ten", "ten", "full name"], example: "Nguyễn Văn An", required: true },
-  { key: "gender", title: "Giới tính", aliases: ["gioi tinh", "gender"], example: "Nam" },
-  { key: "phone", title: "Số điện thoại", aliases: ["sdt", "so dien thoai", "dien thoai", "phone"], example: "0912 334 782" },
-  { key: "email", title: "Email", aliases: ["email", "mail", "thu dien tu"], example: "an.nguyen@gmail.com" },
-  { key: "birthDate", title: "Ngày sinh", aliases: ["ngay sinh", "sinh nhat", "birth", "dob"], example: "15/03/2005" },
-  { key: "hometown", title: "Quê quán", aliases: ["que quan", "que", "hometown"], example: "Phú Yên" },
-  { key: "universityName", title: "Trường đại học", aliases: ["truong", "truong dai hoc", "dai hoc", "university"], example: "Đại học Nha Trang" },
-  { key: "major", title: "Ngành học", aliases: ["nganh", "nganh hoc", "major"], example: "Công nghệ thông tin" },
-  { key: "academicYear", title: "Năm học / Khóa", aliases: ["nam hoc", "khoa", "nam hoc khoa", "nien khoa"], example: "Năm 2" },
-  { key: "studentCode", title: "Mã sinh viên", aliases: ["msv", "ma sinh vien", "ma sv"], example: "62130001" },
-  { key: "roomCode", title: "Phòng", aliases: ["phong", "ma phong", "room"], example: "P.1" },
-  { key: "joinedOn", title: "Ngày vào nhà", aliases: ["ngay vao nha", "ngay vao", "joined"], example: "01/09/2026" },
-  { key: "fatherName", title: "Họ tên cha", aliases: ["ho ten cha", "ten cha", "cha"], example: "Nguyễn Văn Bình" },
-  { key: "fatherPhone", title: "SĐT cha", aliases: ["sdt cha", "dien thoai cha"], example: "0903 111 222" },
-  { key: "motherName", title: "Họ tên mẹ", aliases: ["ho ten me", "ten me", "me"], example: "Trần Thị Lan" },
-  { key: "motherPhone", title: "SĐT mẹ", aliases: ["sdt me", "dien thoai me"], example: "0903 333 444" },
-] as const;
+import { MAJOR_GROUPS } from "@/lib/majors";
 
-export type ImportKey = (typeof IMPORT_COLUMNS)[number]["key"];
+export type ImportKey =
+  | "fullName"
+  | "displayName"
+  | "gender"
+  | "phone"
+  | "email"
+  | "hidePhone"
+  | "joinedOn"
+  | "roomCode"
+  | "birthDate"
+  | "nationalId"
+  | "hometown"
+  | "homeAddress"
+  | "studentStatus"
+  | "universityName"
+  | "major"
+  | "academicYear"
+  | "enrollmentYear"
+  | "expectedGraduationYear"
+  | "studentCode"
+  | "fatherName"
+  | "fatherPhone"
+  | "motherName"
+  | "motherPhone"
+  | "customDuesVnd";
 export type ImportRowInput = Partial<Record<ImportKey, string>>;
+
+export type ImportGroupId = "basic" | "private" | "study" | "family" | "fund";
+export const IMPORT_GROUPS: readonly { id: ImportGroupId; title: string; color: string }[] = [
+  { id: "basic", title: "THÔNG TIN CƠ BẢN", color: "#EDE9FE" },
+  { id: "private", title: "GIẤY TỜ & ĐỊA CHỈ (riêng tư)", color: "#FCE7F3" },
+  { id: "study", title: "HỌC VỤ", color: "#DBEAFE" },
+  { id: "family", title: "GIA ĐÌNH (riêng tư)", color: "#FEF3C7" },
+  { id: "fund", title: "QUỸ", color: "#D1FAE5" },
+];
+
+export interface ImportColumn {
+  key: ImportKey;
+  title: string;
+  /** Tên cột khác cũng được nhận (đã bỏ dấu, chữ thường) — để tệp cũ/tự soạn vẫn đọc được */
+  aliases: readonly string[];
+  group: ImportGroupId;
+  /** Ví dụ cho sheet Hướng dẫn */
+  example: string;
+  /** Giá trị chấp nhận / lưu ý */
+  note: string;
+  required?: boolean;
+}
+
+// Các cột cùng nhóm phải đứng liền nhau (nhóm hiển thị thành một dải màu phía trên dòng tiêu đề)
+export const IMPORT_COLUMNS: readonly ImportColumn[] = [
+  { key: "fullName", title: "Họ và tên", aliases: ["ho ten", "ho va ten", "ten", "full name"], group: "basic", example: "Nguyễn Văn An", note: "Bắt buộc, tối thiểu 2 ký tự.", required: true },
+  { key: "displayName", title: "Tên gọi", aliases: ["ten goi", "ten thuong goi", "bi danh", "display name"], group: "basic", example: "An", note: "Tên hiển thị trong danh bạ. Bỏ trống = tự lấy 2 chữ cuối của họ tên." },
+  { key: "gender", title: "Giới tính", aliases: ["gioi tinh", "gender"], group: "basic", example: "Nam", note: "Nam hoặc Nữ." },
+  { key: "phone", title: "Số điện thoại", aliases: ["sdt", "so dien thoai", "dien thoai", "phone"], group: "basic", example: "0912 334 782", note: "SĐT Việt Nam; thiếu số 0 đầu vẫn nhận. Mỗi số chỉ dùng cho một người." },
+  { key: "email", title: "Email", aliases: ["email", "mail", "thu dien tu"], group: "basic", example: "an.nguyen@gmail.com", note: "Mỗi email chỉ dùng cho một người." },
+  { key: "hidePhone", title: "Ẩn SĐT", aliases: ["an sdt", "an so dien thoai", "an dien thoai"], group: "basic", example: "Không", note: "Có = ẩn SĐT với thành viên khác; Không hoặc để trống = hiện." },
+  { key: "joinedOn", title: "Ngày vào nhà", aliases: ["ngay vao nha", "ngay vao", "thang nam vao nha", "joined"], group: "basic", example: "09/2026", note: "DD/MM/YYYY hoặc chỉ tháng/năm (MM/YYYY). Bỏ trống = hôm nay." },
+  { key: "roomCode", title: "Phòng", aliases: ["phong", "ma phong", "room"], group: "basic", example: "P.1", note: "Mã hoặc tên phòng ngủ có trong sơ đồ nhà (xem sheet “Danh muc”). Không khớp hoặc hết chỗ ⇒ để chưa xếp phòng." },
+  { key: "birthDate", title: "Ngày sinh", aliases: ["ngay sinh", "sinh nhat", "birth", "dob"], group: "private", example: "15/03/2005", note: "DD/MM/YYYY." },
+  { key: "nationalId", title: "Số CCCD/CMND", aliases: ["cccd", "cmnd", "so cccd", "so cmnd", "so cccd cmnd", "can cuoc", "can cuoc cong dan", "cmnd cccd"], group: "private", example: "079205001234", note: "CCCD 12 số hoặc CMND 9 số (Excel làm mất số 0 đầu thì tự thêm lại). Lưu mã hóa; mỗi số chỉ dùng cho một người." },
+  { key: "hometown", title: "Quê quán", aliases: ["que quan", "que", "hometown"], group: "private", example: "Phú Yên", note: "Tỉnh/thành hoặc ghi tự do." },
+  { key: "homeAddress", title: "Địa chỉ thường trú", aliases: ["dia chi thuong tru", "dia chi", "thuong tru", "home address"], group: "private", example: "12 Lê Lợi, TP. Tuy Hòa, Phú Yên", note: "Ghi tự do, tối đa 300 ký tự." },
+  { key: "studentStatus", title: "Tình trạng học tập", aliases: ["tinh trang hoc tap", "tinh trang", "trang thai hoc tap", "tinh trang sinh vien"], group: "study", example: "Đang học", note: "Đang học / Đã tốt nghiệp / Bảo lưu / Thôi học. Bỏ trống = Đang học. Chỉ lưu khi xác định được Trường." },
+  { key: "universityName", title: "Trường đại học", aliases: ["truong", "truong dai hoc", "dai hoc", "university"], group: "study", example: "Đại học Nha Trang", note: "Trùng (hoặc gần giống) tên/mã trường trong danh mục của lưu xá (xem sheet “Danh muc”). Không khớp ⇒ bỏ qua toàn bộ phần học vụ của dòng đó." },
+  { key: "major", title: "Ngành học", aliases: ["nganh", "nganh hoc", "major"], group: "study", example: "Công nghệ thông tin", note: "Chọn từ danh sách gợi ý ở sheet “Danh muc” hoặc tự ghi." },
+  { key: "academicYear", title: "Khóa", aliases: ["khoa", "nam hoc", "nam hoc khoa", "nien khoa"], group: "study", example: "K66", note: "Khóa/năm học, ví dụ K66 hoặc Năm 2. Ghi “K66 (2022 – 2026)” thì tự tách cả niên khóa." },
+  { key: "enrollmentYear", title: "Năm nhập học", aliases: ["nam nhap hoc", "nhap hoc", "nam vao truong", "nam bat dau"], group: "study", example: "2022", note: "4 chữ số (1990–2100) — đầu niên khóa." },
+  { key: "expectedGraduationYear", title: "Năm ra trường (dự kiến)", aliases: ["nam ra truong", "ra truong", "nam ra truong du kien", "du kien ra truong", "nam tot nghiep"], group: "study", example: "2026", note: "4 chữ số, không nhỏ hơn năm nhập học — cuối niên khóa." },
+  { key: "studentCode", title: "Mã sinh viên", aliases: ["msv", "ma sinh vien", "ma sv"], group: "study", example: "62130001", note: "Ghi tự do." },
+  { key: "fatherName", title: "Họ tên cha", aliases: ["ho ten cha", "ten cha", "cha"], group: "family", example: "Nguyễn Văn Bình", note: "" },
+  { key: "fatherPhone", title: "SĐT cha", aliases: ["sdt cha", "dien thoai cha"], group: "family", example: "0903 111 222", note: "Cần có họ tên cha. Lưu mã hóa." },
+  { key: "motherName", title: "Họ tên mẹ", aliases: ["ho ten me", "ten me", "me"], group: "family", example: "Trần Thị Lan", note: "" },
+  { key: "motherPhone", title: "SĐT mẹ", aliases: ["sdt me", "dien thoai me"], group: "family", example: "0903 333 444", note: "Cần có họ tên mẹ. Lưu mã hóa." },
+  { key: "customDuesVnd", title: "Định mức quỹ riêng (VNĐ)", aliases: ["dinh muc quy rieng", "dinh muc quy", "muc quy rieng", "quy rieng", "dinh muc rieng"], group: "fund", example: "", note: "Số tiền mỗi kỳ, ví dụ 150000 hoặc 150.000 (0 = miễn). Bỏ trống = tự động theo tình trạng học tập." },
+];
 
 const fold = (s: string) =>
   s
@@ -122,26 +180,86 @@ export async function readImportFile(file: File): Promise<{ rows: ImportRowInput
   throw new Error("Chỉ nhận tệp .xlsx (Excel) hoặc .csv.");
 }
 
-/** Tệp mẫu .xlsx: dòng tiêu đề + 2 dòng ví dụ + trang hướng dẫn. */
-export async function downloadImportTemplate() {
+/** Danh mục giá trị hợp lệ của nhà này — in vào sheet “Danh muc” của tệp mẫu để điền cho khớp. */
+export interface ImportTemplateRefs {
+  universities?: string[];
+  rooms?: { code: string; name: string }[];
+}
+
+/** Số dòng trống định dạng sẵn dạng Text (bằng số dòng tối đa mỗi lần nhập) */
+const TEMPLATE_BLANK_ROWS = 300;
+
+/**
+ * Tệp mẫu .xlsx gồm 3 sheet:
+ *  - “Thanh vien”: dải nhóm cột + dòng tiêu đề + các dòng trống ĐÃ ĐẶT ĐỊNH DẠNG TEXT (Excel không làm mất số 0 đầu của SĐT/CCCD, không tự đổi ngày/số);
+ *  - “Huong dan”: lưu ý chung + bảng từng cột (bắt buộc, ví dụ, giá trị chấp nhận);
+ *  - “Danh muc”: trường, phòng, ngành, tình trạng… hợp lệ để điền cho khớp.
+ * Cố ý KHÔNG đặt dòng ví dụ ở sheet dữ liệu để không ai vô tình nhập luôn người mẫu.
+ */
+export async function downloadImportTemplate(refs: ImportTemplateRefs = {}) {
   const writeExcelFile = (await import("write-excel-file/browser")).default;
-  const head = IMPORT_COLUMNS.map((c) => ({ value: c.key === "fullName" ? `${c.title} *` : c.title, fontWeight: "bold" as const, backgroundColor: "#EDE9FE", align: "center" as const }));
-  const ex = (n: number) => IMPORT_COLUMNS.map((c) => ({ value: n === 0 ? c.example : c.key === "fullName" ? "Trần Minh Đức" : c.key === "phone" ? "0987 654 321" : c.key === "email" ? "duc.tran@gmail.com" : c.key === "gender" ? "Nam" : c.key === "roomCode" ? "P.2" : "" , type: String }));
-  const guide = [
-    [{ value: "Hướng dẫn nhập thành viên hàng loạt", fontWeight: "bold" as const, fontSize: 14 }],
+  const cols = IMPORT_COLUMNS;
+
+  // --- Sheet dữ liệu ---
+  const band: unknown[] = [];
+  for (const g of IMPORT_GROUPS) {
+    const n = cols.filter((c) => c.group === g.id).length;
+    if (!n) continue;
+    band.push({ value: g.title, fontWeight: "bold", backgroundColor: g.color, align: "center", columnSpan: n });
+    for (let i = 1; i < n; i++) band.push(null);
+  }
+  const color = (id: ImportGroupId) => IMPORT_GROUPS.find((g) => g.id === id)?.color ?? "#EDE9FE";
+  const head = cols.map((c) => ({ value: c.required ? `${c.title} *` : c.title, fontWeight: "bold", backgroundColor: color(c.group), align: "center", wrap: true, bottomBorderStyle: "thin" }));
+  const blank = () => cols.map(() => ({ value: "", type: String, format: "@" }));
+  const dataRows = Array.from({ length: TEMPLATE_BLANK_ROWS }, blank);
+  const wide: Partial<Record<ImportKey, number>> = { fullName: 24, email: 26, homeAddress: 36, hometown: 18, universityName: 28, major: 28, fatherName: 22, motherName: 22, customDuesVnd: 22, nationalId: 18, expectedGraduationYear: 22 };
+
+  // --- Sheet hướng dẫn ---
+  const note = (t: string) => [{ value: t, columnSpan: 4, wrap: true, alignVertical: "top" }, null, null, null];
+  const guide: unknown[][] = [
+    [{ value: "Hướng dẫn nhập thành viên hàng loạt", fontWeight: "bold", fontSize: 14 }],
     [],
-    [{ value: "• Chỉ cột “Họ và tên” là bắt buộc. Có thể xóa cột không dùng, nhưng giữ nguyên tên cột ở dòng tiêu đề." }],
-    [{ value: "• Ngày nhập theo dạng DD/MM/YYYY (ví dụ 15/03/2005). Giới tính: Nam hoặc Nữ." }],
-    [{ value: "• Số điện thoại có thể bỏ số 0 đầu (Excel hay làm mất). Mỗi số/email chỉ dùng cho một người — dòng trùng sẽ bị bỏ qua." }],
-    [{ value: "• Tên trường phải trùng danh mục của lưu xá (hoặc gần giống); tên phòng theo sơ đồ nhà (ví dụ P.1). Không khớp ⇒ bỏ qua phần đó." }],
-    [{ value: "• Tối đa 300 dòng mỗi lần. Thông tin Công giáo (tên thánh, giáo xứ…) KHÔNG nhập hàng loạt — thành viên tự đồng ý và điền sau." }],
-    [{ value: "• Nhập xong, thành viên chưa có tài khoản đăng nhập: cấp riêng ở Cài đặt → Tài khoản." }],
+    note("• Điền mỗi người một dòng ở sheet “Thanh vien” (giữ nguyên dòng tiêu đề). Chỉ cột “Họ và tên” là bắt buộc; cột nào không có thông tin cứ để trống, hoặc xóa hẳn cột (giữ nguyên tên các cột còn lại)."),
+    note("• Mọi ô đã đặt sẵn định dạng Text nên Excel sẽ không làm mất số 0 đầu của số điện thoại / CCCD và không tự đổi ngày. Ngày nhập dạng DD/MM/YYYY (15/03/2005); “Ngày vào nhà” có thể chỉ ghi tháng/năm (09/2026)."),
+    note("• Trường, Phòng, Ngành, Tình trạng: xem sheet “Danh muc”. Tên trường/phòng phải trùng danh mục của lưu xá (hoặc gần giống); không khớp ⇒ bỏ qua phần đó và có cảnh báo. Thông tin học vụ chỉ lưu khi xác định được Trường."),
+    note("• Mỗi số điện thoại, email, số CCCD chỉ dùng cho một người — dòng trùng với người đã có (hoặc trùng trong tệp) sẽ bị bỏ qua. Tối đa 300 dòng mỗi lần; hệ thống kiểm tra từng dòng và cho xem kết quả trước khi thêm."),
+    note("• Cột riêng tư (Ngày sinh, CCCD, Quê quán, Địa chỉ, Cha/Mẹ) cần quyền ghi thông tin riêng tư; Ẩn SĐT, các cột Học vụ và Định mức quỹ riêng cần quyền sửa hồ sơ thành viên (Trưởng nhà và Admin có đủ). Thiếu quyền ⇒ cột đó bị bỏ qua và có thông báo."),
+    note("• KHÔNG nhập hàng loạt: thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), ảnh đại diện và tài khoản đăng nhập (cấp riêng ở Cài đặt → Tài khoản)."),
+    [],
+    ["Cột", "Bắt buộc", "Ví dụ", "Giá trị chấp nhận / lưu ý"].map((t) => ({ value: t, fontWeight: "bold", backgroundColor: "#EDE9FE", bottomBorderStyle: "thin" })),
   ];
+  for (const g of IMPORT_GROUPS) {
+    guide.push([{ value: g.title, fontWeight: "bold", backgroundColor: g.color, columnSpan: 4 }, null, null, null]);
+    for (const c of cols.filter((x) => x.group === g.id)) {
+      guide.push([
+        { value: c.title, fontWeight: "bold", alignVertical: "top" },
+        { value: c.required ? "Có" : "", alignVertical: "top" },
+        { value: c.example, type: String, format: "@", alignVertical: "top" },
+        { value: c.note, wrap: true, alignVertical: "top" },
+      ]);
+    }
+  }
+
+  // --- Sheet danh mục ---
+  const lists: { title: string; values: string[] }[] = [
+    { title: "Giới tính", values: ["Nam", "Nữ"] },
+    { title: "Ẩn SĐT", values: ["Có", "Không"] },
+    { title: "Tình trạng học tập", values: ["Đang học", "Đã tốt nghiệp", "Bảo lưu", "Thôi học"] },
+    { title: "Trường đại học", values: refs.universities ?? [] },
+    { title: "Mã phòng", values: (refs.rooms ?? []).map((r) => r.code) },
+    { title: "Tên phòng", values: (refs.rooms ?? []).map((r) => r.name) },
+    { title: "Ngành học (gợi ý — có thể tự ghi)", values: MAJOR_GROUPS.flatMap((g) => g.majors) },
+  ];
+  const height = Math.max(...lists.map((l) => l.values.length));
+  const refRows: unknown[][] = [lists.map((l) => ({ value: l.title, fontWeight: "bold", backgroundColor: "#EDE9FE", bottomBorderStyle: "thin" }))];
+  for (let i = 0; i < height; i++) refRows.push(lists.map((l) => (l.values[i] ? { value: l.values[i], type: String, format: "@" } : null)));
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (writeExcelFile as any)(
     [
-      { data: [head, ex(0), ex(1)], sheet: "Thanh vien", columns: IMPORT_COLUMNS.map((c) => ({ width: Math.max(16, c.title.length + 6) })) },
-      { data: guide, sheet: "Huong dan", columns: [{ width: 120 }] },
+      { data: [band, head, ...dataRows], sheet: "Thanh vien", columns: cols.map((c) => ({ width: wide[c.key] ?? Math.max(14, c.title.length + 4) })), stickyRowsCount: 2, stickyColumnsCount: 1 },
+      { data: guide, sheet: "Huong dan", columns: [{ width: 26 }, { width: 10 }, { width: 34 }, { width: 100 }] },
+      { data: refRows, sheet: "Danh muc", columns: [{ width: 14 }, { width: 10 }, { width: 20 }, { width: 38 }, { width: 12 }, { width: 24 }, { width: 44 }], stickyRowsCount: 1 },
     ]
   ).toFile("Mau_nhap_thanh_vien.xlsx");
 }
