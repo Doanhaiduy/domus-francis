@@ -19,7 +19,7 @@ const zAmount = z
   .max(1_000_000_000, "Số tiền tối đa 1.000.000.000đ.");
 const zMethod = z.enum(["cash", "bank_transfer", "e_wallet", "other"], { error: "Hình thức không hợp lệ." });
 
-/** Thủ quỹ / Trưởng nhà / Admin ghi nhận. received = đã nhận tiền (vào sổ quỹ ngay, cần fundId); false = mới hứa. */
+/** Thủ quỹ / Trưởng nhà / Admin ghi nhận. received = đã nhận tiền (vào sổ quỹ ngay, cần fundId); false = ghi nhận trước, chờ nhận tiền. */
 export const DonationRecordSchema = z
   .object({
     donorMemberId: zUuid.nullable().optional().transform((v) => v ?? null),

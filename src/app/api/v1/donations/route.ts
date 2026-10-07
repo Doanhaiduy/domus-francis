@@ -25,7 +25,7 @@ export const GET = api({}, (ctx) => {
   );
 });
 
-/** Thủ quỹ / Trưởng nhà / Admin ghi nhận khoản ủng hộ (đã nhận ⇒ vào sổ quỹ ngay; mới hứa ⇒ chờ nhận). */
+/** Thủ quỹ / Trưởng nhà / Admin ghi nhận khoản ủng hộ (đã nhận ⇒ vào sổ quỹ ngay; ghi nhận trước ⇒ chờ nhận tiền). */
 export const POST = api({}, async (ctx) => {
   const b = await ctx.body(DonationRecordSchema);
   const id = await ctx.db((tx) => recordDonation(tx, b));

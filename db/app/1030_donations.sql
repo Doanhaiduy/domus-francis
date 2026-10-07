@@ -1,7 +1,7 @@
 -- =====================================================================
 -- 1030 — ỦNG HỘ / QUYÊN GÓP VÀO QUỸ (khác khoản phải thu định kỳ): ai ủng hộ bao nhiêu, đã chuyển khoản chưa
 --   • donations: một khoản ủng hộ của thành viên trong nhà HOẶC người ngoài (ghi tên). Trạng thái:
---       pledged   = mới hứa / chưa nhận tiền (Thủ quỹ ghi trước)
+--       pledged   = đã ghi nhận, chờ nhận tiền (Thủ quỹ ghi trước)
 --       pending   = thành viên báo "tôi đã ủng hộ/chuyển khoản", chờ Thủ quỹ xác nhận
 --       confirmed = ĐÃ NHẬN — đã ghi sổ quỹ (bút toán nguồn "donation", bất biến)
 --       rejected / cancelled = từ chối / hủy
@@ -73,7 +73,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.donations TO luuxa_worker, luuxa_
 -- Hàm nghiệp vụ
 -- ---------------------------------------------------------------------
 -- Thủ quỹ / Trưởng nhà / Admin ghi nhận một khoản ủng hộ. p_received = true ⇒ ĐÃ NHẬN tiền (ghi sổ quỹ ngay, cần p_fund_id);
--- false ⇒ mới hứa, chưa nhận (pledged). Thành viên trong nhà: truyền p_donor_member_id; người ngoài: truyền p_donor_name.
+-- false ⇒ ghi nhận trước, chưa nhận tiền (pledged). Thành viên trong nhà: truyền p_donor_member_id; người ngoài: truyền p_donor_name.
 CREATE OR REPLACE FUNCTION app.fn_donation_record(
   p_donor_member_id uuid, p_donor_name text, p_amount_vnd bigint, p_donated_on date, p_method payment_method_t,
   p_fund_id uuid, p_reference text, p_note text, p_received boolean, p_client_request_id uuid DEFAULT NULL
@@ -126,8 +126,8 @@ BEGIN
 
   IF p_donor_member_id IS NOT NULL THEN
     PERFORM app.fn_notify(p_donor_member_id, 'finance.donation_decided',
-      CASE WHEN p_received THEN 'Đã ghi nhận khoản ủng hộ của bạn' ELSE 'Đã ghi nhận bạn sẽ ủng hộ quỹ' END,
-      CASE WHEN p_received THEN 'Quỹ nhà đã nhận ' || app.fn_vnd(p_amount_vnd) || '. Xin cảm ơn bạn!' ELSE 'Khoản ' || app.fn_vnd(p_amount_vnd) || ' đang chờ nhận — cảm ơn tấm lòng của bạn.' END,
+      CASE WHEN p_received THEN 'Quỹ nhà đã nhận khoản ủng hộ của bạn' ELSE 'Đã ghi nhận khoản ủng hộ của bạn' END,
+      CASE WHEN p_received THEN 'Quỹ nhà đã nhận ' || app.fn_vnd(p_amount_vnd) || '. Xin cảm ơn bạn!' ELSE 'Khoản ' || app.fn_vnd(p_amount_vnd) || ' đang chờ nhận tiền — cảm ơn tấm lòng của bạn.' END,
       jsonb_build_object('link', '/thu-chi'), 'donations', v_id);
   END IF;
   RETURN v_id;
@@ -174,7 +174,7 @@ END
 $$;
 COMMENT ON FUNCTION app.fn_donation_report(bigint, date, payment_method_t, text, text) IS 'Thành viên tự báo đã ủng hộ quỹ (pending). Báo Thủ quỹ/Trưởng nhà/Admin; chưa ghi sổ cho tới khi được xác nhận.';
 
--- Xác nhận (đã nhận tiền ⇒ ghi sổ), từ chối (chỉ khi thành viên tự báo), hoặc hủy khoản mới hứa / đang chờ.
+-- Xác nhận (đã nhận tiền ⇒ ghi sổ), từ chối (chỉ khi thành viên tự báo), hoặc hủy khoản ghi nhận trước / đang chờ.
 CREATE OR REPLACE FUNCTION app.fn_donation_decide(p_id uuid, p_action text, p_fund_id uuid DEFAULT NULL, p_note text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -202,11 +202,11 @@ BEGIN
       'Ủng hộ quỹ nhà: ' || v.donor_name || ' — ' || app.fn_vnd(v.amount_vnd) || COALESCE(' (' || v.reference_code || ')', ''), NULL);
     UPDATE public.donations SET status = 'confirmed', fund_id = p_fund_id, ledger_entry_id = v_ledger, decided_by = v_uid, decided_at = now(), decision_note = v_note WHERE id = p_id;
     IF v.donor_member_id IS NOT NULL THEN
-      PERFORM app.fn_notify(v.donor_member_id, 'finance.donation_decided', 'Đã ghi nhận khoản ủng hộ của bạn',
+      PERFORM app.fn_notify(v.donor_member_id, 'finance.donation_decided', 'Quỹ nhà đã nhận khoản ủng hộ của bạn',
         'Quỹ nhà đã nhận ' || app.fn_vnd(v.amount_vnd) || '. Xin cảm ơn bạn!', jsonb_build_object('link', '/thu-chi'), 'donations', p_id);
     END IF;
   ELSIF p_action = 'reject' THEN
-    IF v.status <> 'pending' THEN RAISE EXCEPTION 'Chỉ từ chối được khoản thành viên tự báo; khoản mới hứa thì hãy hủy.' USING ERRCODE = 'check_violation'; END IF;
+    IF v.status <> 'pending' THEN RAISE EXCEPTION 'Chỉ từ chối được khoản thành viên tự báo; khoản ghi nhận trước thì hãy hủy.' USING ERRCODE = 'check_violation'; END IF;
     IF v_note IS NULL OR char_length(v_note) < 5 THEN RAISE EXCEPTION 'Hãy ghi lý do từ chối (tối thiểu 5 ký tự).' USING ERRCODE = 'check_violation'; END IF;
     UPDATE public.donations SET status = 'rejected', decided_by = v_uid, decided_at = now(), decision_note = v_note WHERE id = p_id;
     IF v.donor_member_id IS NOT NULL THEN
@@ -221,7 +221,7 @@ BEGIN
   RETURN p_id;
 END
 $$;
-COMMENT ON FUNCTION app.fn_donation_decide(uuid, text, uuid, text) IS 'confirm = đã nhận tiền, ghi sổ quỹ (cần túi quỹ); reject = từ chối khoản thành viên tự báo (có lý do); cancel = hủy khoản mới hứa/đang chờ. Cần finance.contribution.record.';
+COMMENT ON FUNCTION app.fn_donation_decide(uuid, text, uuid, text) IS 'confirm = đã nhận tiền, ghi sổ quỹ (cần túi quỹ); reject = từ chối khoản thành viên tự báo (có lý do); cancel = hủy khoản ghi nhận trước/đang chờ. Cần finance.contribution.record.';
 
 -- Thành viên rút lại khoản mình đã báo (khi chưa được xác nhận)
 CREATE OR REPLACE FUNCTION app.fn_donation_withdraw(p_id uuid)

@@ -1,4 +1,4 @@
-// Kiểm thử ỦNG HỘ / QUYÊN GÓP VÀO QUỸ (db/app/1030): Thủ quỹ ghi nhận (đã nhận ⇒ vào sổ quỹ / mới hứa), thành viên tự báo "đã ủng hộ",
+// Kiểm thử ỦNG HỘ / QUYÊN GÓP VÀO QUỸ (db/app/1030): Thủ quỹ ghi nhận (đã nhận ⇒ vào sổ quỹ / ghi nhận trước, chờ nhận tiền), thành viên tự báo "đã ủng hộ",
 // xác nhận / từ chối / hủy / rút lại, người ngoài ủng hộ, quyền riêng tư, thông báo, idempotent.
 
 import { randomUUID } from "node:crypto";
@@ -36,7 +36,7 @@ export async function run({ as, test, eq, ok, section }) {
     ok(JSON.stringify((await member.get("/api/v1/notifications")).json).includes("khoản ủng hộ"), "thành viên phải nhận thông báo");
   });
 
-  await test("Người ngoài ủng hộ: ghi tên, đếm đúng số người ủng hộ; khoản mới hứa chưa vào quỹ", async () => {
+  await test("Người ngoài ủng hộ: ghi tên, đếm đúng số người ủng hộ; khoản ghi nhận trước (chờ nhận tiền) chưa vào quỹ", async () => {
     const out = await treasurer.post("/api/v1/donations", { donorName: `Ông Nguyễn Ân Nhân ${stamp}`, amountVnd: money(2), donatedOn: today, method: "cash", fundId: fund.id, received: true });
     eq(out.status, 201, JSON.stringify(out.json));
     const pledge = await treasurer.post("/api/v1/donations", { donorName: `Bà Lê Hứa Giúp ${stamp}`, amountVnd: money(3), donatedOn: today, method: "bank_transfer", received: false });
@@ -50,7 +50,7 @@ export async function run({ as, test, eq, ok, section }) {
     eq(l.summary.donorCount, 2);
     eq(l.summary.memberDonorCount, 1);
     eq(l.summary.pledgedCount, 1);
-    // khoản mới hứa nhận tiền sau ⇒ xác nhận với túi quỹ
+    // khoản ghi nhận trước, nhận tiền sau ⇒ xác nhận với túi quỹ
     eq((await treasurer.patch(`/api/v1/donations/${pledge.json.id}`, { action: "confirm" })).status, 400, "xác nhận thiếu túi quỹ");
     eq((await treasurer.patch(`/api/v1/donations/${pledge.json.id}`, { action: "confirm", fundId: fund.id })).status, 200);
     eq(find(await list(treasurer, `?q=${stamp}`), pledge.json.id).status, "confirmed");

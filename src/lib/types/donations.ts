@@ -4,7 +4,7 @@ export type DonationStatus = "pledged" | "pending" | "confirmed" | "rejected" | 
 export type DonationMethod = "cash" | "bank_transfer" | "e_wallet" | "other";
 
 export const DONATION_STATUS_LABEL: Record<DonationStatus, string> = {
-  pledged: "Mới hứa — chưa nhận",
+  pledged: "Đã ghi nhận — chờ nhận tiền",
   pending: "Chờ xác nhận",
   confirmed: "Đã nhận (đã vào quỹ)",
   rejected: "Từ chối",

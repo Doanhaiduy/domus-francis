@@ -1,7 +1,7 @@
 "use client";
 
 // Tab "Ủng hộ" của Thu chi: khoản ủng hộ / quyên góp tự nguyện vào quỹ nhà (khác khoản phải thu định kỳ).
-// Thủ quỹ/Trưởng nhà/Admin ghi nhận (đã nhận ⇒ vào sổ quỹ ngay · mới hứa ⇒ chờ nhận) và xác nhận khoản thành viên tự báo.
+// Thủ quỹ/Trưởng nhà/Admin ghi nhận (đã nhận ⇒ vào sổ quỹ ngay · ghi nhận trước ⇒ chờ nhận tiền) và xác nhận khoản thành viên tự báo.
 import React, { useEffect, useMemo, useState } from "react";
 import { Check, Clock, HandHeart, Heart, Loader2, Plus, Save, Search, Undo2, Users, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
@@ -35,10 +35,10 @@ const RANGES: { value: Range; label: string }[] = [
 type StatusFilter = DonationStatus | "open" | "";
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "", label: "Mọi trạng thái" },
-  { value: "open", label: "Chờ xử lý (hứa / chờ xác nhận)" },
+  { value: "open", label: "Chờ xử lý (chờ nhận tiền / chờ xác nhận)" },
   { value: "confirmed", label: "Đã nhận" },
   { value: "pending", label: "Chờ xác nhận" },
-  { value: "pledged", label: "Mới hứa" },
+  { value: "pledged", label: "Đã ghi nhận (chờ nhận tiền)" },
   { value: "rejected", label: "Từ chối" },
   { value: "cancelled", label: "Đã hủy" },
 ];
@@ -117,7 +117,7 @@ export default function DonationsPanel() {
           <Stat icon={<Check className="w-4 h-4" />} tone="text-emerald-700 bg-emerald-50" label="Đã nhận" value={formatVND(s.confirmedVnd)} note={`${s.confirmedCount} khoản`} />
           <Stat icon={<Users className="w-4 h-4" />} tone="text-purple-700 bg-purple-50" label="Người ủng hộ" value={String(s.donorCount)} note={`${s.memberDonorCount} trong nhà · ${s.donorCount - s.memberDonorCount} người ngoài`} />
           <Stat icon={<Clock className="w-4 h-4" />} tone="text-amber-700 bg-amber-50" label="Chờ xác nhận" value={String(s.pendingCount)} note={formatVND(s.pendingVnd)} />
-          <Stat icon={<Heart className="w-4 h-4" />} tone="text-sky-700 bg-sky-50" label="Mới hứa" value={String(s.pledgedCount)} note={formatVND(s.pledgedVnd)} />
+          <Stat icon={<Heart className="w-4 h-4" />} tone="text-sky-700 bg-sky-50" label="Chờ nhận tiền" value={String(s.pledgedCount)} note={formatVND(s.pledgedVnd)} />
         </div>
       )}
 
@@ -138,7 +138,7 @@ export default function DonationsPanel() {
         <div className="rounded-3xl border border-dashed border-purple-200 bg-white p-12 text-center">
           <HandHeart className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="font-bold text-gray-900">Chưa có khoản ủng hộ nào ở mục này</p>
-          {canRecord && <p className="text-sm text-gray-500 mt-1">Bấm “Ghi nhận ủng hộ” để ghi một khoản đã nhận hoặc mới hứa.</p>}
+          {canRecord && <p className="text-sm text-gray-500 mt-1">Bấm “Ghi nhận ủng hộ” để ghi một khoản đã nhận tiền hoặc ghi nhận trước (chờ nhận tiền).</p>}
         </div>
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 items-start">
@@ -270,7 +270,7 @@ function RecordDialog({ onClose }: { onClose: () => void }) {
         received,
         clientRequestId: requestId,
       });
-      showToast("success", received ? "Đã ghi nhận và vào sổ quỹ." : "Đã ghi nhận khoản hứa ủng hộ.");
+      showToast("success", received ? "Đã ghi nhận và vào sổ quỹ." : "Đã ghi nhận khoản ủng hộ — chờ nhận tiền.");
       onClose();
     } catch (err) {
       showToast("error", errorMessage(err));
@@ -300,7 +300,7 @@ function RecordDialog({ onClose }: { onClose: () => void }) {
       <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 space-y-3">
         <p className="text-xs font-extrabold text-gray-700">Đã nhận tiền chưa?</p>
         <div className="grid gap-2 sm:grid-cols-2">
-          {([[true, "Đã nhận tiền", "Vào sổ quỹ ngay"], [false, "Mới hứa / chưa nhận", "Ghi lại trước, xác nhận khi tiền về"]] as const).map(([v, t, d]) => (
+          {([[true, "Đã nhận tiền", "Vào sổ quỹ ngay"], [false, "Ghi nhận trước, chưa nhận tiền", "Ghi lại trước, bấm “Đã nhận tiền” khi tiền về"]] as const).map(([v, t, d]) => (
             <button key={String(v)} type="button" onClick={() => setReceived(v)} className={cn("text-left rounded-xl border px-3 py-2.5 transition", received === v ? "border-primary bg-purple-50" : "border-gray-200 bg-white hover:bg-gray-50")}>
               <p className="text-xs font-bold text-gray-900">{t}</p>
               <p className="text-[11px] text-gray-500">{d}</p>

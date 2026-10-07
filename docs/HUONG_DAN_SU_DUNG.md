@@ -509,9 +509,9 @@ Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), m
 **Thu Chi & Báo cáo → Thu chi → Ủng hộ**
 
 Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).
-- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ chọn túi quỹ, khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Mới hứa / chưa nhận** ⇒ chỉ ghi lại, chưa vào quỹ.
-- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản mới hứa nhận tiền sau thì bấm **Đã nhận tiền** để ghi sổ.
-- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản mới hứa. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.
+- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ chọn túi quỹ, khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.
+- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản đã ghi nhận trước, khi nhận được tiền thì bấm **Đã nhận tiền** để ghi sổ.
+- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản chờ nhận tiền. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.
 - Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm.
 
 > **ℹ️ Lưu ý** — Thủ quỹ, Trưởng nhà và Admin thấy mọi khoản ủng hộ; thành viên thường chỉ thấy khoản của mình.
