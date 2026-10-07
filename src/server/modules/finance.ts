@@ -162,6 +162,8 @@ function planSelectItem(c: FinanceCaller, where: string, params: unknown[] = [])
     `SELECT cp.id, cp.code, cp.name, cp.fee_type::text AS fee_type, to_char(cp.period_month, 'YYYY-MM') AS month,
               to_char(cp.period_end_month, 'YYYY-MM') AS end_month, cp.amount_vnd, cp.due_date::text AS due_date,
               cp.status::text AS status, cp.fund_id, cp.bill_total_vnd, cp.split_count, cp.note,
+              (SELECT ev.voucher_no FROM expense_vouchers ev WHERE ev.id = cp.expense_voucher_id) AS expense_voucher_no,
+              (SELECT ev.amount_vnd FROM expense_vouchers ev WHERE ev.id = cp.expense_voucher_id) AS expense_vnd,
               count(ct.id) FILTER (WHERE ct.status NOT IN ('cancelled', 'waived'))::int AS total,
               count(ct.id) FILTER (WHERE ct.status = 'paid')::int AS paid,
               count(ct.id) FILTER (WHERE ct.status = 'partial')::int AS partial,
@@ -222,6 +224,8 @@ export function listPlansFrom(res: QueryResult, c: FinanceCaller): ContributionP
       billTotalVnd: r.bill_total_vnd === null ? null : Number(r.bill_total_vnd),
       splitCount: r.split_count ?? null,
       note: r.note ?? null,
+      expenseVoucherNo: r.expense_voucher_no ?? null,
+      expenseVnd: r.expense_vnd === null || r.expense_vnd === undefined ? null : Number(r.expense_vnd),
       stats: {
         totalCount: all ? r.total : null,
         paidCount: all ? r.paid : null,

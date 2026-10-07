@@ -17,7 +17,8 @@ export const GET = api({}, (ctx) => {
 /**
  * Lập kế hoạch thu và sinh khoản phải thu cho mọi thành viên đang ở (finance.contribution.plan.manage):
  *   { kind: "periodic_dues", startMonth?, dueDate?, fundId? }  — quỹ định kỳ, mức theo finance.dues_cycle_amount_vnd
- *   { kind: "utility", month, billTotalVnd, dueDate?, fundId?, note? } — tiền điện nước: tổng hóa đơn chia đều, làm tròn lên 1.000 đ
+ *   { kind: "utility", month, billTotalVnd | perPersonVnd, autoExpense?, payMethod?, dueDate?, fundId?, note? } — tiền điện nước: tổng hóa đơn chia đều
+ *     (làm tròn lên 1.000 đ) HOẶC mỗi người cố định (tổng = mỗi người × số người); autoExpense ⇒ tự lập phiếu chi đã chi bằng tổng (trừ quỹ ngay)
  * Trùng kỳ / trùng tháng ⇒ 409 (BR-FIN-13).
  */
 export const POST = api({}, async (ctx) => {

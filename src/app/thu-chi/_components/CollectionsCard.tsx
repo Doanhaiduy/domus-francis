@@ -298,6 +298,11 @@ export default function CollectionsCard({
                   · Hạn {dmy(plan.dueDate)}
                 </div>
                 {plan.note && <div className="text-[11px] text-gray-400 italic">{plan.note}</div>}
+                {plan.expenseVoucherNo && (
+                  <div className="text-[11px] text-emerald-700 font-semibold">
+                    Đã trừ quỹ {formatVND(plan.expenseVnd ?? 0)} (phiếu chi {plan.expenseVoucherNo}) — anh em đóng thì cộng lại quỹ
+                  </div>
+                )}
               </div>
               {canRecord && unpaidList.length > 0 && (
                 <button

@@ -165,6 +165,10 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
     label: "Công khai danh sách người chưa đóng quỹ",
     help: "Bật thì mọi thành viên thấy tên người chưa đóng; tắt thì chỉ Thủ quỹ / người quản lý thấy, thành viên chỉ thấy số liệu tổng.",
   },
+  "finance.utility.auto_expense_max_vnd": {
+    label: "Điện nước: tổng tối đa được tự trừ quỹ",
+    help: "Khi lập kế hoạch thu điện nước với “Trừ quỹ ngay”, hệ thống tự lập phiếu chi nếu tổng không vượt mức này. Lớn hơn phải lập phiếu chi thường để người quản lý duyệt.",
+  },
   "finance.utility_due_day": { label: "Hạn nộp tiền điện nước", help: "Ngày trong tháng sau tháng hóa đơn phải nộp (1–28)." },
 
   // --- Zalo ---

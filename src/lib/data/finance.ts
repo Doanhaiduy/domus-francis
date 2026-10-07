@@ -87,7 +87,7 @@ export function useContributionPlans(from?: string, to?: string, enabled = true)
 
 export type PlanPreviewQuery =
   | { kind: "periodic_dues"; startMonth?: string; dueDate?: string }
-  | { kind: "utility"; month: string; billTotalVnd: number; dueDate?: string };
+  | { kind: "utility"; month: string; billTotalVnd?: number; perPersonVnd?: number; dueDate?: string };
 
 /** Xem trước kế hoạch thu (số người chia, mỗi người, phần dư) — null để tắt. */
 export function usePlanPreview(q: PlanPreviewQuery | null) {
@@ -184,7 +184,19 @@ export const financeApi = {
   createPlan: (
     body:
       | { kind: "periodic_dues"; startMonth?: string; dueDate?: string; fundId?: string }
-      | { kind: "utility"; month: string; billTotalVnd: number; dueDate?: string; fundId?: string; note?: string | null }
+      | {
+          kind: "utility";
+          month: string;
+          /** Nhập MỘT trong hai: tổng hóa đơn HOẶC số tiền mỗi người */
+          billTotalVnd?: number;
+          perPersonVnd?: number;
+          /** Trừ quỹ ngay: tự lập phiếu chi đã chi bằng tổng; anh em đóng thì cộng lại */
+          autoExpense?: boolean;
+          payMethod?: PaymentMethod;
+          dueDate?: string;
+          fundId?: string;
+          note?: string | null;
+        }
   ) => api.post<CreatePlanResultDto>(`${FINANCE_KEY}/contribution-plans`, body),
   cancelPlan: (planId: string, reason: string) => api.post<{ cancelled: number }>(`${FINANCE_KEY}/contribution-plans/${planId}/cancel`, { reason }),
   saveReceivingAccount: (body: BankAccountDto) => api.put<ReceivingAccountDto>(`${FINANCE_KEY}/receiving-account`, body),

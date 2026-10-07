@@ -168,13 +168,10 @@ export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResult
           ])
         ).rows[0].r
       : (
-          await tx.query<{ r: Record<string, unknown> }>("SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5) AS r", [
-            `${b.month}-01`,
-            b.billTotalVnd,
-            b.dueDate ?? null,
-            b.fundId ?? null,
-            b.note ?? null,
-          ])
+          await tx.query<{ r: Record<string, unknown> }>(
+            "SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5, $6::bigint, $7::boolean, $8::payment_method_t) AS r",
+            [`${b.month}-01`, b.billTotalVnd ?? null, b.dueDate ?? null, b.fundId ?? null, b.note ?? null, b.perPersonVnd ?? null, b.autoExpense ?? false, b.payMethod ?? "cash"]
+          )
         ).rows[0].r;
   const num = (k: string) => (r[k] === undefined || r[k] === null ? null : Number(r[k]));
   return {
@@ -187,13 +184,17 @@ export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResult
     splitCount: num("split_count"),
     billTotalVnd: num("bill_total_vnd"),
     remainderVnd: num("remainder_vnd"),
+    expenseVoucherNo: r.expense_voucher_no ? String(r.expense_voucher_no) : null,
+    expenseVnd: num("expense_vnd"),
   };
 }
 
 /** Xem trước một kế hoạch (không ghi): số người chia, mỗi người, phần dư, hạn nộp, kế hoạch trùng (nếu có). */
 export async function previewPlan(
   tx: Tx,
-  q: { kind: "periodic_dues"; startMonth?: string; dueDate?: string } | { kind: "utility"; month: string; billTotalVnd: number; dueDate?: string }
+  q:
+    | { kind: "periodic_dues"; startMonth?: string; dueDate?: string }
+    | { kind: "utility"; month: string; billTotalVnd?: number; perPersonVnd?: number; dueDate?: string }
 ): Promise<PlanPreviewDto> {
   if (q.kind === "periodic_dues") {
     const [callerR, cfgR] = await batch(tx, [
@@ -281,15 +282,19 @@ export async function previewPlan(
     [
       `SELECT COALESCE($2::date, ($1::date + interval '1 month')::date + (LEAST(28, GREATEST(1, app.setting_int('finance.utility_due_day')::int)) - 1))::text AS due,
               (SELECT json_build_object('id', x.id, 'name', x.name) FROM contribution_plans x
-                WHERE x.fee_type = 'utility' AND x.status <> 'cancelled' AND x.period_month = $1::date LIMIT 1) AS existing`,
+                WHERE x.fee_type = 'utility' AND x.status <> 'cancelled' AND x.period_month = $1::date LIMIT 1) AS existing,
+              app.setting_int('finance.utility.auto_expense_max_vnd')::bigint AS cap`,
       [`${q.month}-01`, q.dueDate ?? null],
     ],
   ]);
   const c = financeCallerFrom(callerR);
   if (!c.planManage) throw forbidden("Bạn không có quyền lập kế hoạch thu tiền điện nước.");
-  const cfg = cfgR.rows[0] as { due: string; existing: { id: string; name: string } | null };
+  const cfg = cfgR.rows[0] as { due: string; existing: { id: string; name: string } | null; cap: string | number | null };
   const n = (await tx.query<{ n: number }>("SELECT app.fn_billable_member_count($1::date) AS n", [cfg.due])).rows[0].n;
-  const amount = n > 0 && q.billTotalVnd > 0 ? Math.ceil(q.billTotalVnd / n / 1000) * 1000 : 0;
+  // Mỗi người cố định ⇒ tổng = mỗi người × số người (khớp app.fn_create_utility_plan); nhập tổng ⇒ chia đều, làm tròn lên 1.000đ
+  const perPerson = q.perPersonVnd && q.perPersonVnd > 0 ? q.perPersonVnd : 0;
+  const bill = perPerson ? perPerson * n : (q.billTotalVnd ?? 0);
+  const amount = perPerson || (n > 0 && bill > 0 ? Math.ceil(bill / n / 1000) * 1000 : 0);
   return {
     kind: "utility",
     name: `Điện nước tháng ${q.month.slice(5, 7)}/${q.month.slice(0, 4)}`,
@@ -299,9 +304,10 @@ export async function previewPlan(
     splitCount: n,
     amountVnd: amount,
     totalVnd: amount * n,
-    billTotalVnd: q.billTotalVnd,
-    remainderVnd: Math.max(0, amount * n - q.billTotalVnd),
+    billTotalVnd: bill,
+    remainderVnd: Math.max(0, amount * n - bill),
     existing: cfg.existing,
+    autoExpenseMaxVnd: cfg.cap === null || cfg.cap === undefined ? null : Number(cfg.cap),
   };
 }
 

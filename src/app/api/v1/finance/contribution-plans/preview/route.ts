@@ -5,7 +5,7 @@ import { PlanPreviewQuery } from "@/server/modules/finance-schema";
 
 /**
  * Xem trước kế hoạch thu (không ghi): ?kind=periodic_dues[&startMonth=YYYY-MM][&dueDate=…]
- * hoặc ?kind=utility&month=YYYY-MM&billTotalVnd=N[&dueDate=…] ⇒ số người chia, mỗi người, phần dư, kế hoạch trùng.
+ * hoặc ?kind=utility&month=YYYY-MM&(billTotalVnd=N | perPersonVnd=N)[&dueDate=…] ⇒ số người chia, mỗi người, phần dư, kế hoạch trùng.
  */
 export const GET = api({}, (ctx) => {
   const parsed = PlanPreviewQuery.safeParse(Object.fromEntries(ctx.query));

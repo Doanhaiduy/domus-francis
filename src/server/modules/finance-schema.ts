@@ -78,7 +78,7 @@ export const PaySchema = z
 export const ReasonSchema = z.object({ reason: zText(5, 500, "Lý do") });
 
 /** Lập kế hoạch thu: quỹ định kỳ (mức theo cấu hình) hoặc tiền điện nước tháng (tổng hóa đơn chia đều). */
-export const PlanSchema = z.discriminatedUnion(
+const PlanBase = z.discriminatedUnion(
   "kind",
   [
     z.object({
@@ -92,7 +92,13 @@ export const PlanSchema = z.discriminatedUnion(
       kind: z.literal("utility"),
       /** Tháng hóa đơn điện nước */
       month: zMonth,
-      billTotalVnd: zAmount,
+      /** Nhập MỘT trong hai: tổng hóa đơn cả nhà HOẶC số tiền mỗi người (hệ thống tự tính tổng = mỗi người × số người) */
+      billTotalVnd: zAmount.optional(),
+      perPersonVnd: zAmount.max(100_000_000, "Số tiền mỗi người tối đa 100.000.000đ.").optional(),
+      /** Trừ quỹ ngay: tự lập phiếu chi đã chi bằng tổng hóa đơn; anh em đóng thì cộng lại quỹ */
+      autoExpense: z.boolean().optional(),
+      /** Hình thức trả hóa đơn (chỉ dùng khi autoExpense) */
+      payMethod: zMethod.optional(),
       dueDate: zDate.optional(),
       fundId: zUuid.optional(),
       note: optText(500, "Ghi chú"),
@@ -100,6 +106,12 @@ export const PlanSchema = z.discriminatedUnion(
   ],
   { error: "Chọn loại kế hoạch: quỹ định kỳ hoặc tiền điện nước (quỹ sinh hoạt tháng không còn lập mới)." }
 );
+export const PlanSchema = PlanBase.superRefine((v, ctx) => {
+  if (v.kind !== "utility") return;
+  const hasTotal = v.billTotalVnd !== undefined;
+  const hasPer = v.perPersonVnd !== undefined;
+  if (hasTotal === hasPer) ctx.addIssue({ code: "custom", path: ["billTotalVnd"], message: "Nhập tổng hóa đơn HOẶC số tiền mỗi người (chỉ một trong hai)." });
+});
 export type PlanInput = z.infer<typeof PlanSchema>;
 
 export const PlanPreviewQuery = z.discriminatedUnion("kind", [
@@ -107,7 +119,8 @@ export const PlanPreviewQuery = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("utility"),
     month: zMonth,
-    billTotalVnd: z.coerce.number({ error: "Tổng hóa đơn phải là số." }).int().min(0).max(1_000_000_000),
+    billTotalVnd: z.coerce.number({ error: "Tổng hóa đơn phải là số." }).int().min(0).max(1_000_000_000).optional(),
+    perPersonVnd: z.coerce.number({ error: "Số tiền mỗi người phải là số." }).int().min(0).max(100_000_000).optional(),
     dueDate: zDate.optional(),
   }),
 ]);

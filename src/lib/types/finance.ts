@@ -154,6 +154,8 @@ export interface PlanPreviewDto {
   remainderVnd: number;
   /** Kế hoạch còn hiệu lực trùng kỳ/tháng (lập sẽ bị từ chối) */
   existing: { id: string; name: string } | null;
+  /** Trần tổng hóa đơn được tự trừ quỹ khi lập kế hoạch điện nước (finance.utility.auto_expense_max_vnd); null nếu không đọc được */
+  autoExpenseMaxVnd?: number | null;
   /** Thống kê chi tiết theo phân loại thành viên (quỹ định kỳ) */
   breakdown?: {
     studyingCount: number;
@@ -183,6 +185,9 @@ export interface CreatePlanResultDto {
   splitCount: number | null;
   billTotalVnd: number | null;
   remainderVnd: number | null;
+  /** Phiếu chi tự lập khi chọn "Trừ quỹ ngay" (điện nước); null nếu không trừ quỹ tự động */
+  expenseVoucherNo: string | null;
+  expenseVnd: number | null;
 }
 
 export interface ReceiptDto {
@@ -290,6 +295,9 @@ export interface ContributionPlanDto {
   billTotalVnd: number | null;
   splitCount: number | null;
   note: string | null;
+  /** Phiếu chi tự lập khi kế hoạch điện nước được lập với "Trừ quỹ ngay" (số phiếu + số tiền đã trừ quỹ) */
+  expenseVoucherNo: string | null;
+  expenseVnd: number | null;
   stats: PlanStatsDto;
 }
 

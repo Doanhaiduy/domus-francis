@@ -16,7 +16,7 @@ import {
   type ContributionRowDto,
   type PaymentMethod,
 } from "@/lib/types/finance";
-import { CustomDatePicker, CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
 import { FundSelect } from "@/components/finance/FundSelect";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
 
@@ -616,26 +616,37 @@ export function DuesCycleModal({ open, onClose }: { open: boolean; onClose: () =
 }
 
 // ---------------------------------------------------------------------
-// Nhập TIỀN ĐIỆN NƯỚC tháng: tổng hóa đơn của cả nhà ⇒ chia đều, mỗi người làm tròn lên 1.000 đ
+// Nhập TIỀN ĐIỆN NƯỚC tháng: (1) mỗi người đóng cố định ⇒ tổng = mỗi người × số người, hoặc (2) tổng hóa đơn cả nhà ⇒ chia đều, làm tròn lên 1.000 đ.
+// Tùy chọn "Trừ quỹ ngay": tự lập phiếu chi đã chi bằng tổng; anh em đóng (ghi thu) thì cộng lại quỹ.
 // ---------------------------------------------------------------------
+const PAY_METHOD_OPTIONS = (Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((k) => ({ value: k, label: PAYMENT_METHOD_LABEL[k] }));
+
 export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { showToast } = useApp();
   const options = useFinanceOptions(open);
   const current = vnToday().slice(0, 7);
   const [month, setMonth] = useState(shiftMonth(current, -1));
+  const [mode, setMode] = useState<"per_person" | "total">("per_person");
   const [total, setTotal] = useState(0);
+  const [perPerson, setPerPerson] = useState(0);
   const [note, setNote] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [fundId, setFundId] = useState("");
+  const [autoExpense, setAutoExpense] = useState(true);
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debounced, setDebounced] = useState(0);
+  const [debounced, setDebounced] = useState({ total: 0, per: 0 });
   useEffect(() => {
     if (!open) return;
     setMonth(shiftMonth(current, -1));
+    setMode("per_person");
     setTotal(0);
+    setPerPerson(0);
     setNote("");
     setDueDate("");
+    setAutoExpense(true);
+    setPayMethod("cash");
     setError(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -643,29 +654,48 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
     setFundId(options.funds.find((f) => f.type === "cash")?.id ?? options.funds[0]?.id ?? "");
   }, [open, options]);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(total), 350);
+    const t = setTimeout(() => setDebounced({ total, per: perPerson }), 350);
     return () => clearTimeout(t);
-  }, [total]);
+  }, [total, perPerson]);
   const { preview, error: previewError } = usePlanPreview(
-    open ? { kind: "utility", month, billTotalVnd: debounced, dueDate: dueDate || undefined } : null
+    open
+      ? {
+          kind: "utility",
+          month,
+          billTotalVnd: mode === "total" ? debounced.total : undefined,
+          perPersonVnd: mode === "per_person" ? debounced.per : undefined,
+          dueDate: dueDate || undefined,
+        }
+      : null
   );
   const months = Array.from({ length: 6 }, (_, i) => shiftMonth(current, -i));
+  const entered = mode === "per_person" ? perPerson : total;
+  const inSync = mode === "per_person" ? debounced.per === perPerson : debounced.total === total;
+  const expenseVnd = preview && inSync && entered > 0 ? preview.totalVnd : 0; // số sẽ trừ quỹ = tổng tính được
+  const maxAuto = preview?.autoExpenseMaxVnd ?? null;
+  const overCap = autoExpense && maxAuto !== null && expenseVnd > maxAuto;
 
   const save = async () => {
-    if (total <= 0) return setError("Nhập tổng tiền hóa đơn điện + nước của cả nhà.");
+    if (entered <= 0) return setError(mode === "per_person" ? "Nhập số tiền mỗi người đóng." : "Nhập tổng tiền hóa đơn điện + nước của cả nhà.");
     setBusy(true);
     setError(null);
     try {
       const r = await financeApi.createPlan({
         kind: "utility",
         month,
-        billTotalVnd: total,
+        billTotalVnd: mode === "total" ? total : undefined,
+        perPersonVnd: mode === "per_person" ? perPerson : undefined,
+        autoExpense,
+        payMethod: autoExpense ? payMethod : undefined,
         dueDate: dueDate || undefined,
         fundId: fundId || undefined,
         note: note.trim() || null,
       });
       await refreshFinance();
-      showToast("success", `Đã lập ${r.name}: ${r.generated} người × ${formatVND(r.amountVnd)}.`);
+      showToast(
+        "success",
+        `Đã lập ${r.name}: ${r.generated} người × ${formatVND(r.amountVnd)}.${r.expenseVoucherNo ? ` Đã trừ quỹ ${formatVND(r.expenseVnd ?? 0)} (phiếu ${r.expenseVoucherNo}).` : ""}`
+      );
       onClose();
     } catch (e) {
       setError(errorMessage(e));
@@ -680,18 +710,35 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
       onClose={onClose}
       icon={<Zap className="w-5 h-5" />}
       title="Nhập tiền điện nước"
-      subtitle="Tổng hóa đơn điện + nước của cả nhà, chia đều cho người đang ở"
+      subtitle="Mỗi người đóng bao nhiêu, hoặc tổng hóa đơn cả nhà — chia cho người đang ở"
       footer={
         <>
           <button onClick={onClose} className={btnGhost}>
             Hủy bỏ
           </button>
-          <button disabled={busy || total <= 0 || !!preview?.existing || preview?.splitCount === 0} onClick={save} className={btnPrimary}>
-            {busy ? "Đang lập..." : "Lập khoản thu điện nước"}
+          <button disabled={busy || entered <= 0 || !!preview?.existing || preview?.splitCount === 0 || overCap} onClick={save} className={btnPrimary}>
+            {busy ? "Đang lập..." : autoExpense ? "Lập khoản thu + trừ quỹ" : "Lập khoản thu điện nước"}
           </button>
         </>
       }
     >
+      <div className="inline-flex p-1 rounded-xl bg-gray-100 gap-1 self-start">
+        {(
+          [
+            ["per_person", "Mỗi người đóng cố định"],
+            ["total", "Nhập tổng hóa đơn"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setMode(k)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${mode === k ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <CustomSelect
           label="Tháng hóa đơn"
@@ -702,33 +749,72 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
           }}
           options={months.map((m) => ({ value: m, label: `Tháng ${monthTitleShort(m)}${m === current ? " (tháng này)" : ""}` }))}
         />
-        <CustomInput
-          label="Tổng hóa đơn điện + nước (VNĐ) *"
-          inputMode="numeric"
-          value={total ? total.toLocaleString("vi-VN") : ""}
-          onChange={(e) => setTotal(Math.min(1_000_000_000, Number(e.target.value.replace(/\D/g, "")) || 0))}
-          placeholder="Ví dụ: 1.850.000"
-        />
+        {mode === "per_person" ? (
+          <CustomInput
+            label="Số tiền mỗi người đóng (VNĐ) *"
+            inputMode="numeric"
+            value={perPerson ? perPerson.toLocaleString("vi-VN") : ""}
+            onChange={(e) => setPerPerson(Math.min(100_000_000, Number(e.target.value.replace(/\D/g, "")) || 0))}
+            placeholder="Ví dụ: 120.000"
+            rightSuffix="đ"
+            hint="Hệ thống tự tính tổng = mỗi người × số người đang ở"
+          />
+        ) : (
+          <CustomInput
+            label="Tổng hóa đơn điện + nước (VNĐ) *"
+            inputMode="numeric"
+            value={total ? total.toLocaleString("vi-VN") : ""}
+            onChange={(e) => setTotal(Math.min(1_000_000_000, Number(e.target.value.replace(/\D/g, "")) || 0))}
+            placeholder="Ví dụ: 1.850.000"
+            rightSuffix="đ"
+          />
+        )}
       </div>
       <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Điện 1.180.000 + nước 670.000" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <CustomDatePicker label="Hạn nộp" value={dueDate || preview?.dueDate || ""} onChange={setDueDate} format="YYYY-MM-DD" />
         <FundSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
       </div>
+
+      <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 space-y-3">
+        <CustomToggle
+          checked={autoExpense}
+          onChange={setAutoExpense}
+          label="Trừ quỹ ngay"
+          description="Tự lập phiếu chi “Điện, Nước & Internet” bằng tổng bên dưới: quỹ trừ trước, anh em đóng (ghi thu) thì cộng lại. Tắt nếu hóa đơn đã được trừ ở nơi khác (vd. trả từ trước khi dùng hệ thống) hoặc bạn muốn tự lập phiếu chi."
+        />
+        {autoExpense && <CustomSelect<PaymentMethod> label="Hình thức trả hóa đơn" value={payMethod} onChange={setPayMethod} options={PAY_METHOD_OPTIONS} />}
+        {overCap && (
+          <p className="flex items-start gap-1.5 p-2.5 rounded-xl bg-amber-50 text-[11px] text-amber-800">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            Tổng {formatVND(expenseVnd)} vượt mức tự trừ quỹ tối đa {formatVND(maxAuto ?? 0)} (Cài đặt → Quản lý quỹ). Hãy tắt “Trừ quỹ ngay” rồi lập phiếu chi thường để người quản lý duyệt.
+          </p>
+        )}
+      </div>
+
       {preview && (
         <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 text-xs text-purple-900">
           <div className="font-bold">{preview.name}</div>
           {preview.splitCount === 0 ? (
             <div>Không có thành viên đang ở để chia.</div>
-          ) : total > 0 && preview.billTotalVnd === total ? (
-            <div>
-              {preview.splitCount} người × {formatVND(preview.amountVnd)} = <b>{formatVND(preview.totalVnd)}</b>
-              {preview.remainderVnd > 0 && <span>, dư {formatVND(preview.remainderVnd)} (làm tròn lên 1.000 đ)</span>}
-              <span className="text-purple-700"> · hạn {dmy(preview.dueDate)}</span>
+          ) : entered > 0 && inSync ? (
+            <div className="space-y-1">
+              <div>
+                {preview.splitCount} người × {formatVND(preview.amountVnd)} = <b>{formatVND(preview.totalVnd)}</b>
+                {mode === "total" && preview.remainderVnd > 0 && <span>, dư {formatVND(preview.remainderVnd)} (làm tròn lên 1.000 đ)</span>}
+                <span className="text-purple-700"> · hạn {dmy(preview.dueDate)}</span>
+              </div>
+              {autoExpense ? (
+                <div className="text-purple-800">
+                  Quỹ <b>trừ {formatVND(preview.totalVnd)}</b> ngay; khi đủ {preview.splitCount} người đóng, quỹ <b>cộng lại {formatVND(preview.totalVnd)}</b>.
+                </div>
+              ) : (
+                <div className="text-purple-800">Chưa trừ quỹ — nhớ lập phiếu chi khi trả hóa đơn.</div>
+              )}
             </div>
           ) : (
             <div>
-              Chia đều cho {preview.splitCount} người đang ở · hạn {dmy(preview.dueDate)}
+              Chia cho {preview.splitCount} người đang ở · hạn {dmy(preview.dueDate)}
             </div>
           )}
         </div>

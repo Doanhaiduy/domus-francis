@@ -362,7 +362,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         cols: 2,
         items: [
           { icon: "wallet", title: "Quỹ sinh hoạt", text: "**600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do người quản lý cấu hình)." },
-          { icon: "home", title: "Điện nước", text: "Tính chung cả nhà mỗi tháng rồi **chia đều** cho người đang ở." },
+          { icon: "home", title: "Điện nước", text: "Mỗi tháng **chia đều** cho người đang ở: một mức cố định mỗi người, hoặc tổng hóa đơn cả nhà chia ra." },
         ],
       },
       {
@@ -533,11 +533,13 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               {
                 t: "steps",
                 items: [
-                  { title: "Nhập hóa đơn", text: "Bấm **Nhập tiền điện nước**, chọn tháng, nhập **tổng tiền điện + nước** của cả nhà." },
-                  { title: "Chia đều", text: "Hệ thống chia cho số người đang ở, **làm tròn lên tới 1.000 đ** và cho xem trước (ví dụ 12 người × 155.000 đ, dư 10.000 đ)." },
-                  { title: "Chi trả công ty điện/nước", text: "Vẫn lập **phiếu chi** như thường (hạng mục Điện nước)." },
+                  { title: "Chọn cách nhập", text: "Bấm **Nhập tiền điện nước**, chọn tháng rồi chọn một trong hai: **Mỗi người đóng cố định** (ví dụ 120.000 đ — hệ thống tự tính tổng = mỗi người × số người đang ở, hợp khi tiền điện nước mỗi tháng gần như cố định) hoặc **Nhập tổng hóa đơn** (hệ thống chia đều cho số người đang ở, **làm tròn lên tới 1.000 đ**, ví dụ 12 người × 155.000 đ, dư 10.000 đ)." },
+                  { title: "Để “Trừ quỹ ngay” bật", text: "Hệ thống **tự lập phiếu chi** hạng mục *Điện, Nước & Internet* bằng tổng và ghi **đã chi** — quỹ **trừ trước** đúng số tiền hóa đơn. Chọn hình thức trả (tiền mặt / chuyển khoản…). Bước xem trước cho thấy quỹ trừ bao nhiêu và sẽ cộng lại bao nhiêu khi đủ người đóng." },
+                  { title: "Anh em đóng thì cộng lại quỹ", text: "Mỗi lần **ghi thu** (hoặc xác nhận “Tôi đã đóng”) quỹ cộng đúng số tiền đó. Đủ mọi người thì quỹ về lại mức ban đầu (cộng phần dư làm tròn nếu có). Không cần lập phiếu chi thêm." },
                 ],
               },
+              { t: "callout", tone: "info", text: "**Tắt “Trừ quỹ ngay”** khi hóa đơn đã được trừ ở nơi khác (ví dụ đã trả trước khi dùng hệ thống) hoặc bạn muốn tự lập phiếu chi để người quản lý duyệt — lúc đó nhớ lập phiếu chi khi trả hóa đơn, nếu không quỹ trong sổ sẽ cao hơn tiền thật. Tổng quá **10.000.000 đ** (đổi được ở Cài đặt → Quản lý quỹ) hoặc quỹ chưa có số dư đầu kỳ / không đủ tiền thì không tự trừ quỹ được. Phiếu tự lập **không qua chữ ký duyệt**, nhưng có số phiếu, có nhật ký kiểm toán và đảo được." },
+              { t: "callout", tone: "tip", text: "Nhập nhầm? **Hủy** kế hoạch (khi chưa ai nộp): hệ thống tự **đảo phiếu chi** — quỹ được cộng lại — rồi bạn nhập lại. Nếu đã có người nộp, hoàn tác các phiếu thu trước." },
             ],
           },
           {
