@@ -198,6 +198,15 @@ export const financeApi = {
     allocations: { contributionId: string; amountVnd: number }[];
     clientRequestId?: string;
   }) => api.post<{ id: string }>(`${FINANCE_KEY}/payments`, body),
+  /** Ghi thu hàng loạt (khoản đã đóng trước khi dùng hệ thống) — một giao dịch, tất cả hoặc không gì cả. */
+  recordPaymentsBulk: (body: {
+    fundId: string;
+    method: PaymentMethod;
+    paidOn: string;
+    note?: string | null;
+    items: { memberId: string; contributionId: string; amountVnd: number; referenceCode?: string | null }[];
+    clientRequestId: string;
+  }) => api.post<{ count: number; totalVnd: number; paymentIds: string[] }>(`${FINANCE_KEY}/payments/bulk`, body),
   claimPaid: (body: { contributionId: string; method: PaymentMethod; referenceCode?: string | null; note?: string | null }) =>
     api.post<{ id: string }>(`${FINANCE_KEY}/claims`, body),
   cancelClaim: (claimId: string) => api.post(`${FINANCE_KEY}/claims/${claimId}/cancel`),

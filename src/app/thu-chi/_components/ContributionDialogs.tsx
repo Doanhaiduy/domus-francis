@@ -17,6 +17,7 @@ import {
   type PaymentMethod,
 } from "@/lib/types/finance";
 import { CustomDatePicker, CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { FundSelect } from "@/components/finance/FundSelect";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
 
 export const CELL_STYLE: Record<string, string> = {
@@ -185,12 +186,7 @@ export function PayModal({ memberId, contributionId, onClose }: { memberId: stri
         />
         <CustomDatePicker label="Ngày nhận tiền" value={paidOn} onChange={setPaidOn} format="YYYY-MM-DD" />
       </div>
-      <CustomSelect
-        label="Nhận vào túi quỹ"
-        value={fundId}
-        onChange={setFundId}
-        options={(options?.funds ?? []).map((f) => ({ value: f.id, label: f.name }))}
-      />
+      <FundSelect label="Nhận vào túi quỹ" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
       <CustomInput
         label={method === "bank_transfer" ? "Mã giao dịch ngân hàng *" : "Mã tham chiếu (nếu có)"}
         value={ref}
@@ -568,7 +564,7 @@ export function DuesCycleModal({ open, onClose }: { open: boolean; onClose: () =
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <CustomDatePicker label="Hạn nộp" value={dueDate || preview?.dueDate || ""} onChange={setDueDate} format="YYYY-MM-DD" />
-            <CustomSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} options={options.funds.map((f) => ({ value: f.id, label: f.name }))} />
+            <FundSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} funds={options.funds} />
           </div>
         </>
       )}
@@ -717,7 +713,7 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
       <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Điện 1.180.000 + nước 670.000" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <CustomDatePicker label="Hạn nộp" value={dueDate || preview?.dueDate || ""} onChange={setDueDate} format="YYYY-MM-DD" />
-        <CustomSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} options={(options?.funds ?? []).map((f) => ({ value: f.id, label: f.name }))} />
+        <FundSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
       </div>
       {preview && (
         <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 text-xs text-purple-900">

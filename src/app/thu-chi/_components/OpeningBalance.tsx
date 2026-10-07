@@ -17,6 +17,7 @@ import { btnGhost, btnPrimary, DialogShell, ErrorBox } from "./dialogs";
 
 const toAmount = (s: string) => Number(s.replace(/[^\d]/g, ""));
 const TYPE_HINT: Record<string, string> = { cash: "Tiền mặt do Thủ quỹ giữ", bank: "Số dư trong tài khoản ngân hàng" };
+const SINGLE_HINT = "Tổng tiền quỹ đang có: tiền mặt + tiền trong tài khoản ngân hàng";
 
 /** Dữ liệu chỉ tải cho người có quyền ghi (Trưởng nhà / Admin) — người khác không gọi API. */
 function useOpeningForAdjuster() {
@@ -40,7 +41,7 @@ export function OpeningBalanceBanner() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-extrabold text-amber-900">Sổ quỹ còn trống — nhập số dư quỹ khởi đầu</p>
           <p className="text-xs text-amber-800 mt-0.5">
-            Mới triển khai? Hãy nhập số tiền đang có trong quỹ tiền mặt và tài khoản ngân hàng để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu.
+            Mới triển khai? Hãy nhập tổng số tiền quỹ đang có (tiền mặt + tài khoản ngân hàng) để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu.
           </p>
         </div>
         <button type="button" onClick={() => setOpen(true)} className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-xs font-bold text-white shrink-0 shadow-sm">
@@ -139,12 +140,15 @@ function OpeningDialog({ data, onClose }: { data: OpeningBalanceDto; onClose: ()
     ) : (
       <form id="opening-form" onSubmit={review} className="space-y-4">
         <p className="text-xs text-gray-600">
-          Nhập số tiền <b>đang có</b> trong từng túi quỹ tại thời điểm bắt đầu dùng hệ thống. Mỗi túi quỹ chỉ nhập được <b>một lần</b>; túi quỹ không dùng thì để trống.
+          Nhập số tiền quỹ <b>đang có</b> (tiền mặt + tài khoản ngân hàng) tại thời điểm bắt đầu dùng hệ thống. Chỉ nhập được <b>một lần</b>.
         </p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] text-amber-900">
+          <b>Tránh cộng đôi:</b> nếu một số anh em <b>đã đóng quỹ</b> và bạn sẽ ghi lại từng người bằng <b>“Ghi thu hàng loạt”</b>, hãy nhập số dư <b>đã trừ</b> các khoản đó (số dư đầu kỳ = tiền quỹ thực tế − tổng các khoản sẽ ghi thu lại). Còn các khoản chi đã xảy ra trước đó thì không cần nhập lại — số dư thực tế đã trừ rồi.
+        </div>
         <CustomDatePicker label="Ngày chốt số dư" format="YYYY-MM-DD" value={entryDate} onChange={(d) => d && setEntryDate(d)} required />
         <div className="space-y-3">
           {data.funds.map((f) => (
-            <FundRow key={f.id} fund={f} value={amounts[f.id] ?? ""} onChange={(v) => setAmounts((a) => ({ ...a, [f.id]: v }))} />
+            <FundRow key={f.id} fund={f} value={amounts[f.id] ?? ""} onChange={(v) => setAmounts((a) => ({ ...a, [f.id]: v }))} single={data.funds.length === 1} />
           ))}
         </div>
         {openable.length > 0 && (
@@ -184,7 +188,7 @@ function OpeningDialog({ data, onClose }: { data: OpeningBalanceDto; onClose: ()
   );
 }
 
-function FundRow({ fund, value, onChange }: { fund: OpeningFundDto; value: string; onChange: (v: string) => void }) {
+function FundRow({ fund, value, onChange, single }: { fund: OpeningFundDto; value: string; onChange: (v: string) => void; single: boolean }) {
   if (fund.canOpen) {
     return (
       <CustomInput
@@ -194,7 +198,7 @@ function FundRow({ fund, value, onChange }: { fund: OpeningFundDto; value: strin
         onChange={(e) => onChange(e.target.value)}
         placeholder="0"
         rightSuffix="đ"
-        hint={TYPE_HINT[fund.type]}
+        hint={single ? SINGLE_HINT : TYPE_HINT[fund.type]}
       />
     );
   }

@@ -9,6 +9,7 @@ import { formatVND } from "@/lib/utils";
 import { financeApi, newRequestId, refreshFinance, useFinanceOptions } from "@/lib/data/finance";
 import type { ExpenseDetailDto, ExpenseDto } from "@/lib/types/finance";
 import { CustomInput, CustomSelect, CustomDatePicker, CustomTextarea, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { FundSelect } from "@/components/finance/FundSelect";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   FOOD: "🛒",
@@ -197,13 +198,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <CustomDatePicker label="Ngày chi *" value={expenseDate} onChange={setExpenseDate} format="YYYY-MM-DD" />
-            <CustomSelect
-              label="Chi từ túi quỹ *"
-              value={fundId}
-              onChange={setFundId}
-              options={(options?.funds ?? []).map((f) => ({ value: f.id, label: f.name }))}
-              placeholder="Chọn túi quỹ"
-            />
+            <FundSelect label="Chi từ túi quỹ *" value={fundId} onChange={setFundId} funds={options?.funds ?? []} placeholder="Chọn túi quỹ" />
           </div>
 
           <CustomSelect label="Người ứng tiền / trực tiếp chi" value={paidBy} onChange={setPaidBy} options={payerOptions} placeholder="Chọn người ứng tiền" />

@@ -108,8 +108,8 @@ export async function ingestBankTxns(ctx: Ctx, txns: BankTxn[]): Promise<{ recei
   if (!txns.length) return { received: 0, created: 0 };
   const created: BankTxn[] = [];
   await ctx.dbAs("luuxa_worker", async (tx) => {
-    const fund = (await tx.query<{ id: string }>("SELECT id FROM funds WHERE fund_type = 'bank' AND is_active AND deleted_at IS NULL ORDER BY created_at LIMIT 1")).rows[0];
-    if (!fund) throw new ApiError(422, "NO_BANK_FUND", "Chưa có túi quỹ ngân hàng để nhận giao dịch.");
+    const fund = (await tx.query<{ id: string }>("SELECT id FROM funds WHERE fund_type::text IN ('bank', 'cash') AND is_active AND deleted_at IS NULL ORDER BY CASE fund_type::text WHEN 'bank' THEN 0 ELSE 1 END, created_at LIMIT 1")).rows[0];
+    if (!fund) throw new ApiError(422, "NO_BANK_FUND", "Chưa có túi quỹ để nhận giao dịch.");
     const batch = (await tx.query<{ id: string }>("SELECT app.uuid_v7() AS id")).rows[0].id;
     for (const t of txns) {
       const r = await tx.query(

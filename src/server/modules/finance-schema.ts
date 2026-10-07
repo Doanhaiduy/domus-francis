@@ -190,3 +190,31 @@ export const RangeQuery = z.object({
 });
 
 export { zMonth };
+
+/** Ghi thu HÀNG LOẠT (vd. anh em đã đóng quỹ trước khi dùng hệ thống): một ngày, một hình thức, nhiều người — tất cả hoặc không gì cả. */
+export const BulkPaymentSchema = z
+  .object({
+    fundId: zUuid,
+    method: zMethod,
+    paidOn: zDate,
+    note: optText(300, "Ghi chú"),
+    items: z
+      .array(
+        z.object({
+          memberId: zUuid,
+          contributionId: zUuid,
+          amountVnd: zAmount,
+          /** Mã giao dịch ngân hàng (chuyển khoản) — bỏ trống thì hệ thống ghi "Đóng trước khi dùng hệ thống" */
+          referenceCode: optText(100, "Mã giao dịch"),
+        })
+      )
+      .min(1, "Chọn ít nhất một người để ghi thu.")
+      .max(200, "Mỗi lần ghi thu tối đa 200 người."),
+    /** Bắt buộc: gửi lại cùng mã (mất mạng, bấm lại) không ghi thu trùng */
+    clientRequestId: zUuid,
+  })
+  .refine((v) => new Set(v.items.map((i) => i.contributionId)).size === v.items.length, {
+    message: "Mỗi khoản phải thu chỉ được chọn một lần.",
+    path: ["items"],
+  });
+export type BulkPaymentInput = z.infer<typeof BulkPaymentSchema>;

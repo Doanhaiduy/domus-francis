@@ -519,7 +519,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               {
                 t: "steps",
                 items: [
-                  { title: "Mở form lập kỳ", path: ["Thu Chi", "Các khoản thu", "Lập kỳ quỹ"], text: "Chọn kỳ (ví dụ T7–T12/2026). Mức mặc định 300.000 đ/người, hạn nộp mặc định ngày 15 tháng đầu kỳ, chọn túi quỹ nhận." },
+                  { title: "Mở form lập kỳ", path: ["Thu Chi", "Các khoản thu", "Lập kỳ quỹ"], text: "Chọn kỳ (ví dụ T7–T12/2026). Mức mặc định 300.000 đ/người, hạn nộp mặc định ngày 15 tháng đầu kỳ. Tiền thu vào **quỹ chung** của nhà." },
                   { title: "Xem trước", text: "Hệ thống hiện “12 người × 300.000 đ = 3.600.000 đ”.", demo: "fund-preview" },
                   { title: "Lập kỳ quỹ", text: "Tạo khoản phải thu cho mọi thành viên đang ở. Mỗi kỳ chỉ lập **một lần**; kỳ chưa ai nộp thì **Hủy** được." },
                 ],
@@ -544,7 +544,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Ghi thu, hoàn tác & nhắc nợ",
             blocks: [
               { t: "demo", name: "pay-states", caption: "Các trạng thái của một khoản" },
-              { t: "md", text: "- **Tôi đã đóng**: thành viên báo → bạn đối chiếu rồi **Xác nhận** hoặc từ chối kèm lý do.\n- Thủ quỹ, Trưởng nhà, Admin bấm **Đã đóng** ở dòng thành viên (tiền mặt/chuyển khoản) để ghi thay.\n- Nhầm hoặc chưa thu thật: **Hoàn tác** (có lý do — hệ thống ghi bút toán đảo, không xóa dữ liệu).\n- Đóng một phần/gộp nhiều khoản: **Chi tiết → Ghi thu**.\n- **Nhắc nợ**: nút **Nhắc** ở từng người hoặc **Nhắc người chưa đóng** cho cả khoản — gửi thông báo trong ứng dụng và (tùy chọn) vào **nhóm Zalo**.\n- **Miễn/giảm** cần lý do và quyền của Trưởng nhà." },
+              { t: "md", text: "- **Tôi đã đóng**: thành viên báo → bạn đối chiếu rồi **Xác nhận** hoặc từ chối kèm lý do.\n- Thủ quỹ, Trưởng nhà, Admin bấm **Đã đóng** ở dòng thành viên (tiền mặt/chuyển khoản) để ghi thay.\n- Nhầm hoặc chưa thu thật: **Hoàn tác** (có lý do — hệ thống ghi bút toán đảo, không xóa dữ liệu).\n- Đóng một phần/gộp nhiều khoản: **Chi tiết → Ghi thu**.\n- Nhiều người đã đóng từ trước (vd. trước khi dùng hệ thống): **Ghi thu hàng loạt** (xem mục riêng bên dưới).\n- **Nhắc nợ**: nút **Nhắc** ở từng người hoặc **Nhắc người chưa đóng** cho cả khoản — gửi thông báo trong ứng dụng và (tùy chọn) vào **nhóm Zalo**.\n- **Miễn/giảm** cần lý do và quyền của Trưởng nhà." },
             ],
           },
           {
@@ -577,24 +577,58 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Số dư quỹ khởi đầu (khi mới triển khai)",
             blocks: [
               { t: "path", items: ["Thu Chi & Báo cáo", "Tổng quan", "Nhập số dư đầu kỳ"] },
-              { t: "md", text: "Khi mới bắt đầu dùng hệ thống, quỹ nhà đã có sẵn tiền (tiền mặt Thủ quỹ đang giữ, số dư tài khoản ngân hàng). **Trưởng nhà hoặc Admin** nhập số tiền đó một lần để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh số dư các túi quỹ." },
+              { t: "md", text: "Nhà dùng **một quỹ chung** (tiền mặt Thủ quỹ giữ + tiền trong tài khoản ngân hàng gộp làm một). Khi mới bắt đầu dùng hệ thống, quỹ đã có sẵn tiền: **Trưởng nhà hoặc Admin** nhập số tiền đó **một lần** để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh phần tồn quỹ." },
               {
                 t: "steps",
                 items: [
-                  { title: "Mở hộp thoại", text: "Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh số dư các túi quỹ)." },
-                  { title: "Chọn ngày chốt số dư", text: "Ngày bạn đối chiếu số tiền thực tế (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ." },
-                  { title: "Nhập số tiền từng túi quỹ", text: "Quỹ tiền mặt và tài khoản ngân hàng. Túi quỹ không dùng thì **để trống**. Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”)." },
-                  { title: "Xem lại rồi xác nhận ghi sổ", text: "Kiểm tra từng số tiền và tổng, bấm **Xác nhận ghi sổ**." },
+                  { title: "Tính số cần nhập", text: "**Số dư đầu kỳ = tiền quỹ thực tế hiện có − tổng tiền anh em đã đóng mà bạn sẽ ghi thu lại trong hệ thống.** Ví dụ quỹ đang có 10.000.000đ, trong đó 5 người đã đóng 500.000đ (2.500.000đ) và bạn sẽ ghi thu lại 5 người đó ⇒ nhập **7.500.000đ**. Nếu không ghi thu lại ai thì nhập đúng số tiền quỹ thực tế." },
+                  { title: "Mở hộp thoại", text: "Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh tồn quỹ)." },
+                  { title: "Chọn ngày chốt số dư", text: "Đặt **trước ngày đóng sớm nhất** bạn sẽ ghi thu lại (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ." },
+                  { title: "Nhập số tiền, xem lại, xác nhận", text: "Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”). Kiểm tra số tiền rồi bấm **Xác nhận ghi sổ**." },
+                  { title: "Ghi thu lại những người đã đóng", text: "Dùng **Ghi thu hàng loạt** (mục dưới) với ngày đóng thực tế. Các khoản chi đã xảy ra trước đó **không cần nhập lại** — số dư thực tế đã trừ rồi." },
                 ],
               },
-              { t: "callout", tone: "warn", text: "Mỗi túi quỹ chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của túi quỹ đó; túi quỹ đã có giao dịch thì không nhập được nữa. Bút toán **không sửa, không xóa** (sổ quỹ bất biến) — nhập sai thì ghi bút toán điều chỉnh kèm lý do. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ." },
+              { t: "callout", tone: "warn", text: "Chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của sổ quỹ — hãy nhập **trước khi ghi thu hay chi bất cứ khoản nào** (cả ghi thử). Bút toán **không sửa, không xóa** (sổ quỹ bất biến); nhập sai thì dùng **Điều chỉnh sổ quỹ**. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ. Đừng để anh em tự bấm “Tôi đã đóng” cho khoản đóng cũ — bạn xác nhận sẽ cộng thêm một lần nữa." },
+            ],
+          },
+          {
+            title: "Ghi thu hàng loạt (anh em đã đóng từ trước)",
+            blocks: [
+              { t: "path", items: ["Thu Chi & Báo cáo", "Tổng quan", "Các khoản thu", "Ghi thu hàng loạt"] },
+              { t: "md", text: "Dùng khi nhiều người **đã đóng quỹ trước khi dùng hệ thống** (hoặc đóng cùng một ngày) và bạn muốn ghi một lượt thay vì từng người. Mỗi người được một **phiếu thu** và **cộng vào sổ quỹ** theo ngày đóng thực tế." },
+              {
+                t: "steps",
+                items: [
+                  { title: "Chọn khoản thu", text: "Bấm chip kỳ quỹ / điện nước cần ghi (ví dụ “Quỹ T7–T12”), rồi bấm **Ghi thu hàng loạt**." },
+                  { title: "Đặt ngày và hình thức", text: "**Ngày đóng thực tế**, hình thức (tiền mặt / chuyển khoản…), ghi chú (mặc định “Đóng trước khi dùng hệ thống”). Chuyển khoản không có mã giao dịch thì để trống." },
+                  { title: "Tick những người đã đóng", text: "Danh sách chỉ gồm người **chưa đóng đủ**. **Chọn tất cả** hoặc tick từng người; sửa số tiền nếu ai đóng một phần. Nếu mỗi người đóng một ngày khác nhau, ghi theo từng nhóm cùng ngày." },
+                  { title: "Bấm Ghi thu", text: "Nút hiện sẵn số người và tổng tiền. **Tất cả hoặc không gì cả**: có một người sai thì không ai được ghi. Bấm lại do mất mạng **không ghi trùng**." },
+                ],
+              },
+              { t: "callout", tone: "warn", text: "Nếu số dư đầu kỳ bạn đã nhập **gồm sẵn** các khoản này thì **đừng ghi lại** (quỹ bị cộng hai lần). Ghi nhầm: vào chi tiết khoản → **Hoàn tác** phiếu thu (có lý do, hệ thống ghi bút toán đảo). Người chưa đóng cứ để nguyên là còn nợ." },
+            ],
+          },
+          {
+            title: "Điều chỉnh sổ quỹ (sửa sai, lệch tiền)",
+            blocks: [
+              { t: "path", items: ["Thu Chi & Báo cáo", "Tổng quan", "Điều chỉnh sổ quỹ"] },
+              { t: "md", text: "Sổ quỹ **bất biến** — không sửa hay xóa bút toán cũ. Khi nhập sai số dư đầu kỳ, hoặc tiền thực tế lệch sổ (thừa/thiếu, có khoản thu/chi ngoài hệ thống), **Trưởng nhà hoặc Admin** ghi thêm một **bút toán điều chỉnh**." },
+              {
+                t: "steps",
+                items: [
+                  { title: "Chọn chiều", text: "**Cộng vào quỹ** (tiền thực tế nhiều hơn sổ) hoặc **Trừ khỏi quỹ** (ít hơn sổ). Trừ không được vượt số dư hiện có." },
+                  { title: "Nhập số tiền, ngày, lý do", text: "Ngày hạch toán (không ở tương lai, tháng phải còn mở). **Lý do bắt buộc, tối thiểu 10 ký tự** — ghi rõ vì sao để sau này đối chiếu." },
+                  { title: "Xem lại và xác nhận", text: "Màn hình xác nhận hiện số dư **trước → sau**. Bút toán được lưu kèm người ghi và hiện ở **Bút toán ghi tay gần đây** ngay trong hộp thoại." },
+                ],
+              },
+              { t: "callout", tone: "info", text: "Chưa nhập **số dư đầu kỳ** thì chưa điều chỉnh được (phải nhập số dư đầu kỳ trước). Điều chỉnh nhầm thì ghi thêm bút toán ngược lại — mọi bút toán đều có dấu vết kiểm toán." },
             ],
           },
           {
             title: "Ủng hộ / quyên góp vào quỹ",
             blocks: [
               { t: "path", items: ["Thu Chi & Báo cáo", "Thu chi", "Ủng hộ"] },
-              { t: "md", text: "Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).\n- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ chọn túi quỹ, khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.\n- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản đã ghi nhận trước, khi nhận được tiền thì bấm **Đã nhận tiền** để ghi sổ.\n- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản chờ nhận tiền. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.\n- Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm." },
+              { t: "md", text: "Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).\n- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.\n- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản đã ghi nhận trước, khi nhận được tiền thì bấm **Đã nhận tiền** để ghi sổ.\n- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản chờ nhận tiền. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.\n- Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm." },
               { t: "callout", tone: "info", text: "Thủ quỹ, Trưởng nhà và Admin thấy mọi khoản ủng hộ; thành viên thường chỉ thấy khoản của mình." },
             ],
           },

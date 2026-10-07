@@ -457,7 +457,7 @@ Chọn ngân hàng, nhập số tài khoản, tên chủ tài khoản (có thể
 
 #### Lập kỳ quỹ (6 tháng/lần)
 
-1. **Mở form lập kỳ** _(Thu Chi → Các khoản thu → Lập kỳ quỹ)_ — Chọn kỳ (ví dụ T7–T12/2026). Mức mặc định 300.000 đ/người, hạn nộp mặc định ngày 15 tháng đầu kỳ, chọn túi quỹ nhận.
+1. **Mở form lập kỳ** _(Thu Chi → Các khoản thu → Lập kỳ quỹ)_ — Chọn kỳ (ví dụ T7–T12/2026). Mức mặc định 300.000 đ/người, hạn nộp mặc định ngày 15 tháng đầu kỳ. Tiền thu vào **quỹ chung** của nhà.
 2. **Xem trước** — Hệ thống hiện “12 người × 300.000 đ = 3.600.000 đ”. _(minh họa trong ứng dụng)_
 3. **Lập kỳ quỹ** — Tạo khoản phải thu cho mọi thành viên đang ở. Mỗi kỳ chỉ lập **một lần**; kỳ chưa ai nộp thì **Hủy** được.
 
@@ -477,6 +477,7 @@ _[Minh họa giao diện: Các trạng thái của một khoản — xem trong �
 - Thủ quỹ, Trưởng nhà, Admin bấm **Đã đóng** ở dòng thành viên (tiền mặt/chuyển khoản) để ghi thay.
 - Nhầm hoặc chưa thu thật: **Hoàn tác** (có lý do — hệ thống ghi bút toán đảo, không xóa dữ liệu).
 - Đóng một phần/gộp nhiều khoản: **Chi tiết → Ghi thu**.
+- Nhiều người đã đóng từ trước (vd. trước khi dùng hệ thống): **Ghi thu hàng loạt** (xem mục riêng bên dưới).
 - **Nhắc nợ**: nút **Nhắc** ở từng người hoặc **Nhắc người chưa đóng** cho cả khoản — gửi thông báo trong ứng dụng và (tùy chọn) vào **nhóm Zalo**.
 - **Miễn/giảm** cần lý do và quyền của Trưởng nhà.
 
@@ -508,21 +509,47 @@ Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), m
 
 **Thu Chi & Báo cáo → Tổng quan → Nhập số dư đầu kỳ**
 
-Khi mới bắt đầu dùng hệ thống, quỹ nhà đã có sẵn tiền (tiền mặt Thủ quỹ đang giữ, số dư tài khoản ngân hàng). **Trưởng nhà hoặc Admin** nhập số tiền đó một lần để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh số dư các túi quỹ.
+Nhà dùng **một quỹ chung** (tiền mặt Thủ quỹ giữ + tiền trong tài khoản ngân hàng gộp làm một). Khi mới bắt đầu dùng hệ thống, quỹ đã có sẵn tiền: **Trưởng nhà hoặc Admin** nhập số tiền đó **một lần** để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh phần tồn quỹ.
 
-1. **Mở hộp thoại** — Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh số dư các túi quỹ).
-2. **Chọn ngày chốt số dư** — Ngày bạn đối chiếu số tiền thực tế (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ.
-3. **Nhập số tiền từng túi quỹ** — Quỹ tiền mặt và tài khoản ngân hàng. Túi quỹ không dùng thì **để trống**. Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”).
-4. **Xem lại rồi xác nhận ghi sổ** — Kiểm tra từng số tiền và tổng, bấm **Xác nhận ghi sổ**.
+1. **Tính số cần nhập** — **Số dư đầu kỳ = tiền quỹ thực tế hiện có − tổng tiền anh em đã đóng mà bạn sẽ ghi thu lại trong hệ thống.** Ví dụ quỹ đang có 10.000.000đ, trong đó 5 người đã đóng 500.000đ (2.500.000đ) và bạn sẽ ghi thu lại 5 người đó ⇒ nhập **7.500.000đ**. Nếu không ghi thu lại ai thì nhập đúng số tiền quỹ thực tế.
+2. **Mở hộp thoại** — Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh tồn quỹ).
+3. **Chọn ngày chốt số dư** — Đặt **trước ngày đóng sớm nhất** bạn sẽ ghi thu lại (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ.
+4. **Nhập số tiền, xem lại, xác nhận** — Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”). Kiểm tra số tiền rồi bấm **Xác nhận ghi sổ**.
+5. **Ghi thu lại những người đã đóng** — Dùng **Ghi thu hàng loạt** (mục dưới) với ngày đóng thực tế. Các khoản chi đã xảy ra trước đó **không cần nhập lại** — số dư thực tế đã trừ rồi.
 
-> **⚠️ Chú ý** — Mỗi túi quỹ chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của túi quỹ đó; túi quỹ đã có giao dịch thì không nhập được nữa. Bút toán **không sửa, không xóa** (sổ quỹ bất biến) — nhập sai thì ghi bút toán điều chỉnh kèm lý do. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ.
+> **⚠️ Chú ý** — Chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của sổ quỹ — hãy nhập **trước khi ghi thu hay chi bất cứ khoản nào** (cả ghi thử). Bút toán **không sửa, không xóa** (sổ quỹ bất biến); nhập sai thì dùng **Điều chỉnh sổ quỹ**. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ. Đừng để anh em tự bấm “Tôi đã đóng” cho khoản đóng cũ — bạn xác nhận sẽ cộng thêm một lần nữa.
+
+#### Ghi thu hàng loạt (anh em đã đóng từ trước)
+
+**Thu Chi & Báo cáo → Tổng quan → Các khoản thu → Ghi thu hàng loạt**
+
+Dùng khi nhiều người **đã đóng quỹ trước khi dùng hệ thống** (hoặc đóng cùng một ngày) và bạn muốn ghi một lượt thay vì từng người. Mỗi người được một **phiếu thu** và **cộng vào sổ quỹ** theo ngày đóng thực tế.
+
+1. **Chọn khoản thu** — Bấm chip kỳ quỹ / điện nước cần ghi (ví dụ “Quỹ T7–T12”), rồi bấm **Ghi thu hàng loạt**.
+2. **Đặt ngày và hình thức** — **Ngày đóng thực tế**, hình thức (tiền mặt / chuyển khoản…), ghi chú (mặc định “Đóng trước khi dùng hệ thống”). Chuyển khoản không có mã giao dịch thì để trống.
+3. **Tick những người đã đóng** — Danh sách chỉ gồm người **chưa đóng đủ**. **Chọn tất cả** hoặc tick từng người; sửa số tiền nếu ai đóng một phần. Nếu mỗi người đóng một ngày khác nhau, ghi theo từng nhóm cùng ngày.
+4. **Bấm Ghi thu** — Nút hiện sẵn số người và tổng tiền. **Tất cả hoặc không gì cả**: có một người sai thì không ai được ghi. Bấm lại do mất mạng **không ghi trùng**.
+
+> **⚠️ Chú ý** — Nếu số dư đầu kỳ bạn đã nhập **gồm sẵn** các khoản này thì **đừng ghi lại** (quỹ bị cộng hai lần). Ghi nhầm: vào chi tiết khoản → **Hoàn tác** phiếu thu (có lý do, hệ thống ghi bút toán đảo). Người chưa đóng cứ để nguyên là còn nợ.
+
+#### Điều chỉnh sổ quỹ (sửa sai, lệch tiền)
+
+**Thu Chi & Báo cáo → Tổng quan → Điều chỉnh sổ quỹ**
+
+Sổ quỹ **bất biến** — không sửa hay xóa bút toán cũ. Khi nhập sai số dư đầu kỳ, hoặc tiền thực tế lệch sổ (thừa/thiếu, có khoản thu/chi ngoài hệ thống), **Trưởng nhà hoặc Admin** ghi thêm một **bút toán điều chỉnh**.
+
+1. **Chọn chiều** — **Cộng vào quỹ** (tiền thực tế nhiều hơn sổ) hoặc **Trừ khỏi quỹ** (ít hơn sổ). Trừ không được vượt số dư hiện có.
+2. **Nhập số tiền, ngày, lý do** — Ngày hạch toán (không ở tương lai, tháng phải còn mở). **Lý do bắt buộc, tối thiểu 10 ký tự** — ghi rõ vì sao để sau này đối chiếu.
+3. **Xem lại và xác nhận** — Màn hình xác nhận hiện số dư **trước → sau**. Bút toán được lưu kèm người ghi và hiện ở **Bút toán ghi tay gần đây** ngay trong hộp thoại.
+
+> **ℹ️ Lưu ý** — Chưa nhập **số dư đầu kỳ** thì chưa điều chỉnh được (phải nhập số dư đầu kỳ trước). Điều chỉnh nhầm thì ghi thêm bút toán ngược lại — mọi bút toán đều có dấu vết kiểm toán.
 
 #### Ủng hộ / quyên góp vào quỹ
 
 **Thu Chi & Báo cáo → Thu chi → Ủng hộ**
 
 Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).
-- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ chọn túi quỹ, khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.
+- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.
 - Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản đã ghi nhận trước, khi nhận được tiền thì bấm **Đã nhận tiền** để ghi sổ.
 - Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản chờ nhận tiền. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.
 - Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm.

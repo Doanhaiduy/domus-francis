@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Check, Clock, HandHeart, Heart, Loader2, Plus, Save, Search, Undo2, Users, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
+import { FundSelect } from "@/components/finance/FundSelect";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -309,7 +310,7 @@ function RecordDialog({ onClose }: { onClose: () => void }) {
         </div>
         {received && (
           <>
-            <CustomSelect label="Túi quỹ nhận tiền" value={fundId} onChange={setFundId} options={funds.map((f) => ({ value: f.id, label: f.name }))} placeholder="Chọn túi quỹ…" />
+            <FundSelect label="Túi quỹ nhận tiền" value={fundId} onChange={setFundId} funds={funds} placeholder="Chọn túi quỹ…" />
             <CustomInput label={method === "bank_transfer" ? "Mã giao dịch ngân hàng *" : "Mã giao dịch (tùy chọn)"} value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} placeholder="Mã tham chiếu trong sao kê" />
           </>
         )}
@@ -387,7 +388,7 @@ function ConfirmDialog({ item, onClose }: { item: DonationDto; onClose: () => vo
 
   return (
     <Shell title="Xác nhận đã nhận tiền" subtitle={`${item.donorName} — ${formatVND(item.amountVnd)} (${dmy(item.donatedOn)})`} onClose={onClose} busy={busy} onSubmit={submit} submitLabel="Ghi vào quỹ">
-      <CustomSelect label="Túi quỹ nhận tiền" value={fundId} onChange={setFundId} options={funds.map((f) => ({ value: f.id, label: f.name }))} placeholder="Chọn túi quỹ…" />
+      <FundSelect label="Túi quỹ nhận tiền" value={fundId} onChange={setFundId} funds={funds} placeholder="Chọn túi quỹ…" />
       <CustomTextarea label="Ghi chú (tùy chọn)" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} />
       <p className="text-[11px] text-gray-500">Khoản này sẽ được ghi vào sổ quỹ với ngày ủng hộ {dmy(item.donatedOn)} và không sửa/xóa được — nếu sai phải dùng bút toán đảo.</p>
     </Shell>

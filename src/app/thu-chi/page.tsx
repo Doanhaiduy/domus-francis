@@ -69,6 +69,8 @@ import { ClaimDialog, QuickPayDialog, RemindDialog } from "./_components/Collect
 import StatsPanel from "./_components/StatsPanel";
 import DonationsPanel from "./_components/DonationsPanel";
 import { OpeningBalanceBanner, OpeningBalanceButton } from "./_components/OpeningBalance";
+import { AdjustButton } from "./_components/LedgerAdjust";
+import { BulkPayDialog } from "./_components/BulkPayDialog";
 import BankLinesCard from "./_components/BankLinesCard";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
@@ -122,6 +124,7 @@ export default function ThuChiPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   // Thu quỹ nhanh: đã đóng / tôi đã đóng / hoàn tác / nhắc nợ / xác nhận báo đóng
   const [quickPayFor, setQuickPayFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
   const [claimFor, setClaimFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
   const [undoFor, setUndoFor] = useState<{ row: ContributionRowDto; cell: ContributionCellDto } | null>(null);
   const [remindOpen, setRemindOpen] = useState(false);
@@ -626,12 +629,14 @@ export default function ThuChiPage() {
               <AreaTrendChart data={trendData} height={190} title="Tăng Trưởng Số Dư Quỹ Lưu Xá" subtitle="Số dư cuối mỗi tháng theo sổ cái" />
               {o.funds && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {o.funds.map((f) => (
+                  {o.funds.length > 1 &&
+                    o.funds.map((f) => (
                     <span key={f.id} className="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-semibold text-gray-700">
                       {f.name}: <b className="text-gray-900">{formatVND(f.balanceVnd)}</b>
                     </span>
                   ))}
                   <OpeningBalanceButton />
+                  <AdjustButton />
                 </div>
               )}
             </div>
@@ -663,6 +668,7 @@ export default function ThuChiPage() {
                 claims={planClaims}
                 canRemind={canRemind}
                 onQuickPay={(row, cell) => setQuickPayFor({ row, cell })}
+                onBulkPay={() => setBulkPayOpen(true)}
                 onClaim={(row, cell) => setClaimFor({ row, cell })}
                 onUndo={(row, cell) => setUndoFor({ row, cell })}
                 onRemindOne={(row, cell) => setRemindOne({ contributionId: cell.contributionId, name: row.name })}
@@ -1086,6 +1092,7 @@ export default function ThuChiPage() {
         subtitle={payQrFor ? `${payQrFor.cell.planName} · ${formatVND(payQrFor.cell.remainingVnd)}` : undefined}
       />
       <QuickPayDialog target={quickPayFor} onClose={() => setQuickPayFor(null)} />
+      {bulkPayOpen && plan && <BulkPayDialog plan={plan} rows={planRows} onClose={() => setBulkPayOpen(false)} />}
       <ClaimDialog target={claimFor} onClose={() => setClaimFor(null)} />
       <RemindDialog
         open={remindOpen || !!remindOne}

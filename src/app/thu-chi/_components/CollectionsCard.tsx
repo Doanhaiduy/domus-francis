@@ -3,7 +3,7 @@
 // Thẻ "Các khoản thu" (trang Thu chi → Tổng quan): chọn kế hoạch thu (mặc định kỳ quỹ hiện tại; chip tiền điện nước các tháng gần nhất),
 // tiến độ đã thu / phải thu, danh sách thành viên (thẻ trên điện thoại, bảng trên máy tính) với Thu tiền / Nộp qua QR / Chi tiết.
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban, BellRing, Undo2, Check, X as XIcon, Hourglass } from "lucide-react";
+import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban, BellRing, Undo2, Check, X as XIcon, Hourglass, ListChecks } from "lucide-react";
 import { formatVND } from "@/lib/utils";
 import { dm, dmy } from "@/lib/finance-format";
 import { FEE_TYPE_LABEL, type ContributionCellDto, type ContributionClaimDto, type ContributionPlanDto, type ContributionRowDto } from "@/lib/types/finance";
@@ -56,6 +56,7 @@ export default function CollectionsCard({
   onUndo,
   onRemindOne,
   onRemindPlan,
+  onBulkPay,
   onDecideClaim,
   onCancelClaim,
 }: {
@@ -87,6 +88,8 @@ export default function CollectionsCard({
   onUndo: (row: ContributionRowDto, cell: ContributionCellDto) => void;
   onRemindOne: (row: ContributionRowDto, cell: ContributionCellDto) => void;
   onRemindPlan: () => void;
+  /** Mở hộp thoại ghi thu hàng loạt (khoản đã đóng từ trước) */
+  onBulkPay: () => void;
   onDecideClaim: (claim: ContributionClaimDto, approve: boolean) => void;
   onCancelClaim: (claim: ContributionClaimDto) => void;
 }) {
@@ -296,6 +299,15 @@ export default function CollectionsCard({
                 </div>
                 {plan.note && <div className="text-[11px] text-gray-400 italic">{plan.note}</div>}
               </div>
+              {canRecord && unpaidList.length > 0 && (
+                <button
+                  onClick={onBulkPay}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[11px] font-bold text-emerald-800"
+                  title="Ghi thu một lượt cho nhiều người đã đóng (vd. đóng trước khi dùng hệ thống)"
+                >
+                  <ListChecks className="w-3.5 h-3.5" /> Ghi thu hàng loạt
+                </button>
+              )}
               {canRemind && owingList.length > 0 && (
                 <button
                   onClick={onRemindPlan}

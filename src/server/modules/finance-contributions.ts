@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import type { QueryResult } from "pg";
 import { batch, type Tx } from "../db";
 import { ApiError, forbidden, notFound } from "../errors";
@@ -12,7 +13,7 @@ import {
   planByIdItem,
   type SqlItem,
 } from "./finance";
-import type { PlanInput } from "./finance-schema";
+import type { BulkPaymentInput, PlanInput } from "./finance-schema";
 import {
   monthRangeLabel,
   type ContributionCellDto,
@@ -336,6 +337,48 @@ export async function recordPayment(
       [b.memberId, b.fundId, total, b.method, b.paidOn, b.referenceCode ?? null, JSON.stringify(allocations), b.clientRequestId ?? null, b.note ?? null]
     )
   ).rows[0].id;
+}
+
+/** UUID xác định từ (mã yêu cầu cả lô, mã khoản phải thu) ⇒ gửi lại cả lô không tạo phiếu thu trùng (fn_record_contribution_payment idempotent). */
+function itemRequestId(batchId: string, contributionId: string): string {
+  const h = createHash("sha256").update(`${batchId}:${contributionId}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
+ * Ghi thu hàng loạt trong MỘT giao dịch (một người lỗi ⇒ không ghi ai). Mỗi người một phiếu thu + một bút toán thu ở sổ quỹ,
+ * ngày thu = ngày thực tế (có thể là ngày đã qua). Chỉ người có finance.contribution.record (kiểm trong fn_record_contribution_payment).
+ */
+export async function recordPaymentsBulk(
+  tx: Tx,
+  b: BulkPaymentInput
+): Promise<{ count: number; totalVnd: number; paymentIds: string[] }> {
+  const ok = (await tx.query<{ ok: boolean }>("SELECT $1::date <= app.local_today() AS ok", [b.paidOn])).rows[0].ok;
+  if (!ok) throw new ApiError(422, "FUTURE_DATE", "Ngày thu không được ở tương lai.");
+  const paymentIds: string[] = [];
+  let totalVnd = 0;
+  for (const it of b.items) {
+    const reference = it.referenceCode ?? (b.method === "bank_transfer" ? "Đóng trước khi dùng hệ thống" : null);
+    const id = (
+      await tx.query<{ id: string }>(
+        "SELECT app.fn_record_contribution_payment($1, $2, $3, $4::payment_method_t, $5::date, $6, $7::jsonb, $8, $9) AS id",
+        [
+          it.memberId,
+          b.fundId,
+          it.amountVnd,
+          b.method,
+          b.paidOn,
+          reference,
+          JSON.stringify([{ contribution_id: it.contributionId, amount_vnd: it.amountVnd }]),
+          itemRequestId(b.clientRequestId, it.contributionId),
+          b.note ?? null,
+        ]
+      )
+    ).rows[0].id;
+    paymentIds.push(id);
+    totalVnd += it.amountVnd;
+  }
+  return { count: paymentIds.length, totalVnd, paymentIds };
 }
 
 export async function voidPayment(tx: Tx, paymentId: string, reason: string) {
