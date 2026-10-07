@@ -339,7 +339,7 @@ export default function ProfileTab() {
                 value={f.gender ?? "Nam"}
                 onChange={set("gender")}
                 options={[
-                  { value: "Nam", label: "Nam" },
+                  { value: "Nam", label: "Bính" },
                   { value: "Nữ", label: "Nữ" },
                 ]}
               />

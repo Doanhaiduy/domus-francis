@@ -67,6 +67,7 @@ import { CellDialog, DuesCycleModal, PayModal, UtilityModal } from "./_component
 import { ReasonDialog } from "./_components/dialogs";
 import { ClaimDialog, QuickPayDialog, RemindDialog } from "./_components/CollectionDialogs";
 import StatsPanel from "./_components/StatsPanel";
+import DonationsPanel from "./_components/DonationsPanel";
 import BankLinesCard from "./_components/BankLinesCard";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
@@ -82,7 +83,7 @@ const NOT_COUNTED: ExpenseStatus[] = ["cancelled", "rejected", "reversed"];
 const CATEGORY_EMOJI: Record<string, string> = { FOOD: "🛒", UTILITY: "⚡", CLEAN: "🧴", REPAIR: "🔧", LITURGY: "✝", GUEST: "🤝", OTHER: "📦" };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "bao-cao" | "thong-ke";
+type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "ung-ho" | "bao-cao" | "thong-ke";
 
 export default function ThuChiPage() {
   const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
@@ -506,6 +507,7 @@ export default function ThuChiPage() {
             ["tong-quan", "Tổng quan"],
             ["danh-sach", `Danh sách chi tiêu (${expenses.length})`],
             ["dong-quy", "Ma trận đóng quỹ"],
+            ["ung-ho", "Ủng hộ"],
             ["bao-cao", "Báo cáo & Biểu đồ"],
             ["thong-ke", "Thống kê & Xuất file"],
           ] as [Tab, string][]
@@ -1020,6 +1022,8 @@ export default function ThuChiPage() {
       {/* ========================================================================= */}
       {/* TAB: THỐNG KÊ THEO THÁNG / QUÝ / NĂM + XUẤT EXCEL / PDF */}
       {/* ========================================================================= */}
+      {activeTab === "ung-ho" && <DonationsPanel />}
+
       {activeTab === "thong-ke" && <StatsPanel />}
 
       {/* FINANCIAL REPORT MODAL */}

@@ -37,6 +37,8 @@ const BY_PATH: [RegExp, string[]][] = [
   [/^\/thanh-vien/, ["Cách xem và sửa hồ sơ của tôi?"]],
   [/^\/hoc-tap/, ["Cách nộp bảng điểm kèm ảnh minh chứng?"]],
   [/^\/thong-bao/, ["Xác nhận đã đọc thông báo là gì?", "Nội quy về khách đến thăm phòng?"]],
+  [/^\/ky-luat/, ["Mình xem vi phạm và hình phạt của mình ở đâu?", "Hình phạt đang chấp hành là gì, khi nào kết thúc?"]],
+  [/^\/bao-cao/, ["Cách xem tổng kết tháng của mình?", "Cách tải tổng kết ra Excel hoặc PDF?"]],
 ];
 
 /** **đậm** → <b>; còn lại giữ nguyên chữ. */

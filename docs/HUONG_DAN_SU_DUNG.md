@@ -329,6 +329,20 @@ Bấm vào một ngày: khung **Phụng vụ** cho biết tên lễ, bậc lễ,
 
 Tab **Ma trận đóng quỹ** cho thấy lịch sử các khoản của bạn theo từng kỳ/tháng.
 
+### Ủng hộ quỹ nhà
+
+#### Báo một khoản ủng hộ tự nguyện
+
+1. **Mở tab Ủng hộ** _(Thu Chi & Báo cáo → Thu chi → Ủng hộ)_ — Ngoài các khoản phải đóng định kỳ, bạn có thể ủng hộ thêm cho quỹ nhà bằng tiền mặt hoặc chuyển khoản (dùng mã QR ở trang Thu chi).
+2. **Bấm “Tôi đã ủng hộ”** — Nhập **số tiền**, **ngày**, **hình thức**, mã giao dịch (nếu chuyển khoản) và lời nhắn. Bạn có thể **rút lại** khi Thủ quỹ chưa xác nhận.
+3. **Chờ Thủ quỹ xác nhận** — Khi tiền về, Thủ quỹ xác nhận và khoản được **ghi vào sổ quỹ**; bạn nhận thông báo. Nếu chưa thấy tiền, Thủ quỹ sẽ báo lại kèm lý do.
+
+> **ℹ️ Lưu ý** — Bạn chỉ thấy các khoản ủng hộ **của chính mình**.
+
+### Tổng kết của riêng tôi
+
+Vào **Thu Chi & Báo cáo → Báo cáo & tổng kết → Tổng kết của tôi**: chọn tháng/quý/năm để xem số buổi có mặt/vắng, xin phép, trực nhật, điểm thi đua, vi phạm, đóng quỹ, ủng hộ và GPA của **riêng bạn**; bấm **Tải PDF/Excel** để lưu lại.
+
 <a id="bep-com"></a>
 
 ## Bếp & Cơm
@@ -376,7 +390,7 @@ Nội quy chia theo mục (giờ giấc, vệ sinh, khách…), có bảng **gi�
 
 Mở ở: **Thành Viên & Nhà**
 
-Mục này có hai tab: **Thành viên** (danh bạ, đơn xin vào nhà, cựu thành viên) và **Sơ đồ nhà** (phòng ở, ai ở phòng nào).
+Mục này có ba tab: **Thành viên** (danh bạ, đơn xin vào nhà, cựu thành viên), **Sơ đồ nhà** (phòng ở, ai ở phòng nào) và **Vi phạm & kỷ luật** (xem bên dưới).
 
 #### Cập nhật hồ sơ của tôi
 
@@ -389,6 +403,16 @@ Mục này có hai tab: **Thành viên** (danh bạ, đơn xin vào nhà, cựu 
 ### Cựu thành viên
 
 Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc người quản lý sửa hồ sơ cựu bằng nút bút chì trên thẻ.
+
+### Vi phạm & kỷ luật
+
+Mở ở: **Thành Viên & Nhà → Vi phạm & kỷ luật**
+
+- Tab **Của tôi**: các lần bạn được người quản lý ghi nhận vi phạm theo luật nhà, kèm **hình phạt** (lần chuỗi, đi lễ, trực nhật…), **ngày bắt đầu – kết thúc** chấp hành và tình trạng (sắp tới, đang chấp hành, đã hoàn thành, được miễn). Có ghi nhận mới bạn sẽ nhận thông báo.
+- Tab **Luật & mức phạt**: danh mục các điều luật của nhà và mức phạt tương ứng — để anh em biết trước.
+- Chỉ **bạn và người quản lý** xem được mục của bạn; anh em khác không thấy.
+
+> **ℹ️ Lưu ý** — Thắc mắc về một ghi nhận? Hãy trao đổi trực tiếp với Trưởng nhà — chỉ người quản lý mới sửa, miễn hoặc xóa được.
 
 <a id="cong-dong"></a>
 
@@ -480,11 +504,23 @@ Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), m
 
 > **ℹ️ Lưu ý** — Hệ thống **không bao giờ tự ghi sổ** từ ngân hàng — luôn do Thủ quỹ bấm xác nhận. Bấm hai lần không ghi thu hai lần.
 
+#### Ủng hộ / quyên góp vào quỹ
+
+**Thu Chi & Báo cáo → Thu chi → Ủng hộ**
+
+Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).
+- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ chọn túi quỹ, khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Mới hứa / chưa nhận** ⇒ chỉ ghi lại, chưa vào quỹ.
+- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản mới hứa nhận tiền sau thì bấm **Đã nhận tiền** để ghi sổ.
+- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản mới hứa. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.
+- Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm.
+
+> **ℹ️ Lưu ý** — Thủ quỹ, Trưởng nhà và Admin thấy mọi khoản ủng hộ; thành viên thường chỉ thấy khoản của mình.
+
 #### Báo cáo, thống kê & nhắc quỹ
 
-- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.
+- Mục **Báo cáo & tổng kết** (cạnh tab Thu chi): tab **Tổng kết thành viên** (từng người theo **tháng / quý / năm**, có cột đóng quỹ và ủng hộ; Thủ quỹ chỉ thấy các cột liên quan đến quỹ) và tab **Báo cáo hoạt động** (số liệu tổng hợp quý/năm, **Tải báo cáo PDF** để gửi Tỉnh Dòng, người quản lý hay phụ huynh). Xuất được **Excel/PDF**.
 - Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.
-- **Tải báo cáo PDF**, **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.
+- **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.
 - Thẻ **AI nhận xét thu chi tháng** so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn bản mới.
 
 <a id="truong-nha"></a>
@@ -575,11 +611,35 @@ Người ngoài điền biểu mẫu ở `/lien-he` → xuất hiện ở tab **
 
 Quyền đăng bài (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Cài đặt → Phân quyền & Vai trò.
 
+#### Tổng kết từng thành viên & cả nhà (tháng / quý / năm)
+
+**Thu Chi & Báo cáo → Báo cáo & tổng kết → Tổng kết thành viên**
+
+Chọn **tháng, quý hoặc năm** để xem **mỗi thành viên một dòng**: số buổi có mặt / trễ / vắng, số đơn xin phép (về muộn, ngủ ngoài…), trực vệ sinh (số tuần, điểm trung bình), điểm thi đua, vi phạm và hình phạt, đóng quỹ (còn nợ), ủng hộ, GPA.
+- Phía trên là số liệu **cả nhà**: số sự kiện theo loại (**hành hương**, **lần chuỗi**…), tỉ lệ có mặt, tổng đơn xin phép, vi phạm, đóng quỹ, tổng ủng hộ và số người ủng hộ.
+- Sắp xếp theo vắng nhiều nhất, xin phép nhiều nhất, vi phạm nhiều nhất, nợ quỹ nhiều nhất, điểm thi đua; tìm theo tên/phòng.
+- **Tải Excel** (có thêm trang chi tiết **Vi phạm** và **Ủng hộ**) hoặc **Tải PDF** (khổ ngang, có khung chữ ký).
+- Mỗi cột chỉ hiện khi bạn có quyền xem mục đó; **GPA** chỉ có với thành viên đã đồng ý chia sẻ bảng điểm cho người quản lý.
+
+> **💡 Mẹo** — Cuối năm chọn **Theo năm** rồi tải Excel để tổng kết: ai vắng bao nhiêu lần, bị phạt gì, đóng góp ra sao. Muốn đếm đúng số buổi lần chuỗi / hành hương, hãy chọn đúng **loại sự kiện** (“Lần chuỗi & Kinh nguyện chung”, “Hành hương”) khi tạo sự kiện.
+
+#### Vi phạm & kỷ luật
+
+**Thành Viên & Nhà → Vi phạm & kỷ luật**
+
+##### Thiết lập và ghi nhận
+
+1. **Nhập danh mục luật phạt** _(Vi phạm & kỷ luật → Luật & mức phạt)_ — Bấm **Thêm điều luật** (mã, tên, mức phạt gợi ý: **lần chuỗi / đi lễ / trực nhật / khác** + số lượng). Đã có **Luật nhà** rồi thì bấm **Nhập từ Luật nhà** để lấy sẵn các điều khoản. Điều không còn dùng thì **Ẩn** (lịch sử vẫn giữ).
+2. **Ghi vi phạm** _(Vi phạm & kỷ luật → Cả nhà → Ghi vi phạm)_ — Chọn **thành viên**, **điều luật** (hoặc tự ghi tên điều vi phạm), **ngày vi phạm**, ghi chú. Mức phạt tự điền theo điều luật, bạn sửa được: **loại, số lượng**, **ngày bắt đầu – kết thúc** chấp hành. Thành viên nhận thông báo.
+3. **Theo dõi & đóng việc** — Mỗi ghi nhận tự cho biết **sắp chấp hành / đang chấp hành / quá hạn chưa xong**. Khi đã làm xong bấm **Hoàn thành**; muốn bỏ hình phạt bấm **Miễn** (ghi lý do). **Mở lại**, **Sửa**, **Xóa** khi nhập nhầm.
+
+> **ℹ️ Lưu ý** — Chỉ Trưởng nhà và Admin ghi/sửa/xóa vi phạm (quyền `discipline.manage`); xem cả nhà cần `discipline.read`. Thành viên luôn xem được **của chính mình**. Vi phạm được cộng vào **Tổng kết thành viên** (số lần, tổng lần chuỗi / ngày đi lễ / ca trực nhật bị phạt, không tính khoản được miễn).
+
 #### Báo cáo hoạt động quý / năm
 
-**Thu Chi & Báo cáo → Báo cáo hoạt động**
+**Thu Chi & Báo cáo → Báo cáo & tổng kết → Báo cáo hoạt động**
 
-Chọn **theo quý** hoặc **theo năm**: xem nhanh sĩ số, vào/ra nhà, thu chi và tỉ lệ thu quỹ, số sự kiện và tỉ lệ có mặt, ca trực hoàn thành, báo hỏng. Bấm **Tải báo cáo PDF** để có bản in có khung chữ ký. Quyền xem: `report.read` (Trưởng nhà, Admin, Thủ quỹ). Báo cáo **không có dữ liệu cá nhân**.
+Chọn **theo quý** hoặc **theo năm**: xem nhanh sĩ số, vào/ra nhà, thu chi và tỉ lệ thu quỹ, số sự kiện và tỉ lệ có mặt, ca trực hoàn thành, báo hỏng. Bấm **Tải báo cáo PDF** để có bản in có khung chữ ký. Quyền xem: `report.read` (Trưởng nhà, Admin, Thủ quỹ). Báo cáo này **không có dữ liệu cá nhân** — muốn xem từng người, dùng tab **Tổng kết thành viên**.
 
 #### Thông báo, sự kiện, diễn đàn
 

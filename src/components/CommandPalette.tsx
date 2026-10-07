@@ -24,6 +24,7 @@ import {
   Newspaper,
   CalendarOff,
   FileText,
+  Gavel,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -56,7 +57,8 @@ export const CommandPalette: React.FC = () => {
     { label: "Diễn đàn trao đổi", href: "/dien-dan", icon: MessagesSquare, category: "Điều hướng" },
     { label: "Bài viết công khai (bản tin cho người ngoài)", href: "/bai-viet", icon: Newspaper, category: "Điều hướng", perm: "article.manage" },
     { label: "Xin phép (vắng, về muộn, ngủ ngoài)", href: "/xin-phep", icon: CalendarOff, category: "Điều hướng" },
-    { label: "Báo cáo hoạt động quý/năm (PDF)", href: "/bao-cao", icon: FileText, category: "Điều hướng", perm: "report.read" },
+    { label: "Báo cáo & tổng kết (tháng/quý/năm, xuất Excel/PDF)", href: "/bao-cao", icon: FileText, category: "Điều hướng" },
+    { label: "Vi phạm & kỷ luật", href: "/ky-luat", icon: Gavel, category: "Điều hướng" },
     { label: "Danh bạ thành viên", href: "/thanh-vien", icon: Users, category: "Điều hướng" },
     { label: "Quản lý Học tập & Điểm số", href: "/hoc-tap", icon: GraduationCap, category: "Điều hướng" },
     { label: "Sơ đồ nhà & Phòng ở", href: "/so-do-nha", icon: Building2, category: "Điều hướng" },

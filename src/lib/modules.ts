@@ -22,6 +22,7 @@ export const TOGGLEABLE_MODULES: ModuleInfo[] = [
   { href: "/thanh-vien", label: "Thành Viên", description: "Danh bạ, hồ sơ, đơn xin vào nhà" },
   { href: "/hoc-tap", label: "Học Tập", description: "Bảng điểm, minh chứng, phụ đạo" },
   { href: "/so-do-nha", label: "Sơ đồ nhà", description: "Phòng ở, xếp phòng" },
+  { href: "/ky-luat", label: "Vi phạm & kỷ luật", description: "Luật phạt, ghi nhận vi phạm, hình phạt" },
   { href: "/khoanh-khac", label: "Khoảnh Khắc", description: "Album ảnh cộng đoàn" },
 ];
 

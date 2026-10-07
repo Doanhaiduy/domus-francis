@@ -60,6 +60,12 @@ const FRIENDLY_CONSTRAINT: Record<string, string> = {
   ex_laundry_bookings__no_overlap: "Khung giờ này vừa có người đặt. Vui lòng chọn khung khác.",
   ex_room_assignments__no_overlap: "Thành viên đang có phân phòng trùng thời gian.",
   ux_duty_checkins__evidence: "Ảnh minh chứng này đã được dùng cho lần check-in khác — hãy chụp ảnh mới.",
+  ux_discipline_rules__code: "Mã điều luật này đã có — hãy chọn mã khác.",
+  ck_discipline_rules__code: "Mã điều luật chỉ gồm chữ không dấu, số, dấu . _ - (tối đa 20 ký tự).",
+  ck_discipline_records__range: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu chấp hành.",
+  ck_discipline_records__qty_req: "Hình phạt này cần có số lượng (từ 1).",
+  ck_discipline_records__other: "Hãy mô tả hình phạt khác.",
+  ck_discipline_records__waive_reason: "Hãy ghi lý do miễn (tối thiểu 5 ký tự).",
 };
 
 /** Ánh xạ một lỗi bất kỳ → (status, code, detail). Bảng ánh xạ duy nhất cho toàn API (⑦.4 / C.6 kiểm định). */

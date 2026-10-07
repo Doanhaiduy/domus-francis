@@ -8,15 +8,19 @@ import { errorMessage } from "@/lib/api";
 import { useActivityReport } from "@/lib/data/activity-report";
 import type { ReportKind } from "@/lib/types/activity-report";
 import { CustomSelect } from "@/components/ui/FormControls";
+import { MemberReportPanel } from "./_components/MemberReportPanel";
+import { cn } from "@/lib/utils";
 import { formatVND } from "@/lib/utils";
 import { vnToday } from "@/lib/vn-time";
 
+type Tab = "members" | "me" | "activity";
+
 const pct = (v: number | null) => (v === null ? "—" : `${String(v).replace(".", ",")}%`);
 
-export default function ReportPage() {
+/** Tab "Báo cáo hoạt động" — số liệu tổng hợp theo quý/năm, xuất PDF gửi Tỉnh Dòng / phụ huynh (cần report.read). */
+function ActivityReportTab() {
   const { showToast } = useApp();
-  const { can, isLoading: sessionLoading } = useSession();
-  const allowed = can("report.read");
+  const allowed = true;
   const today = useMemo(() => vnToday(), []);
   const [kind, setKind] = useState<ReportKind>("quarter");
   const [year, setYear] = useState(Number(today.slice(0, 4)));
@@ -43,16 +47,6 @@ export default function ReportPage() {
     }
   };
 
-  if (!sessionLoading && !allowed) {
-    return (
-      <div className="max-w-md mx-auto mt-16 text-center bg-white border border-purple-100 rounded-3xl p-10">
-        <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="font-bold text-gray-900">Bạn chưa có quyền xem báo cáo hoạt động</p>
-        <p className="text-sm text-gray-500 mt-1">Liên hệ Trưởng nhà hoặc Admin để được cấp quyền.</p>
-      </div>
-    );
-  }
-
   const m = report?.members;
   const f = report?.finance;
   const e = report?.events;
@@ -62,8 +56,7 @@ export default function ReportPage() {
     <div className="flex flex-col w-full gap-5 pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5"><FileText className="w-6 h-6 text-primary" /> Báo cáo hoạt động</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">Tổng hợp nhân sự, tài chính, sự kiện và trực nhật theo quý hoặc năm — tải PDF để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.</p>
+          <p className="text-sm text-gray-500 max-w-xl">Tổng hợp nhân sự, tài chính, sự kiện và trực nhật theo quý hoặc năm — tải PDF để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.</p>
         </div>
         <button type="button" onClick={download} disabled={!report || busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Tải báo cáo PDF
@@ -139,3 +132,52 @@ const Stat = ({ label, value, note }: { label: string; value: string; note?: str
 const Row = ({ k, v }: { k: string; v: React.ReactNode }) => (
   <div className="flex items-center justify-between text-xs border-t border-gray-100 pt-2"><span className="text-gray-600">{k}</span><b className="text-gray-900">{v}</b></div>
 );
+
+export default function ReportPage() {
+  const { session, can, isLoading } = useSession();
+  const canAll = can("report.read");
+  const hasMember = !!session?.member;
+  const [tab, setTab] = useState<Tab | null>(null);
+
+  const tabs: { key: Tab; label: string }[] = [
+    ...(canAll ? [{ key: "members" as const, label: "Tổng kết thành viên" }] : []),
+    ...(hasMember ? [{ key: "me" as const, label: "Tổng kết của tôi" }] : []),
+    ...(canAll ? [{ key: "activity" as const, label: "Báo cáo hoạt động" }] : []),
+  ];
+  const active = tab && tabs.some((t) => t.key === tab) ? tab : tabs[0]?.key;
+
+  if (!isLoading && !tabs.length) {
+    return (
+      <div className="max-w-md mx-auto mt-16 text-center bg-white border border-purple-100 rounded-3xl p-10">
+        <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+        <p className="font-bold text-gray-900">Chưa có báo cáo nào dành cho tài khoản này</p>
+        <p className="text-sm text-gray-500 mt-1">Tài khoản chưa gắn hồ sơ thành viên và chưa được cấp quyền xem báo cáo.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col w-full gap-5 pb-16">
+      <div>
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5"><FileText className="w-6 h-6 text-primary" /> Báo cáo &amp; tổng kết</h1>
+        <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+          {canAll
+            ? "Xem tình hình từng thành viên và cả nhà theo tháng, quý, năm — vắng, xin phép, trực nhật, điểm, vi phạm, đóng quỹ, ủng hộ… — và tải về Excel hoặc PDF."
+            : "Tổng kết riêng của bạn theo tháng, quý, năm: điểm danh, xin phép, trực nhật, quỹ… Chỉ mình bạn xem được."}
+        </p>
+      </div>
+
+      {tabs.length > 1 && (
+        <div role="tablist" className="inline-flex flex-wrap p-1 rounded-xl bg-gray-100 gap-1 self-start">
+          {tabs.map((t) => (
+            <button key={t.key} role="tab" aria-selected={active === t.key} onClick={() => setTab(t.key)} className={cn("px-3.5 py-1.5 rounded-lg text-xs font-semibold transition", active === t.key ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-800")}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!active ? <div className="shimmer-box h-40 rounded-2xl" /> : active === "members" ? <MemberReportPanel scope="all" /> : active === "me" ? <MemberReportPanel scope="me" /> : <ActivityReportTab />}
+    </div>
+  );
+}

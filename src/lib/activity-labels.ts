@@ -23,6 +23,20 @@ const A = (area: string, entries: Record<string, string>): [string, string, stri
   Object.entries(entries).map(([k, label]) => [k, area, label]);
 
 const RULES: [string, string, string][] = [
+  ...A("member", {
+    "POST /api/v1/discipline/rules": "Thêm điều luật phạt",
+    "PATCH /api/v1/discipline/rules/[id]": "Sửa điều luật phạt",
+    "DELETE /api/v1/discipline/rules/[id]": "Xóa điều luật phạt",
+    "POST /api/v1/discipline/rules/import": "Nhập điều luật từ Luật nhà",
+    "POST /api/v1/discipline/records": "Ghi nhận vi phạm",
+    "PATCH /api/v1/discipline/records/[id]": "Sửa / xử lý ghi nhận vi phạm",
+    "DELETE /api/v1/discipline/records/[id]": "Xóa ghi nhận vi phạm",
+  }),
+  ...A("finance", {
+    "POST /api/v1/donations": "Ghi nhận khoản ủng hộ quỹ",
+    "POST /api/v1/donations/report": "Báo đã ủng hộ quỹ",
+    "PATCH /api/v1/donations/[id]": "Xác nhận / từ chối / hủy khoản ủng hộ",
+  }),
   ...A("auth", {
     "POST /api/v1/auth/logout": "Đăng xuất",
     "POST /api/v1/auth/password": "Đổi mật khẩu",
@@ -259,7 +273,7 @@ const RULES: [string, string, string][] = [
 const BY_KEY = new Map(RULES.map(([k, area, label]) => [k, { area, label }]));
 
 const SEGMENT_AREA: Record<string, string> = {
-  finance: "finance", events: "event", polls: "event", duty: "duty", members: "member", applications: "member", inquiries: "member", leave: "event", accounts: "account",
+  finance: "finance", events: "event", polls: "event", duty: "duty", members: "member", applications: "member", inquiries: "member", leave: "event", discipline: "member", donations: "finance", reports: "other", accounts: "account",
   rbac: "account", settings: "setting", categories: "setting", reminders: "setting", "house-rules": "setting", academic: "academic",
   meals: "kitchen", pantry: "kitchen", liturgy: "liturgy", prayers: "liturgy", announcements: "community", notifications: "community",
   forum: "community", moments: "community", files: "community", house: "house", issues: "house", ai: "ai", integrations: "integration", auth: "auth",
@@ -306,6 +320,9 @@ export const ENTITY_LABEL: Record<string, string> = {
   catholic_profiles: "Hồ sơ Công giáo",
   student_profiles: "Hồ sơ sinh viên",
   member_applications: "Đơn xin vào lưu xá",
+  discipline_rules: "Điều luật phạt",
+  discipline_records: "Vi phạm & hình phạt",
+  donations: "Khoản ủng hộ quỹ",
   board_terms: "Nhiệm kỳ người quản lý",
   member_positions: "Chức vụ",
   academic_years: "Năm học",

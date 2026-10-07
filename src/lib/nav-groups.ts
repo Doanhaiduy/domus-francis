@@ -17,8 +17,8 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   { id: "thong-bao", tabs: [{ href: "/thong-bao", label: "Thông báo" }, { href: "/dien-dan", label: "Diễn đàn" }] },
   { id: "lich", tabs: [{ href: "/lich-su-kien", label: "Lịch & Sự kiện" }, { href: "/xin-phep", label: "Xin phép", badge: "leave" }] },
-  { id: "tai-chinh", tabs: [{ href: "/thu-chi", label: "Thu chi" }, { href: "/bao-cao", label: "Báo cáo hoạt động", requires: "report.read" }] },
-  { id: "thanh-vien", tabs: [{ href: "/thanh-vien", label: "Thành viên" }, { href: "/so-do-nha", label: "Sơ đồ nhà" }] },
+  { id: "tai-chinh", tabs: [{ href: "/thu-chi", label: "Thu chi" }, { href: "/bao-cao", label: "Báo cáo & tổng kết" }] },
+  { id: "thanh-vien", tabs: [{ href: "/thanh-vien", label: "Thành viên" }, { href: "/so-do-nha", label: "Sơ đồ nhà" }, { href: "/ky-luat", label: "Vi phạm & kỷ luật" }] },
   { id: "cai-dat", tabs: [{ href: "/cai-dat", label: "Cài đặt" }, { href: "/khoi-tao", label: "Bắt đầu thiết lập", requires: "setting.write" }, { href: "/huong-dan", label: "Hướng dẫn sử dụng" }] },
 ];
 
