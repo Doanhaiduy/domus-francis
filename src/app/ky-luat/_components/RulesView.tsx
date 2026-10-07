@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { BookOpen, DownloadCloud, Eye, EyeOff, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RedBadge } from "@/components/ui/RedBadge";
 import { CustomInput, CustomSelect, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
@@ -69,13 +70,19 @@ export function RulesView() {
           <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">{canManage ? "Thêm từng điều luật kèm mức phạt, hoặc bấm “Nhập từ Luật nhà” để lấy các điều khoản đã có trong mục Luật nhà." : "Người quản lý sẽ cập nhật danh mục luật và mức phạt."}</p>
         </div>
       ) : (
-        <ul className="bg-white border border-purple-100 rounded-2xl divide-y divide-gray-100 overflow-hidden">
+        <ul className="bg-white border border-purple-100 rounded-2xl overflow-hidden">
           {rules.map((r) => (
-            <li key={r.id} className={cn("flex flex-wrap items-start justify-between gap-3 px-4 py-3.5", !r.isActive && "bg-gray-50/70", busy === r.id && "opacity-60 pointer-events-none")}>
+            // Viền trên làm đường kẻ giữa các dòng (không dùng divide-*: nó ghi đè màu viền trái đỏ của các dòng sau)
+            <li key={r.id} className={cn("flex flex-wrap items-start justify-between gap-3 border-l-4 border-t border-t-gray-100 first:border-t-0 px-4 py-3.5", r.isRed ? "border-l-red-600 bg-red-50" : "border-l-transparent", !r.isActive && "bg-gray-50/70", busy === r.id && "opacity-60 pointer-events-none")}>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-gray-900"><span className="text-primary mr-2">{r.code}</span>{r.title}{!r.isActive && <span className="ml-2 text-[10px] font-extrabold uppercase text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">Đã ẩn</span>}</p>
+                <p className={cn("text-sm font-bold", r.isRed ? "text-red-900" : "text-gray-900")}>
+                  <span className={cn("mr-2", r.isRed ? "text-red-600" : "text-primary")}>{r.code}</span>
+                  {r.title}
+                  {r.isRed && <RedBadge className="ml-2 align-[1px]" />}
+                  {!r.isActive && <span className="ml-2 text-[10px] font-extrabold uppercase text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">Đã ẩn</span>}
+                </p>
                 {r.description && <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>}
-                <p className="text-xs text-gray-700 mt-1"><span className="font-bold">Mức phạt:</span> {defaultPenalty(r)}{canManage && r.usageCount > 0 ? <span className="text-gray-400"> · đã dùng {r.usageCount} lần</span> : null}</p>
+                <p className="text-xs text-gray-700 mt-1"><span className="font-bold">Mức phạt:</span> <span className={r.isRed ? "font-bold text-red-800" : undefined}>{defaultPenalty(r)}</span>{canManage && r.usageCount > 0 ? <span className="text-gray-400"> · đã dùng {r.usageCount} lần</span> : null}</p>
               </div>
               {canManage && (
                 <div className="flex items-center gap-1 shrink-0">
@@ -114,6 +121,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
   const [note, setNote] = useState(rule?.defaultPenaltyNote ?? "");
   const [sortOrder, setSortOrder] = useState(String(rule?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(rule?.isActive ?? true);
+  const [isRed, setIsRed] = useState(rule?.isRed ?? false);
   const [busy, setBusy] = useState(false);
   const needsQty = kind === "rosary" || kind === "mass" || kind === "duty";
 
@@ -134,6 +142,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
       defaultPenaltyKind: kind,
       defaultPenaltyQty: needsQty ? Number(qty) : null,
       defaultPenaltyNote: kind === "none" ? null : note.trim() || null,
+      isRed,
       sortOrder: Number(sortOrder) || 0,
       isActive,
     };
@@ -164,6 +173,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
               <div className="col-span-2"><CustomInput label="Tên điều luật *" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder="VD: Về muộn sau 22:30 không xin phép" /></div>
             </div>
             <CustomTextarea label="Mô tả (tùy chọn)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={1000} />
+            <CustomToggle checked={isRed} onChange={setIsRed} label="Lỗi đỏ" description="Vi phạm nghiêm trọng — hiện nhãn LỖI ĐỎ và tô nền đỏ ở danh sách." />
             <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 space-y-3">
               <p className="text-xs font-extrabold text-gray-700">Hình phạt gợi ý khi vi phạm</p>
               <CustomSelect<PenaltyKind> label="Loại" value={kind} onChange={setKind} options={KIND_OPTIONS} />

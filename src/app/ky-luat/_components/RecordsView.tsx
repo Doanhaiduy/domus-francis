@@ -8,6 +8,7 @@ import { vnToday } from "@/lib/vn-time";
 import { disciplineApi, useDisciplineRecords } from "@/lib/data/discipline";
 import { PENALTY_UNIT, PHASE_LABEL, penaltyText, type DisciplinePhase, type DisciplineRecordDto } from "@/lib/types/discipline";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RedBadge } from "@/components/ui/RedBadge";
 import { CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
@@ -139,7 +140,7 @@ export function RecordsView({ mine }: { mine: boolean }) {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   {!mine && <p className="font-extrabold text-gray-900">{r.memberName}{r.memberRoom ? <span className="ml-2 text-[11px] font-bold text-gray-400">P.{r.memberRoom}</span> : null}</p>}
-                  <p className="text-sm font-bold text-gray-800">{r.ruleCode ? <span className="text-primary mr-1.5">{r.ruleCode}</span> : null}{r.ruleTitle}</p>
+                  <p className="text-sm font-bold text-gray-800">{r.ruleCode ? <span className="text-primary mr-1.5">{r.ruleCode}</span> : null}{r.ruleTitle}{r.ruleIsRed && <RedBadge className="ml-2 align-[1px]" />}</p>
                 </div>
                 <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider shrink-0", PHASE_STYLE[r.phase])}>{PHASE_LABEL[r.phase]}</span>
               </div>

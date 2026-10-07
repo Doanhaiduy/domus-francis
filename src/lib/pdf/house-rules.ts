@@ -6,6 +6,11 @@ import { C, FONT, baseDoc, docTitle, doubleRule, downloadPdf, letterhead, plain,
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 
+// Lỗi đỏ: chữ đỏ đậm trên nền đỏ nhạt (in đen trắng vẫn nhận ra nhờ nhãn "LỖI ĐỎ" và chữ đậm)
+const RED = "#b91c1c";
+const RED_INK = "#7f1d1d";
+const RED_BG = "#fef2f2";
+
 export interface HouseRulesPdfInput {
   houseName: string;
   orderName?: string | null;
@@ -17,7 +22,7 @@ export interface HouseRulesPdfInput {
 /** PDF "Luật nhà": đầu thư, bảng giờ giấc chung, từng mục đánh số điều khoản. */
 export async function downloadHouseRulesPdf(p: HouseRulesPdfInput) {
   const W = 595 - 84;
-  const clauses = p.sections.reduce((a, x) => a + x.items.length, 0);
+  const clauses = p.sections.reduce((a, x) => a + x.items.filter((i) => !i.sub).length, 0);
   const content: Content[] = [
     letterhead({ orderName: p.orderName, houseName: p.houseName, rightTop: "NỘI QUY", rightBottom: p.updatedAt ? `Cập nhật ${fmtDate(p.updatedAt)}` : undefined }),
     doubleRule(W),
@@ -34,7 +39,7 @@ export async function downloadHouseRulesPdf(p: HouseRulesPdfInput) {
     ];
     content.push({
       margin: [0, 0, 0, 12],
-      table: { headerRows: 1, keepWithHeaderRows: 1, dontBreakRows: true, widths: [58, "*"], body: rows },
+      table: { headerRows: 1, keepWithHeaderRows: 1, dontBreakRows: true, widths: [78, "*"], body: rows },
       layout: {
         ...tableLayout,
         fillColor: (row: number) => (row === 0 ? C.primary : row % 2 === 0 ? C.zebra : null),
@@ -46,6 +51,26 @@ export async function downloadHouseRulesPdf(p: HouseRulesPdfInput) {
   }
 
   p.sections.forEach((s, idx) => {
+    // Hàng của điều Lỗi đỏ (chỉ số trong bảng) để tô nền đỏ nhạt; điều con không có số riêng, thụt vào
+    const itemOffset = s.description ? 2 : 1;
+    const redRows = new Set<number>();
+    let num = 0;
+    const itemRows = s.items.map((it, i): TableCell[] => {
+      if (it.red) redRows.add(itemOffset + i);
+      const time = it.time ? [{ text: `[${it.time}] `, bold: true, color: C.primary }] : [];
+      if (it.sub) return [{ text: "•", color: C.faint, alignment: "right" }, { text: [...time, { text: plain(it.text) }], fontSize: 9.5, margin: [12, 0, 0, 0] }];
+      num++;
+      return [
+        { text: `${idx + 1}.${num}`, bold: true, color: it.red ? RED : C.faint, fontSize: 9, noWrap: true },
+        {
+          text: [
+            ...(it.red ? [{ text: "LỖI ĐỎ  ", bold: true, color: RED, fontSize: 8, characterSpacing: 0.4 }] : []),
+            ...time,
+            { text: plain(it.text), ...(it.red ? { bold: true, color: RED_INK } : {}) },
+          ],
+        },
+      ];
+    });
     const rows: TableCell[][] = [
       [
         {
@@ -58,17 +83,13 @@ export async function downloadHouseRulesPdf(p: HouseRulesPdfInput) {
         {},
       ],
       ...(s.description ? [[{ text: plain(s.description), colSpan: 2, italics: true, color: C.muted, fontSize: 9 }, {}] as TableCell[]] : []),
-      ...s.items.map((it, i): TableCell[] => [
-        { text: `${idx + 1}.${i + 1}`, bold: true, color: C.faint, fontSize: 9, noWrap: true },
-        {
-          text: [...(it.time ? [{ text: `[${it.time}] `, bold: true, color: C.primary }] : []), { text: plain(it.text) }],
-        },
-      ]),
+      ...itemRows,
     ];
     content.push({
       margin: [0, 0, 0, 10],
       table: { headerRows: s.description ? 2 : 1, keepWithHeaderRows: 1, dontBreakRows: true, widths: [30, "*"], body: rows },
       layout: {
+        fillColor: (row: number) => (redRows.has(row) ? RED_BG : null),
         hLineWidth: (i: number, node: { table: { body: unknown[] } }) => (i === 0 ? 0 : i === 1 ? 1.6 : i === node.table.body.length ? 0 : 0.4),
         hLineColor: (i: number) => (i === 1 ? C.primary : C.line),
         vLineWidth: () => 0,

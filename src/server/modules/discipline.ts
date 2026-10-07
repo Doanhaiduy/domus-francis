@@ -31,6 +31,7 @@ export const RuleSchema = z.object({
   defaultPenaltyKind: kindEnum.default("none"),
   defaultPenaltyQty: optQty,
   defaultPenaltyNote: optText(200),
+  isRed: z.boolean().default(false),
   sortOrder: z.number().int().min(0).max(100000).default(0),
   isActive: z.boolean().default(true),
 });
@@ -42,6 +43,7 @@ export const RulePatchSchema = z.object({
   defaultPenaltyKind: kindEnum.optional(),
   defaultPenaltyQty: pQty,
   defaultPenaltyNote: pText(200),
+  isRed: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
   isActive: z.boolean().optional(),
 });
@@ -58,6 +60,7 @@ const toRule = (r: Row, withUsage: boolean): DisciplineRuleDto => ({
   defaultPenaltyKind: r.default_penalty_kind,
   defaultPenaltyQty: r.default_penalty_qty,
   defaultPenaltyNote: r.default_penalty_note,
+  isRed: !!r.is_red,
   sortOrder: r.sort_order,
   isActive: r.is_active,
   usageCount: withUsage ? Number(r.usage_count ?? 0) : 0,
@@ -77,9 +80,9 @@ export async function listRules(tx: Tx): Promise<{ canManage: boolean; rules: Di
 export async function createRule(tx: Tx, b: RuleInput): Promise<string> {
   checkPenaltyDefaults(b.defaultPenaltyKind, b.defaultPenaltyQty);
   const r = await tx.query<{ id: string }>(
-    `INSERT INTO discipline_rules (code, title, description, default_penalty_kind, default_penalty_qty, default_penalty_note, sort_order, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [b.code, b.title, b.description, b.defaultPenaltyKind, b.defaultPenaltyKind === "none" ? null : b.defaultPenaltyQty, b.defaultPenaltyNote, b.sortOrder, b.isActive]
+    `INSERT INTO discipline_rules (code, title, description, default_penalty_kind, default_penalty_qty, default_penalty_note, is_red, sort_order, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [b.code, b.title, b.description, b.defaultPenaltyKind, b.defaultPenaltyKind === "none" ? null : b.defaultPenaltyQty, b.defaultPenaltyNote, b.isRed, b.sortOrder, b.isActive]
   );
   return r.rows[0].id;
 }
@@ -92,6 +95,7 @@ export async function updateRule(tx: Tx, id: string, b: z.infer<typeof RulePatch
     defaultPenaltyKind: "default_penalty_kind",
     defaultPenaltyQty: "default_penalty_qty",
     defaultPenaltyNote: "default_penalty_note",
+    isRed: "is_red",
     sortOrder: "sort_order",
     isActive: "is_active",
   };
@@ -115,7 +119,10 @@ export async function deleteRule(tx: Tx, id: string) {
   if (!r.rowCount) await denyOrMissing(tx, "discipline_rules", id, "Chỉ Trưởng nhà hoặc Admin được xóa điều luật.");
 }
 
-/** Nhập các điều khoản trong "Luật nhà" (house_rule_sections) làm điều luật phạt; bỏ qua điều đã có (trùng tên). Trả số điều mới. */
+/**
+ * Nhập các điều khoản trong "Luật nhà" (house_rule_sections) làm điều luật phạt; bỏ qua điều đã có (trùng tên). Trả số điều mới.
+ * Bỏ qua điều con (`sub`) và ghi chú (`note`: lời dặn, hình thức xử lý…) vì không phải điều để ghi nhận vi phạm; điều Lỗi đỏ (`red`) nhập kèm cờ is_red.
+ */
 export async function importFromHouseRules(tx: Tx): Promise<{ created: number; skipped: number }> {
   const p = await permissions(tx, ["discipline.manage"] as const);
   if (!p["discipline.manage"]) throw forbidden("Chỉ Trưởng nhà hoặc Admin được quản lý danh mục luật phạt.");
@@ -127,8 +134,9 @@ export async function importFromHouseRules(tx: Tx): Promise<{ created: number; s
   let created = 0;
   let skipped = 0;
   for (const s of sections) {
-    const items = Array.isArray(s.items) ? (s.items as { text?: string; time?: string }[]) : [];
+    const items = Array.isArray(s.items) ? (s.items as { text?: string; time?: string; red?: boolean; sub?: boolean; note?: boolean }[]) : [];
     for (const it of items) {
+      if (it?.sub === true || it?.note === true) continue;
       const text = String(it?.text ?? "").replace(/\s+/g, " ").trim();
       if (text.length < 2) continue;
       const title = text.slice(0, 200);
@@ -140,8 +148,8 @@ export async function importFromHouseRules(tx: Tx): Promise<{ created: number; s
       n++;
       sort += 10;
       await tx.query(
-        `INSERT INTO discipline_rules (code, title, description, sort_order) VALUES ($1, $2, $3, $4)`,
-        [`L${String(n).padStart(2, "0")}`, title, `Mục “${s.title}” trong Luật nhà${it?.time ? ` (${it.time})` : ""}`, sort]
+        `INSERT INTO discipline_rules (code, title, description, is_red, sort_order) VALUES ($1, $2, $3, $4, $5)`,
+        [`L${String(n).padStart(2, "0")}`, title, `Mục “${s.title}” trong Luật nhà${it?.time ? ` (${it.time})` : ""}`, it?.red === true, sort]
       );
       created++;
     }
@@ -207,11 +215,12 @@ export type RecordPatchInput = z.infer<typeof RecordPatchSchema>;
 const SELECT = `
   SELECT r.id, r.member_id, r.rule_id, r.rule_code, r.rule_title, r.occurred_on, r.note, r.penalty_kind, r.penalty_qty, r.penalty_detail,
          r.penalty_starts_on, r.penalty_ends_on, r.status, ${PHASE_SQL} AS phase, r.completed_at, r.waived_at, r.waive_reason, r.created_at,
-         (r.member_id = app.current_member_id()) AS is_mine,
+         (r.member_id = app.current_member_id()) AS is_mine, COALESCE(dr.is_red, false) AS rule_is_red,
          ${personCols("mb")}, COALESCE(rb.display_name, rb.full_name) AS recorder_name
     FROM discipline_records r
     ${personJoin("mb", "r.member_id")}
-    LEFT JOIN members rb ON rb.user_id = r.created_by`;
+    LEFT JOIN members rb ON rb.user_id = r.created_by
+    LEFT JOIN discipline_rules dr ON dr.id = r.rule_id`;
 
 const toRecord = (r: Row): DisciplineRecordDto => ({
   id: r.id,
@@ -221,6 +230,7 @@ const toRecord = (r: Row): DisciplineRecordDto => ({
   ruleId: r.rule_id,
   ruleCode: r.rule_code,
   ruleTitle: r.rule_title,
+  ruleIsRed: !!r.rule_is_red,
   occurredOn: iso(r.occurred_on).slice(0, 10),
   note: r.note,
   penaltyKind: r.penalty_kind,

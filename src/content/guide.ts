@@ -435,7 +435,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       { t: "heading", text: "Luật nhà" },
       { t: "path", label: "Mở ở", items: ["Thông báo", "Luật nhà"] },
-      { t: "md", text: "Nội quy chia theo mục (giờ giấc, vệ sinh, khách…), có bảng **giờ giấc chung**. Bấm **Tải PDF** để lưu hoặc in. Trưởng nhà/Admin soạn, sửa, sắp xếp từng mục." },
+      { t: "md", text: "Nội quy chia theo mục (giờ giấc, vệ sinh, khách…), có bảng **giờ giấc chung**. Bấm **Tải PDF** để lưu hoặc in. Trưởng nhà/Admin soạn, sửa, sắp xếp từng mục. Điều có nhãn đỏ **LỖI ĐỎ** là vi phạm nghiêm trọng (bị mời ra khỏi Nhà Chung); mục **Xử lý vi phạm** ghi rõ cách xử lý lỗi đỏ và lỗi thường." },
     ],
   },
 
@@ -720,7 +720,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Luật nhà",
             blocks: [
               { t: "path", items: ["Thông báo", "Luật nhà"] },
-              { t: "md", text: "Soạn từng mục, thêm giờ giấc, sắp xếp thứ tự, tải PDF. Thành viên đọc và tải PDF ở cùng chỗ." },
+              { t: "md", text: "Soạn từng mục, thêm giờ giấc, sắp xếp thứ tự, tải PDF. Thành viên đọc và tải PDF ở cùng chỗ. Mỗi điều khoản có thể đánh dấu **Lỗi đỏ** (nổi bật nhãn và nền đỏ), **Điều con** (thụt vào dưới điều phía trên, dùng cho danh sách biện pháp) hoặc **Ghi chú** (giải thích, không phải điều để ghi vi phạm)." },
             ],
           },
           {
@@ -764,7 +764,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
                 t: "steps",
                 title: "Thiết lập và ghi nhận",
                 items: [
-                  { title: "Nhập danh mục luật phạt", path: ["Vi phạm & kỷ luật", "Luật & mức phạt"], text: "Bấm **Thêm điều luật** (mã, tên, mức phạt gợi ý: **lần chuỗi / đi lễ / trực nhật / khác** + số lượng). Đã có **Luật nhà** rồi thì bấm **Nhập từ Luật nhà** để lấy sẵn các điều khoản. Điều không còn dùng thì **Ẩn** (lịch sử vẫn giữ)." },
+                  { title: "Nhập danh mục luật phạt", path: ["Vi phạm & kỷ luật", "Luật & mức phạt"], text: "Bấm **Thêm điều luật** (mã, tên, mức phạt gợi ý: **lần chuỗi / đi lễ / trực nhật / khác** + số lượng). Điều nghiêm trọng thì bật **Lỗi đỏ** để hiện nhãn đỏ ở danh sách và khi ghi nhận. Đã có **Luật nhà** rồi thì bấm **Nhập từ Luật nhà** để lấy sẵn các điều khoản (bỏ qua điều con và ghi chú, giữ nhãn Lỗi đỏ). Điều không còn dùng thì **Ẩn** (lịch sử vẫn giữ)." },
                   { title: "Ghi vi phạm", path: ["Vi phạm & kỷ luật", "Cả nhà", "Ghi vi phạm"], text: "Chọn **thành viên**, **điều luật** (hoặc tự ghi tên điều vi phạm), **ngày vi phạm**, ghi chú. Mức phạt tự điền theo điều luật, bạn sửa được: **loại, số lượng**, **ngày bắt đầu – kết thúc** chấp hành. Thành viên nhận thông báo." },
                   { title: "Theo dõi & đóng việc", text: "Mỗi ghi nhận tự cho biết **sắp chấp hành / đang chấp hành / quá hạn chưa xong**. Khi đã làm xong bấm **Hoàn thành**; muốn bỏ hình phạt bấm **Miễn** (ghi lý do). **Mở lại**, **Sửa**, **Xóa** khi nhập nhầm." },
                 ],

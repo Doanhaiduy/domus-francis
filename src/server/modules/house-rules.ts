@@ -12,6 +12,9 @@ import type { HouseRuleInput, HouseRuleSectionDto, HouseRulesDto } from "@/lib/t
 const itemSchema = z.object({
   time: z.string().trim().max(30, "Giờ tối đa 30 ký tự.").nullable().optional().transform((v) => v || null),
   text: z.string().trim().min(1, "Điều khoản không được để trống.").max(400, "Mỗi điều khoản tối đa 400 ký tự."),
+  red: z.boolean().nullable().optional().transform((v) => (v ? true : undefined)),
+  sub: z.boolean().nullable().optional().transform((v) => (v ? true : undefined)),
+  note: z.boolean().nullable().optional().transform((v) => (v ? true : undefined)),
 });
 
 export const RuleSectionSchema = z.object({
@@ -30,7 +33,7 @@ const toDto = (r: Row): HouseRuleSectionDto => ({
   title: r.title,
   icon: r.icon ?? null,
   description: r.description ?? null,
-  items: Array.isArray(r.items) ? r.items.map((i: Row) => ({ time: i.time || null, text: String(i.text ?? "") })) : [],
+  items: Array.isArray(r.items) ? r.items.map((i: Row) => ({ time: i.time || null, text: String(i.text ?? ""), ...(i.red === true ? { red: true } : {}), ...(i.sub === true ? { sub: true } : {}), ...(i.note === true ? { note: true } : {}) })) : [],
   sortOrder: r.sort_order,
   isActive: r.is_active,
   updatedAt: new Date(r.updated_at).toISOString(),

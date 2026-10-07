@@ -46,7 +46,11 @@ export function RecordForm({ record, defaultMemberId, onClose }: { record?: Disc
   );
   const ruleOptions = useMemo(
     () => [
-      ...rules.filter((r) => r.isActive || r.id === record?.ruleId).map((r) => ({ value: r.id, label: `${r.code} — ${r.title}`, subLabel: r.defaultPenaltyKind === "none" ? undefined : `${PENALTY_LABEL[r.defaultPenaltyKind]}${r.defaultPenaltyQty ? ` · ${r.defaultPenaltyQty} ${PENALTY_UNIT[r.defaultPenaltyKind]}` : ""}` })),
+      ...rules.filter((r) => r.isActive || r.id === record?.ruleId).map((r) => ({
+        value: r.id,
+        label: `${r.code} — ${r.title}`,
+        subLabel: [r.isRed ? "LỖI ĐỎ" : null, r.defaultPenaltyKind === "none" ? null : r.defaultPenaltyKind === "other" && r.defaultPenaltyNote ? r.defaultPenaltyNote : `${PENALTY_LABEL[r.defaultPenaltyKind]}${r.defaultPenaltyQty ? ` · ${r.defaultPenaltyQty} ${PENALTY_UNIT[r.defaultPenaltyKind]}` : ""}`].filter(Boolean).join(" · ") || undefined,
+      })),
       { value: OTHER_RULE, label: "Khác (nhập tên điều vi phạm)" },
     ],
     [rules, record?.ruleId]

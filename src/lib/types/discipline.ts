@@ -48,6 +48,8 @@ export interface DisciplineRuleDto {
   defaultPenaltyKind: PenaltyKind;
   defaultPenaltyQty: number | null;
   defaultPenaltyNote: string | null;
+  /** Lỗi đỏ: vi phạm nghiêm trọng — giao diện làm nổi bật */
+  isRed: boolean;
   sortOrder: number;
   isActive: boolean;
   /** Số lần điều luật này đã được dùng để ghi nhận */
@@ -62,6 +64,8 @@ export interface DisciplineRecordDto {
   ruleId: string | null;
   ruleCode: string | null;
   ruleTitle: string;
+  /** Điều luật được dùng là Lỗi đỏ (false nếu ghi tên tự do hoặc điều luật đã xóa/ẩn) */
+  ruleIsRed: boolean;
   occurredOn: string;
   note: string | null;
   penaltyKind: PenaltyKind;

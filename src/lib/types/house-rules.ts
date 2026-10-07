@@ -4,6 +4,12 @@ export interface HouseRuleItemDto {
   /** Giờ / khung giờ áp dụng, vd. "22:30", "05:30–06:00", "Chúa nhật 8:00" (tùy chọn) */
   time: string | null;
   text: string;
+  /** Lỗi đỏ: điều nghiêm trọng, giao diện làm nổi bật (nhãn LỖI ĐỎ, nền/viền đỏ) */
+  red?: boolean;
+  /** Điều con: thụt vào dưới điều đứng trước, không đánh số riêng (vd. danh sách biện pháp xử lý) */
+  sub?: boolean;
+  /** Ghi chú / giải thích (lời dặn, hình thức xử lý…): không phải điều luật để ghi nhận vi phạm — "Nhập từ Luật nhà" bỏ qua */
+  note?: boolean;
 }
 
 export interface HouseRuleSectionDto {

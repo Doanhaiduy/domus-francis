@@ -50,6 +50,52 @@ export async function run({ as, test, eq, ok, section }) {
     eq((await member.patch(`/api/v1/discipline/rules/${ruleId}`, { title: "Sửa lén" })).status, 403);
   });
 
+  await test("Lỗi đỏ (db/app/1032): cờ isRed lưu/đọc/sửa được; ghi nhận trả ruleIsRed; thành viên không đặt được", async () => {
+    eq((await member.post("/api/v1/discipline/rules", rule({ code: `R${stamp}`, isRed: true }))).status, 403);
+    eq((await head.get("/api/v1/discipline/rules")).json.rules.find((x) => x.id === ruleId).isRed, false, "mặc định không phải Lỗi đỏ");
+    const r = await head.post("/api/v1/discipline/rules", rule({ code: `R${stamp}`, title: `Lỗi đỏ thử ${stamp}`, defaultPenaltyKind: "other", defaultPenaltyQty: null, defaultPenaltyNote: "Mời ra khỏi Nhà Chung", isRed: true }));
+    eq(r.status, 201, JSON.stringify(r.json));
+    const redId = r.json.id;
+    const listed = (await member.get("/api/v1/discipline/rules")).json.rules.find((x) => x.id === redId);
+    ok(listed && listed.isRed === true, "thành viên thấy điều Lỗi đỏ: " + JSON.stringify(listed));
+    const created = await head.post("/api/v1/discipline/records", { memberId, ruleId: redId, occurredOn: day(0), penaltyKind: "other", penaltyDetail: "Mời ra khỏi Nhà Chung" });
+    eq(created.status, 201, JSON.stringify(created.json));
+    const rec1 = (await head.get(`/api/v1/discipline/records?q=${stamp}`)).json.records.find((x) => x.id === created.json.id);
+    eq(rec1.ruleIsRed, true, "bản ghi dùng điều Lỗi đỏ phải trả ruleIsRed");
+    eq((await head.patch(`/api/v1/discipline/rules/${redId}`, { isRed: false })).status, 200);
+    eq((await head.get(`/api/v1/discipline/rules`)).json.rules.find((x) => x.id === redId).isRed, false, "gỡ cờ Lỗi đỏ");
+    eq((await head.del(`/api/v1/discipline/records/${created.json.id}`)).status, 200);
+    eq((await head.del(`/api/v1/discipline/rules/${redId}`)).status, 200);
+  });
+
+  await test("Luật nhà: điều khoản mang cờ red/sub/note; nhập vào luật phạt bỏ qua điều con + ghi chú và giữ cờ Lỗi đỏ", async () => {
+    const title = `Mục thử ${stamp}`;
+    const items = [
+      { time: null, text: `Điều đỏ thử ${stamp}`, red: true },
+      { time: null, text: `Điều thường thử ${stamp}` },
+      { time: null, text: `Điều con thử ${stamp}`, sub: true },
+      { time: null, text: `Ghi chú thử ${stamp}`, note: true },
+    ];
+    const made = await head.post("/api/v1/house-rules", { title, icon: "🧪", items });
+    ok(made.status === 200 || made.status === 201, JSON.stringify(made.json));
+    const sectionId = made.json.id;
+    const got = (await member.get("/api/v1/house-rules")).json.sections.find((s) => s.id === sectionId);
+    ok(got.items[0].red === true && !got.items[1].red, "cờ red được lưu đúng chỗ: " + JSON.stringify(got.items));
+    ok(got.items[2].sub === true && got.items[3].note === true, "cờ sub/note được lưu: " + JSON.stringify(got.items));
+    eq((await member.post("/api/v1/discipline/rules/import")).status, 403);
+    const imp = await head.post("/api/v1/discipline/rules/import");
+    eq(imp.status, 200, JSON.stringify(imp.json));
+    const rules = (await head.get("/api/v1/discipline/rules")).json.rules;
+    const red = rules.find((x) => x.title === `Điều đỏ thử ${stamp}`);
+    const normal = rules.find((x) => x.title === `Điều thường thử ${stamp}`);
+    ok(red && red.isRed === true, "điều red nhập vào phải là Lỗi đỏ");
+    ok(normal && normal.isRed === false, "điều thường không phải Lỗi đỏ");
+    ok(!rules.some((x) => x.title === `Điều con thử ${stamp}`), "điều con phải bị bỏ qua khi nhập");
+    ok(!rules.some((x) => x.title === `Ghi chú thử ${stamp}`), "ghi chú phải bị bỏ qua khi nhập");
+    for (const x of [red, normal]) if (x) eq((await head.del(`/api/v1/discipline/rules/${x.id}`)).status, 200);
+    eq((await head.del(`/api/v1/house-rules/${sectionId}`)).status, 200);
+  });
+
   // ---------------------------------------------------------------- ghi nhận
   const rec = (extra = {}) => ({ memberId, ruleId, occurredOn: day(0), note: `Ghi nhận thử ${stamp}`, penaltyKind: "rosary", penaltyQty: 5, penaltyStartsOn: day(0), penaltyEndsOn: day(7), ...extra });
   let rServing;

@@ -3,7 +3,7 @@
 // Luật nhà: các mục (giờ giấc, vệ sinh, khách…) + điều khoản, có giờ cụ thể. Mọi thành viên xem và tải PDF;
 // Trưởng nhà / Admin soạn, sửa, sắp xếp từng mục.
 import React, { useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Download, EyeOff, FilePlus2, Pencil, Plus, ScrollText, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Download, EyeOff, FilePlus2, Pencil, Plus, ScrollText, ShieldAlert, Trash2, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { houseRulesApi, minutesOf, refreshHouseRules, useHouseRules } from "@/lib/data/house-rules";
@@ -11,10 +11,17 @@ import { HOUSE_RULE_TEMPLATES, type HouseRuleInput, type HouseRuleItemDto, type 
 import { downloadHouseRulesPdf } from "@/lib/pdf/house-rules";
 import { CustomInput, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RedBadge } from "@/components/ui/RedBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** Đánh số điều khoản: điều con (sub) không có số riêng, các điều còn lại đếm liên tục trong mục. */
+function numberItems(items: HouseRuleItemDto[]): (number | null)[] {
+  let n = 0;
+  return items.map((it) => (it.sub ? null : ++n));
+}
 
 function RulesSkeleton() {
   return (
@@ -85,7 +92,9 @@ function SectionEditor({
 
   const save = async () => {
     setError(null);
-    const clean = items.map((x) => ({ time: x.time?.trim() || null, text: x.text.trim() })).filter((x) => x.text);
+    const clean: HouseRuleItemDto[] = items
+      .map((x) => ({ time: x.time?.trim() || null, text: x.text.trim(), ...(x.red ? { red: true } : {}), ...(x.sub ? { sub: true } : {}), ...(x.note ? { note: true } : {}) }))
+      .filter((x) => x.text);
     if (title.trim().length < 2) return setError("Nhập tên mục (tối thiểu 2 ký tự).");
     if (!clean.length) return setError("Thêm ít nhất một điều khoản.");
     const body: HouseRuleInput = { title: title.trim(), icon: icon.trim() || null, description: description.trim() || null, items: clean, isActive: active };
@@ -109,7 +118,7 @@ function SectionEditor({
       onClose={onClose}
       icon={<ScrollText className="w-5 h-5" />}
       title={section ? "Sửa mục luật nhà" : "Thêm mục luật nhà"}
-      subtitle="Mỗi điều khoản có thể kèm giờ cụ thể (vd. 22:30 — tắt đèn)"
+      subtitle="Mỗi điều khoản có thể kèm giờ cụ thể (vd. 22:30 — tắt đèn) và được đánh dấu Lỗi đỏ"
       maxWidth="max-w-2xl"
       footer={
         <>
@@ -131,7 +140,8 @@ function SectionEditor({
         <label className="block text-xs font-bold text-gray-700 mb-1.5">Các điều khoản</label>
         <div className="space-y-2">
           {items.map((it, i) => (
-            <div key={i} className="flex items-start gap-2 p-2 rounded-xl border border-gray-100 bg-gray-50/50">
+            <div key={i} className={`p-2 rounded-xl border ${it.red ? "border-red-200 bg-red-50/60" : "border-gray-100 bg-gray-50/50"}`}>
+             <div className="flex items-start gap-2">
               <div className="w-28 shrink-0">
                 <input
                   value={it.time ?? ""}
@@ -160,6 +170,26 @@ function SectionEditor({
               <button type="button" onClick={() => setItems((l) => (l.length > 1 ? l.filter((_, idx) => idx !== i) : [{ time: null, text: "" }]))} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 shrink-0" aria-label="Xóa điều khoản">
                 <X className="w-4 h-4" />
               </button>
+             </div>
+             {/* Kiểu điều khoản: Lỗi đỏ (nổi bật) · Điều con (thụt vào) · Ghi chú (không phải điều để ghi vi phạm) */}
+             <div className="flex flex-wrap items-center gap-1.5 mt-2 sm:pl-[7.5rem]">
+               {([
+                 { key: "red", label: "Lỗi đỏ", hint: "Vi phạm nghiêm trọng — hiện nhãn và nền đỏ", on: "bg-red-600 text-white border-red-600" },
+                 { key: "sub", label: "Điều con", hint: "Thụt vào dưới điều phía trên, không đánh số riêng", on: "bg-primary text-white border-primary" },
+                 { key: "note", label: "Ghi chú", hint: "Giải thích, không phải điều để ghi nhận vi phạm", on: "bg-primary text-white border-primary" },
+               ] as const).map((c) => (
+                 <button
+                   key={c.key}
+                   type="button"
+                   title={c.hint}
+                   aria-pressed={!!it[c.key]}
+                   onClick={() => setItem(i, { [c.key]: it[c.key] ? undefined : true })}
+                   className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition ${it[c.key] ? c.on : "bg-white text-gray-500 border-gray-200 hover:border-purple-300"}`}
+                 >
+                   {c.label}
+                 </button>
+               ))}
+             </div>
             </div>
           ))}
         </div>
@@ -260,7 +290,9 @@ export default function HouseRules() {
   };
 
   const activeForPdf = sections.filter((s) => s.isActive);
-  const totalClauses = activeForPdf.reduce((a, x) => a + x.items.length, 0);
+  // Điều con (sub) và ghi chú không tính là "điều khoản" trong tổng số
+  const totalClauses = activeForPdf.reduce((a, x) => a + x.items.filter((i) => !i.sub).length, 0);
+  const redCount = activeForPdf.reduce((a, x) => a + x.items.filter((i) => i.red).length, 0);
 
   const groups: { label: string; icon: string; rows: typeof timetable }[] = [
     { label: "Buổi sáng", icon: "🌅", rows: timetable.filter((t) => (minutesOf(t.time) ?? 0) < 12 * 60) },
@@ -286,6 +318,7 @@ export default function HouseRules() {
             <div className="flex flex-wrap items-center gap-2 mt-4 text-[11px] font-bold">
               <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">{activeForPdf.length} mục</span>
               <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">{totalClauses} điều khoản</span>
+              {redCount > 0 && <span className="px-2.5 py-1 rounded-full bg-red-600 text-white shadow-sm shadow-red-900/30">{redCount} Lỗi đỏ</span>}
               {rules.updatedAt && <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">Cập nhật {fmtDate(rules.updatedAt)}</span>}
             </div>
           </div>
@@ -339,7 +372,8 @@ export default function HouseRules() {
                         {s.icon ? `${s.icon} ` : ""}
                         {s.title}
                       </span>
-                      <span className="text-[10px] text-gray-400 shrink-0">{s.items.length}</span>
+                      {s.items.some((i) => i.red) && <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" title="Có điều Lỗi đỏ" aria-label="Có điều Lỗi đỏ" />}
+                      <span className="text-[10px] text-gray-400 shrink-0">{s.items.filter((i) => !i.sub).length}</span>
                     </button>
                   </li>
                 ))}
@@ -377,6 +411,19 @@ export default function HouseRules() {
 
           {/* CÁC MỤC */}
           <div className="lg:col-span-8 flex flex-col gap-5">
+            {redCount > 0 && (
+              <div role="note" className="flex gap-3.5 rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-5">
+                <span className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-5 h-5" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-red-800">Lỗi đỏ — những điều tuyệt đối phải giữ</p>
+                  <p className="text-xs text-red-800/90 mt-1 leading-relaxed">
+                    Điều có nhãn <RedBadge className="mx-0.5 align-[1px]" /> là vi phạm nghiêm trọng. Hãy đọc kỹ để tránh vi phạm; cách xử lý ghi trong luật nhà.
+                  </p>
+                </div>
+              </div>
+            )}
             {visible.map((s, idx) => (
               <section
                 key={s.id}
@@ -418,20 +465,34 @@ export default function HouseRules() {
                     </div>
                   )}
                 </header>
-                <ol className="divide-y divide-gray-50">
-                  {s.items.map((it, i) => (
-                    <li key={i} className="flex items-start gap-4 px-5 sm:px-6 py-3.5 hover:bg-purple-50/30 transition">
-                      <span className="w-10 shrink-0 text-xs font-black text-gray-300 tabular-nums pt-0.5">
-                        {idx + 1}.{i + 1}
-                      </span>
-                      <p className="flex-1 min-w-0 text-sm text-gray-800 leading-relaxed">{it.text}</p>
-                      {it.time && (
-                        <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 text-[11px] font-extrabold tabular-nums">
-                          <Clock className="w-3 h-3" /> {it.time}
-                        </span>
-                      )}
-                    </li>
-                  ))}
+                <ol>
+                  {(() => {
+                    const nums = numberItems(s.items);
+                    return s.items.map((it, i) => (
+                      <li
+                        key={i}
+                        // Viền trên làm đường kẻ giữa các dòng (không dùng divide-*: nó ghi đè màu viền trái đỏ của các dòng sau)
+                        className={`flex items-start gap-3 sm:gap-4 border-l-4 border-t border-t-gray-50 first:border-t-0 py-3.5 pr-5 sm:pr-6 transition ${
+                          it.red ? "border-l-red-600 bg-red-50 hover:bg-red-50" : "border-l-transparent hover:bg-purple-50/30"
+                        } ${it.sub ? "pl-12 sm:pl-[4.5rem] py-2.5" : "pl-4 sm:pl-5"}`}
+                      >
+                        {it.sub ? (
+                          <span className="shrink-0 mt-[7px] w-1.5 h-1.5 rounded-full bg-primary/60" aria-hidden />
+                        ) : (
+                          <span className={`w-9 shrink-0 text-xs font-black tabular-nums pt-0.5 ${it.red ? "text-red-600" : "text-gray-300"}`}>
+                            {idx + 1}.{nums[i]}
+                          </span>
+                        )}
+                        <p className={`flex-1 min-w-0 leading-relaxed ${it.sub ? "text-[13px] text-gray-700" : "text-sm text-gray-800"} ${it.red ? "font-semibold text-red-900" : ""}`}>{it.text}</p>
+                        {it.red && <RedBadge className="mt-0.5" />}
+                        {it.time && (
+                          <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 text-[11px] font-extrabold tabular-nums">
+                            <Clock className="w-3 h-3" /> {it.time}
+                          </span>
+                        )}
+                      </li>
+                    ));
+                  })()}
                 </ol>
               </section>
             ))}
