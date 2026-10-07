@@ -72,7 +72,8 @@ export function QrImage({
       </div>
     );
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    // Chiều rộng cột bằng khung QR (+ viền): chú thích bên dưới tự xuống dòng, không làm phình cột chứa QR
+    <div className="flex flex-col items-center gap-1.5 max-w-full" style={{ width: size + 16 }}>
       <div style={{ width: size, height: size }} className="rounded-2xl bg-white border border-purple-100 p-2 shadow-2xs flex items-center justify-center overflow-hidden">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -86,7 +87,7 @@ export function QrImage({
           <Download className="w-3 h-3" /> Lưu ảnh QR
         </a>
       )}
-      <span className="text-[10px] text-gray-400">{usePayload ? "Mã VietQR — quét bằng ứng dụng ngân hàng bất kỳ" : "Ảnh mã QR do chủ tài khoản tải lên"}</span>
+      <span className="text-[10px] text-gray-400 text-center leading-snug">{usePayload ? "Mã VietQR — quét bằng ứng dụng ngân hàng bất kỳ" : "Ảnh mã QR do chủ tài khoản tải lên"}</span>
     </div>
   );
 }

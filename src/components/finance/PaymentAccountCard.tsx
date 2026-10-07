@@ -186,11 +186,12 @@ export default function PaymentAccountCard({ memberId, canEdit }: { memberId: st
         </div>
       )}
       {acc && (
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
-          <div className="flex justify-center sm:block">
-            <QrImage payload={payload} fileId={acc.qrFileId} size={150} downloadName={`QR_${stripDiacritics(pa?.memberName ?? "").replace(/\s+/g, "_")}`} />
+        // Thẻ nằm trong cột chi tiết hẹp (và cả bảng trượt trên điện thoại) ⇒ luôn xếp dọc: QR giữa, thông tin bên dưới
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-center">
+            <QrImage payload={payload} fileId={acc.qrFileId} size={160} downloadName={`QR_${stripDiacritics(pa?.memberName ?? "").replace(/\s+/g, "_")}`} />
           </div>
-          <div className="flex-1 min-w-0 space-y-2">
+          <div className="min-w-0 space-y-2">
             <CopyField label="Số tài khoản" value={acc.accountNo} mono />
             <div className="text-[11px] text-gray-500 px-1 space-y-0.5">
               <div>
