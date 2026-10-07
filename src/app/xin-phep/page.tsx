@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { CalendarOff, Check, Clock, MapPin, Phone, Plus, X } from "lucide-react";
+import { AlarmClockPlus, CalendarOff, Check, Clock, DoorOpen, MapPin, Phone, Plus, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -13,6 +13,7 @@ import { PurgeButton } from "@/components/ui/PurgeButton";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
 import { LeaveForm } from "./_components/LeaveForm";
+import { ExtendDialog } from "./_components/ExtendDialog";
 
 const STATUS_STYLE: Record<LeaveStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -36,6 +37,7 @@ export default function LeavePage() {
   const [formOpen, setFormOpen] = useState(false);
   const [toCancel, setToCancel] = useState<LeaveRequestDto | null>(null);
   const [toReject, setToReject] = useState<LeaveRequestDto | null>(null);
+  const [toExtend, setToExtend] = useState<LeaveRequestDto | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const canReview = data?.canReview ?? false;
@@ -81,6 +83,22 @@ export default function LeavePage() {
         </div>
       )}
 
+      {(data?.doorDuties.length ?? 0) > 0 && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 sm:p-5 space-y-2.5">
+          <p className="text-sm font-extrabold text-sky-900 flex items-center gap-2"><DoorOpen className="w-4 h-4" aria-hidden /> Anh em nhờ bạn để cửa</p>
+          <ul className="space-y-1.5">
+            {data!.doorDuties.map((d) => (
+              <li key={d.leaveId} className="text-sm text-sky-900 flex flex-wrap items-baseline gap-x-2">
+                <b>{d.memberName}</b>
+                <span>{d.kind === "late_return" ? "về muộn" : "ngủ ngoài"} — dự kiến về <b>{fmt(d.effectiveEndsAt)}</b></span>
+                {d.effectiveEndsAt !== d.endsAt && <span className="text-xs text-amber-700 font-semibold">(đã xin thêm giờ, ban đầu {fmt(d.endsAt)})</span>}
+                {d.status === "pending" && <span className="text-[11px] text-sky-700">· đơn đang chờ duyệt</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {(isLoading || sessionLoading) && !data ? (
         <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="shimmer-box h-24 rounded-2xl" />)}</div>
       ) : shown.length === 0 ? (
@@ -105,6 +123,19 @@ export default function LeavePage() {
                 <PurgeButton variant="icon" url={`/api/v1/leave/${r.id}`} what={`đơn xin phép “${LEAVE_KIND_LABEL[r.kind]}” của ${r.memberName}`} />
               </div>
               <p className="text-sm text-gray-700">{r.reason}</p>
+              {r.doorMemberName && (
+                <p className="text-xs text-gray-600 inline-flex items-center gap-1.5"><DoorOpen className="w-3.5 h-3.5 text-primary" aria-hidden />Nhờ <b className="text-gray-800">{r.doorMemberName}</b> để cửa</p>
+              )}
+              {r.extensions.length > 0 && (
+                <ul className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 space-y-1">
+                  {r.extensions.map((x) => (
+                    <li key={x.id} className="text-xs text-amber-900">
+                      <span className="font-bold">Xin thêm giờ → về {fmt(x.newEndsAt)}</span>
+                      <span className="text-amber-800/80"> · {x.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {(r.destination || r.contactPhone) && (
                 <p className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
                   {r.destination && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{r.destination}</span>}
@@ -113,6 +144,11 @@ export default function LeavePage() {
               )}
               {(r.status === "approved" || r.status === "rejected") && (
                 <p className="text-xs text-gray-500">{r.decidedByName ? `${r.decidedByName} ` : ""}{r.status === "approved" ? "đã duyệt" : "đã từ chối"}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p>
+              )}
+              {r.canExtend && (
+                <button type="button" onClick={() => setToExtend(r)} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold hover:bg-amber-100 transition active:scale-95">
+                  <AlarmClockPlus className="w-3.5 h-3.5" aria-hidden /> Xin thêm giờ
+                </button>
               )}
               {r.status === "pending" && (
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -132,6 +168,7 @@ export default function LeavePage() {
       )}
 
       {formOpen && data && <LeaveForm events={data.events} onClose={() => setFormOpen(false)} />}
+      <ExtendDialog item={toExtend} onClose={() => setToExtend(null)} />
       <RejectDialog
         item={toReject}
         onClose={() => setToReject(null)}

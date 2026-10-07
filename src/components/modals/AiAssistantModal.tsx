@@ -30,7 +30,7 @@ const BY_PATH: [RegExp, string[]][] = [
   [/^\/xin-phep/, ["Cách gửi đơn xin phép vắng sự kiện?", "Đơn xin phép của tôi bị từ chối thì làm sao?"]],
   [/^\/thu-chi/, ["Cách đóng quỹ bằng mã QR?", "Tôi đã chuyển khoản, bấm gì để báo đã đóng?"]],
   [/^\/bep-com/, ["Cách đăng ký cơm và giờ chốt là mấy giờ?"]],
-  [/^\/lich-su-kien/, ["Cách điểm danh sự kiện bằng QR?", "Làm sao báo mình sẽ có mặt hoặc vắng?"]],
+  [/^\/lich-su-kien/, ["Cách điểm danh sự kiện bằng ảnh?", "Làm sao báo mình sẽ có mặt hoặc vắng?"]],
   [/^\/hau-can/, ["Cách báo hỏng thiết bị trong nhà?", "Làm sao biết tuần này ai trực vệ sinh sân?"]],
   [/^\/phung-vu/, ["Tài liệu phụng vụ nằm ở đâu?", "Cách gửi ý cầu nguyện ẩn danh?"]],
   [/^\/cai-dat/, ["Cách bật thông báo đẩy trên iPhone?", "Cách đổi email đăng nhập?"]],

@@ -128,6 +128,43 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
     ],
     default: ["🎂 Hôm nay sinh nhật {names}!", "Chúc {them} một ngày thật vui, bình an và luôn được Chúa gìn giữ. 🕊️"].join("\n"),
   },
+  leave_notice: {
+    placeholders: [
+      HOUSE,
+      { name: "kind", desc: "Loại đơn: VỀ MUỘN hoặc NGỦ NGOÀI", sample: "VỀ MUỘN" },
+      { name: "member", desc: "Người xin phép", sample: "Minh Tuấn" },
+      { name: "when", desc: "Thời gian", sample: "Dự kiến về lúc 23:30 tối nay" },
+      { name: "destination", desc: "Nơi đang ở / nơi đến (có thể trống)", sample: "Thư viện trường" },
+      { name: "reason", desc: "Lý do", sample: "Thi xong lúc 21h, về trễ" },
+      { name: "door", desc: "Người được nhờ để cửa (có thể trống)", sample: "Văn Đức" },
+    ],
+    default: [
+      "🌙 {kind} — {member}",
+      "🕒 {when}",
+      "📍 {destination}",
+      "📝 Lý do: {reason}",
+      "🔑 Nhờ {door} để cửa giúp.",
+      "Anh em chú ý giúp nhé. 🕊️",
+    ].join("\n"),
+  },
+  leave_extension: {
+    placeholders: [
+      HOUSE,
+      { name: "kind", desc: "Loại đơn: về muộn hoặc ngủ ngoài", sample: "về muộn" },
+      { name: "member", desc: "Người xin thêm giờ", sample: "Minh Tuấn" },
+      { name: "old_time", desc: "Giờ đã báo trước đó", sample: "23:30" },
+      { name: "new_time", desc: "Giờ mới", sample: "00:30 (13/10)" },
+      { name: "reason", desc: "Lý do xin thêm", sample: "Xe hỏng giữa đường, đang chờ sửa" },
+      { name: "door", desc: "Người được nhờ để cửa (có thể trống)", sample: "Văn Đức" },
+    ],
+    default: [
+      "⏰ XIN THÊM GIỜ ({kind}) — {member}",
+      "🕒 Đã báo về lúc {old_time}, nay xin về lúc {new_time}.",
+      "📝 Lý do: {reason}",
+      "🔑 {door} để cửa giúp nhé.",
+      "Anh em chú ý giúp. 🕊️",
+    ].join("\n"),
+  },
 };
 
 const PH = /\{([a-z_]+)\}/g;

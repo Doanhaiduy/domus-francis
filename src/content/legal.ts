@@ -3,7 +3,7 @@
 // Đổi nội dung có ý nghĩa pháp lý ⇒ tăng LEGAL_VERSION, đặt lại LEGAL_UPDATED (và LEGAL_UPDATED_ISO) cho cả hai văn bản.
 import type { PublicOrgInfo } from "@/lib/types/articles";
 
-export const LEGAL_VERSION = "1.0";
+export const LEGAL_VERSION = "1.1";
 export const LEGAL_UPDATED = "07/10/2026";
 export const LEGAL_UPDATED_ISO = "2026-10-07";
 

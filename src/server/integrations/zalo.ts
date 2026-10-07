@@ -11,7 +11,17 @@ import { renderTemplate, templateFor } from "@/lib/zalo-templates";
 // Gửi tin là "cố gắng hết sức": lỗi mạng/Zalo không làm hỏng thao tác chính của người dùng.
 // =====================================================================
 
-const API = "https://bot-api.zaloplatforms.com";
+const DEFAULT_API = "https://bot-api.zaloplatforms.com";
+/** Chỉ để kiểm thử (scripts/test-api): máy chủ Zalo GIẢ ở loopback — địa chỉ không phải loopback bị bỏ qua nên không bao giờ gửi dữ liệu đi nơi khác. */
+const apiBase = () => {
+  const raw = process.env.ZALO_TEST_BASE_URL?.trim();
+  if (!raw) return DEFAULT_API;
+  try {
+    return ["127.0.0.1", "localhost", "[::1]"].includes(new URL(raw).hostname) ? raw.replace(/\/+$/, "") : DEFAULT_API;
+  } catch {
+    return DEFAULT_API;
+  }
+};
 const TEXT_LIMIT = 2000;
 
 export { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL };
@@ -56,7 +66,7 @@ async function call(method: string, body: Record<string, unknown>, timeoutMs = 1
   const t = token();
   if (!t) return { ok: false, error: "Chưa cấu hình ZALO_BOT_TOKEN trên máy chủ." };
   try {
-    const res = await fetch(`${API}/bot${t}/${method}`, {
+    const res = await fetch(`${apiBase()}/bot${t}/${method}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

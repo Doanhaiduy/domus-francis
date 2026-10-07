@@ -128,6 +128,7 @@ export const AI_LINKS: { href: string; label: string; hint: string }[] = [
   { href: "/cai-dat?tab=security", label: "Cài đặt → Bảo mật", hint: "Đổi mật khẩu, đổi email đăng nhập, xác thực 2 bước, quyền riêng tư" },
   { href: "/cai-dat?tab=notifications", label: "Cài đặt → Thông báo", hint: "Cài ứng dụng ra màn hình chính, bật thông báo đẩy, giờ yên tĩnh" },
   { href: "/huong-dan", label: "Hướng dẫn sử dụng", hint: "Sách hướng dẫn đầy đủ theo từng vai trò" },
+  { href: "/gop-y", label: "Góp ý về ứng dụng", hint: "Báo lỗi, đề xuất tính năng, góp ý cho người quản lý (có thể ẩn tên, đính ảnh chụp màn hình)" },
   { href: "/chinh-sach-bao-mat", label: "Chính sách bảo mật", hint: "Dữ liệu cá nhân nào được thu thập, dùng, bảo vệ, lưu bao lâu và quyền của bạn" },
   { href: "/dieu-khoan-su-dung", label: "Điều khoản sử dụng", hint: "Quy tắc dùng hệ thống: tài khoản, quỹ chung, nội dung, trách nhiệm" },
   { href: "/bai-viet", label: "Bài viết công khai", hint: "Viết bài, hỏi đáp, đăng ký tìm hiểu (người có quyền đăng bài)" },

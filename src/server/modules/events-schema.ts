@@ -62,20 +62,11 @@ export const AttendanceMarkSchema = z.object({
   note: optText(300),
 });
 
-export const QrOpenSchema = z.object({
-  /** Thời lượng phiên (phút). Mặc định: tới khi sự kiện kết thúc. */
-  durationMinutes: z.number().int().min(5).max(24 * 60).optional(),
-  rotationSeconds: z.number().int().min(15).max(120).optional(),
+/** Điểm danh bằng ảnh: sự kiện + mã ảnh đã tải lên. */
+export const CheckInSchema = z.object({
+  eventId: zId,
+  fileId: zId,
 });
-
-export const CheckInSchema = z
-  .object({
-    token: z.string().trim().max(200).optional(),
-    code: z.string().trim().max(20).optional(),
-    eventId: zId.nullable().optional(),
-    deviceId: z.string().trim().max(100).nullable().optional(),
-  })
-  .refine((v) => !!(v.token || v.code), { message: "Thiếu mã QR hoặc mã điểm danh 6 số." });
 
 export const VoteSchema = z.object({
   optionIds: z.array(zId).max(20),

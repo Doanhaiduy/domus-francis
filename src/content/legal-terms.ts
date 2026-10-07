@@ -53,7 +53,7 @@ Trong văn bản này, “**Lưu xá**” hoặc “**chúng tôi**” là ${hou
           {
             t: "md",
             text: `- Dùng Hệ thống đúng mục đích sinh hoạt chung của cộng đoàn và tuân thủ Luật nhà, pháp luật Việt Nam.
-- **Trung thực**: điểm danh, đơn xin phép, báo sự cố, chứng từ tài chính, điểm học tập và mọi khai báo khác phải đúng sự thật.
+- **Trung thực**: điểm danh, đơn xin phép (kể cả giờ dự kiến về và các lần xin thêm giờ), báo sự cố, chứng từ tài chính, điểm học tập và mọi khai báo khác phải đúng sự thật.
 - **Tôn trọng quyền riêng tư**: dữ liệu về thành viên khác (số điện thoại, hồ sơ, ảnh…) chỉ dùng cho sinh hoạt chung; không sao chép, chia sẻ hay công bố ra ngoài khi chưa được họ đồng ý.
 - Ứng xử văn minh, đúng tinh thần của một cộng đoàn sinh viên Công giáo.`,
           },
@@ -68,7 +68,7 @@ Trong văn bản này, “**Lưu xá**” hoặc “**chúng tôi**” là ${hou
             text: `Bạn không được:
 
 - Truy cập trái phép, vượt quyền, dò quét hoặc khai thác lỗ hổng, làm quá tải hay gián đoạn Hệ thống. Nếu phát hiện lỗ hổng, hãy báo cho người quản lý thay vì khai thác.
-- Giả mạo danh tính, giả mạo điểm danh (kể cả nhờ người khác điểm danh hộ, giả lập thiết bị hoặc vị trí), gian lận số liệu hoặc chứng từ.
+- Giả mạo danh tính, giả mạo điểm danh (kể cả nhờ người khác điểm danh hộ, gửi ảnh chụp lại từ trước hoặc ảnh không phải do chính bạn chụp tại sự kiện), gian lận số liệu hoặc chứng từ.
 - Tải lên mã độc hoặc nội dung vi phạm pháp luật, xúc phạm, kỳ thị, khiêu dâm, xâm phạm quyền riêng tư hay quyền sở hữu trí tuệ của người khác.
 - Gửi spam, quảng cáo, thu thập dữ liệu hàng loạt bằng công cụ tự động.
 - Dùng tính năng AI để tạo hoặc phát tán nội dung vi phạm.

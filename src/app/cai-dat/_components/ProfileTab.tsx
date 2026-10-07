@@ -8,6 +8,7 @@ import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/S
 import { AppearanceCard } from "./AppearanceCard";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { SaintNamePicker } from "@/components/ui/SaintNamePicker";
+import PaymentAccountCard from "@/components/finance/PaymentAccountCard";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage, fileUrl } from "@/lib/api";
@@ -214,6 +215,7 @@ export default function ProfileTab() {
   };
 
   return (
+    <div className="space-y-6">
     <form onSubmit={handleSave} className="space-y-6">
       {/* 1. PROFILE HERO HEADER */}
       <div className="bg-gradient-to-r from-purple-50 via-purple-50/40 to-transparent p-5 sm:p-6 rounded-3xl border border-purple-100/80 flex flex-col sm:flex-row items-center sm:items-start gap-5">
@@ -579,5 +581,9 @@ export default function ProfileTab() {
         </button>
       </div>
     </form>
+
+    {/* Tài khoản nhận tiền của CHÍNH MÌNH (STK + ảnh QR) — tự khai báo/sửa/xóa, lưu riêng bằng nút trong thẻ. Đặt NGOÀI <form> hồ sơ để các nút của thẻ không gửi nhầm form. */}
+    <PaymentAccountCard memberId={member.id} canEdit />
+    </div>
   );
 }

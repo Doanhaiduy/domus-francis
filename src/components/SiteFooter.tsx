@@ -39,7 +39,7 @@ function LegalLinks({ newTab = false }: { newTab?: boolean }) {
   );
 }
 
-export function SiteFooter({ org, variant = "full", className, donationEnabled = false }: { org?: PublicOrgInfo | null; variant?: "full" | "compact" | "minimal"; className?: string; donationEnabled?: boolean }) {
+export function SiteFooter({ org, variant = "full", className, donationEnabled = false, feedbackHref }: { org?: PublicOrgInfo | null; variant?: "full" | "compact" | "minimal"; className?: string; donationEnabled?: boolean; /** Liên kết "Góp ý" (chỉ kiểu compact — trong ứng dụng, sau đăng nhập) */ feedbackHref?: string }) {
   const o = org ?? FALLBACK;
   const year = new Date().getFullYear();
   const copyright = `© ${year} ${o.houseName}. Bảo lưu mọi quyền.`;
@@ -67,6 +67,7 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 font-semibold" aria-label="Liên kết chân trang">
             <Link href="/tin-tuc" className="hover:text-primary transition" target="_blank">Bản tin công khai</Link>
             <Link href="/huong-dan" className="hover:text-primary transition">Hướng dẫn sử dụng</Link>
+            {feedbackHref && <Link href={feedbackHref} className="hover:text-primary transition">Góp ý</Link>}
             <LegalLinks newTab />
           </nav>
           <p className="text-gray-400">{copyright}</p>

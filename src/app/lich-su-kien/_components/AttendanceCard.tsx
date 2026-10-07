@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, CheckCircle2, QrCode, Lock, ClipboardCheck } from "lucide-react";
+import { Camera, Check, ImageIcon, Lock, ClipboardCheck } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -15,7 +15,6 @@ import { catStyle } from "./styles";
 interface Props {
   event: EventDto;
   canReadAll: boolean;
-  onOpenQr: (e: EventDto) => void;
   onCheckIn: (e: EventDto) => void;
 }
 
@@ -26,15 +25,15 @@ const STATUS_BADGE: Record<string, string> = {
   excused: "bg-blue-50 text-blue-700",
 };
 
-const METHOD_LABEL: Record<string, string> = { qr: "QR", manual: "Ghi hộ", import: "Tự động", self: "Tự xác nhận" };
+const METHOD_LABEL: Record<string, string> = { photo: "Ảnh", qr: "QR (cũ)", manual: "Ghi hộ", import: "Tự động", self: "Tự xác nhận" };
 
-export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onCheckIn }: Props) {
+export default function AttendanceCard({ event: evt, canReadAll, onCheckIn }: Props) {
   const { showToast } = useApp();
   const { session } = useSession();
   const phase = eventPhase(evt);
   const canSeeRoster = evt.canRecord || canReadAll;
   // Sự kiện sắp tới: thu gọn danh sách (chưa ai điểm danh) — bấm để mở
-  const [expanded, setExpanded] = useState(phase !== "upcoming" || !!evt.qrSession);
+  const [expanded, setExpanded] = useState(phase !== "upcoming");
   const showRoster = canSeeRoster && expanded;
   const { roster, mutate } = useAttendanceRoster(evt.id, showRoster);
   const [busyMember, setBusyMember] = useState<string | null>(null);
@@ -89,6 +88,7 @@ export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onChe
           note: null,
           recordedBy: null,
           rsvp: evt.myRsvp,
+          evidenceFileId: null,
         }
       : null;
   const rows = showRoster ? roster?.rows ?? [] : ownRow ? [ownRow] : [];
@@ -106,21 +106,11 @@ export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onChe
             {phase === "ongoing" && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">Đang diễn ra</span>}
             {evt.status === "completed" && <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold">Đã chốt</span>}
             {evt.status === "cancelled" && <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">Đã hủy</span>}
-            {evt.qrSession && <span className="px-2 py-0.5 rounded-full bg-purple-100 text-primary text-[10px] font-bold">QR đang mở</span>}
           </div>
           <h3 className="text-lg font-black text-gray-900 mt-1">{evt.title}</h3>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {(evt.canRecord || evt.canQr) && evt.status !== "cancelled" && (
-            <button
-              onClick={() => onOpenQr(evt)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold border border-purple-200 transition"
-            >
-              <QrCode className="w-4 h-4" />
-              <span>Mã QR Điểm danh</span>
-            </button>
-          )}
           {meIn ? (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
               <Check className="w-4 h-4" />
@@ -131,8 +121,8 @@ export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onChe
               onClick={() => onCheckIn(evt)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-200 active:scale-95 transition"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Check-in có mặt tôi</span>
+              <Camera className="w-4 h-4" />
+              <span>Chụp ảnh điểm danh</span>
             </button>
           ) : me ? (
             <span className={cn("inline-flex items-center px-3.5 py-2 rounded-xl text-xs font-bold", STATUS_BADGE[me.status])}>
@@ -209,6 +199,17 @@ export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onChe
                     <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold text-[10px]">Chưa điểm danh</span>
                   )}
                   {rec.method && <span className="ml-1.5 text-[10px] text-gray-400">{METHOD_LABEL[rec.method]}</span>}
+                  {rec.evidenceFileId && (
+                    <a
+                      href={`/api/v1/files/${rec.evidenceFileId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
+                      title="Xem ảnh điểm danh"
+                    >
+                      <ImageIcon className="w-3 h-3" /> Xem ảnh
+                    </a>
+                  )}
                 </td>
                 <td className="py-2 px-3 text-gray-500 italic">
                   {rec.note || (rec.recordedBy ? `Ghi bởi ${rec.recordedBy}` : "—")}

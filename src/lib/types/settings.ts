@@ -232,6 +232,8 @@ export const ZALO_EVENT_KEYS = [
   "room_change",
   "member_joined",
   "birthday",
+  "leave_notice",
+  "leave_extension",
 ] as const;
 export type ZaloEventKey = (typeof ZALO_EVENT_KEYS)[number];
 export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
@@ -246,6 +248,8 @@ export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
   room_change: "Chuyển / xếp phòng",
   member_joined: "Thành viên mới vào nhà",
   birthday: "Chúc mừng sinh nhật thành viên",
+  leave_notice: "Đơn xin phép về muộn / ngủ ngoài",
+  leave_extension: "Xin thêm giờ về muộn / ngủ ngoài",
 };
 /** Loại tin mặc định TẮT (liên quan chỗ ở của từng người) — Trưởng nhà tự bật nếu muốn. */
 export const ZALO_EVENT_DEFAULT_OFF: readonly ZaloEventKey[] = ["room_change", "member_joined"];

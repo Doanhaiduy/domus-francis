@@ -3,7 +3,8 @@
 export type EventStatus = "draft" | "scheduled" | "ongoing" | "completed" | "cancelled";
 export type RsvpStatus = "none" | "going" | "maybe" | "not_going";
 export type AttendanceStatus = "present" | "late" | "absent" | "excused";
-export type AttendanceMethod = "qr" | "manual" | "self" | "import";
+/** photo = thành viên chụp ảnh gửi lại (hiện dùng); qr = mã QR cũ (chỉ còn trong dữ liệu đã ghi, không dùng nữa) */
+export type AttendanceMethod = "photo" | "qr" | "manual" | "self" | "import";
 
 export interface EventCategoryDto {
   id: string;
@@ -37,13 +38,6 @@ export interface MyAttendanceDto {
   method: AttendanceMethod;
   checkedInAt: string | null; // ISO
   time: string | null; // "19:22" giờ VN
-}
-
-export interface QrSessionDto {
-  id: string;
-  opensAt: string;
-  closesAt: string;
-  rotationSeconds: number;
 }
 
 export interface PollOptionDto {
@@ -110,10 +104,6 @@ export interface EventDto {
   canEdit: boolean;
   /** Người xem điểm danh hộ được (event.attendance.record hoặc ban tổ chức) */
   canRecord: boolean;
-  /** Người xem mở/đóng phiên QR được (event.qr.manage hoặc ban tổ chức) */
-  canQr: boolean;
-  /** Phiên QR đang mở (chỉ trả cho người điểm danh được) */
-  qrSession: QrSessionDto | null;
   polls: PollDto[];
 }
 
@@ -147,6 +137,8 @@ export interface AttendanceRowDto {
   note: string | null;
   recordedBy: string | null;
   rsvp: RsvpStatus;
+  /** Ảnh điểm danh (method = photo) — người điểm danh hộ/ban tổ chức xem được */
+  evidenceFileId: string | null;
 }
 
 export interface AttendanceRosterDto {
@@ -156,17 +148,6 @@ export interface AttendanceRosterDto {
   /** Sự kiện đã kết thúc ⇒ có thể chốt điểm danh */
   ended: boolean;
   status: EventStatus;
-}
-
-export interface QrDisplayDto {
-  session: QrSessionDto;
-  token: string;
-  /** Mã 6 số để nhập tay */
-  code: string;
-  url: string;
-  svg: string;
-  /** Số mili giây tới lần đổi mã kế tiếp */
-  refreshInMs: number;
 }
 
 export interface CheckInResultDto {

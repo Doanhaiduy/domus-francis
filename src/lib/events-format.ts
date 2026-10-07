@@ -213,9 +213,3 @@ export function formatPollForZalo(poll: PollDto) {
   text += `\nPax et Bonum - Lưu Xá Sinh Viên Phanxicô`;
   return text;
 }
-
-/** Mã 6 số nhập tay rút gọn từ HMAC trong token QR "<phiên>.<slot>.<mac>" — cùng công thức với app.fn_checkin_by_code. */
-export function qrShortCode(token: string) {
-  const mac = token.split(".")[2] ?? "";
-  return String(parseInt(mac.slice(0, 8), 16) % 1_000_000).padStart(6, "0");
-}

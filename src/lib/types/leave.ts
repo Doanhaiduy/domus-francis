@@ -17,12 +17,24 @@ export const LEAVE_KIND_HINT: Record<LeaveKind, string> = {
   long_leave: "Về quê, thực tập, đi xa vài ngày (tối đa 120 ngày). Cho biết nơi đến và số liên lạc.",
 };
 
+/** Loại đơn có "nhờ người để cửa", xin thêm giờ và báo vào nhóm Zalo. */
+export const LEAVE_DOOR_KINDS: LeaveKind[] = ["late_return", "overnight_out"];
+export const isDoorKind = (k: LeaveKind) => LEAVE_DOOR_KINDS.includes(k);
+
 export const LEAVE_STATUS_LABEL: Record<LeaveStatus, string> = {
   pending: "Chờ duyệt",
   approved: "Đã duyệt",
   rejected: "Từ chối",
   cancelled: "Đã hủy",
 };
+
+/** Một lần xin thêm giờ (chỉ thêm, không sửa/xóa). */
+export interface LeaveExtensionDto {
+  id: string;
+  newEndsAt: string;
+  reason: string;
+  createdAt: string;
+}
 
 export interface LeaveRequestDto {
   id: string;
@@ -42,6 +54,26 @@ export interface LeaveRequestDto {
   decisionNote: string | null;
   createdAt: string;
   isMine: boolean;
+  /** Người được nhờ để cửa (đơn về muộn / ngủ ngoài; tùy chọn) */
+  doorMemberId: string | null;
+  doorMemberName: string | null;
+  /** Các lần xin thêm giờ, theo thứ tự thời gian */
+  extensions: LeaveExtensionDto[];
+  /** Giờ về hiệu lực = giờ dự kiến lớn nhất (gồm các lần xin thêm) */
+  effectiveEndsAt: string;
+  /** Người xin còn xin thêm giờ được (đơn của mình, về muộn / ngủ ngoài, đang chờ hoặc đã duyệt, còn trong thời hạn) */
+  canExtend: boolean;
+}
+
+/** Việc "được nhờ để cửa" của chính mình — không kèm lý do / nơi đến / số điện thoại của người xin. */
+export interface LeaveDoorDutyDto {
+  leaveId: string;
+  memberName: string;
+  kind: LeaveKind;
+  status: LeaveStatus;
+  startsAt: string;
+  endsAt: string;
+  effectiveEndsAt: string;
 }
 
 /** Sự kiện có thể xin vắng (sắp diễn ra, có điểm danh). */
@@ -59,6 +91,8 @@ export interface LeaveListDto {
   review: LeaveRequestDto[] | null;
   pendingCount: number;
   events: LeaveEventOption[];
+  /** Các đơn đang nhờ mình để cửa */
+  doorDuties: LeaveDoorDutyDto[];
   canRequest: boolean;
   canReview: boolean;
 }

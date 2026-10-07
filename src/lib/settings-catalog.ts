@@ -234,13 +234,6 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
     help: "Quá số ngày này kể từ ngày rời nhà, thông tin cá nhân nhạy cảm của người đã rời được tự động ẩn danh. Cựu thành viên (đã ra trường, vẫn giữ liên lạc) không bị ẩn danh.",
   },
 
-  // --- Điểm danh QR ---
-  "qr.default_geofence_radius_m": {
-    label: "Bán kính định vị khi điểm danh",
-    help: "Khi bật kiểm tra vị trí, người điểm danh phải ở trong bán kính này (mét) quanh lưu xá.",
-  },
-  "qr.rotation_seconds": { label: "Mã QR điểm danh tự đổi sau", help: "Mã đổi liên tục để chống chụp màn hình gửi người khác (khuyến nghị 30–60 giây)." },
-
   // --- Giao diện ---
   "ui.disabled_modules": { label: "Phân hệ đang tạm ẩn", help: "Sửa ở tab Phân hệ." },
 

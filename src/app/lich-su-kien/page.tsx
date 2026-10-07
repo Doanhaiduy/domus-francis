@@ -29,7 +29,6 @@ import EventDayCard from "./_components/EventDayCard";
 import EventFormModal from "./_components/EventFormModal";
 import PollFormModal from "./_components/PollFormModal";
 import PollCard from "./_components/PollCard";
-import QrModal from "./_components/QrModal";
 import CheckInModal from "./_components/CheckInModal";
 import AttendanceCard from "./_components/AttendanceCard";
 import { catStyle } from "./_components/styles";
@@ -96,17 +95,10 @@ export default function LichSuKienPage() {
   // Modal
   const [eventForm, setEventForm] = useState<{ open: boolean; event: EventDto | null; date: string | null }>({ open: false, event: null, date: null });
   const [pollForm, setPollForm] = useState<{ open: boolean; eventId: string | null }>({ open: false, eventId: null });
-  const [qrEventId, setQrEventId] = useState<string | null>(null);
-  const [checkInEvent, setCheckInEvent] = useState<EventDto | null | undefined>(undefined);
+  const [checkInEvent, setCheckInEvent] = useState<EventDto | null>(null);
   const [cancelTarget, setCancelTarget] = useState<EventDto | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<EventDto | null>(null);
-
-  // Luôn dùng bản mới nhất của sự kiện trong modal QR (sau khi làm mới dữ liệu)
-  const qrEvent = qrEventId ? events.find((e) => e.id === qrEventId) ?? null : null;
-  useEffect(() => {
-    if (qrEventId && !isLoading && !events.some((e) => e.id === qrEventId)) setQrEventId(null);
-  }, [qrEventId, events, isLoading]);
 
   const goMonth = (delta: number) => {
     const d = new Date(currentYear, currentMonth + delta, 1);
@@ -223,7 +215,6 @@ export default function LichSuKienPage() {
       setCancelTarget(e);
     },
     onDelete: (e: EventDto) => setDeleteTarget(e),
-    onOpenQr: (e: EventDto) => setQrEventId(e.id),
     onCheckIn: (e: EventDto) => setCheckInEvent(e),
   };
 
@@ -243,13 +234,6 @@ export default function LichSuKienPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setCheckInEvent(null)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 transition active:scale-95"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Nhập mã điểm danh</span>
-          </button>
           {canManageLiturgy && (
             <button
               onClick={() => setLiturgySettingsOpen(true)}
@@ -669,7 +653,6 @@ export default function LichSuKienPage() {
                 key={evt.id}
                 event={evt}
                 canReadAll={canReadAllAttendance}
-                onOpenQr={(e) => setQrEventId(e.id)}
                 onCheckIn={(e) => setCheckInEvent(e)}
               />
             ))}
@@ -730,8 +713,7 @@ export default function LichSuKienPage() {
         events={events.filter((e) => eventPhase(e) !== "ended")}
         presetEventId={pollForm.eventId}
       />
-      {qrEvent && <QrModal event={qrEvent} onClose={() => setQrEventId(null)} />}
-      {checkInEvent !== undefined && <CheckInModal event={checkInEvent} onClose={() => setCheckInEvent(undefined)} />}
+      {checkInEvent && <CheckInModal event={checkInEvent} onClose={() => setCheckInEvent(null)} />}
       {liturgySettingsOpen && <LiturgySettingsModal onClose={() => setLiturgySettingsOpen(false)} />}
 
       <ConfirmDialog
@@ -741,7 +723,7 @@ export default function LichSuKienPage() {
         title={`Hủy sự kiện "${cancelTarget?.title ?? ""}"?`}
         message={
           <div className="space-y-2">
-            <p>Sự kiện vẫn hiển thị trên lịch với nhãn ĐÃ HỦY; phiên QR và biểu quyết đang mở của sự kiện sẽ được đóng.</p>
+            <p>Sự kiện vẫn hiển thị trên lịch với nhãn ĐÃ HỦY; biểu quyết đang mở của sự kiện sẽ được đóng.</p>
             <textarea
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}

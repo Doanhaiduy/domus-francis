@@ -1,10 +1,7 @@
 import "server-only";
-import { createHash } from "node:crypto";
-import QRCode from "qrcode";
 import type { Tx } from "../db";
 import { ApiError, forbidden, notFound } from "../errors";
-import { qrShortCode } from "@/lib/events-format";
-import type { AttendanceRosterDto, CheckInResultDto, QrDisplayDto, QrSessionDto } from "@/lib/types/events";
+import type { AttendanceRosterDto, CheckInResultDto } from "@/lib/types/events";
 
 const VN = "Asia/Ho_Chi_Minh";
 
@@ -20,146 +17,29 @@ async function eventBasics(tx: Tx, eventId: string) {
   return e;
 }
 
-const toSession = (q: { id: string; opens_at: Date; closes_at: Date; rotation_seconds: number }): QrSessionDto => ({
-  id: q.id,
-  opensAt: q.opens_at.toISOString(),
-  closesAt: q.closes_at.toISOString(),
-  rotationSeconds: q.rotation_seconds,
-});
-
-async function activeSession(tx: Tx, eventId: string) {
-  return (
-    await tx.query<{ id: string; opens_at: Date; closes_at: Date; rotation_seconds: number }>(
-      `SELECT id, opens_at, closes_at, rotation_seconds FROM qr_sessions
-        WHERE event_id = $1 AND status = 'active' AND closes_at > now() ORDER BY created_at DESC LIMIT 1`,
-      [eventId]
-    )
-  ).rows[0];
-}
-
-/**
- * Mở phiên điểm danh QR (RLS qr_sessions__insert: event.qr.manage hoặc ban tổ chức). Khóa bí mật do DB sinh
- * (DEFAULT gen_random_bytes) và luuxa_app không đọc được. Mỗi sự kiện tối đa một phiên active (index) ⇒ đã có thì trả lại.
- */
-export async function openQrSession(tx: Tx, eventId: string, opts: { durationMinutes?: number; rotationSeconds?: number }) {
-  const e = await eventBasics(tx, eventId);
-  if (!e.requires_attendance) throw new ApiError(422, "CHECKIN_DISABLED", "Sự kiện này không bật điểm danh — hãy sửa sự kiện và bật điểm danh trước.");
-  if (["cancelled", "completed", "draft"].includes(e.status)) {
-    throw new ApiError(422, "EVENT_CLOSED", e.status === "cancelled" ? "Sự kiện đã hủy." : "Sự kiện đã chốt điểm danh.");
-  }
-  if (e.ended) throw new ApiError(422, "EVENT_ENDED", "Sự kiện đã kết thúc — không mở phiên QR nữa. Hãy điểm danh thủ công hoặc chốt điểm danh.");
-  // Phiên cũ đã hết hạn nhưng còn active ⇒ đóng để không vướng index một-phiên-mỗi-sự-kiện
-  await tx.query(
-    "UPDATE qr_sessions SET status = 'closed', closed_at = now() WHERE event_id = $1 AND status = 'active' AND closes_at <= now()",
-    [eventId]
-  );
-  const cur = await activeSession(tx, eventId);
-  if (cur) return toSession(cur);
-  const r = await tx.query<{ id: string; opens_at: Date; closes_at: Date; rotation_seconds: number }>(
-    `INSERT INTO qr_sessions (event_id, rotation_seconds, opens_at, closes_at, created_by)
-     VALUES ($1, $2, now(),
-             LEAST(now() + interval '24 hours',
-                   CASE WHEN $3::int IS NULL THEN GREATEST($4::timestamptz, now() + interval '5 minutes')
-                        ELSE now() + make_interval(mins => $3::int) END),
-             app.current_user_id())
-     RETURNING id, opens_at, closes_at, rotation_seconds`,
-    [eventId, opts.rotationSeconds ?? 45, opts.durationMinutes ?? null, e.ends_at]
-  );
-  return toSession(r.rows[0]);
-}
-
-export async function closeQrSession(tx: Tx, eventId: string) {
-  await eventBasics(tx, eventId);
-  const r = await tx.query("UPDATE qr_sessions SET status = 'closed', closed_at = now() WHERE event_id = $1 AND status = 'active'", [eventId]);
-  if (!r.rowCount) {
-    const can = (await tx.query<{ ok: boolean }>("SELECT app.has_permission('event.qr.manage') OR app.fn_is_event_organizer($1) AS ok", [eventId])).rows[0].ok;
-    if (!can) throw forbidden("Bạn không có quyền đóng phiên điểm danh.");
-  }
-}
-
-/**
- * Mã QR hiện tại cho màn hình ban tổ chức: token lấy từ app.fn_qr_token (HMAC xoay vòng theo rotation_seconds — hàm tự kiểm
- * quyền điểm danh), mã hóa thành URL trang điểm danh trong ứng dụng; ảnh SVG sinh trên máy chủ bằng thư viện qrcode.
- */
-export async function qrDisplay(tx: Tx, eventId: string, origin: string): Promise<QrDisplayDto | null> {
-  await eventBasics(tx, eventId);
-  const s = await activeSession(tx, eventId);
-  if (!s) {
-    const can = (await tx.query<{ ok: boolean }>("SELECT app.fn_can_record_attendance($1) AS ok", [eventId])).rows[0].ok;
-    if (!can) throw forbidden("Bạn không có quyền xem mã QR điểm danh của sự kiện này.");
-    return null;
-  }
-  const { token, ms } = (
-    await tx.query<{ token: string; ms: number }>(
-      `SELECT app.fn_qr_token($1) AS token,
-              (($2::int * 1000) - ((extract(epoch FROM now()) * 1000)::bigint % ($2::int * 1000)))::int AS ms`,
-      [s.id, s.rotation_seconds]
-    )
-  ).rows[0];
-  const url = `${origin}/lich-su-kien/diem-danh?t=${encodeURIComponent(token)}`;
-  const svg = await QRCode.toString(url, {
-    type: "svg",
-    errorCorrectionLevel: "M",
-    margin: 1,
-    color: { dark: "#2a1660", light: "#ffffff" },
-  });
-  return { session: toSession(s), token, code: qrShortCode(token), url, svg, refreshInMs: Math.max(1000, ms) };
-}
-
 // ---------------------------------------------------------------------
-// Tự điểm danh: quét QR (token) hoặc nhập mã 6 số. Giới hạn số lần nhập sai trong bộ nhớ tiến trình (chống dò mã).
+// Tự điểm danh bằng ẢNH (db/app/1033): thành viên chụp ảnh gửi lại là được — không còn mã QR / mã 6 số / định vị.
+// Giờ ghi nhận là giờ máy chủ; có mặt hay đi muộn do trigger DB tính; đúng cửa sổ điểm danh và danh sách mời.
 // ---------------------------------------------------------------------
-const failures = new Map<string, { n: number; until: number }>();
-const MAX_FAILS = 8;
-const WINDOW_MS = 5 * 60_000;
-
-function checkThrottle(userId: string) {
-  const f = failures.get(userId);
-  if (f && f.until > Date.now() && f.n >= MAX_FAILS) {
-    throw new ApiError(429, "TOO_MANY_ATTEMPTS", "Bạn đã nhập sai mã quá nhiều lần. Vui lòng thử lại sau vài phút hoặc quét mã QR.");
-  }
-}
-function noteFailure(userId: string) {
-  const f = failures.get(userId);
-  if (!f || f.until <= Date.now()) failures.set(userId, { n: 1, until: Date.now() + WINDOW_MS });
-  else f.n++;
-}
-
-/** Băm id thiết bị (sinh ngẫu nhiên ở trình duyệt) — DB chỉ lưu dấu vết băm để chặn một máy điểm danh cho nhiều người. */
-const deviceHash = (deviceId: string | null | undefined) =>
-  deviceId && deviceId.length >= 8 ? createHash("sha256").update(`luuxa-device:${deviceId}`).digest("hex").slice(0, 32) : null;
-
-export async function checkIn(
+export async function checkInByPhoto(
   run: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>,
-  userId: string,
-  i: { token?: string; code?: string; eventId?: string | null; deviceId?: string | null }
+  i: { eventId: string; fileId: string }
 ): Promise<CheckInResultDto> {
-  checkThrottle(userId);
-  const dh = deviceHash(i.deviceId);
-  try {
-    return await run(async (tx) => {
-      const id = i.token
-        ? (await tx.query<{ id: string }>("SELECT app.fn_checkin_by_qr($1, NULL, NULL, $2) AS id", [i.token, dh])).rows[0].id
-        : (await tx.query<{ id: string }>("SELECT app.fn_checkin_by_code($1, $2, $3) AS id", [i.code ?? "", i.eventId ?? null, dh])).rows[0].id;
-      const r = (
-        await tx.query<{ event_id: string; title: string; status: CheckInResultDto["status"]; t: string | null; d: string }>(
-          `SELECT a.event_id, e.title, a.status::text AS status,
-                  to_char(a.checked_in_at AT TIME ZONE '${VN}', 'HH24:MI') AS t,
-                  to_char(e.starts_at AT TIME ZONE '${VN}', 'DD/MM/YYYY') AS d
-             FROM attendance_records a JOIN events e ON e.id = a.event_id WHERE a.id = $1`,
-          [id]
-        )
-      ).rows[0];
-      return { attendanceId: id, eventId: r.event_id, eventTitle: r.title, status: r.status, time: r.t, date: r.d };
-    });
-  } catch (e) {
-    const pg = e as { code?: string; constraint?: string; message?: string };
-    if (pg.code === "23505" && pg.constraint === "ux_attendance_records__event_device") {
-      throw new ApiError(409, "DEVICE_ALREADY_USED", "Thiết bị này đã được dùng để điểm danh cho một anh em khác trong sự kiện này — mỗi người hãy điểm danh bằng điện thoại của mình.");
-    }
-    if (pg.message && /BR-EVT-04|Mã QR không hợp lệ|Mã điểm danh gồm/.test(pg.message)) noteFailure(userId);
-    throw e;
-  }
+  return run(async (tx) => {
+    const e = await eventBasics(tx, i.eventId);
+    if (!e.requires_attendance) throw new ApiError(422, "CHECKIN_DISABLED", "Sự kiện này không bật điểm danh.");
+    const id = (await tx.query<{ id: string }>("SELECT app.fn_checkin_by_photo($1, $2) AS id", [i.eventId, i.fileId])).rows[0].id;
+    const r = (
+      await tx.query<{ event_id: string; title: string; status: CheckInResultDto["status"]; t: string | null; d: string }>(
+        `SELECT a.event_id, e.title, a.status::text AS status,
+                to_char(a.checked_in_at AT TIME ZONE '${VN}', 'HH24:MI') AS t,
+                to_char(e.starts_at AT TIME ZONE '${VN}', 'DD/MM/YYYY') AS d
+           FROM attendance_records a JOIN events e ON e.id = a.event_id WHERE a.id = $1`,
+        [id]
+      )
+    ).rows[0];
+    return { attendanceId: id, eventId: r.event_id, eventTitle: r.title, status: r.status, time: r.t, date: r.d };
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -178,7 +58,7 @@ export async function attendanceRoster(tx: Tx, eventId: string): Promise<Attenda
     await tx.query(
       `WITH ev AS (SELECT id, starts_at, expected_scope FROM events WHERE id = $1)
        SELECT m.id AS member_id, m.display_name, m.full_name, rm.code AS room,
-              a.status::text AS status, a.method::text AS method, a.checked_in_at, a.note,
+              a.status::text AS status, a.method::text AS method, a.checked_in_at, a.note, a.evidence_file_id,
               to_char(a.checked_in_at AT TIME ZONE '${VN}', 'HH24:MI') AS t,
               rb.display_name AS recorded_by, COALESCE(ep.rsvp, 'none') AS rsvp
          FROM ev
@@ -216,6 +96,7 @@ export async function attendanceRoster(tx: Tx, eventId: string): Promise<Attenda
       note: r.note ?? null,
       recordedBy: r.recorded_by ?? null,
       rsvp: r.rsvp,
+      evidenceFileId: r.evidence_file_id ?? null,
     })),
   };
 }

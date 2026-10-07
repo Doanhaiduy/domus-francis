@@ -26,6 +26,8 @@ export interface LeavePayload {
   reason: string;
   destination?: string | null;
   contactPhone?: string | null;
+  /** Người được nhờ để cửa (đơn về muộn / ngủ ngoài) */
+  doorMemberId?: string | null;
 }
 
 const refresh = () => globalMutate((k) => typeof k === "string" && k.startsWith(LEAVE_KEY));
@@ -35,6 +37,11 @@ export const leaveApi = {
     const r = await api.post<{ id: string }>(LEAVE_KEY, b);
     await refresh();
     return r;
+  },
+  /** Xin thêm giờ cho đơn về muộn / ngủ ngoài của mình (báo lại vào nhóm Zalo). */
+  extend: async (id: string, b: { newEndsAt: string; reason: string }) => {
+    await api.post(`${LEAVE_KEY}/${id}/extend`, b);
+    await refresh();
   },
   act: async (id: string, action: "cancel" | "approve" | "reject", note?: string | null) => {
     await api.patch(`${LEAVE_KEY}/${id}`, { action, note: note ?? null });

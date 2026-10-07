@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MapPin, User, Check, CheckCircle2, QrCode, Pencil, Ban, Trash2, Users } from "lucide-react";
+import { MapPin, User, Check, CheckCircle2, Camera, Pencil, Ban, Trash2, Users } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,10 @@ interface Props {
   onEdit: (e: EventDto) => void;
   onCancel: (e: EventDto) => void;
   onDelete: (e: EventDto) => void;
-  onOpenQr: (e: EventDto) => void;
   onCheckIn: (e: EventDto) => void;
 }
 
-export default function EventDayCard({ event: evt, canManage, canManagePoll, canVote, onEdit, onCancel, onDelete, onOpenQr, onCheckIn }: Props) {
+export default function EventDayCard({ event: evt, canManage, canManagePoll, canVote, onEdit, onCancel, onDelete, onCheckIn }: Props) {
   const { showToast } = useApp();
   const [busy, setBusy] = useState(false);
   const style = catStyle(evt.categoryCode);
@@ -122,15 +121,6 @@ export default function EventDayCard({ event: evt, canManage, canManagePoll, can
               Điểm danh tham dự: {checkedIn}
               {evt.stats.expected ? `/${evt.stats.expected}` : ""} có mặt
             </span>
-            {(evt.canRecord || evt.canQr || (nearCheckInWindow(evt) && !meIn)) && (
-              <button
-                onClick={() => (evt.canRecord || evt.canQr ? onOpenQr(evt) : onCheckIn(evt))}
-                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 shrink-0"
-              >
-                <QrCode className="w-3 h-3" />
-                <span>{evt.canRecord || evt.canQr ? (evt.qrSession ? "Mã QR đang mở" : "Mã QR Check-in") : "Nhập mã điểm danh"}</span>
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -144,13 +134,14 @@ export default function EventDayCard({ event: evt, canManage, canManagePoll, can
                 {me ? `Kết quả của bạn: ${ATTENDANCE_LABEL[me.status]}` : "Sự kiện đã kết thúc — bạn chưa được ghi nhận điểm danh."}
               </span>
             ) : !nearCheckInWindow(evt) ? (
-              <span className="text-[11px] text-gray-500">Điểm danh mở gần giờ bắt đầu (quét mã QR của Ban tổ chức).</span>
+              <span className="text-[11px] text-gray-500">Điểm danh mở gần giờ bắt đầu — chụp ảnh gửi lại là được.</span>
             ) : (
               <button
                 onClick={() => onCheckIn(evt)}
-                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition active:scale-95"
+                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition active:scale-95 inline-flex items-center gap-1.5"
               >
-                Điểm danh có mặt tôi
+                <Camera className="w-3.5 h-3.5" />
+                Chụp ảnh điểm danh
               </button>
             )}
           </div>

@@ -61,29 +61,20 @@ const EVENT_SELECT = `
          COALESCE((SELECT json_agg(json_build_object('memberId', o.member_id, 'name', m.display_name, 'role', o.role_label)
                                    ORDER BY o.role_label, m.display_name)
                      FROM event_organizers o JOIN members m ON m.id = o.member_id
-                    WHERE o.event_id = e.id), '[]'::json) AS organizers,
-         qs.id AS qr_id, qs.opens_at AS qr_opens, qs.closes_at AS qr_closes, qs.rotation_seconds AS qr_rot
+                    WHERE o.event_id = e.id), '[]'::json) AS organizers
     FROM events e
     JOIN categories c ON c.id = e.category_id
     LEFT JOIN rooms r ON r.id = e.location_room_id
     LEFT JOIN event_participants ep ON ep.event_id = e.id AND ep.member_id = app.current_member_id()
     LEFT JOIN attendance_records ar ON ar.event_id = e.id AND ar.member_id = app.current_member_id()
-    LEFT JOIN LATERAL (
-      SELECT q.id, q.opens_at, q.closes_at, q.rotation_seconds FROM qr_sessions q
-       WHERE q.event_id = e.id AND q.status = 'active' AND q.closes_at > now()
-       ORDER BY q.created_at DESC LIMIT 1
-    ) qs ON true
    WHERE e.deleted_at IS NULL`;
 
 interface Perms {
   manage: boolean;
-  qr: boolean;
 }
 
 async function perms(tx: Tx): Promise<Perms> {
-  return (
-    await tx.query<Perms>("SELECT app.has_permission('event.manage') AS manage, app.has_permission('event.qr.manage') AS qr")
-  ).rows[0];
+  return (await tx.query<Perms>("SELECT app.has_permission('event.manage') AS manage")).rows[0];
 }
 
 const EMPTY_STATS: EventStatsDto = { going: 0, maybe: 0, notGoing: 0, present: 0, late: 0, absent: 0, excused: 0, expected: null };
@@ -139,10 +130,6 @@ async function hydrate(tx: Tx, rows: Record<string, any>[], opts: { withPolls?: 
       myAttendance: r.my_att ? { status: r.my_att, method: r.my_method, checkedInAt: r.my_at ? (r.my_at as Date).toISOString() : null, time: r.my_at_hm } : null,
       canEdit: p.manage || r.is_org,
       canRecord: r.can_record,
-      canQr: p.qr || r.is_org,
-      qrSession: r.qr_id
-        ? { id: r.qr_id, opensAt: (r.qr_opens as Date).toISOString(), closesAt: (r.qr_closes as Date).toISOString(), rotationSeconds: r.qr_rot }
-        : null,
       polls: polls.filter((x) => x.eventId === r.id),
     };
   });
@@ -306,9 +293,6 @@ export async function updateEvent(tx: Tx, id: string, i: Partial<EventInput>) {
     if (!r.rowCount) throw forbidden("Bạn không có quyền sửa sự kiện này.");
   }
   if (i.organizerIds !== undefined) await syncOrganizers(tx, id, i.organizerIds);
-  if (i.hasCheckIn === false) {
-    await tx.query("UPDATE qr_sessions SET status = 'closed', closed_at = now() WHERE event_id = $1 AND status = 'active'", [id]);
-  }
 }
 
 async function requireManage(tx: Tx, msg: string) {
@@ -321,7 +305,6 @@ export async function cancelEvent(tx: Tx, id: string, reason: string) {
   await requireManage(tx, "Chỉ người có quyền quản lý sự kiện được hủy sự kiện.");
   if (cur.status === "cancelled") return;
   if (cur.status === "completed") throw new ApiError(422, "EVENT_COMPLETED", "Sự kiện đã chốt điểm danh/hoàn tất — không hủy được.");
-  await tx.query("UPDATE qr_sessions SET status = 'closed', closed_at = now() WHERE event_id = $1 AND status = 'active'", [id]);
   const r = await tx.query("UPDATE events SET status = 'cancelled', cancel_reason = $2 WHERE id = $1", [id, reason.trim()]);
   if (!r.rowCount) throw forbidden("Bạn không có quyền hủy sự kiện này.");
   // Biểu quyết đang mở của sự kiện bị hủy: đóng lại để không nhận thêm phiếu
@@ -332,7 +315,6 @@ export async function cancelEvent(tx: Tx, id: string, reason: string) {
 export async function deleteEvent(tx: Tx, id: string) {
   await loadForWrite(tx, id);
   await requireManage(tx, "Chỉ người có quyền quản lý sự kiện được xóa sự kiện.");
-  await tx.query("UPDATE qr_sessions SET status = 'closed', closed_at = now() WHERE event_id = $1 AND status = 'active'", [id]);
   // Đếm phiếu qua app.fn_poll_results (RLS poll_votes chỉ cho thấy phiếu của chính mình)
   await tx.query(
     "DELETE FROM polls p WHERE p.event_id = $1 AND COALESCE((SELECT r.voters FROM app.fn_poll_results(p.id) r LIMIT 1), 0) = 0",

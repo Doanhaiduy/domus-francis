@@ -255,7 +255,7 @@ export default function EventFormModal({ open, onClose, categories, event, prese
             <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-100">
               <CustomToggle
                 label="Kích hoạt Điểm danh (Check-in)"
-                description="Ban tổ chức mở mã QR xoay vòng — anh em quét QR hoặc nhập mã 6 số để điểm danh"
+                description="Anh em chụp ảnh tại sự kiện gửi lại để điểm danh; ban tổ chức xem được ảnh"
                 checked={hasCheckIn}
                 onChange={setHasCheckIn}
               />

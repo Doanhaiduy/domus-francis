@@ -19,7 +19,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { id: "lich", tabs: [{ href: "/lich-su-kien", label: "Lịch & Sự kiện" }, { href: "/xin-phep", label: "Xin phép", badge: "leave" }] },
   { id: "tai-chinh", tabs: [{ href: "/thu-chi", label: "Thu chi" }, { href: "/bao-cao", label: "Báo cáo & tổng kết" }] },
   { id: "thanh-vien", tabs: [{ href: "/thanh-vien", label: "Thành viên" }, { href: "/so-do-nha", label: "Sơ đồ nhà" }, { href: "/ky-luat", label: "Vi phạm & kỷ luật" }] },
-  { id: "cai-dat", tabs: [{ href: "/cai-dat", label: "Cài đặt" }, { href: "/khoi-tao", label: "Bắt đầu thiết lập", requires: "setting.write" }, { href: "/huong-dan", label: "Hướng dẫn sử dụng" }] },
+  { id: "cai-dat", tabs: [{ href: "/cai-dat", label: "Cài đặt" }, { href: "/khoi-tao", label: "Bắt đầu thiết lập", requires: "setting.write" }, { href: "/huong-dan", label: "Hướng dẫn sử dụng" }, { href: "/gop-y", label: "Góp ý" }] },
 ];
 
 const inPath = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");

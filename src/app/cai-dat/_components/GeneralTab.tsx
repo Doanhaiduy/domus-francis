@@ -65,12 +65,12 @@ const INTEGRATION_PREFIX = "integration.";
 const EVENTS_KEY = "integration.zalo.group_events";
 
 /** Khóa thuộc tab Cấu hình chung (mọi khóa trừ nhóm tích hợp Zalo/Telegram và lịch giặt đã bỏ). */
-export const isGeneralKey = (k: string) => !k.startsWith(INTEGRATION_PREFIX) && !k.startsWith("laundry.") && !k.startsWith("duty.");
+// qr.* (mã QR điểm danh cũ) không còn dùng — điểm danh sự kiện nay bằng ảnh — nên không hiện ra
+export const isGeneralKey = (k: string) => !k.startsWith(INTEGRATION_PREFIX) && !k.startsWith("laundry.") && !k.startsWith("duty.") && !k.startsWith("qr.");
 
 const GROUP_LABEL: Record<string, string> = {
   duty: "Trực nhật & Vệ sinh",
   event: "Sự kiện & Điểm danh",
-  qr: "Điểm danh bằng mã QR",
   facility: "Hậu cần — thời hạn xử lý sự cố",
   laundry: "Đặt lịch giặt",
   feature: "Bật / tắt phân hệ",
@@ -84,7 +84,7 @@ const GROUP_LABEL: Record<string, string> = {
   org: "Thông tin tổ chức khác",
   ui: "Giao diện",
 };
-const GROUP_ORDER = ["feature", "duty", "event", "qr", "facility", "laundry", "upload", "auth", "privacy", "ai", "finance", "meal", "liturgy", "org"];
+const GROUP_ORDER = ["feature", "duty", "event", "facility", "laundry", "upload", "auth", "privacy", "ai", "finance", "meal", "liturgy", "org"];
 
 const unitOf = (k: string): string | undefined => {
   if (k.endsWith("_vnd")) return "VNĐ";

@@ -63,7 +63,7 @@ export const GUIDE_ROLES: { role: GuideAudience; title: string; text: string }[]
 export const GUIDE_QUICK: { icon: GuideIcon; title: string; text: string; target: string }[] = [
   { icon: "start", title: "Đăng nhập lần đầu", text: "Nhận mật khẩu tạm, đổi mật khẩu", target: "bat-dau" },
   { icon: "wallet", title: "Đóng quỹ bằng QR", text: "Quét mã, bấm “Tôi đã đóng”", target: "dong-quy" },
-  { icon: "calendar", title: "Điểm danh sự kiện", text: "Quét QR hoặc nhập mã 6 số", target: "lich-su-kien" },
+  { icon: "calendar", title: "Điểm danh sự kiện", text: "Chụp ảnh gửi lại là được", target: "lich-su-kien" },
   { icon: "meal", title: "Đăng ký cơm", text: "Trước giờ chốt 09:00 / 15:00", target: "bep-com" },
   { icon: "bell", title: "Cài app & bật thông báo", text: "Đưa ra màn hình chính, nhận thông báo đẩy", target: "cai-ung-dung" },
   { icon: "shield", title: "Bảo mật tài khoản", text: "Xác thực 2 bước, đổi email, mật khẩu, cỡ chữ", target: "bao-mat" },
@@ -115,9 +115,18 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         t: "steps",
         title: "Khai báo tài khoản nhận tiền của tôi",
         items: [
-          { title: "Mở hồ sơ", path: ["Thành Viên & Nhà", "Chính tôi"], text: "Chọn chính mình để xem hồ sơ; bấm **Sửa hồ sơ** để cập nhật thông tin được phép." },
-          { title: "Khai báo tài khoản", path: ["Hồ sơ", "Tài khoản nhận tiền", "Khai báo tài khoản"], text: "Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản (có thể tải ảnh QR của ngân hàng)." },
+          { title: "Mở hồ sơ cá nhân", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Hồ sơ cá nhân"], text: "Kéo xuống thẻ **Tài khoản nhận tiền** (cũng có ở hồ sơ của bạn trong **Thành Viên & Nhà → Chính tôi**). Mỗi người **tự khai và tự sửa** tài khoản của mình — không cần nhờ Admin." },
+          { title: "Khai báo tài khoản", path: ["Tài khoản nhận tiền", "Khai báo tài khoản"], text: "Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản (có thể tải ảnh QR của ngân hàng). Muốn đổi hoặc xóa thì bấm biểu tượng bút chì / thùng rác trên thẻ." },
           { title: "Xong", text: "Ứng dụng tự tạo mã **VietQR** để anh em hoặc Thủ quỹ chuyển khoản/hoàn ứng cho bạn nhanh và đúng." },
+        ],
+      },
+      {
+        t: "steps",
+        title: "Góp ý về ứng dụng",
+        items: [
+          { title: "Mở trang Góp ý", path: ["Cài Đặt & Hướng dẫn", "Góp ý"], text: "Hoặc bấm **Góp ý** ở chân trang — hệ thống tự ghi nhận màn hình bạn đang xem." },
+          { title: "Chọn loại và viết góp ý", text: "Chọn **Lỗi / không hoạt động**, **Đề xuất tính năng**, **Khó dùng / giao diện** hay **Góp ý khác**; mô tả ngắn gọn, có thể đính **ảnh chụp màn hình**. Bật **Ẩn tên khi gửi** nếu không muốn người quản lý thấy tên bạn." },
+          { title: "Theo dõi", text: "Vào tab **Góp ý của tôi** xem trạng thái (Mới gửi → Đang xem xét → Đã xử lý / Chưa thực hiện) và câu trả lời của người quản lý (bạn nhận thông báo khi có trả lời). Góp ý còn ở trạng thái **Mới gửi** thì bạn **rút lại** được." },
         ],
       },
     ],
@@ -231,7 +240,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: "lich-su-kien",
     title: "Thông báo, Lịch, Sự kiện & Xin phép",
-    summary: "Đọc thông báo, báo tham dự, điểm danh bằng QR, biểu quyết và gửi đơn xin phép.",
+    summary: "Đọc thông báo, báo tham dự, điểm danh bằng ảnh, biểu quyết và gửi đơn xin phép.",
     icon: "calendar",
     audience: ["member", "all"],
     blocks: [
@@ -245,11 +254,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         t: "steps",
         title: "Điểm danh sự kiện",
         items: [
-          { title: "Cách 1 — quét mã QR", text: "Ban tổ chức mở mã QR tại chỗ. Mở camera quét mã, ứng dụng tự ghi nhận bạn có mặt." },
-          { title: "Cách 2 — nhập mã 6 số", path: ["Lịch & Sự kiện", "Nhập mã điểm danh"], text: "Gõ 6 chữ số đang hiển thị cạnh mã QR (mã đổi liên tục để chống điểm danh hộ)." },
+          { title: "Mở điểm danh", path: ["Lịch & Sự kiện", "Chụp ảnh điểm danh"], text: "Gần giờ bắt đầu sự kiện, bấm **Chụp ảnh điểm danh** ở thẻ sự kiện." },
+          { title: "Chụp ảnh gửi lại", text: "Chụp (hoặc chọn) một tấm ảnh tại sự kiện rồi bấm **Gửi ảnh và điểm danh**. Giờ ghi nhận là giờ bạn gửi; ban tổ chức xem được ảnh để đối chiếu." },
         ],
       },
-      { t: "callout", tone: "info", text: "Mỗi người chỉ điểm danh cho **chính mình** bằng thiết bị của mình; giờ ghi nhận là giờ máy chủ." },
+      { t: "callout", tone: "info", text: "Mỗi người chỉ điểm danh cho **chính mình** bằng ảnh của mình; giờ ghi nhận là giờ máy chủ. Gửi sau ân hạn thì ghi **đi muộn**; ngoài giờ mở điểm danh thì không gửi được." },
       { t: "heading", text: "Biểu quyết" },
       { t: "md", text: "Chọn phương án trong thẻ biểu quyết **trước hạn chót**. Với biểu quyết cho phép, bạn có thể đổi hoặc rút phiếu cho tới khi đóng. Biểu quyết ẩn danh không ai thấy bạn chọn gì." },
       { t: "heading", text: "Xin phép (vắng, về muộn, ngủ ngoài, đi xa)" },
@@ -260,7 +269,18 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { title: "Bấm “Gửi đơn xin phép”", text: "Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · tạm vắng nhiều ngày." },
           { title: "Điền thông tin", text: "Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ), ghi **lý do**; ngủ ngoài / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc." },
+          { title: "Nhờ người để cửa (về muộn / ngủ ngoài)", text: "Ở ô **“Nhờ ai để cửa giúp bạn?”** chọn một anh em trong nhà (tùy chọn). Người đó thấy việc của mình ở mục **“Anh em nhờ bạn để cửa”** ngay trên trang Xin phép (chỉ thấy giờ về, không thấy lý do riêng của bạn) và được nêu tên trong tin báo ở nhóm Zalo." },
+          { title: "Gửi — báo thẳng vào nhóm Zalo", text: "Đơn **về muộn** và **ngủ ngoài** khi gửi sẽ được báo ngay vào **nhóm Zalo của nhà** (tên bạn, nơi đến, lý do, giờ dự kiến về, người để cửa) để mọi người nắm. Đơn vắng sự kiện và tạm vắng nhiều ngày không báo nhóm." },
           { title: "Chờ duyệt", text: "Trưởng nhà/người quản lý nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được." },
+        ],
+      },
+      {
+        t: "steps",
+        title: "Đã xin về muộn nhưng có việc phát sinh — “Xin thêm giờ”",
+        items: [
+          { title: "Bấm “Xin thêm giờ”", path: ["Lịch & Xin phép", "Xin phép", "Đơn của tôi"], text: "Ở đơn về muộn / ngủ ngoài của bạn (chưa bị từ chối hay hủy), bấm **Xin thêm giờ**." },
+          { title: "Báo giờ về mới + lý do", text: "Chọn **giờ về mới** (phải muộn hơn giờ đã báo, thêm tối đa 24 giờ mỗi lần) và ghi **lý do** (ví dụ xe hỏng, kẹt xe, việc đột xuất)." },
+          { title: "Gửi lại vào nhóm Zalo", text: "Bấm gửi: giờ về mới được **báo lại vào nhóm Zalo** và cho người để cửa. Đơn lưu lịch sử các lần xin thêm; bạn xin thêm được tối đa 5 lần cho mỗi đơn, mỗi lần phải muộn hơn lần trước." },
         ],
       },
       { t: "callout", tone: "tip", text: "Đơn **vắng sự kiện được duyệt** thì điểm danh sự kiện đó ghi **“có phép”** và không bị trừ điểm chuyên cần. Không ai tự duyệt được đơn của chính mình." },
@@ -692,7 +712,14 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Đơn xin phép của anh em",
             blocks: [
               { t: "path", items: ["Lịch & Xin phép", "Xin phép", "Chờ tôi duyệt"] },
-              { t: "md", text: "Đơn mới gửi thông báo cho Trưởng nhà/Admin; số đơn chờ hiện ở thanh bên. Bấm **Duyệt** hoặc **Từ chối** (từ chối phải ghi lý do ≥ 5 ký tự, người xin sẽ thấy). Đơn **vắng sự kiện** được duyệt tự ghi điểm danh “có phép”. Bạn không duyệt được đơn của chính mình." },
+              { t: "md", text: "Đơn mới gửi thông báo cho Trưởng nhà/Admin; số đơn chờ hiện ở thanh bên. Bấm **Duyệt** hoặc **Từ chối** (từ chối phải ghi lý do ≥ 5 ký tự, người xin sẽ thấy). Đơn **vắng sự kiện** được duyệt tự ghi điểm danh “có phép”. Bạn không duyệt được đơn của chính mình. Đơn về muộn / ngủ ngoài có ghi **người để cửa** và các lần **xin thêm giờ** (giờ về hiệu lực là giờ mới nhất); tin báo vào nhóm Zalo do hệ thống gửi — cần bật nhóm Zalo ở **Cài đặt → Zalo** (có thể tắt hoặc sửa hai mẫu tin “Đơn xin phép về muộn / ngủ ngoài” và “Xin thêm giờ về muộn / ngủ ngoài” ở đó)." },
+            ],
+          },
+          {
+            title: "Góp ý của anh em về ứng dụng",
+            blocks: [
+              { t: "path", items: ["Cài Đặt & Hướng dẫn", "Góp ý", "Tất cả góp ý"] },
+              { t: "md", text: "Trưởng nhà và Admin (quyền **feedback.manage**) thấy tab **Tất cả góp ý**, lọc theo trạng thái. Mở một góp ý để đổi trạng thái (**Đang xem xét / Đã xử lý / Chưa thực hiện**) và viết **câu trả lời** — người gửi nhận thông báo. Góp ý **ẩn tên** sẽ không hiện tên người gửi. Có thể xóa góp ý không phù hợp." },
             ],
           },
           {
@@ -782,7 +809,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Thông báo, sự kiện, diễn đàn",
             blocks: [
-              { t: "md", text: "Đăng thông báo (chọn đối tượng nhận, ghim, yêu cầu xác nhận), tạo sự kiện + mã QR điểm danh, tạo biểu quyết, kiểm duyệt diễn đàn. Khi đăng thông báo hoặc tạo sự kiện có thể tick **đăng cả vào nhóm Zalo**." },
+              { t: "md", text: "Đăng thông báo (chọn đối tượng nhận, ghim, yêu cầu xác nhận), tạo sự kiện (bật điểm danh bằng ảnh), tạo biểu quyết, kiểm duyệt diễn đàn. Khi đăng thông báo hoặc tạo sự kiện có thể tick **đăng cả vào nhóm Zalo**." },
             ],
           },
           {

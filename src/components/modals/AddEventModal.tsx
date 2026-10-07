@@ -167,7 +167,7 @@ export default function AddEventModal() {
             <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-100">
               <CustomToggle
                 label="Kích hoạt Điểm danh (Check-in)"
-                description="Anh em quét mã QR xoay vòng hoặc nhập mã 6 số"
+                description="Anh em chụp ảnh tại sự kiện gửi lại để điểm danh"
                 checked={hasCheckIn}
                 onChange={setHasCheckIn}
               />

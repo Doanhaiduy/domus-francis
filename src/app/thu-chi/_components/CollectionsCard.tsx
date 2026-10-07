@@ -277,8 +277,9 @@ export default function CollectionsCard({
       {plan && (
         <>
           <div className="p-3 rounded-2xl bg-surface-container-low/60 border border-purple-50 flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            {/* Điện thoại: tiêu đề một hàng riêng, các nút hành động xuống dưới và tự xuống dòng; từ sm trở lên nằm cùng hàng bên phải */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <div className="min-w-0 sm:flex-1">
                 <div className="text-sm font-extrabold text-gray-900">{plan.name}</div>
                 <div className="text-[11px] text-gray-500">
                   {plan.feeType === "utility" && plan.billTotalVnd !== null && plan.splitCount ? (
@@ -304,6 +305,7 @@ export default function CollectionsCard({
                   </div>
                 )}
               </div>
+              <div className="flex flex-wrap items-center gap-1.5 sm:justify-end sm:max-w-[60%]">
               {canRecord && unpaidList.length > 0 && (
                 <button
                   onClick={onBulkPay}
@@ -331,6 +333,7 @@ export default function CollectionsCard({
                   <Ban className="w-3 h-3" /> Hủy
                 </button>
               )}
+              </div>
             </div>
             <div>
               <div className="h-2 rounded-full bg-gray-200 overflow-hidden">

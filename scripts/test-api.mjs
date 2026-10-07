@@ -145,10 +145,15 @@ async function startServer() {
       DATABASE_URL: testDbUrl,
       NEXT_DIST_DIR: ".next-test",
       LUUXA_DISABLE_JOBS: "true",
+      // Storage: LUÔN dùng ổ đĩa local (.local/storage). Next tự nạp .env.local (trỏ Supabase staging) ⇒ nếu không ép, ảnh/tệp của test sẽ bị đẩy lên Storage thật.
+      STORAGE_DRIVER: "local",
       PORT: String(PORT),
       // AI: khóa giả + máy chủ giả loopback (scripts/test-api/ai.mjs) ⇒ không bao giờ có lưu lượng ra Groq/Gemini khi kiểm thử,
       // và khóa thật trong .env.local không được dùng (biến môi trường rõ ràng ưu tiên hơn file .env).
       AI_TEST_BASE_URL: "http://127.0.0.1:3199",
+      // Zalo Bot: khóa giả + máy chủ giả loopback (scripts/test-api/leave-door.mjs) ⇒ không có lưu lượng ra Zalo khi kiểm thử
+      ZALO_BOT_TOKEN: "offline-test-zalo",
+      ZALO_TEST_BASE_URL: "http://127.0.0.1:3196",
       AI_RETRY_BASE_MS: "5",
       GROQ_API_KEY: "offline-test-key",
       GEMINI_API_KEY: "offline-test-gemini",

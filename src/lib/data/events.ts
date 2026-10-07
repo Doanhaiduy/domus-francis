@@ -10,7 +10,6 @@ import type {
   EventDto,
   EventsMonthDto,
   PollDto,
-  QrDisplayDto,
   RsvpStatus,
   UpcomingEventDto,
 } from "../types/events";
@@ -59,37 +58,9 @@ export function useDayDuties(dateIso: string) {
   return data ?? [];
 }
 
-/** Mã QR hiện tại — tự gọi lại đúng lúc mã xoay vòng (refreshInMs do máy chủ tính). */
-export function useQrDisplay(eventId: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<QrDisplayDto | { session: null }>(
-    eventId ? `${EVENTS_KEY}/${eventId}/qr` : null,
-    swrFetcher,
-    {
-      refreshInterval: (d) => (d && "token" in d ? Math.min(Math.max(d.refreshInMs + 300, 1000), 120_000) : 0),
-      revalidateOnFocus: true,
-      shouldRetryOnError: false,
-    }
-  );
-  return { qr: data && "token" in data ? data : null, loaded: data !== undefined, error, isLoading, mutate };
-}
-
 /** Làm mới mọi dữ liệu sự kiện/biểu quyết (lịch tháng, sắp tới, điểm danh, biểu quyết). */
 export const refreshEvents = () =>
   globalMutate((key) => typeof key === "string" && (key.startsWith(EVENTS_KEY) || key.startsWith(POLLS_KEY)));
-
-/** Id thiết bị ngẫu nhiên lưu ở trình duyệt — máy chủ chỉ lưu bản băm để chặn một máy điểm danh cho nhiều người. */
-export function deviceId(): string | null {
-  try {
-    let id = localStorage.getItem("luuxa_device_id");
-    if (!id) {
-      id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem("luuxa_device_id", id);
-    }
-    return id;
-  } catch {
-    return null;
-  }
-}
 
 export interface EventPayload {
   title: string;
@@ -125,16 +96,14 @@ export const eventsApi = {
   cancel: (id: string, reason: string) => api.post<EventDto>(`${EVENTS_KEY}/${id}/cancel`, { reason }),
   remove: (id: string) => api.del(`${EVENTS_KEY}/${id}`),
   rsvp: (id: string, rsvp: RsvpStatus) => api.post<EventDto>(`${EVENTS_KEY}/${id}/rsvp`, { rsvp }),
-  openQr: (id: string, b: { durationMinutes?: number; rotationSeconds?: number } = {}) => api.post<QrDisplayDto>(`${EVENTS_KEY}/${id}/qr`, b),
-  closeQr: (id: string) => api.del(`${EVENTS_KEY}/${id}/qr`),
   mark: (id: string, memberId: string, status: "present" | "late" | "absent", note?: string | null) =>
     api.post<AttendanceRosterDto>(`${EVENTS_KEY}/${id}/attendance`, { memberId, status, note: note ?? null }),
   closeAttendance: (id: string) =>
     api.post<{ result: { absent_created: number; excused_created: number; merit_entries: number }; roster: AttendanceRosterDto }>(
       `${EVENTS_KEY}/${id}/attendance/close`
     ),
-  checkIn: (b: { token?: string; code?: string; eventId?: string | null }) =>
-    api.post<CheckInResultDto>(`${EVENTS_KEY}/checkin`, { ...b, deviceId: deviceId() }),
+  /** Tự điểm danh bằng ảnh: fileId là mã ảnh đã tải lên (bucket "attachments"). */
+  checkIn: (b: { eventId: string; fileId: string }) => api.post<CheckInResultDto>(`${EVENTS_KEY}/checkin`, b),
 };
 
 export const pollsApi = {

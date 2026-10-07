@@ -317,64 +317,91 @@ export default function RecordFormModal({
                     <span className="w-16 text-center" title="Điểm tổng kết chính thức do trường công bố (nếu có)">TK trường</span>
                     <span className="w-6" />
                   </div>
-                  {rows.map((r) => (
-                    <div key={r.key} className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-2 rounded-lg border border-gray-200">
-                      <input
-                        type="text"
-                        placeholder="Tên môn học..."
-                        value={r.name}
-                        maxLength={200}
-                        onChange={(e) => updateRow(r.key, { name: e.target.value })}
-                        className="w-full sm:w-auto sm:flex-1 p-1.5 rounded-md border border-gray-100 text-xs outline-none"
-                      />
-                      <input
-                        type="number"
-                        step="0.5"
-                        min={0.5}
-                        max={15}
-                        title="Số tín chỉ"
-                        placeholder="TC"
-                        value={r.credits}
-                        onChange={(e) => updateRow(r.key, { credits: e.target.value })}
-                        className="w-14 p-1.5 rounded-md border border-gray-100 text-xs text-center outline-none"
-                      />
-                      <input
-                        type="number"
-                        step="0.1"
-                        min={0}
-                        max={scale?.maxScore ?? 10}
-                        title="Điểm quá trình / giữa kỳ"
-                        placeholder="QT"
-                        value={r.processScore}
-                        onChange={(e) => updateRow(r.key, { processScore: e.target.value })}
-                        className="w-16 p-1.5 rounded-md border border-gray-100 text-xs text-center font-bold text-purple-700 outline-none"
-                      />
-                      <input
-                        type="number"
-                        step="0.1"
-                        min={0}
-                        max={scale?.maxScore ?? 10}
-                        title="Điểm cuối kỳ (để trống nếu chưa thi)"
-                        placeholder="CK"
-                        value={r.finalScore}
-                        onChange={(e) => updateRow(r.key, { finalScore: e.target.value })}
-                        className="w-16 p-1.5 rounded-md border border-gray-100 text-xs text-center font-bold text-indigo-700 outline-none"
-                      />
-                      <input
-                        type="number"
-                        step="0.1"
-                        min={0}
-                        max={scale?.maxScore ?? 10}
-                        title="Điểm tổng kết chính thức của trường (nếu có — ưu tiên hơn công thức)"
-                        placeholder="TK"
-                        value={r.officialTotal}
-                        onChange={(e) => updateRow(r.key, { officialTotal: e.target.value })}
-                        className="w-16 p-1.5 rounded-md border border-gray-100 text-xs text-center font-bold text-gray-700 outline-none"
-                      />
+                  {rows.map((r, idx) => (
+                    <div key={r.key} className="grid grid-cols-4 gap-x-2 gap-y-2 sm:flex sm:items-center bg-white p-2.5 sm:p-2 rounded-lg border border-gray-200">
+                      {/* Điện thoại: tiêu đề từng môn + nút bỏ môn; nhãn nằm ngay trên từng ô để biết đang nhập cột nào */}
+                      <div className="col-span-4 flex items-center justify-between sm:hidden">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wide text-gray-400">Môn {idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => setRows((p) => (p.length > 1 ? p.filter((x) => x.key !== r.key) : [emptyRow()]))}
+                          className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                          aria-label={`Bỏ môn ${idx + 1}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <label className="col-span-4 sm:flex-1 sm:min-w-0">
+                        <span className="sm:hidden block mb-0.5 text-[10px] font-bold uppercase text-gray-500">Tên môn học</span>
+                        <input
+                          type="text"
+                          placeholder="Tên môn học..."
+                          value={r.name}
+                          maxLength={200}
+                          onChange={(e) => updateRow(r.key, { name: e.target.value })}
+                          className="w-full p-1.5 rounded-md border border-gray-200 sm:border-gray-100 text-xs outline-none"
+                        />
+                      </label>
+                      <label className="sm:w-14">
+                        <span className="sm:hidden block mb-0.5 text-[10px] font-bold uppercase text-gray-500">Tín chỉ</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0.5}
+                          max={15}
+                          title="Số tín chỉ"
+                          placeholder="TC"
+                          value={r.credits}
+                          onChange={(e) => updateRow(r.key, { credits: e.target.value })}
+                          className="w-full p-1.5 rounded-md border border-gray-200 sm:border-gray-100 text-xs text-center outline-none"
+                        />
+                      </label>
+                      <label className="sm:w-16">
+                        <span className="sm:hidden block mb-0.5 text-[10px] font-bold uppercase text-gray-500">QT/GK</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          max={scale?.maxScore ?? 10}
+                          title="Điểm quá trình / giữa kỳ"
+                          placeholder="QT"
+                          value={r.processScore}
+                          onChange={(e) => updateRow(r.key, { processScore: e.target.value })}
+                          className="w-full p-1.5 rounded-md border border-gray-200 sm:border-gray-100 text-xs text-center outline-none font-bold text-purple-700"
+                        />
+                      </label>
+                      <label className="sm:w-16">
+                        <span className="sm:hidden block mb-0.5 text-[10px] font-bold uppercase text-gray-500">Cuối kỳ</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          max={scale?.maxScore ?? 10}
+                          title="Điểm cuối kỳ (để trống nếu chưa thi)"
+                          placeholder="CK"
+                          value={r.finalScore}
+                          onChange={(e) => updateRow(r.key, { finalScore: e.target.value })}
+                          className="w-full p-1.5 rounded-md border border-gray-200 sm:border-gray-100 text-xs text-center outline-none font-bold text-indigo-700"
+                        />
+                      </label>
+                      <label className="sm:w-16">
+                        <span className="sm:hidden block mb-0.5 text-[10px] font-bold uppercase text-gray-500">TK trường</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          max={scale?.maxScore ?? 10}
+                          title="Điểm tổng kết chính thức của trường (nếu có — ưu tiên hơn công thức)"
+                          placeholder="TK"
+                          value={r.officialTotal}
+                          onChange={(e) => updateRow(r.key, { officialTotal: e.target.value })}
+                          className="w-full p-1.5 rounded-md border border-gray-200 sm:border-gray-100 text-xs text-center outline-none font-bold text-gray-700"
+                        />
+                      </label>
                       <button
                         type="button"
                         onClick={() => setRows((p) => (p.length > 1 ? p.filter((x) => x.key !== r.key) : [emptyRow()]))}
-                        className="p-1 text-rose-500 hover:bg-rose-50 rounded w-6"
+                        className="hidden sm:block p-1 text-rose-500 hover:bg-rose-50 rounded w-6"
                         title="Bỏ môn này"
                       >
                         <X className="w-3.5 h-3.5" />

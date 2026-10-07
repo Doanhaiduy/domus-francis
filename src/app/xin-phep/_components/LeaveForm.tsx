@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Loader2, Send, X } from "lucide-react";
+import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
 import { useApp } from "@/lib/store";
+import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { leaveApi } from "@/lib/data/leave";
+import { useMembers } from "@/lib/data/members";
 import { fromVnParts, halfHourOptions, toVnParts, vnToday } from "@/lib/vn-time";
-import { LEAVE_KIND_HINT, LEAVE_KIND_LABEL, type LeaveEventOption, type LeaveKind } from "@/lib/types/leave";
+import { LEAVE_KIND_HINT, LEAVE_KIND_LABEL, isDoorKind, type LeaveEventOption, type LeaveKind } from "@/lib/types/leave";
 
 const KINDS = (Object.keys(LEAVE_KIND_LABEL) as LeaveKind[]).map((k) => ({ value: k, label: LEAVE_KIND_LABEL[k] }));
 const TIMES = halfHourOptions(0, 23);
@@ -26,6 +28,8 @@ const fmtEvent = (e: LeaveEventOption) =>
 /** Hộp thoại gửi đơn xin phép. */
 export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onClose: () => void }) {
   const { showToast } = useApp();
+  const { session } = useSession();
+  const { members } = useMembers();
   const [kind, setKind] = useState<LeaveKind>(events.length ? "event_absence" : "late_return");
   const [eventId, setEventId] = useState(events[0]?.id ?? "");
   const [from, setFrom] = useState({ date: vnToday(), time: "18:00" });
@@ -33,6 +37,7 @@ export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onC
   const [reason, setReason] = useState("");
   const [destination, setDestination] = useState("");
   const [phone, setPhone] = useState("");
+  const [doorId, setDoorId] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -52,6 +57,18 @@ export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onC
   };
 
   const needsPlace = kind === "overnight_out" || kind === "long_leave";
+  const needsDoor = isDoorKind(kind);
+  // Người có thể được nhờ để cửa: anh em đang ở nhà, trừ chính mình
+  const doorOptions = useMemo(
+    () => [
+      { value: "", label: "— Không nhờ ai —" },
+      ...members
+        .filter((m) => (m.status === "active" || m.status === "on_leave") && m.id !== session?.member?.id)
+        .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+        .map((m) => ({ value: m.id, label: m.name, subLabel: m.room && m.room !== "Chưa xếp phòng" ? `P.${m.room}` : undefined })),
+    ],
+    [members, session?.member?.id]
+  );
   const ev = useMemo(() => events.find((e) => e.id === eventId), [events, eventId]);
   const startIso = kind === "event_absence" ? ev?.startsAt : fromVnParts(from.date, from.time);
   const endIso = kind === "event_absence" ? ev?.endsAt : fromVnParts(to.date, to.time);
@@ -64,7 +81,7 @@ export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onC
     if (needsPlace && !destination.trim()) return showToast("error", "Hãy cho biết nơi bạn đến.");
     setBusy(true);
     try {
-      await leaveApi.create({ kind, eventId: kind === "event_absence" ? eventId : null, startsAt: startIso, endsAt: endIso, reason, destination: destination.trim() || null, contactPhone: phone.trim() || null });
+      await leaveApi.create({ kind, eventId: kind === "event_absence" ? eventId : null, startsAt: startIso, endsAt: endIso, reason, destination: destination.trim() || null, contactPhone: phone.trim() || null, doorMemberId: needsDoor && doorId ? doorId : null });
       showToast("success", "Đã gửi đơn — người quản lý sẽ xem và trả lời bạn.");
       onClose();
     } catch (err) {
@@ -111,6 +128,17 @@ export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onC
               <CustomInput label={needsPlace ? "Nơi đến *" : "Bạn đang ở đâu? (tùy chọn)"} value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={200} placeholder={needsPlace ? "VD: Nhà bà con ở Nha Trang / Về quê Phú Yên" : "VD: Thư viện trường"} />
             )}
             {needsPlace && <CustomInput label="Số điện thoại liên lạc (tùy chọn)" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} inputMode="tel" placeholder="09xx xxx xxx" />}
+            {needsDoor && (
+              <>
+                <CustomSelect label="Nhờ ai để cửa giúp bạn? (tùy chọn)" value={doorId} onChange={setDoorId} options={doorOptions} placeholder="Chọn một anh em" />
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-sky-50 border border-sky-100 text-[11px] text-sky-900 leading-relaxed">
+                  <MessageCircle className="w-4 h-4 shrink-0 mt-0.5 text-sky-600" aria-hidden />
+                  <span>
+                    Đơn <b>{kind === "late_return" ? "về muộn" : "ngủ ngoài"}</b> sẽ được báo thẳng vào <b>nhóm Zalo của nhà</b> để mọi người biết{doorId ? ", kèm tên người để cửa" : ""}. Nếu về trễ hơn dự kiến, bạn có thể bấm <b>“Xin thêm giờ”</b> ở đơn của mình.
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="px-5 py-3.5 border-t border-gray-100 flex justify-end gap-2.5">
