@@ -28,6 +28,17 @@ function Brand({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   );
 }
 
+/** Liên kết pháp lý (Chính sách bảo mật, Điều khoản sử dụng). `newTab`: mở tab mới khi đang ở trong ứng dụng để không rời khung đang làm việc. */
+function LegalLinks({ newTab = false }: { newTab?: boolean }) {
+  const attrs = newTab ? { target: "_blank", rel: "noopener noreferrer" } : {};
+  return (
+    <>
+      <Link href="/chinh-sach-bao-mat" className="hover:text-primary transition" {...attrs}>Chính sách bảo mật</Link>
+      <Link href="/dieu-khoan-su-dung" className="hover:text-primary transition" {...attrs}>Điều khoản sử dụng</Link>
+    </>
+  );
+}
+
 export function SiteFooter({ org, variant = "full", className, donationEnabled = false }: { org?: PublicOrgInfo | null; variant?: "full" | "compact" | "minimal"; className?: string; donationEnabled?: boolean }) {
   const o = org ?? FALLBACK;
   const year = new Date().getFullYear();
@@ -36,11 +47,11 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
   if (variant === "minimal") {
     return (
       <footer className={cn("text-center text-[11px] text-gray-500 px-4 py-5 no-print", className)}>
-        <p>
-          {copyright}
-          <span className="mx-2 text-gray-300">·</span>
-          <Link href="/tin-tuc" className="font-semibold hover:text-primary transition">Bản tin lưu xá</Link>
-        </p>
+        <p>{copyright}</p>
+        <nav className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-semibold" aria-label="Liên kết chân trang">
+          <Link href="/tin-tuc" className="hover:text-primary transition">Bản tin lưu xá</Link>
+          <LegalLinks />
+        </nav>
       </footer>
     );
   }
@@ -56,6 +67,7 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 font-semibold" aria-label="Liên kết chân trang">
             <Link href="/tin-tuc" className="hover:text-primary transition" target="_blank">Bản tin công khai</Link>
             <Link href="/huong-dan" className="hover:text-primary transition">Hướng dẫn sử dụng</Link>
+            <LegalLinks newTab />
           </nav>
           <p className="text-gray-400">{copyright}</p>
         </div>
@@ -110,9 +122,14 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
       </div>
 
       <div className="border-t border-purple-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-gray-500">
-          <p>{copyright}</p>
-          <p className="text-gray-400">Nội dung đăng với sự đồng ý của những người liên quan.</p>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+          <div className="text-center sm:text-left">
+            <p>{copyright}</p>
+            <p className="text-gray-400">Nội dung đăng với sự đồng ý của những người liên quan.</p>
+          </div>
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-semibold" aria-label="Pháp lý">
+            <LegalLinks />
+          </nav>
         </div>
       </div>
     </footer>

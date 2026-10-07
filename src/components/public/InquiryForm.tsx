@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
 import { CustomInput, CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
 
@@ -127,7 +128,10 @@ export function InquiryForm({ turnstileSiteKey }: { turnstileSiteKey?: string })
       <button type="submit" disabled={busy} className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3 rounded-2xl bg-gradient-to-r from-[#5f3add] to-[#7857f8] text-white font-bold text-sm shadow-md shadow-primary/20 transition active:scale-95 disabled:opacity-60">
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Gửi đăng ký
       </button>
-      <p className="text-[11px] text-gray-400 leading-relaxed">Thông tin chỉ dùng để người quản lý liên hệ tư vấn, không chia sẻ cho bên thứ ba.</p>
+      <p className="text-[11px] text-gray-400 leading-relaxed">
+        Thông tin chỉ dùng để người quản lý liên hệ tư vấn, không chia sẻ cho bên thứ ba. Khi gửi đăng ký, bạn đồng ý để chúng tôi xử lý thông tin này theo{" "}
+        <Link href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-primary hover:underline">Chính sách bảo mật</Link>.
+      </p>
     </form>
   );
 }

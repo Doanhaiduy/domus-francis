@@ -44,8 +44,12 @@ function inline(text: string, base: string): React.ReactNode[] {
 
 const BLOCK_START = /^(#{1,3} |> |[-*] |\d+\. |---+\s*$|!\[[^\]]*\]\([^)]+\)\s*$)/;
 
-/** `compact`: tiêu đề/khoảng cách nhỏ hơn cho bản xem trước trong trình soạn và hộp thoại (trang công khai dùng cỡ đầy đủ). */
-export function ArticleMarkdown({ source, className = "", compact = false }: { source: string; className?: string; compact?: boolean }) {
+/**
+ * `compact`: tiêu đề/khoảng cách nhỏ hơn cho bản xem trước trong trình soạn và hộp thoại (trang công khai dùng cỡ đầy đủ).
+ * `size="legal"`: cỡ chữ văn bản pháp lý (chính sách, điều khoản) — chữ nhỏ hơn bài báo, khoảng cách gọn như `compact`.
+ */
+export function ArticleMarkdown({ source, className = "", compact: compactProp = false, size = "article" }: { source: string; className?: string; compact?: boolean; size?: "article" | "legal" }) {
+  const compact = compactProp || size === "legal";
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -114,5 +118,5 @@ export function ArticleMarkdown({ source, className = "", compact = false }: { s
       blocks.push(<p key={k} className={compact ? "my-3" : "my-5"}>{inline(buf.join(" "), k)}</p>);
     }
   }
-  return <div className={`text-[17px] leading-8 text-gray-700 ${className}`}>{blocks}</div>;
+  return <div className={`${size === "legal" ? "text-[15.5px] leading-7" : "text-[17px] leading-8"} text-gray-700 ${className}`}>{blocks}</div>;
 }

@@ -328,6 +328,11 @@ export default function DangNhapPage() {
 
         {/* NOTICE FOOTER */}
         <div className="mt-8 pt-6 border-t border-gray-100 w-full">
+          <p className="mb-3 text-center text-[11px] leading-relaxed text-gray-500">
+            Bằng việc {isSignUp ? "tạo tài khoản" : "đăng nhập"}, bạn đồng ý với{" "}
+            <Link href="/dieu-khoan-su-dung" target="_blank" className="font-semibold text-primary hover:underline">Điều khoản sử dụng</Link> và{" "}
+            <Link href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-primary hover:underline">Chính sách bảo mật</Link>.
+          </p>
           <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
             <Lock className="w-3.5 h-3.5 text-emerald-600" />
             <span>Bảo mật nội bộ · Lưu Xá Phanxicô Assisi</span>

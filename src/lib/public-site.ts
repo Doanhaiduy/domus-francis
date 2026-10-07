@@ -1,6 +1,6 @@
 // Các đường dẫn thuộc TRANG CÔNG KHAI (người ngoài xem, không cần đăng nhập, không dùng khung ứng dụng).
 // Dùng chung cho middleware (không chuyển hướng đăng nhập), AppShell (không vẽ thanh bên) và SessionProvider (không gọi /auth/me).
-export const PUBLIC_SITE_PATHS = ["/tin-tuc", "/gioi-thieu", "/lien-he", "/hoi-dap", "/thu-vien", "/ung-ho"] as const;
+export const PUBLIC_SITE_PATHS = ["/tin-tuc", "/gioi-thieu", "/lien-he", "/hoi-dap", "/thu-vien", "/ung-ho", "/chinh-sach-bao-mat", "/dieu-khoan-su-dung"] as const;
 
 export const isPublicSitePath = (pathname: string): boolean => PUBLIC_SITE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 

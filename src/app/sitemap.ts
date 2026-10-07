@@ -21,6 +21,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: at("/hoi-dap"), changeFrequency: "monthly", priority: 0.7 },
     { url: at("/thu-vien"), changeFrequency: "weekly", priority: 0.6 },
     ...(donation.enabled ? [{ url: at("/ung-ho"), changeFrequency: "yearly" as const, priority: 0.4 }] : []),
+    { url: at("/chinh-sach-bao-mat"), changeFrequency: "yearly", priority: 0.3 },
+    { url: at("/dieu-khoan-su-dung"), changeFrequency: "yearly", priority: 0.3 },
   ];
   return [
     ...pages,

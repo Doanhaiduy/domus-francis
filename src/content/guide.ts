@@ -301,7 +301,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       { t: "heading", text: "Thông báo đẩy & cài ứng dụng" },
       { t: "callout", tone: "tip", title: "Có hướng dẫn riêng, từng bước", text: "Cách đưa ứng dụng ra màn hình chính (iPhone, Android, máy tính) và bật thông báo đẩy được viết chi tiết ở mục **Cài ứng dụng & bật thông báo**. Chọn nhóm thông báo muốn nhận và **giờ yên tĩnh** ở **Cài đặt → Thông báo**." },
       { t: "heading", text: "Quyền riêng tư & đồng ý" },
-      { t: "md", text: "Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay." },
+      { t: "md", text: "Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay. Văn bản đầy đủ — dữ liệu nào được thu thập, ai xem được, lưu bao lâu, các quyền của bạn (xem, sửa, xóa, hạn chế, phản đối) — nằm ở **Chính sách bảo mật** và **Điều khoản sử dụng** (liên kết ở chân trang mỗi màn hình). Muốn xóa dữ liệu hoặc gỡ ảnh của mình, báo người quản lý." },
       { t: "heading", text: "Giao diện & cỡ chữ" },
       { t: "md", text: "**Cài đặt → Hồ sơ cá nhân → Giao diện**: chọn Sáng / Tối / Theo hệ thống và **cỡ chữ** Vừa / Lớn / Rất lớn (phóng cả giao diện). Bàn phím: nhấn `Tab` rồi `Enter` ở liên kết **“Bỏ qua đến nội dung chính”** để nhảy thẳng tới nội dung." },
     ],
