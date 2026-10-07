@@ -7,6 +7,7 @@ import { ProfileSkeleton } from "./TabSkeletons";
 import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
 import { AppearanceCard } from "./AppearanceCard";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
+import { SaintNamePicker } from "@/components/ui/SaintNamePicker";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage, fileUrl } from "@/lib/api";
@@ -511,7 +512,7 @@ export default function ProfileTab() {
 
           <div className={`space-y-3 ${catholicOk ? "" : "opacity-60 pointer-events-none select-none"}`} aria-disabled={!catholicOk}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <CustomInput label="Tên Thánh (Bổn mạng)" value={f.holyName ?? ""} onChange={set("holyName")} placeholder="VD: Phêrô, Giuse, Maria..." disabled={!catholicOk} />
+              <SaintNamePicker label="Tên Thánh (Bổn mạng)" value={f.holyName ?? ""} onChange={set("holyName")} gender={f.gender} disabled={!catholicOk} />
               <CustomSelect
                 label="Giáo phận"
                 value={f.dioceseId ?? ""}

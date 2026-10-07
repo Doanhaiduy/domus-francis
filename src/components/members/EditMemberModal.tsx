@@ -5,6 +5,7 @@ import { X, UserCog, Lock, Church, GraduationCap } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
+import { SaintNamePicker } from "@/components/ui/SaintNamePicker";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -239,7 +240,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
 
                     {section(<Church className="w-4 h-4" />, "Hồ sơ Công giáo", "(cần đồng ý lưu dữ liệu tôn giáo)")}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <CustomInput label="Tên Thánh" value={f.holyName ?? ""} onChange={set("holyName")} />
+                      <SaintNamePicker label="Tên Thánh" value={f.holyName ?? ""} onChange={set("holyName")} gender={f.gender} />
                       <CustomSelect
                         label="Giáo phận"
                         value={f.dioceseId ?? ""}

@@ -455,7 +455,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { title: "Mở hồ sơ", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Hồ sơ cá nhân"], text: "Hoặc ở danh bạ chọn chính mình rồi bấm **Sửa hồ sơ**." },
           { title: "Học vụ & Tình trạng", text: "Chọn **trường**, **ngành học** (chọn trong danh sách ngành phổ biến — ngành khác thì chọn **Khác** rồi tự nhập), **khóa** (ví dụ K66), **niên khóa** (năm nhập học → năm dự kiến ra trường), mã sinh viên và tình trạng (đang học, đã tốt nghiệp, bảo lưu, thôi học)." },
-          { title: "Thông tin riêng tư & Công giáo", text: "Ngày sinh, quê quán, phụ huynh… chỉ bạn và người quản lý xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật." },
+          { title: "Thông tin riêng tư & Công giáo", text: "Ngày sinh, quê quán, phụ huynh… chỉ bạn và người quản lý xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật. Ô **Tên Thánh** có sẵn danh sách tên thánh phổ biến: bấm vào ô rồi chọn, hoặc gõ để tìm (không cần dấu, ví dụ “phero” ra Phêrô); tên không có trong danh sách thì cứ **tự nhập**." },
         ],
       },
       { t: "callout", tone: "info", text: "**Tháng/năm vào nhà lưu xá** do người quản lý cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ." },
