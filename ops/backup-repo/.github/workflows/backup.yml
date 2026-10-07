@@ -1,0 +1,251 @@
+name: Sao lưu production hằng ngày
+
+# Chạy mỗi ngày 02:17 giờ Việt Nam (19:17 UTC hôm trước) + bấm tay được (Actions → Run workflow).
+# 1) pg_dump production bằng tài khoản DB CHỈ ĐỌC (luuxa_backup) → 2) kiểm tra tệp → 3) mã hóa AES-256 (gpg) →
+# 4) lưu vào Artifacts 90 ngày; Chủ nhật (giờ VN) lưu thêm một bản vào thư mục weekly/ của repo để giữ lâu dài →
+# 5) diễn tập khôi phục: nạp bản vừa sao lưu vào một PostgreSQL tạm trên máy chạy và đối chiếu số dòng.
+# Repo này PHẢI để riêng tư (private). Secrets cần có: BACKUP_DATABASE_URL, BACKUP_PASSPHRASE.
+
+on:
+  schedule:
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+    inputs:
+      weekly:
+        description: "Lưu thêm bản vào thư mục weekly/ của repo (giữ lâu dài)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      restore-db:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: drill
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGCONNECT_TIMEOUT: "30"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kiểm tra cấu hình
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -n "$BACKUP_DATABASE_URL" ] || { echo "::error::Thiếu secret BACKUP_DATABASE_URL"; exit 1; }
+          [ "${#BACKUP_PASSPHRASE}" -ge 24 ] || { echo "::error::Thiếu secret BACKUP_PASSPHRASE hoặc quá ngắn (cần ≥ 24 ký tự)"; exit 1; }
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" != "true" ]; then echo "::error::Repo này không riêng tư — dừng, không lưu dữ liệu cá nhân ở repo công khai"; exit 1; fi
+
+      - name: Cài PostgreSQL client 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          # Bản mặc định của máy chạy là 16 — ép dùng bản 17 (phải ≥ phiên bản máy chủ Supabase)
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Đếm số dòng trước khi sao lưu
+        env:
+          PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          mkdir -p out
+          cat > out/counts.sql <<'SQL'
+          SELECT t || '=' || n FROM (
+            SELECT 'users' AS t, count(*) AS n FROM public.users
+            UNION ALL SELECT 'members', count(*) FROM public.members
+            UNION ALL SELECT 'ledger_entries', count(*) FROM public.ledger_entries
+            UNION ALL SELECT 'contribution_payments', count(*) FROM public.contribution_payments
+            UNION ALL SELECT 'expense_vouchers', count(*) FROM public.expense_vouchers
+            UNION ALL SELECT 'audit_logs', count(*) FROM public.audit_logs
+            UNION ALL SELECT 'struct_tables', count(*) FROM pg_tables WHERE schemaname = 'public'
+            UNION ALL SELECT 'struct_indexes', count(*) FROM pg_indexes WHERE schemaname = 'public'
+            UNION ALL SELECT 'struct_policies', count(*) FROM pg_policies WHERE schemaname = 'public'
+            UNION ALL SELECT 'struct_triggers', count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE NOT t.tgisinternal AND n.nspname = 'public'
+            UNION ALL SELECT 'struct_functions', count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                        WHERE n.nspname IN ('public', 'app') AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+          ) x ORDER BY 1;
+          SQL
+          psql "$PGURL" -At -f out/counts.sql > out/counts-before.txt
+          cat out/counts-before.txt
+
+      - name: Sao lưu (pg_dump)
+        env:
+          PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          STAMP=$(TZ=Asia/Ho_Chi_Minh date +%Y%m%d-%H%M)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          # Giữ chủ sở hữu + quyền (ACL) để khôi phục nguyên vẹn khi đã có các vai trò luuxa_* (xem README)
+          pg_dump --format=custom --compress=9 --schema=public --schema=app --lock-wait-timeout=60s \
+            --file="out/luuxa-prod-$STAMP.dump" "$PGURL"
+          ls -l out
+
+      - name: Kiểm tra tệp sao lưu
+        run: |
+          F="out/luuxa-prod-$STAMP.dump"
+          SIZE=$(stat -c %s "$F")
+          [ "$SIZE" -gt 100000 ] || { echo "::error::Tệp sao lưu quá nhỏ ($SIZE byte) — nghi ngờ lỗi"; exit 1; }
+          pg_restore --list "$F" > out/toc.txt
+          TABLES=$(grep -c " TABLE DATA " out/toc.txt || true)
+          echo "Số bảng có dữ liệu trong bản sao lưu: $TABLES"
+          [ "$TABLES" -ge 100 ] || { echo "::error::Chỉ có $TABLES bảng dữ liệu (kỳ vọng ≥ 100)"; exit 1; }
+
+      - name: Đếm số dòng sau khi sao lưu
+        env:
+          PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: psql "$PGURL" -At -f out/counts.sql > out/counts-after.txt
+
+      - name: Diễn tập khôi phục vào PostgreSQL tạm
+        id: drill
+        continue-on-error: true
+        env:
+          PGPASSWORD: drill
+        run: |
+          set -uo pipefail
+          R="psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -q"
+          # Vai trò gốc của ứng dụng (xem README). Vai trò Supabase/khác mà bản sao lưu nhắc tới sẽ được tự phát hiện bên dưới.
+          cat > out/prep.sql <<'SQL'
+          SELECT format('CREATE ROLE %I NOLOGIN %s', r, a) FROM (VALUES
+            ('luuxa_owner', 'NOINHERIT'), ('luuxa_app', 'NOBYPASSRLS'), ('luuxa_worker', 'BYPASSRLS'),
+            ('luuxa_readonly', 'NOBYPASSRLS'), ('luuxa_definer', 'BYPASSRLS'), ('luuxa_auth', 'BYPASSRLS'),
+            ('luuxa_api', ''), ('luuxa_webhook', ''), ('anon', ''), ('authenticated', ''), ('service_role', ''), ('supabase_admin', '')
+          ) v(r, a) WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) \gexec
+          CREATE SCHEMA extensions;
+          CREATE EXTENSION pgcrypto SCHEMA extensions;
+          CREATE EXTENSION "uuid-ossp" SCHEMA extensions;
+          CREATE EXTENSION citext;
+          CREATE EXTENSION pg_trgm;
+          CREATE EXTENSION btree_gist;
+          CREATE EXTENSION unaccent;
+          -- Chỉ mục biểu thức gọi hàm app.* được pg_restore dựng dưới quyền CHỦ BẢNG (luuxa_owner) trước khi ACL được áp ⇒ cần USAGE sẵn
+          CREATE SCHEMA app;
+          GRANT USAGE ON SCHEMA app TO luuxa_owner, luuxa_app, luuxa_worker, luuxa_readonly, luuxa_definer, luuxa_auth;
+          SQL
+          EXTRA=""
+          RC=0
+          for ATTEMPT in 1 2 3 4 5 6; do
+            $R -d postgres -c "DROP DATABASE IF EXISTS restore_test" -c "CREATE DATABASE restore_test"
+            $R -d restore_test -f out/prep.sql
+            # Vai trò thuộc cả cụm máy (không mất khi xóa DB) ⇒ tạo nếu chưa có
+            for ROLE in $EXTRA; do
+              printf '%s\n' "SELECT format('CREATE ROLE %I NOLOGIN', '$ROLE') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$ROLE') \\gexec" | $R -d restore_test
+            done
+            set +e
+            pg_restore -h 127.0.0.1 -U postgres -d restore_test "out/luuxa-prod-$STAMP.dump" 2> out/restore-errors.txt
+            RC=$?
+            set -e
+            NEW=$(grep -oE 'role "[^"]+" does not exist' out/restore-errors.txt | sed -E 's/role "(.*)" does not exist/\1/' | sort -u | tr '\n' ' ' || true)
+            [ -n "$NEW" ] || break
+            echo "Lần $ATTEMPT: bản sao lưu nhắc tới vai trò chưa có: $NEW — tạo rồi khôi phục lại"
+            EXTRA="$EXTRA $NEW"
+          done
+          echo "ROLES_EXTRA=$EXTRA" >> "$GITHUB_ENV"
+          # pg_restore làm mới view tổng hợp mv_cashflow_monthly dưới quyền CHỦ view (luuxa_owner, không bỏ qua RLS) nên bị chặn — view này
+          # được dựng lại bằng quyền cao ngay dưới đây (xem README, mục Khôi phục).
+          psql -h 127.0.0.1 -U postgres -d restore_test -v ON_ERROR_STOP=1 -q -c "REFRESH MATERIALIZED VIEW public.mv_cashflow_monthly" || echo "::error::Không làm mới được mv_cashflow_monthly bằng quyền cao"
+          # Lỗi vô hại: schema public/app đã dựng sẵn ở bước chuẩn bị; REFRESH của mv_cashflow_monthly (đã xử lý ở trên)
+          grep "^pg_restore: error" out/restore-errors.txt | grep -v -E 'schema "(public|app)" already exists|row-level security policy for table "ledger_entries"' > out/restore-real-errors.txt || true
+          REAL=$(wc -l < out/restore-real-errors.txt)
+          echo "pg_restore mã thoát $RC; lỗi thật: $REAL; vai trò ngoài danh mục gốc:$EXTRA"
+          if [ "$REAL" -gt 0 ]; then
+            echo "--- các lỗi thật kèm câu lệnh (tối đa 40 dòng) ---"
+            grep -E "^pg_restore: error|^Command was" out/restore-errors.txt | grep -v -E 'schema "(public|app)" already exists|^Command was: CREATE SCHEMA (public|app);|row-level security policy for table "ledger_entries"|^Command was: REFRESH MATERIALIZED VIEW' | head -40 | cut -c1-300
+          fi
+          psql -h 127.0.0.1 -U postgres -d restore_test -At -f out/counts.sql > out/counts-restored.txt
+          echo "--- đếm sau khi khôi phục ---"; cat out/counts-restored.txt
+          FAIL=0
+          while IFS='=' read -r T N; do
+            B=$(grep "^$T=" out/counts-before.txt | cut -d= -f2); A=$(grep "^$T=" out/counts-after.txt | cut -d= -f2)
+            case "$T" in
+              struct_*) if [ "$N" != "$B" ] && [ "$N" != "$A" ]; then echo "::error::Cấu trúc $T: khôi phục $N, nguồn $B/$A"; FAIL=1; fi ;;
+              *)        if [ "$N" -lt "$B" ] || [ "$N" -gt "$A" ]; then echo "::error::Bảng $T: khôi phục $N, ngoài khoảng [$B, $A]"; FAIL=1; fi ;;
+            esac
+          done < out/counts-restored.txt
+          [ "$REAL" -eq 0 ] || { echo "::error::pg_restore có $REAL lỗi thật"; FAIL=1; }
+          [ "$FAIL" -eq 0 ] || exit 1
+
+      - name: Mã hóa (AES-256)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          F="out/luuxa-prod-$STAMP.dump"
+          sha256sum "$F" | cut -d' ' -f1 > out/dump.sha256
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --s2k-mode 3 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            --output "$F.gpg" "$F"
+          # Giải mã thử và so mã băm để chắc chắn bản mã hóa đọc lại được
+          BACK=$(printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt "$F.gpg" | sha256sum | cut -d' ' -f1)
+          [ "$BACK" = "$(cat out/dump.sha256)" ] || { echo "::error::Giải mã thử không khớp mã băm"; exit 1; }
+          shred -u "$F" || rm -f "$F"
+          {
+            echo "thời gian (giờ VN): $STAMP"
+            echo "máy chủ nguồn: PostgreSQL 17 (production)"
+            echo "tệp: luuxa-prod-$STAMP.dump.gpg ($(stat -c %s "$F.gpg") byte)"
+            echo "sha256 (bản chưa mã hóa): $(cat out/dump.sha256)"
+            echo "--- số dòng ---"; cat out/counts-after.txt
+            echo "vai trò DB cần có trước khi khôi phục (ngoài luuxa_*): ${ROLES_EXTRA:-không}"
+            echo "--- diễn tập khôi phục: ${{ steps.drill.outcome }} ---"
+          } > out/manifest.txt
+          cat out/manifest.txt
+          rm -f out/counts.sql out/counts-*.txt out/toc.txt out/restore-errors.txt out/restore-real-errors.txt out/prep.sql out/dump.sha256
+
+      - name: Lưu vào Artifacts (90 ngày)
+        uses: actions/upload-artifact@v4
+        with:
+          name: luuxa-prod-${{ env.STAMP }}
+          path: |
+            out/*.gpg
+            out/manifest.txt
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Lưu bản hằng tuần vào repo (Chủ nhật giờ VN)
+        run: |
+          if [ "$(TZ=Asia/Ho_Chi_Minh date +%u)" = "7" ] || [ "${{ inputs.weekly }}" = "true" ]; then
+            mkdir -p weekly
+            cp "out/luuxa-prod-$STAMP.dump.gpg" weekly/
+            cp out/manifest.txt "weekly/luuxa-prod-$STAMP.manifest.txt"
+            git config user.name "backup-bot"
+            git config user.email "backup-bot@users.noreply.github.com"
+            git add weekly
+            git commit -m "Sao lưu hằng tuần $STAMP"
+            git push
+          else
+            echo "Hôm nay không phải Chủ nhật — chỉ lưu Artifacts."
+          fi
+
+      - name: Tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Sao lưu production $STAMP"
+            echo "- Diễn tập khôi phục: **${{ steps.drill.outcome }}**"
+            [ -f out/manifest.txt ] && { echo '```'; cat out/manifest.txt; echo '```'; }
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Báo lỗi nếu diễn tập khôi phục hỏng
+        if: steps.drill.outcome == 'failure'
+        run: |
+          echo "::error::Diễn tập khôi phục THẤT BẠI — bản sao lưu đã được lưu nhưng chưa chứng minh khôi phục được. Xem log bước 'Diễn tập khôi phục'."
+          exit 1

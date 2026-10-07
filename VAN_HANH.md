@@ -21,6 +21,15 @@ Thành phần: Vercel (Next.js, cron), Supabase (PostgreSQL + Storage), Groq/Gem
 
 ## 3. Sao lưu & khôi phục
 
+### 3a. Tự động hằng ngày (đã bật từ 2026-10-07)
+- Repo GitHub **riêng tư** `Doanhaiduy/luu-xa-backups` (mẫu workflow ở `ops/backup-repo/` trong repo này) chạy **02:17 mỗi ngày**: `pg_dump` production bằng tài khoản DB **chỉ đọc** `luuxa_backup` → mã hóa AES-256 (gpg) → Artifacts **90 ngày** + mỗi **Chủ nhật** lưu thêm vào thư mục `weekly/` (giữ lâu dài) → **diễn tập khôi phục** vào PostgreSQL tạm và đối chiếu số dòng/cấu trúc. Hỏng ở bước nào ⇒ lần chạy đỏ + GitHub gửi email.
+- Repo ứng dụng (`domus-francis`) là **công khai** nên TUYỆT ĐỐI không đặt bản sao lưu ở đó — chỉ ở repo riêng tư. Workflow tự dừng nếu repo sao lưu bị chuyển sang công khai.
+- Secrets của repo sao lưu: `BACKUP_DATABASE_URL` (chuỗi kết nối `luuxa_backup`, cổng 5432), `BACKUP_PASSPHRASE` (mật khẩu mã hóa — **cất ở trình quản lý mật khẩu, mất là mất cả sao lưu**).
+- Tạo/đổi mật khẩu tài khoản chỉ đọc: `node scripts/ops/create-backup-role.mjs --env production [--rotate]` (ghi chuỗi kết nối vào `backup/backup-db-url-production.txt`, git-ignore) rồi `gh secret set BACKUP_DATABASE_URL --repo Doanhaiduy/luu-xa-backups`.
+- Khôi phục: README của repo sao lưu. Chưa bao gồm Supabase Storage (ảnh/hóa đơn) — chạy tay `pnpm db:backup -- --env production --with-storage` khi cần.
+
+### 3b. Sao lưu thủ công
+
 ```bash
 pnpm db:backup -- --env production --with-storage   # ra thư mục backup/ (đã git-ignore)
 ```
