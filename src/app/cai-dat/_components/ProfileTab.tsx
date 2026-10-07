@@ -340,8 +340,8 @@ export default function ProfileTab() {
                 value={f.gender ?? "Nam"}
                 onChange={set("gender")}
                 options={[
-                  { value: "Nam", label: "Bính" },
-                  { value: "Nữ", label: "Nữ" },
+                  { value: "Nam", label: "Nam" },
+                  { value: "Nữ", label: "Bính" },
                 ]}
               />
               <div className="pb-1">
