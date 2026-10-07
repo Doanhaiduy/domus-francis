@@ -11,7 +11,7 @@ export interface ModuleInfo {
 }
 
 export const TOGGLEABLE_MODULES: ModuleInfo[] = [
-  { href: "/thong-bao", label: "Thông báo", description: "Bảng tin, thông báo của Ban điều hành" },
+  { href: "/thong-bao", label: "Thông báo", description: "Bảng tin, thông báo của người quản lý" },
   { href: "/lich-su-kien", label: "Lịch & Sự kiện", description: "Lịch sinh hoạt, điểm danh, biểu quyết" },
   { href: "/thu-chi", label: "Thu Chi", description: "Quỹ, điện nước, phiếu chi, sổ quỹ" },
   { href: "/bep-com", label: "Bếp & Cơm", description: "Đăng ký suất ăn, thực đơn, kho bếp" },

@@ -1,5 +1,5 @@
 // DTO + hằng số + tiện ích thuần cho Cài đặt → "Danh mục học tập" (/api/v1/academic/config/**):
-// trường đại học, năm học (kèm học kỳ), nhiệm kỳ Ban điều hành. Dùng chung client/server.
+// trường đại học, năm học (kèm học kỳ), nhiệm kỳ người quản lý. Dùng chung client/server.
 
 export const SEMESTER_CODES = ["HK1", "HK2", "HE"] as const;
 export type SemesterCode = (typeof SEMESTER_CODES)[number];

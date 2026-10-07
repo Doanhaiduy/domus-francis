@@ -100,7 +100,7 @@ export async function downloadFinancialReportPdf(p: FinancialReportPdfInput) {
           }
         : { text: "Không có khoản chi nào trong kỳ.", color: C.faint, margin: [0, 2, 0, 0] },
     );
-    content.push({ text: "Bảng kê chi tiết từng phiếu chi do Thủ quỹ/Ban điều hành lập và lưu trữ.", italics: true, fontSize: 7.5, color: C.muted, margin: [0, 4, 0, 0] });
+    content.push({ text: "Bảng kê chi tiết từng phiếu chi do Thủ quỹ/người quản lý lập và lưu trữ.", italics: true, fontSize: 7.5, color: C.muted, margin: [0, 4, 0, 0] });
   }
 
   // ---- II. Thu
@@ -137,7 +137,7 @@ export async function downloadFinancialReportPdf(p: FinancialReportPdfInput) {
       ];
       content.push({ table: { headerRows: 1, dontBreakRows: true, widths: [26, "*", 50, 80, 120], body: rows }, layout: tableLayout });
     } else {
-      content.push({ text: "Danh sách từng thành viên chỉ hiển thị với Thủ quỹ/Ban điều hành.", italics: true, fontSize: 8, color: C.muted });
+      content.push({ text: "Danh sách từng thành viên chỉ hiển thị với Thủ quỹ/người quản lý.", italics: true, fontSize: 8, color: C.muted });
     }
   }
 

@@ -5,7 +5,7 @@
 --  1. Hai loại thông báo trong ứng dụng còn thiếu: phân công phụng vụ, bình luận mới trong chủ đề diễn đàn.
 --  2. Hàm gửi thông báo theo nghiệp vụ (SECURITY DEFINER, kiểm quyền trong thân hàm): luuxa_app KHÔNG được gọi
 --     app.fn_notify* trực tiếp (49_b_grants), nên mỗi luồng nghiệp vụ có một cửa vào riêng, kiểm đúng người gọi:
---       app.fn_notify_announcement(id)        — người đăng/Ban điều hành, cần notification.send
+--       app.fn_notify_announcement(id)        — người đăng/người quản lý, cần notification.send
 --       app.fn_notify_forum_reply(comment_id) — chính người vừa bình luận
 --       app.fn_notify_liturgy_assignment(id)  — người có liturgy.manage
 --  3. app.fn_set_prayer_status(id, status): tác giả (kể cả ý ẩn danh — qua prayer_intention_authors) hoặc người kiểm duyệt
@@ -53,7 +53,7 @@ BEGIN
     RAISE EXCEPTION 'Thông báo không tồn tại.' USING ERRCODE = 'no_data_found';
   END IF;
   IF v_a.author_member_id <> v_me AND NOT app.has_permission('announcement.pin') THEN
-    RAISE EXCEPTION 'Chỉ người đăng hoặc Ban điều hành được gửi thông báo này tới thành viên.' USING ERRCODE = 'insufficient_privilege';
+    RAISE EXCEPTION 'Chỉ người đăng hoặc người quản lý được gửi thông báo này tới thành viên.' USING ERRCODE = 'insufficient_privilege';
   END IF;
   IF v_a.status <> 'published' THEN
     RAISE EXCEPTION 'Thông báo chưa được đăng.' USING ERRCODE = 'check_violation';

@@ -323,7 +323,7 @@ export default function KhoanhKhacPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto pb-16">
+      <div className="flex flex-col w-full gap-6 pb-16">
         <div className="py-16 bg-white rounded-3xl border border-dashed border-rose-200 text-center flex flex-col items-center justify-center p-6 gap-3">
           <Camera className="w-10 h-10 text-[#fda4af]" />
           <h3 className="text-base font-bold text-gray-900">Không tải được thư viện khoảnh khắc</h3>
@@ -346,7 +346,7 @@ export default function KhoanhKhacPage() {
     "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition active:scale-95 disabled:opacity-60";
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER & KPI STATS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

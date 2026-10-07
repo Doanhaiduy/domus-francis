@@ -272,7 +272,7 @@ export default function BepComPage() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">Tạm hoãn</span>
               </div>
               <p className="text-xs text-amber-800/90 mt-0.5">
-                Ban Điều Hành đang tạm hoãn phân hệ này: dữ liệu bên dưới chỉ để tham khảo, không tiếp nhận đăng ký / sửa suất ăn mới.
+                Người quản lý đang tạm hoãn phân hệ này: dữ liệu bên dưới chỉ để tham khảo, không tiếp nhận đăng ký / sửa suất ăn mới.
               </p>
             </div>
           </div>

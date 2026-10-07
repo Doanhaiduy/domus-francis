@@ -6,7 +6,7 @@ import { pushConfigured, vapidPublicKey } from "../push";
 // Tùy chọn nhận thông báo của chính mình: bật/tắt kênh đẩy theo nhóm, giờ yên tĩnh, thiết bị đã đăng ký.
 
 export const NOTIFICATION_CATEGORIES: { code: string; label: string; text: string }[] = [
-  { code: "announcement", label: "Thông báo & bảng tin", text: "Thông báo của Ban điều hành" },
+  { code: "announcement", label: "Thông báo & bảng tin", text: "Thông báo của người quản lý" },
   { code: "event", label: "Lịch & sự kiện", text: "Sự kiện sắp tới, điểm danh, biểu quyết" },
   { code: "duty", label: "Trực nhật", text: "Lịch trực, đổi ca, nhắc việc" },
   { code: "finance", label: "Thu chi & quỹ", text: "Nhắc đóng quỹ, duyệt chi" },

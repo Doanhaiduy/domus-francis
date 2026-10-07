@@ -1,6 +1,6 @@
 "use client";
 
-// Thẻ "AI nhận xét thu chi tháng MM/YYYY" (tác vụ finance.monthly_insight) — dành cho Thủ quỹ / Ban điều hành.
+// Thẻ "AI nhận xét thu chi tháng MM/YYYY" (tác vụ finance.monthly_insight) — dành cho Thủ quỹ / người quản lý.
 //  • Tự chạy MỘT lần khi mở (SWR theo tháng: chuyển tab qua lại không gọi lại); máy chủ còn cache 24 giờ theo nội dung
 //    số liệu nên mở lại trang không tốn thêm lượt gọi. "Phân tích lại" lấy số liệu mới nhất (số liệu không đổi ⇒ dùng lại nhận xét đã lưu).
 //  • Mọi con số trong bảng so sánh do MÁY CHỦ tính từ sổ quỹ — AI chỉ viết lời nhận xét.

@@ -21,7 +21,7 @@ CREATE UNIQUE INDEX ux_academic_years__current ON academic_years ((true)) WHERE 
 COMMENT ON INDEX ux_academic_years__current IS 'Chỉ cho phép đúng một năm học hiện hành (chỉ mục trên hằng số, một phần theo is_current).';
 
 CREATE UNIQUE INDEX ux_board_terms__active ON board_terms ((true)) WHERE status = 'active';
-COMMENT ON INDEX ux_board_terms__active IS 'Chỉ một nhiệm kỳ Ban điều hành ở trạng thái active tại một thời điểm.';
+COMMENT ON INDEX ux_board_terms__active IS 'Chỉ một nhiệm kỳ người quản lý ở trạng thái active tại một thời điểm.';
 
 CREATE UNIQUE INDEX ux_categories__kind_code ON categories (kind, code) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX ux_floors__code ON floors (code) WHERE deleted_at IS NULL;

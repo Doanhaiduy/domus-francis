@@ -208,7 +208,7 @@ CREATE TABLE content_reports (
   CONSTRAINT ck_content_reports__reason CHECK (app.has_text(reason, 5)),
   CONSTRAINT ck_content_reports__handled CHECK ((status = 'open') = (handled_at IS NULL))
 );
-COMMENT ON TABLE content_reports IS 'Báo cáo vi phạm nội dung (diễn đàn, ý cầu nguyện, album/ảnh). Điểm vào duy nhất để Ban điều hành xem tác giả của ý cầu nguyện ẩn danh (có ghi nhật ký) và để kiểm duyệt.';
+COMMENT ON TABLE content_reports IS 'Báo cáo vi phạm nội dung (diễn đàn, ý cầu nguyện, album/ảnh). Điểm vào duy nhất để người quản lý xem tác giả của ý cầu nguyện ẩn danh (có ghi nhật ký) và để kiểm duyệt.';
 
 -- ---------------------------------------------------------------------
 -- Ý chỉ cầu nguyện (ẩn danh thật)
@@ -325,7 +325,7 @@ CREATE TABLE meal_menus (
   CONSTRAINT ck_meal_menus__cost CHECK (cost_per_serving_vnd IS NULL OR cost_per_serving_vnd >= 0),
   CONSTRAINT ck_meal_menus__dishes CHECK (cardinality(dishes) <= 20)
 );
-COMMENT ON TABLE meal_menus IS 'Thực đơn theo ngày × bữa (thay cho WEEKLY_MENUS cài cứng ở FE). cutoff_at = hạn chốt suất (FE ghi trưa 9:00, tối 15:00 trong chuỗi mô tả). Phân hệ đang TẠM HOÃN theo quyết định Ban điều hành: bảng vẫn có để dữ liệu không mất khi bật lại.';
+COMMENT ON TABLE meal_menus IS 'Thực đơn theo ngày × bữa (thay cho WEEKLY_MENUS cài cứng ở FE). cutoff_at = hạn chốt suất (FE ghi trưa 9:00, tối 15:00 trong chuỗi mô tả). Phân hệ đang TẠM HOÃN theo quyết định người quản lý: bảng vẫn có để dữ liệu không mất khi bật lại.';
 
 CREATE TABLE meal_menu_cooks (
   menu_id     uuid        NOT NULL REFERENCES meal_menus(id) ON DELETE CASCADE,
@@ -423,7 +423,7 @@ CREATE TABLE member_applications (
   CONSTRAINT ck_member_applications__approved CHECK (status <> 'approved' OR resulting_member_id IS NOT NULL),
   CONSTRAINT ck_member_applications__reject_note CHECK (status <> 'rejected' OR app.has_text(review_note, 5))
 );
-COMMENT ON TABLE member_applications IS 'Đơn xin vào lưu xá/đăng ký tài khoản chờ Ban điều hành phê duyệt (FE: trang tĩnh /cho-phe-duyet, nút "Kiểm tra lại" vào thẳng app). Duyệt ⇒ tạo member + gán vai trò member (app.fn_approve_member_application). Tài khoản chưa duyệt chỉ có quyền xem trạng thái đơn của mình.';
+COMMENT ON TABLE member_applications IS 'Đơn xin vào lưu xá/đăng ký tài khoản chờ người quản lý phê duyệt (FE: trang tĩnh /cho-phe-duyet, nút "Kiểm tra lại" vào thẳng app). Duyệt ⇒ tạo member + gán vai trò member (app.fn_approve_member_application). Tài khoản chưa duyệt chỉ có quyền xem trạng thái đơn của mình.';
 
 CREATE TABLE user_identities (
   id                uuid        PRIMARY KEY DEFAULT app.uuid_v7(),

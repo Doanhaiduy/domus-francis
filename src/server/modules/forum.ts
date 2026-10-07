@@ -272,7 +272,7 @@ export async function reportContent(tx: Tx, entity: ReportEntity, id: string, re
       [entity, id, reason.trim()]
     );
   } catch (e) {
-    if ((e as { code?: string }).code === "23505") throw new ApiError(409, "ALREADY_REPORTED", "Bạn đã báo cáo nội dung này, Ban điều hành đang xem xét.");
+    if ((e as { code?: string }).code === "23505") throw new ApiError(409, "ALREADY_REPORTED", "Bạn đã báo cáo nội dung này, người quản lý đang xem xét.");
     throw e;
   }
 }

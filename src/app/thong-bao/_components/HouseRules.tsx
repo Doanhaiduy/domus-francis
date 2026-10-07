@@ -167,7 +167,7 @@ function SectionEditor({
           <Plus className="w-3.5 h-3.5" /> Thêm điều khoản
         </button>
       </div>
-      <CustomToggle checked={active} onChange={setActive} label="Hiển thị với thành viên" description="Tắt để ẩn mục này (chỉ Ban điều hành còn thấy)" />
+      <CustomToggle checked={active} onChange={setActive} label="Hiển thị với thành viên" description="Tắt để ẩn mục này (chỉ người quản lý còn thấy)" />
       <ErrorBox error={error} />
     </DialogShell>
   );

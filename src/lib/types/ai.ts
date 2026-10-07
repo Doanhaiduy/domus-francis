@@ -76,11 +76,15 @@ export interface DuesMessageOutput {
 
 export interface PolicyRagInput {
   question: string;
+  /** Vài lượt gần nhất để hiểu câu hỏi nối tiếp (tối đa 4) */
+  history?: { q: string; a?: string }[];
 }
 export interface PolicyRagOutput {
   answer: string;
   confident: boolean;
-  sources: { label: string; title: string; kind: "policy" | "announcement" | "event" }[];
+  sources: { label: string; title: string; kind: "policy" | "announcement" | "event" | "guide" }[];
+  /** Trang gợi ý mở (đã lọc theo danh sách cho phép ở máy chủ) */
+  actions?: { label: string; href: string }[];
 }
 
 export interface ModerationInput {
@@ -169,7 +173,7 @@ export interface AcademicInsightOutput {
   compare: { currentLabel: string; previousLabel: string | null; rows: AcademicInsightRow[] } | null;
 }
 
-// Trợ lý viết bài công khai (Ban điều hành/Truyền thông): gợi ý đề tài, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt.
+// Trợ lý viết bài công khai (người quản lý/Truyền thông): gợi ý đề tài, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt.
 // Chỉ gửi nội dung người soạn đang viết + thông tin giới thiệu cộng đoàn đã công khai; không có dữ liệu cá nhân của thành viên.
 export type ArticleTone = "warm" | "formal" | "lively";
 export type ArticleLength = "short" | "medium" | "long";

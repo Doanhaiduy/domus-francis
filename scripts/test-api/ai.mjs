@@ -28,7 +28,12 @@ function startMock() {
     if (user.includes("Nhận xét tình hình học tập CHUNG"))
       return { headline: "Học tập chung của nhà khá ổn", summary: "Phần lớn anh em đạt kết quả tốt.", trend: "down", points: ["GPA trung bình ổn định"], suggestions: ["Duy trì nhóm học tối thứ Ba"] };
     if (user.includes("nhắc đóng quỹ")) return { message: "Chào cả nhà, nhắc nhẹ quỹ tháng này nhé. https://evil.example <b>hạn 05/11</b>." };
-    if (user.includes("Trả lời câu hỏi của thành viên")) return { answer: "Giờ giới nghiêm là 22:30.", confident: true, sources: ["S1", "S9"] };
+    if (user.includes("Trả lời câu hỏi của thành viên")) {
+      // Trợ lý: thử lọc 'actions' — chỉ đường dẫn trong danh sách cho phép được giữ lại
+      if (user.includes("[thử actions]"))
+        return { answer: "1. Mở **Cài đặt → Thông báo**.\n2. Bấm “Bật thông báo đẩy”.", confident: true, sources: ["S1"], actions: ["/cai-dat?tab=notifications", "/trang-bia-dat", "https://evil.example/x", "/huong-dan"] };
+      return { answer: "Giờ giới nghiêm là 22:30.", confident: true, sources: ["S1", "S9"] };
+    }
     if (user.includes("Đánh giá nội dung dưới đây")) return { flagged: true, categories: ["insult", "personal_info", "bogus"], reason: "Có lời lẽ không phù hợp." };
     if (user.includes("Phân loại một báo hỏng")) return { urgency: "high", category: "Điện", summary: "Chập điện ở phòng.", rationale: "Nguy cơ cháy.", duplicateOf: null };
     return { summary: "Cuộc họp bàn việc trực nhật.", decisions: ["Giữ lịch trực"], actions: [{ task: "Gửi lịch", owner: "Thành viên A" }] };
@@ -179,7 +184,7 @@ export async function run({ as, test, eq, ok, section, Client }) {
       eq(r.json.cached, false);
       eq(r.json.output.sources.length, 1, "chỉ giữ nguồn hợp lệ");
       eq(r.json.output.sources[0].label, "S1");
-      ok(r.json.output.sources[0].title.length > 0 && ["policy", "announcement", "event"].includes(r.json.output.sources[0].kind), "nguồn có tiêu đề và loại hợp lệ");
+      ok(r.json.output.sources[0].title.length > 0 && ["policy", "announcement", "event", "guide"].includes(r.json.output.sources[0].kind), "nguồn có tiêu đề và loại hợp lệ");
       eq(r.json.output.confident, true);
       eq(mock.calls.length, 1);
       const c = mock.calls[0];
@@ -208,6 +213,53 @@ export async function run({ as, test, eq, ok, section, Client }) {
       ok(u.json.budget.usedVnd >= 20, "ngân sách tháng phải tăng");
       const job = u.json.recentJobs.find((j) => j.taskCode === "community.policy_rag" && j.status === "succeeded");
       ok(job && job.provider === "groq", "job thành công ghi nhà cung cấp groq");
+    });
+
+    section("AI — Trợ lý Lưu Xá: hướng dẫn thao tác, vai trò, hội thoại, nút mở trang");
+
+    await test("Câu hỏi cách thao tác → prompt có đoạn Hướng dẫn sử dụng, vai trò người hỏi và danh sách trang cho phép", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", rag("Làm sao bật thông báo đẩy trên iPhone? [thử actions]"));
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(mock.calls.length, 1);
+      const u = mock.calls[0].body.messages[1].content;
+      ok(/Hướng dẫn:/.test(u), "phải có đoạn thuộc loại Hướng dẫn: " + u.slice(0, 600));
+      ok(/Thêm vào Màn hình chính/.test(u), "đoạn hướng dẫn cài app/bật thông báo phải được truy hồi");
+      ok(/vai trò = .*Thành viên/.test(u), "prompt phải nêu vai trò người hỏi");
+      ok(u.includes("/cai-dat?tab=notifications"), "danh sách trang cho phép");
+      const sys = mock.calls[0].body.messages[0].content;
+      ok(/Trợ lý Lưu Xá/.test(sys) && /BƯỚC/.test(sys), "system prompt của trợ lý");
+    });
+
+    await test("Nút mở trang: chỉ giữ đường dẫn nằm trong danh sách cho phép (loại trang bịa và liên kết ngoài)", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", rag("Làm sao bật thông báo đẩy trên iPhone? [thử actions] lần hai"));
+      eq(r.status, 200, JSON.stringify(r.json));
+      const hrefs = (r.json.output.actions ?? []).map((a) => a.href);
+      ok(hrefs.includes("/cai-dat?tab=notifications") && hrefs.includes("/huong-dan"), "giữ trang hợp lệ: " + hrefs.join(","));
+      ok(!hrefs.some((h) => h.includes("evil") || h.includes("bia-dat")), "loại trang bịa/liên kết ngoài: " + hrefs.join(","));
+      ok(r.json.output.actions.every((a) => a.label && a.href.startsWith("/")), "mỗi nút có nhãn và đường dẫn nội bộ");
+    });
+
+    await test("Hội thoại nhiều lượt: lịch sử được đưa vào khối dữ liệu; câu nối tiếp ngắn dùng câu trước để truy hồi", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", {
+        task: "community.policy_rag",
+        input: { question: "còn trên Android thì sao?", history: [{ q: "Làm sao bật thông báo đẩy trên iPhone?", a: "Thêm vào Màn hình chính rồi bật thông báo." }] },
+      });
+      eq(r.status, 200, JSON.stringify(r.json));
+      const u = mock.calls[0].body.messages[1].content;
+      ok(u.includes("LỊCH SỬ TRÒ CHUYỆN") && u.includes("Thêm vào Màn hình chính rồi bật"), "lịch sử có trong prompt");
+      ok(/thông báo/i.test(u), "đoạn hướng dẫn về thông báo được truy hồi nhờ câu trước");
+    });
+
+    await test("Lời chào / cảm ơn: trả lời ngay bằng luật nội bộ, không gọi nhà cung cấp", async () => {
+      reset("ok", "ok");
+      const r = await member.post("/api/v1/ai/run", rag("Xin chào bạn"));
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(mock.calls.length, 0);
+      eq(r.json.provider, null);
+      ok(/Trợ lý Lưu Xá/.test(r.json.output.answer));
     });
 
     section("AI — dự phòng Gemini, lỗi, ngắt mạch");
@@ -291,7 +343,7 @@ export async function run({ as, test, eq, ok, section, Client }) {
 
     await test("Biên bản: tên thành viên trong ghi chú được thay bằng nhãn ẩn danh khi gửi đi", async () => {
       reset("ok", "ok");
-      const notes = `Họp ban điều hành: ${myName} phụ trách lịch trực tuần tới, cần gửi lịch cho cả nhà trước thứ Sáu.`;
+      const notes = `Họp người quản lý: ${myName} phụ trách lịch trực tuần tới, cần gửi lịch cho cả nhà trước thứ Sáu.`;
       const r = await member.post("/api/v1/ai/run", { task: "community.minutes", input: { notes, kind: "meeting" } });
       eq(r.status, 200, JSON.stringify(r.json));
       ok(!mock.calls[0].body.messages[1].content.includes(myName), "tên phải bị che");

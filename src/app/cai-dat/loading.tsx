@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function CaiDatLoading() {
   return (
-    <div className="flex flex-col w-full gap-6 max-w-5xl mx-auto">
+    <div className="flex flex-col w-full gap-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">

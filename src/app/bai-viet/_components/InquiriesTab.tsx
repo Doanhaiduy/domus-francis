@@ -7,6 +7,7 @@ import { errorMessage } from "@/lib/api";
 import { inquiriesApi, useInquiries } from "@/lib/data/public-site";
 import { INQUIRY_STATUS_LABEL, type InquiryDto, type InquiryStatus } from "@/lib/types/public-site";
 import { CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLE: Record<InquiryStatus, string> = {
@@ -91,8 +92,11 @@ function InquiryCard({ item }: { item: InquiryDto }) {
             {item.handledByName && item.handledAt ? ` · ${item.handledByName} xử lý ${fmt(item.handledAt)}` : ""}
           </p>
         </div>
-        <div className="w-44">
-          <CustomSelect<InquiryStatus> value={item.status} onChange={(s) => patch({ status: s }, `Đã chuyển sang “${INQUIRY_STATUS_LABEL[s]}”.`)} options={STATUS_OPTIONS} />
+        <div className="flex items-center gap-2">
+          <div className="w-44">
+            <CustomSelect<InquiryStatus> value={item.status} onChange={(s) => patch({ status: s }, `Đã chuyển sang “${INQUIRY_STATUS_LABEL[s]}”.`)} options={STATUS_OPTIONS} />
+          </div>
+          <PurgeButton variant="icon" url={`/api/v1/inquiries/${item.id}`} what={`đăng ký của ${item.fullName}`} />
         </div>
       </div>
 

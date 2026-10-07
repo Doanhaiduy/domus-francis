@@ -76,7 +76,7 @@ async function getCategory(tx: Tx, id: string): Promise<CategoryRow> {
 
 async function assertCanManage(tx: Tx) {
   const ok = (await tx.query<{ ok: boolean }>("SELECT app.has_permission('category.manage') AS ok")).rows[0]?.ok;
-  if (!ok) throw forbidden("Chỉ Ban điều hành có quyền quản lý danh mục mới thêm/sửa/xóa danh mục.");
+  if (!ok) throw forbidden("Chỉ người quản lý có quyền quản lý danh mục mới thêm/sửa/xóa danh mục.");
 }
 
 async function assertCodeFree(tx: Tx, kind: CategoryKind, code: string, exceptId?: string) {

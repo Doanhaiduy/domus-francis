@@ -335,7 +335,7 @@ async function requireAlbum(tx: Tx, id: string) {
 export async function updateAlbum(tx: Tx, id: string, i: UpdateAlbumInput) {
   const a = await requireAlbum(tx, id);
   const mod = await canModerate(tx);
-  if (!a.is_mine && !mod) throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/Ban điều hành mới sửa được album này.");
+  if (!a.is_mine && !mod) throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/người quản lý mới sửa được album này.");
   if ((i.isFeatured !== undefined || i.hidden !== undefined || i.isPublic !== undefined) && !mod) {
     throw forbidden("Chỉ người có quyền kiểm duyệt album mới đánh dấu tiêu biểu, ẩn/hiện hoặc công khai album.");
   }
@@ -377,7 +377,7 @@ export async function deleteAlbum(tx: Tx, id: string) {
 export async function addPhotos(tx: Tx, albumId: string, photos: { fileId: string; caption?: string | null }[]) {
   const a = await requireAlbum(tx, albumId);
   if (!a.is_mine && !(await canModerate(tx))) {
-    throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/Ban điều hành mới thêm ảnh vào album này.");
+    throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/người quản lý mới thêm ảnh vào album này.");
   }
   return insertPhotos(tx, albumId, photos);
 }

@@ -178,7 +178,7 @@ Mở ở: **Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật / Thôn
 2. **Bấm “Đổi email đăng nhập”** — Nhập **email mới** và **mật khẩu hiện tại** để xác nhận, rồi bấm **Đổi email**.
 3. **Đăng nhập lại bằng email mới** — Hệ thống **không gửi thư xác nhận**, nên hãy gõ cẩn thận. Từ lần sau chỉ đăng nhập được bằng email mới; email cũ không còn dùng được.
 
-> **Email đăng nhập ≠ Email liên hệ** — Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để Ban điều hành liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra.
+> **Email đăng nhập ≠ Email liên hệ** — Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để người quản lý liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra.
 
 Đổi mật khẩu cũng ở tab **Bảo mật** (thẻ **Mật khẩu**); đổi xong mọi thiết bị khác bị đăng xuất.
 
@@ -188,7 +188,7 @@ Mở ở: **Cài Đặt & Hướng dẫn → Cài đặt → Bảo mật / Thôn
 
 ### Quyền riêng tư & đồng ý
 
-Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho Ban điều hành xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay.
+Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay.
 
 ### Giao diện & cỡ chữ
 
@@ -248,7 +248,7 @@ _[Minh họa giao diện: Phím tắt — xem trong ứng dụng]_
 
 Mở ở: **Thông báo & Diễn đàn**
 
-Mục này có hai tab: **Thông báo** (bảng tin chính thức, luật nhà) và **Diễn đàn** (trao đổi, góp ý). Thông báo có nút **Xác nhận đã đọc** thì bấm để Ban điều hành biết bạn đã nắm. Chuông ở góc trên là **thông báo dành riêng cho bạn** (ca trực, phiếu cần duyệt, kết quả đơn xin phép…).
+Mục này có hai tab: **Thông báo** (bảng tin chính thức, luật nhà) và **Diễn đàn** (trao đổi, góp ý). Thông báo có nút **Xác nhận đã đọc** thì bấm để người quản lý biết bạn đã nắm. Chuông ở góc trên là **thông báo dành riêng cho bạn** (ca trực, phiếu cần duyệt, kết quả đơn xin phép…).
 
 ### Lịch & Sự kiện
 
@@ -275,7 +275,7 @@ Mở ở: **Lịch & Xin phép → Xin phép**
 
 1. **Bấm “Gửi đơn xin phép”** — Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · tạm vắng nhiều ngày.
 2. **Điền thông tin** — Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ), ghi **lý do**; ngủ ngoài / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc.
-3. **Chờ duyệt** — Trưởng nhà/Ban điều hành nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được.
+3. **Chờ duyệt** — Trưởng nhà/người quản lý nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được.
 
 > **💡 Mẹo** — Đơn **vắng sự kiện được duyệt** thì điểm danh sự kiện đó ghi **“có phép”** và không bị trừ điểm chuyên cần. Không ai tự duyệt được đơn của chính mình.
 
@@ -308,7 +308,7 @@ Bấm vào một ngày: khung **Phụng vụ** cho biết tên lễ, bậc lễ,
 
 - **Phân công** — Lịch phụng vụ tuần, phân công đọc sách/giúp lễ/hát; xác nhận nhiệm vụ của mình.
 - **Ý cầu nguyện** — Gửi công khai hoặc **ẩn danh** (thật sự ẩn danh — không ai xem được tác giả).
-- **Tài liệu phụng vụ** — Nút “📚 Tài liệu phụng vụ”: tìm kinh, lời bài hát, PDF, YouTube (gõ không dấu cũng được).
+- **Tài liệu phụng vụ** — Tab **Tài liệu phụng vụ** (tab thứ hai ở trang Phụng Vụ): tìm kinh, lời bài hát, PDF, YouTube (gõ không dấu cũng được).
 
 <a id="dong-quy"></a>
 
@@ -316,7 +316,7 @@ Bấm vào một ngày: khung **Phụng vụ** cho biết tên lễ, bậc lễ,
 
 *Dành cho: Thành viên, Mọi người* — Xem khoản phải đóng, nộp qua QR và báo “Tôi đã đóng”.
 
-- **Quỹ sinh hoạt** — **600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do Ban điều hành cấu hình).
+- **Quỹ sinh hoạt** — **600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do người quản lý cấu hình).
 - **Điện nước** — Tính chung cả nhà mỗi tháng rồi **chia đều** cho người đang ở.
 
 #### Đóng một khoản
@@ -382,13 +382,13 @@ Mục này có hai tab: **Thành viên** (danh bạ, đơn xin vào nhà, cựu 
 
 1. **Mở hồ sơ** _(Cài Đặt & Hướng dẫn → Cài đặt → Hồ sơ cá nhân)_ — Hoặc ở danh bạ chọn chính mình rồi bấm **Sửa hồ sơ**.
 2. **Học vụ & Tình trạng** — Chọn **trường**, **ngành học** (chọn trong danh sách ngành phổ biến — ngành khác thì chọn **Khác** rồi tự nhập), **khóa** (ví dụ K66), **niên khóa** (năm nhập học → năm dự kiến ra trường), mã sinh viên và tình trạng (đang học, đã tốt nghiệp, bảo lưu, thôi học).
-3. **Thông tin riêng tư & Công giáo** — Ngày sinh, quê quán, phụ huynh… chỉ bạn và Ban điều hành xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật.
+3. **Thông tin riêng tư & Công giáo** — Ngày sinh, quê quán, phụ huynh… chỉ bạn và người quản lý xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật.
 
-> **ℹ️ Lưu ý** — **Tháng/năm vào nhà lưu xá** do Ban điều hành cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ.
+> **ℹ️ Lưu ý** — **Tháng/năm vào nhà lưu xá** do người quản lý cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ.
 
 ### Cựu thành viên
 
-Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc Ban điều hành sửa hồ sơ cựu bằng nút bút chì trên thẻ.
+Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc người quản lý sửa hồ sơ cựu bằng nút bút chì trên thẻ.
 
 <a id="cong-dong"></a>
 
@@ -397,7 +397,7 @@ Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời
 *Dành cho: Thành viên, Mọi người* — Trao đổi (tab Diễn đàn), nhập bảng điểm, xem album ảnh và hỏi trợ lý AI.
 
 - **Diễn đàn** — Tạo chủ đề, bình luận, thích; nội dung vi phạm có thể **báo cáo**.
-- **Học tập** — Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; Ban điều hành xác minh.
+- **Học tập** — Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; người quản lý xác minh.
 - **Khoảnh khắc** — Xem/tải album ảnh sinh hoạt của nhà.
 
 ### AI nhận xét học tập
@@ -408,9 +408,14 @@ _[Minh họa giao diện: Thẻ AI nhận xét kết quả học tập — xem t
 
 ### Trợ lý AI
 
-Nút **Trợ lý AI** (góc dưới) trả lời câu hỏi về nội quy, thông báo, lịch — luôn ghi nguồn.
+Nút **Trợ lý AI** (góc dưới bên phải) mở khung chat **Trợ lý Lưu Xá**. Bạn hỏi bằng tiếng Việt, ví dụ “làm sao bật thông báo đẩy trên iPhone?”, “đăng ký cơm chốt mấy giờ?”, “giờ giới nghiêm là mấy giờ?”.
+- Trợ lý **hướng dẫn thao tác từng bước** (dựa trên sách hướng dẫn này), tra **nội quy**, **thông báo** và **lịch** mà bạn được xem — luôn ghi **nguồn**.
+- Có **nút mở thẳng trang** liên quan (vd. “Cài đặt → Thông báo”) để bạn bấm sang làm ngay.
+- Nhớ vài câu trước đó nên bạn hỏi tiếp ngắn gọn được (“còn trên Android thì sao?”). Bấm biểu tượng ↻ để bắt đầu cuộc trò chuyện mới.
+- Trợ lý biết **vai trò** của bạn: việc cần quyền bạn chưa có thì nó nói rõ cần nhờ ai. Nó **không** tự thao tác thay bạn và không cho xem dữ liệu của người khác.
+- Máy tính: khung nổi ở góc, vẫn dùng được trang phía sau; bấm biểu tượng phóng to để mở rộng. Điện thoại: phủ kín màn hình. Enter để gửi, Shift+Enter để xuống dòng.
 
-> **⚠️ Chú ý** — AI chỉ **gợi ý**. Thông tin quan trọng hãy hỏi lại Ban điều hành.
+> **⚠️ Chú ý** — AI chỉ **gợi ý**. Thông tin quan trọng hãy hỏi lại người quản lý.
 
 <a id="thu-quy"></a>
 
@@ -424,7 +429,7 @@ Nút **Trợ lý AI** (góc dưới) trả lời câu hỏi về nội quy, thô
 
 Chọn ngân hàng, nhập số tài khoản, tên chủ tài khoản (có thể tải ảnh QR của ngân hàng). Thành viên sẽ thấy QR có sẵn số tiền + nội dung khi nộp.
 
-> **ℹ️ Lưu ý** — Thủ quỹ, Trưởng nhà và Admin sửa được. Hãy đảm bảo tài khoản đứng tên pháp nhân/Ban điều hành (tránh tài khoản cá nhân) để minh bạch.
+> **ℹ️ Lưu ý** — Thủ quỹ, Trưởng nhà và Admin sửa được. Hãy đảm bảo tài khoản đứng tên pháp nhân/người quản lý (tránh tài khoản cá nhân) để minh bạch.
 
 #### Lập kỳ quỹ (6 tháng/lần)
 
@@ -477,7 +482,7 @@ Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), m
 
 #### Báo cáo, thống kê & nhắc quỹ
 
-- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, Ban điều hành hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.
+- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.
 - Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.
 - **Tải báo cáo PDF**, **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.
 - Thẻ **AI nhận xét thu chi tháng** so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn bản mới.
@@ -548,7 +553,7 @@ Người ngoài xem được (**không cần đăng nhập**): `/tin-tuc` (bản
 #### Bài viết
 
 1. **Soạn bài** _(Trang công khai → Viết bài mới)_ — Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**, thêm **thẻ** (vd. “tuyển sinh 2026”). Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; khung **Trợ lý AI** bên phải giúp gợi ý đề tài, viết nháp, chỉnh văn (khi Admin đã bật AI).
-2. **Lưu nháp, đăng hoặc hẹn giờ** — **Lưu nháp** thì chỉ Ban điều hành thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy).
+2. **Lưu nháp, đăng hoặc hẹn giờ** — **Lưu nháp** thì chỉ người quản lý thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy).
 3. **Lịch sử chỉnh sửa** — Nút **Lịch sử** ở trình soạn giữ 25 bản gần nhất; xem lại và **Khôi phục** khi lỡ sửa nhầm.
 4. **Chia sẻ** — Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt hiện đẹp khi chia sẻ.
 
@@ -591,7 +596,7 @@ Chọn **theo quý** hoặc **theo năm**: xem nhanh sĩ số, vào/ra nhà, thu
 #### Cấu hình chung
 
 - **Cài Đặt → Cấu hình chung & Định mức**: thông tin nhà, mức quỹ mỗi kỳ, số tháng mỗi kỳ, hạn nộp, ngưỡng duyệt chi, giờ chốt cơm, giờ kinh tối…
-- **Cài Đặt → Danh mục học tập**: trường đại học, năm học kèm học kỳ, năm học hiện hành, nhiệm kỳ Ban điều hành. Mục đang có dữ liệu thì không xóa được (chỉ tạm ẩn).
+- **Cài Đặt → Danh mục học tập**: trường đại học, năm học kèm học kỳ, năm học hiện hành, nhiệm kỳ người quản lý. Mục đang có dữ liệu thì không xóa được (chỉ tạm ẩn).
 
 <a id="zalo-tu-dong"></a>
 
@@ -679,6 +684,16 @@ Danh sách anh em kèm trạng thái (Đang hoạt động / Bị khóa / Vô hi
 #### Lịch phụng vụ
 
 Lịch phụng vụ do ứng dụng tự tính cho mọi năm (theo luật phụng vụ và lịch riêng của Hội đồng Giám mục Việt Nam). **Lời Chúa** được nạp tự động từ dữ liệu mở trên GitHub khi máy chủ khởi động (chỉ tải về, không gửi dữ liệu của nhà ra ngoài); nạp lại ở **Lịch & Sự kiện → Cấu hình lịch phụng vụ → Lời Chúa**.
+
+#### Dọn dữ liệu rác (xóa vĩnh viễn)
+
+Admin có thêm nút **Xóa** (biểu tượng thùng rác) để dọn các bản ghi không cần thiết — ví dụ dữ liệu thử:
+- **Đơn xin phép** (Lịch & Xin phép → Xin phép): xóa được ở mọi trạng thái.
+- **Báo hỏng / sự cố** (Hậu Cần & Trực → Báo hỏng): nút thùng rác cạnh ngày ở phần chi tiết.
+- **Ý cầu nguyện** (Phụng Vụ): nút **Xóa** ở mỗi ý.
+- **Đăng ký tìm hiểu** (Bài viết công khai → Đăng ký tìm hiểu).
+- **Đơn xin vào nhà đã xử lý** (Thành Viên → tab Đơn chờ duyệt, tích “Hiện cả đơn đã xử lý”); đơn đang chờ phải duyệt hoặc từ chối trước.
+Xóa là **vĩnh viễn**, luôn hỏi xác nhận và vẫn để lại dấu vết ở nhật ký hoạt động. Dữ liệu **tài chính** (phiếu chi, khoản thu, sổ quỹ) **không xóa được** — dùng Hủy/Hoàn tác để sổ quỹ luôn khớp. Quyền này tên là **data.purge**, chỉ Admin có.
 
 #### Trợ lý AI
 

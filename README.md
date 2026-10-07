@@ -96,7 +96,7 @@ src/lib/data/          hook SWR theo phân hệ · src/lib/types/ DTO dùng chun
 
 - Mọi truy vấn của người dùng chạy dưới vai trò DB `luuxa_app` (không BYPASSRLS); kết nối đăng nhập `luuxa_api` là NOINHERIT
   nên không có quyền gì nếu quên `SET ROLE`. Bước hệ thống tin cậy (xác lập thuộc tính tệp, dọn dẹp hằng giờ) dùng `luuxa_worker`.
-- Thông tin tầng 2 (ngày sinh, quê quán, phụ huynh) chỉ chính chủ/Ban điều hành; tầng 3 (tôn giáo) cần đồng ý chia sẻ.
+- Thông tin tầng 2 (ngày sinh, quê quán, phụ huynh) chỉ chính chủ/người quản lý; tầng 3 (tôn giáo) cần đồng ý chia sẻ.
 - Tệp chỉ xem được khi người xem có quyền với thực thể chứa tệp (RLS `storage_files`).
 - `DATABASE_URL` bắt buộc trỏ tới localhost; trình kiểm thử e2e báo lỗi nếu trang gửi request ra ngoài.
 

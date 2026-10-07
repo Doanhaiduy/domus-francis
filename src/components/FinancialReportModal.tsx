@@ -328,7 +328,7 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
                         </tbody>
                       </table>
                     </div>
-                    <p className="text-[10px] italic text-gray-500 font-sans">Bảng kê chi tiết từng phiếu chi do Thủ quỹ/Ban điều hành lập và lưu trữ.</p>
+                    <p className="text-[10px] italic text-gray-500 font-sans">Bảng kê chi tiết từng phiếu chi do Thủ quỹ/người quản lý lập và lưu trữ.</p>
                   </>
                 )}
               </div>
@@ -383,7 +383,7 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
                     })}
                   </div>
                 ) : plan ? (
-                  <p className="text-[10px] italic text-gray-500 font-sans">Danh sách từng thành viên chỉ hiển thị với Thủ quỹ/Ban điều hành.</p>
+                  <p className="text-[10px] italic text-gray-500 font-sans">Danh sách từng thành viên chỉ hiển thị với Thủ quỹ/người quản lý.</p>
                 ) : null}
               </div>
 

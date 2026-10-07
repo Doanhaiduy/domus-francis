@@ -71,7 +71,7 @@ AS $$
   SELECT app.is_self(p_member_id)
       OR (app.has_permission('academic.read_all') AND app.has_active_consent(p_member_id, 'academic_share_leadership'))
 $$;
-COMMENT ON FUNCTION app.can_view_academic(uuid) IS 'BR-ACAD-01: điểm cá nhân chỉ chính chủ xem; Ban điều hành xem khi có quyền academic.read_all VÀ chủ thể còn đồng ý academic_share_leadership.';
+COMMENT ON FUNCTION app.can_view_academic(uuid) IS 'BR-ACAD-01: điểm cá nhân chỉ chính chủ xem; người quản lý xem khi có quyền academic.read_all VÀ chủ thể còn đồng ý academic_share_leadership.';
 
 -- Hồ sơ Công giáo: chính chủ, hoặc người có quyền + chủ thể đồng ý chia sẻ
 CREATE OR REPLACE FUNCTION app.can_view_catholic(p_member_id uuid)

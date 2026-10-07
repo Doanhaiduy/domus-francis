@@ -65,7 +65,7 @@ export function LeaveForm({ events, onClose }: { events: LeaveEventOption[]; onC
     setBusy(true);
     try {
       await leaveApi.create({ kind, eventId: kind === "event_absence" ? eventId : null, startsAt: startIso, endsAt: endIso, reason, destination: destination.trim() || null, contactPhone: phone.trim() || null });
-      showToast("success", "Đã gửi đơn — Ban điều hành sẽ xem và trả lời bạn.");
+      showToast("success", "Đã gửi đơn — người quản lý sẽ xem và trả lời bạn.");
       onClose();
     } catch (err) {
       showToast("error", errorMessage(err));

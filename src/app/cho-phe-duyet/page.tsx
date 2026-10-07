@@ -39,7 +39,7 @@ export default function ChoPheDuyetPage() {
         return;
       }
       await refreshSession();
-      showToast("info", "Đơn của bạn vẫn đang chờ Ban điều hành xem xét.");
+      showToast("info", "Đơn của bạn vẫn đang chờ người quản lý xem xét.");
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {
@@ -75,8 +75,8 @@ export default function ChoPheDuyetPage() {
         </h1>
         <p className="text-xs text-gray-500 mt-2 leading-relaxed">
           {rejected
-            ? "Ban điều hành đã xem xét đơn đăng ký của bạn. Bạn có thể liên hệ trực tiếp để biết thêm chi tiết."
-            : "Đơn đăng ký của bạn đã được tiếp nhận. Để đảm bảo an ninh nội bộ, Ban điều hành cần duyệt tài khoản trước khi bạn truy cập các tính năng của nhà."}
+            ? "Người quản lý đã xem xét đơn đăng ký của bạn. Bạn có thể liên hệ trực tiếp để biết thêm chi tiết."
+            : "Đơn đăng ký của bạn đã được tiếp nhận. Để đảm bảo an ninh nội bộ, người quản lý cần duyệt tài khoản trước khi bạn truy cập các tính năng của nhà."}
         </p>
 
         <div className="w-full mt-6 p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center gap-3.5 text-left">
@@ -97,7 +97,7 @@ export default function ChoPheDuyetPage() {
 
         {rejected && app?.reviewNote && (
           <div className="w-full mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-100 text-left text-xs text-rose-900">
-            <b>Ghi chú của Ban điều hành:</b> {app.reviewNote}
+            <b>Ghi chú của người quản lý:</b> {app.reviewNote}
           </div>
         )}
 

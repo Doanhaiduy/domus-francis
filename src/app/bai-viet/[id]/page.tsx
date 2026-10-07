@@ -290,7 +290,7 @@ export default function ArticleEditorPage() {
     return <div className="max-w-md mx-auto mt-16 text-center text-sm text-gray-600">Bạn chưa có quyền quản lý bài viết công khai.</div>;
   }
   if (!isNew && isLoading && !article) {
-    return <div className="max-w-7xl mx-auto space-y-3">{[0, 1, 2].map((i) => <div key={i} className="shimmer-box h-24 rounded-2xl" />)}</div>;
+    return <div className="w-full space-y-3">{[0, 1, 2].map((i) => <div key={i} className="shimmer-box h-24 rounded-2xl" />)}</div>;
   }
   if (!isNew && error && !article) {
     return (
@@ -306,7 +306,7 @@ export default function ArticleEditorPage() {
   const category = ARTICLE_CATEGORIES.find((c) => c.code === form.category);
 
   return (
-    <div className="space-y-4 w-full max-w-7xl mx-auto pb-16">
+    <div className="space-y-4 w-full pb-16">
       {/* THANH HÀNH ĐỘNG (dính khi cuộn) */}
       <div className="sticky top-[68px] z-10 px-3 sm:px-4 py-2.5 rounded-2xl bg-surface-container-lowest/95 backdrop-blur-xl border border-purple-100 shadow-sm flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -316,7 +316,7 @@ export default function ArticleEditorPage() {
           <div className="min-w-0">
             <h1 className="text-sm sm:text-base font-extrabold text-gray-900 truncate">{isNew ? "Viết bài mới" : form.title || "Sửa bài viết"}</h1>
             <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
-              {scheduledNow ? <span className="text-amber-700 font-semibold">⏰ Hẹn giờ đăng</span> : publishedNow ? <span className="text-emerald-700 font-semibold">● Đang công khai</span> : <span>○ Bản nháp — chỉ Ban điều hành thấy</span>}
+              {scheduledNow ? <span className="text-amber-700 font-semibold">⏰ Hẹn giờ đăng</span> : publishedNow ? <span className="text-emerald-700 font-semibold">● Đang công khai</span> : <span>○ Bản nháp — chỉ người quản lý thấy</span>}
               {dirty ? <span className="text-amber-600 font-semibold">· Chưa lưu</span> : !isNew && <span className="text-gray-400">· Đã lưu</span>}
             </p>
           </div>

@@ -216,10 +216,10 @@ export async function getAnnouncement(tx: Tx, id: string): Promise<AnnouncementD
   return (await hydrate(tx, rows, v))[0];
 }
 
-/** Ai đã đọc / chưa đọc — chỉ người đăng và Ban điều hành (announcement.pin). */
+/** Ai đã đọc / chưa đọc — chỉ người đăng và người quản lý (announcement.pin). */
 export async function listReaders(tx: Tx, id: string): Promise<{ read: AnnouncementReaderDto[]; unread: AnnouncementReaderDto[] }> {
   const a = await getAnnouncement(tx, id);
-  if (!a.canManage) throw new ApiError(403, "FORBIDDEN", "Chỉ người đăng và Ban điều hành xem được danh sách đã đọc.");
+  if (!a.canManage) throw new ApiError(403, "FORBIDDEN", "Chỉ người đăng và người quản lý xem được danh sách đã đọc.");
   const rows = (
     await tx.query(
       `SELECT ${personCols("pm")}, r.read_at, r.acknowledged_at
@@ -329,12 +329,12 @@ export async function createAnnouncement(tx: Tx, b: CreateAnnouncementInput): Pr
 
 export async function setPinned(tx: Tx, id: string, pinned: boolean) {
   const r = await tx.query("UPDATE announcements SET is_pinned = $2 WHERE id = $1 AND deleted_at IS NULL", [id, pinned]);
-  if (!r.rowCount) await denyOrMissing(tx, "announcements", id, "Chỉ Ban điều hành được ghim thông báo.");
+  if (!r.rowCount) await denyOrMissing(tx, "announcements", id, "Chỉ người quản lý được ghim thông báo.");
 }
 
 export async function deleteAnnouncement(tx: Tx, id: string) {
   const r = await tx.query("UPDATE announcements SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL", [id]);
-  if (!r.rowCount) await denyOrMissing(tx, "announcements", id, "Chỉ người đăng hoặc Ban điều hành được xóa thông báo này.");
+  if (!r.rowCount) await denyOrMissing(tx, "announcements", id, "Chỉ người đăng hoặc người quản lý được xóa thông báo này.");
   // Gỡ thông báo trong hộp thư của chính mình (của người khác do job dọn khi hết hạn)
   await tx.query(
     "UPDATE notifications SET archived_at = now() WHERE member_id = app.current_member_id() AND entity_table = 'announcements' AND entity_id = $1 AND archived_at IS NULL",

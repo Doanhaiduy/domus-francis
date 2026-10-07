@@ -237,7 +237,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     blocks: [
       { t: "heading", text: "Thông báo & Diễn đàn" },
       { t: "path", label: "Mở ở", items: ["Thông báo & Diễn đàn"] },
-      { t: "md", text: "Mục này có hai tab: **Thông báo** (bảng tin chính thức, luật nhà) và **Diễn đàn** (trao đổi, góp ý). Thông báo có nút **Xác nhận đã đọc** thì bấm để Ban điều hành biết bạn đã nắm. Chuông ở góc trên là **thông báo dành riêng cho bạn** (ca trực, phiếu cần duyệt, kết quả đơn xin phép…)." },
+      { t: "md", text: "Mục này có hai tab: **Thông báo** (bảng tin chính thức, luật nhà) và **Diễn đàn** (trao đổi, góp ý). Thông báo có nút **Xác nhận đã đọc** thì bấm để người quản lý biết bạn đã nắm. Chuông ở góc trên là **thông báo dành riêng cho bạn** (ca trực, phiếu cần duyệt, kết quả đơn xin phép…)." },
       { t: "heading", text: "Lịch & Sự kiện" },
       { t: "md", text: "Xem lịch tháng, bấm vào ngày để xem sự kiện. Chọn một trong ba trạng thái tham dự:" },
       { t: "demo", name: "rsvp", caption: "Thử bấm — đây chỉ là minh họa" },
@@ -260,7 +260,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { title: "Bấm “Gửi đơn xin phép”", text: "Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · tạm vắng nhiều ngày." },
           { title: "Điền thông tin", text: "Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ), ghi **lý do**; ngủ ngoài / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc." },
-          { title: "Chờ duyệt", text: "Trưởng nhà/Ban điều hành nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được." },
+          { title: "Chờ duyệt", text: "Trưởng nhà/người quản lý nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được." },
         ],
       },
       { t: "callout", tone: "tip", text: "Đơn **vắng sự kiện được duyệt** thì điểm danh sự kiện đó ghi **“có phép”** và không bị trừ điểm chuyên cần. Không ai tự duyệt được đơn của chính mình." },
@@ -296,12 +296,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Đăng nhập lại bằng email mới", text: "Hệ thống **không gửi thư xác nhận**, nên hãy gõ cẩn thận. Từ lần sau chỉ đăng nhập được bằng email mới; email cũ không còn dùng được." },
         ],
       },
-      { t: "callout", tone: "warn", title: "Email đăng nhập ≠ Email liên hệ", text: "Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để Ban điều hành liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra." },
+      { t: "callout", tone: "warn", title: "Email đăng nhập ≠ Email liên hệ", text: "Ô **Email liên hệ** trong Hồ sơ cá nhân chỉ để người quản lý liên lạc với bạn, **không dùng để đăng nhập**. Muốn đổi email đăng nhập phải làm ở tab **Bảo mật** như trên. Email phải chưa có ai dùng; nếu báo trùng, hãy chọn email khác hoặc nhờ Admin/Trưởng nhà kiểm tra." },
       { t: "md", text: "Đổi mật khẩu cũng ở tab **Bảo mật** (thẻ **Mật khẩu**); đổi xong mọi thiết bị khác bị đăng xuất." },
       { t: "heading", text: "Thông báo đẩy & cài ứng dụng" },
       { t: "callout", tone: "tip", title: "Có hướng dẫn riêng, từng bước", text: "Cách đưa ứng dụng ra màn hình chính (iPhone, Android, máy tính) và bật thông báo đẩy được viết chi tiết ở mục **Cài ứng dụng & bật thông báo**. Chọn nhóm thông báo muốn nhận và **giờ yên tĩnh** ở **Cài đặt → Thông báo**." },
       { t: "heading", text: "Quyền riêng tư & đồng ý" },
-      { t: "md", text: "Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho Ban điều hành xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay." },
+      { t: "md", text: "Ở tab **Bảo mật** có các công tắc đồng ý do **chính bạn** bật/tắt (mặc định tắt): lưu hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo, chia sẻ bảng điểm, nhu cầu học tập, gắn thẻ tên vào ảnh, nhận thông báo qua kênh thứ ba… Rút đồng ý bất cứ lúc nào, hệ thống chặn việc dùng dữ liệu đó ngay." },
       { t: "heading", text: "Giao diện & cỡ chữ" },
       { t: "md", text: "**Cài đặt → Hồ sơ cá nhân → Giao diện**: chọn Sáng / Tối / Theo hệ thống và **cỡ chữ** Vừa / Lớn / Rất lớn (phóng cả giao diện). Bàn phím: nhấn `Tab` rồi `Enter` ở liên kết **“Bỏ qua đến nội dung chính”** để nhảy thẳng tới nội dung." },
     ],
@@ -343,7 +343,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { icon: "church", title: "Phân công", text: "Lịch phụng vụ tuần, phân công đọc sách/giúp lễ/hát; xác nhận nhiệm vụ của mình." },
           { icon: "shield", title: "Ý cầu nguyện", text: "Gửi công khai hoặc **ẩn danh** (thật sự ẩn danh — không ai xem được tác giả)." },
-          { icon: "book", title: "Tài liệu phụng vụ", text: "Nút “📚 Tài liệu phụng vụ”: tìm kinh, lời bài hát, PDF, YouTube (gõ không dấu cũng được)." },
+          { icon: "book", title: "Tài liệu phụng vụ", text: "Tab **Tài liệu phụng vụ** (tab thứ hai ở trang Phụng Vụ): tìm kinh, lời bài hát, PDF, YouTube (gõ không dấu cũng được)." },
         ],
       },
     ],
@@ -361,7 +361,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         t: "cards",
         cols: 2,
         items: [
-          { icon: "wallet", title: "Quỹ sinh hoạt", text: "**600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do Ban điều hành cấu hình)." },
+          { icon: "wallet", title: "Quỹ sinh hoạt", text: "**600.000 đ/người/năm**, đóng **300.000 đ mỗi kỳ 6 tháng** (mức do người quản lý cấu hình)." },
           { icon: "home", title: "Điện nước", text: "Tính chung cả nhà mỗi tháng rồi **chia đều** cho người đang ở." },
         ],
       },
@@ -442,12 +442,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { title: "Mở hồ sơ", path: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Hồ sơ cá nhân"], text: "Hoặc ở danh bạ chọn chính mình rồi bấm **Sửa hồ sơ**." },
           { title: "Học vụ & Tình trạng", text: "Chọn **trường**, **ngành học** (chọn trong danh sách ngành phổ biến — ngành khác thì chọn **Khác** rồi tự nhập), **khóa** (ví dụ K66), **niên khóa** (năm nhập học → năm dự kiến ra trường), mã sinh viên và tình trạng (đang học, đã tốt nghiệp, bảo lưu, thôi học)." },
-          { title: "Thông tin riêng tư & Công giáo", text: "Ngày sinh, quê quán, phụ huynh… chỉ bạn và Ban điều hành xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật." },
+          { title: "Thông tin riêng tư & Công giáo", text: "Ngày sinh, quê quán, phụ huynh… chỉ bạn và người quản lý xem được. **Hồ sơ Công giáo** (tên thánh, giáo xứ…) chỉ lưu khi bạn đã **đồng ý** ở tab Bảo mật." },
         ],
       },
-      { t: "callout", tone: "info", text: "**Tháng/năm vào nhà lưu xá** do Ban điều hành cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ." },
+      { t: "callout", tone: "info", text: "**Tháng/năm vào nhà lưu xá** do người quản lý cập nhật (ảnh hưởng việc tính quỹ theo kỳ); bạn xem được ngay trong hồ sơ." },
       { t: "heading", text: "Cựu thành viên" },
-      { t: "md", text: "Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc Ban điều hành sửa hồ sơ cựu bằng nút bút chì trên thẻ." },
+      { t: "md", text: "Tab **Cựu thành viên** liệt kê anh em đã ra trường hoặc đã rời nhà: nghề nghiệp, nơi làm việc, thành phố. Bạn chỉ thấy thông tin của cựu **đã đồng ý chia sẻ** (có nhãn “Còn giữ liên lạc”). Cựu thành viên hoặc người quản lý sửa hồ sơ cựu bằng nút bút chì trên thẻ." },
     ],
   },
 
@@ -464,7 +464,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         cols: 3,
         items: [
           { icon: "users", title: "Diễn đàn", text: "Tạo chủ đề, bình luận, thích; nội dung vi phạm có thể **báo cáo**." },
-          { icon: "school", title: "Học tập", text: "Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; Ban điều hành xác minh." },
+          { icon: "school", title: "Học tập", text: "Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; người quản lý xác minh." },
           { icon: "home", title: "Khoảnh khắc", text: "Xem/tải album ảnh sinh hoạt của nhà." },
         ],
       },
@@ -472,8 +472,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       { t: "demo", name: "ai-card", caption: "Thẻ AI nhận xét kết quả học tập" },
       { t: "callout", tone: "info", title: "Riêng tư", text: "AI so sánh năm học này với năm trước, cần bạn **đồng ý một lần**, và chỉ gửi số liệu đã ẩn danh — không tên, trường, mã sinh viên. Bạn có thể rút lại đồng ý bất cứ lúc nào." },
       { t: "heading", text: "Trợ lý AI" },
-      { t: "md", text: "Nút **Trợ lý AI** (góc dưới) trả lời câu hỏi về nội quy, thông báo, lịch — luôn ghi nguồn." },
-      { t: "callout", tone: "warn", text: "AI chỉ **gợi ý**. Thông tin quan trọng hãy hỏi lại Ban điều hành." },
+      { t: "md", text: "Nút **Trợ lý AI** (góc dưới bên phải) mở khung chat **Trợ lý Lưu Xá**. Bạn hỏi bằng tiếng Việt, ví dụ “làm sao bật thông báo đẩy trên iPhone?”, “đăng ký cơm chốt mấy giờ?”, “giờ giới nghiêm là mấy giờ?”.\n- Trợ lý **hướng dẫn thao tác từng bước** (dựa trên sách hướng dẫn này), tra **nội quy**, **thông báo** và **lịch** mà bạn được xem — luôn ghi **nguồn**.\n- Có **nút mở thẳng trang** liên quan (vd. “Cài đặt → Thông báo”) để bạn bấm sang làm ngay.\n- Nhớ vài câu trước đó nên bạn hỏi tiếp ngắn gọn được (“còn trên Android thì sao?”). Bấm biểu tượng ↻ để bắt đầu cuộc trò chuyện mới.\n- Trợ lý biết **vai trò** của bạn: việc cần quyền bạn chưa có thì nó nói rõ cần nhờ ai. Nó **không** tự thao tác thay bạn và không cho xem dữ liệu của người khác.\n- Máy tính: khung nổi ở góc, vẫn dùng được trang phía sau; bấm biểu tượng phóng to để mở rộng. Điện thoại: phủ kín màn hình. Enter để gửi, Shift+Enter để xuống dòng." },
+      { t: "callout", tone: "warn", text: "AI chỉ **gợi ý**. Thông tin quan trọng hãy hỏi lại người quản lý." },
     ],
   },
 
@@ -493,7 +493,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             blocks: [
               { t: "path", items: ["Thu Chi", "Tài khoản nhận quỹ", "Khai báo tài khoản + mã QR"] },
               { t: "md", text: "Chọn ngân hàng, nhập số tài khoản, tên chủ tài khoản (có thể tải ảnh QR của ngân hàng). Thành viên sẽ thấy QR có sẵn số tiền + nội dung khi nộp." },
-              { t: "callout", tone: "info", text: "Thủ quỹ, Trưởng nhà và Admin sửa được. Hãy đảm bảo tài khoản đứng tên pháp nhân/Ban điều hành (tránh tài khoản cá nhân) để minh bạch." },
+              { t: "callout", tone: "info", text: "Thủ quỹ, Trưởng nhà và Admin sửa được. Hãy đảm bảo tài khoản đứng tên pháp nhân/người quản lý (tránh tài khoản cá nhân) để minh bạch." },
             ],
           },
           {
@@ -559,7 +559,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Báo cáo, thống kê & nhắc quỹ",
             blocks: [
-              { t: "md", text: "- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, Ban điều hành hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.\n- Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.\n- **Tải báo cáo PDF**, **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.\n- Thẻ **AI nhận xét thu chi tháng** so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn bản mới." },
+              { t: "md", text: "- Tab **Báo cáo hoạt động** (cạnh tab Thu chi): báo cáo **quý / năm** gồm nhân sự, tài chính, sự kiện & chuyên cần, trực nhật & hậu cần — bấm **Tải báo cáo PDF** để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.\n- Tab **Thống kê & Xuất file**: thu – chi theo **tháng / quý / năm**, biểu đồ, cơ cấu chi; nút **Xuất Excel** và **Xuất PDF**.\n- **Tải báo cáo PDF**, **Gửi Zalo** để gửi nhóm; nút **Soạn tin nhắc quỹ** (AI) soạn lời nhắc không nêu tên ai.\n- Thẻ **AI nhận xét thu chi tháng** so sánh tháng này với tháng trước (khi Admin đã bật AI). Nhận xét lưu 1 giờ để khỏi tốn lượt AI; bấm **Tạo lại** khi muốn bản mới." },
             ],
           },
         ],
@@ -655,7 +655,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
                 t: "steps",
                 items: [
                   { title: "Soạn bài", path: ["Trang công khai", "Viết bài mới"], text: "Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**, thêm **thẻ** (vd. “tuyển sinh 2026”). Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; khung **Trợ lý AI** bên phải giúp gợi ý đề tài, viết nháp, chỉnh văn (khi Admin đã bật AI)." },
-                  { title: "Lưu nháp, đăng hoặc hẹn giờ", text: "**Lưu nháp** thì chỉ Ban điều hành thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy)." },
+                  { title: "Lưu nháp, đăng hoặc hẹn giờ", text: "**Lưu nháp** thì chỉ người quản lý thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy)." },
                   { title: "Lịch sử chỉnh sửa", text: "Nút **Lịch sử** ở trình soạn giữ 25 bản gần nhất; xem lại và **Khôi phục** khi lỡ sửa nhầm." },
                   { title: "Chia sẻ", text: "Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt hiện đẹp khi chia sẻ." },
                 ],
@@ -693,7 +693,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Cấu hình chung",
             blocks: [
-              { t: "md", text: "- **Cài Đặt → Cấu hình chung & Định mức**: thông tin nhà, mức quỹ mỗi kỳ, số tháng mỗi kỳ, hạn nộp, ngưỡng duyệt chi, giờ chốt cơm, giờ kinh tối…\n- **Cài Đặt → Danh mục học tập**: trường đại học, năm học kèm học kỳ, năm học hiện hành, nhiệm kỳ Ban điều hành. Mục đang có dữ liệu thì không xóa được (chỉ tạm ẩn)." },
+              { t: "md", text: "- **Cài Đặt → Cấu hình chung & Định mức**: thông tin nhà, mức quỹ mỗi kỳ, số tháng mỗi kỳ, hạn nộp, ngưỡng duyệt chi, giờ chốt cơm, giờ kinh tối…\n- **Cài Đặt → Danh mục học tập**: trường đại học, năm học kèm học kỳ, năm học hiện hành, nhiệm kỳ người quản lý. Mục đang có dữ liệu thì không xóa được (chỉ tạm ẩn)." },
             ],
           },
         ],
@@ -796,6 +796,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Lịch phụng vụ",
             blocks: [
               { t: "md", text: "Lịch phụng vụ do ứng dụng tự tính cho mọi năm (theo luật phụng vụ và lịch riêng của Hội đồng Giám mục Việt Nam). **Lời Chúa** được nạp tự động từ dữ liệu mở trên GitHub khi máy chủ khởi động (chỉ tải về, không gửi dữ liệu của nhà ra ngoài); nạp lại ở **Lịch & Sự kiện → Cấu hình lịch phụng vụ → Lời Chúa**." },
+            ],
+          },
+          {
+            title: "Dọn dữ liệu rác (xóa vĩnh viễn)",
+            blocks: [
+              { t: "md", text: "Admin có thêm nút **Xóa** (biểu tượng thùng rác) để dọn các bản ghi không cần thiết — ví dụ dữ liệu thử:\n- **Đơn xin phép** (Lịch & Xin phép → Xin phép): xóa được ở mọi trạng thái.\n- **Báo hỏng / sự cố** (Hậu Cần & Trực → Báo hỏng): nút thùng rác cạnh ngày ở phần chi tiết.\n- **Ý cầu nguyện** (Phụng Vụ): nút **Xóa** ở mỗi ý.\n- **Đăng ký tìm hiểu** (Bài viết công khai → Đăng ký tìm hiểu).\n- **Đơn xin vào nhà đã xử lý** (Thành Viên → tab Đơn chờ duyệt, tích “Hiện cả đơn đã xử lý”); đơn đang chờ phải duyệt hoặc từ chối trước.\nXóa là **vĩnh viễn**, luôn hỏi xác nhận và vẫn để lại dấu vết ở nhật ký hoạt động. Dữ liệu **tài chính** (phiếu chi, khoản thu, sổ quỹ) **không xóa được** — dùng Hủy/Hoàn tác để sổ quỹ luôn khớp. Quyền này tên là **data.purge**, chỉ Admin có." },
             ],
           },
           {

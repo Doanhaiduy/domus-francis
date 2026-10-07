@@ -9,7 +9,7 @@ export function JoinCta({ org, title = "Bạn muốn tìm hiểu và vào ở l�
     <section className="rounded-3xl bg-gradient-to-br from-[#5f3add] to-[#7857f8] text-white p-7 sm:p-10 grid gap-6 md:grid-cols-[1.4fr_1fr] items-center">
       <div>
         <h2 className="text-2xl font-extrabold">{title}</h2>
-        <p className="mt-2 text-purple-100 leading-relaxed">Để lại thông tin, Ban điều hành sẽ liên hệ tư vấn và hẹn bạn đến thăm nhà.</p>
+        <p className="mt-2 text-purple-100 leading-relaxed">Để lại thông tin, người quản lý sẽ liên hệ tư vấn và hẹn bạn đến thăm nhà.</p>
         <div className="mt-5 flex flex-wrap gap-2.5">
           <Link href="/lien-he#dang-ky" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff] text-[#5f3add] text-sm font-extrabold hover:bg-[#f3f0ff] transition active:scale-95">
             Đăng ký tìm hiểu <ArrowRight className="w-4 h-4" aria-hidden />

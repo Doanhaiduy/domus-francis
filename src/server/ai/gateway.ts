@@ -42,7 +42,7 @@ export async function ensureBudgetRow(ctx: Pick<Ctx, "dbAs">) {
 function friendlyBlockReason(raw: string): string {
   if (raw.startsWith("BR-AI-03") && raw.includes("ai_academic_summary")) return "Bạn cần đồng ý cho AI nhận xét điểm học tập của mình trước khi dùng tính năng này.";
   if (raw.startsWith("BR-AI-03")) return "Bạn cần đồng ý cho AI xử lý nội dung của mình trước khi dùng tính năng này.";
-  if (raw.startsWith("BR-AI-04")) return "Đã hết ngân sách AI của tháng này. Bạn vẫn làm thủ công được; liên hệ Ban điều hành nếu cần tăng hạn mức.";
+  if (raw.startsWith("BR-AI-04")) return "Đã hết ngân sách AI của tháng này. Bạn vẫn làm thủ công được; liên hệ người quản lý nếu cần tăng hạn mức.";
   if (raw.startsWith("BR-AI-02")) return "Loại dữ liệu này không được phép gửi tới dịch vụ AI bên ngoài.";
   if (raw.includes("toàn hệ thống")) return "Tính năng AI đang tắt. Bạn vẫn làm thủ công như bình thường.";
   if (raw.includes("chưa được bật")) return "Tính năng AI này chưa được bật.";
@@ -79,7 +79,11 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     // Gộp 3 truy vấn độc lập (giới hạn tốc độ, cache, mã thành viên + còn đồng ý không): 1 vòng mạng thay vì 3.
     // Cache chỉ dùng khi người gọi vẫn còn đồng ý mục đích tác vụ yêu cầu (rút đồng ý ⇒ không trả lại kết quả cũ, đi qua cổng DB).
     const [rateR, cachedR, whoR] = await batch(tx, [
-      ["SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour'"],
+      // Trợ lý hỏi đáp (chat) tính hạn mức riêng — không chiếm phần của các tác vụ khác và ngược lại
+      [
+        "SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour' AND (task_code = 'community.policy_rag') = $1::boolean",
+        [code === "community.policy_rag"],
+      ],
       opts.force
         ? ["SELECT NULL::uuid AS suggestion_id WHERE false"]
         : [
@@ -122,8 +126,9 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
       createdAt: prep.cached.created_at.toISOString(),
     };
   }
-  if (prep.rate >= AI_LIMITS.perUserPerHour) {
-    throw new ApiError(429, "RATE_LIMITED", `Bạn đã dùng AI ${AI_LIMITS.perUserPerHour} lần trong giờ qua — thử lại sau ít phút hoặc làm thủ công.`);
+  const rateLimit = code === "community.policy_rag" ? AI_LIMITS.assistantPerHour : AI_LIMITS.perUserPerHour;
+  if (prep.rate >= rateLimit) {
+    throw new ApiError(429, "RATE_LIMITED", `Bạn đã dùng AI ${rateLimit} lần trong giờ qua — thử lại sau ít phút hoặc làm thủ công.`);
   }
 
   await ensureBudgetRow(ctx);

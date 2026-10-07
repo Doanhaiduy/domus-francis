@@ -3,7 +3,7 @@ import { decideSwap, notifyMembers } from "@/server/modules/duty";
 import { SwapDecideSchema } from "@/server/modules/duty-schema";
 import { dm } from "@/lib/duty-format";
 
-/** Bước 3: Ban điều hành duyệt (hoán đổi người trực) hoặc từ chối. BR-DUTY-28: người trong cuộc không tự duyệt. Quyền: duty.swap.approve. */
+/** Bước 3: người quản lý duyệt (hoán đổi người trực) hoặc từ chối. BR-DUTY-28: người trong cuộc không tự duyệt. Quyền: duty.swap.approve. */
 export const POST = api({}, async (ctx) => {
   const id = uuidParam(ctx, "id");
   const b = await ctx.body(SwapDecideSchema);

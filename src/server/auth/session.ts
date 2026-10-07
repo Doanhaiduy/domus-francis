@@ -133,13 +133,13 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       return { ok: false, error: new ApiError(401, "BAD_CREDENTIALS", "Email/SĐT hoặc mật khẩu không đúng.") };
     }
     if (u.status === "locked") {
-      // Admin/Ban điều hành khóa thủ công (Cài đặt → Tài khoản) — khác với khóa tạm do nhập sai mật khẩu
+      // Admin/người quản lý khóa thủ công (Cài đặt → Tài khoản) — khác với khóa tạm do nhập sai mật khẩu
       await attempt(u.id, false, "locked");
-      return { ok: false, error: new ApiError(423, "LOCKED", "Tài khoản đã bị Admin/Ban điều hành khóa. Vui lòng liên hệ để được mở khóa.") };
+      return { ok: false, error: new ApiError(423, "LOCKED", "Tài khoản đã bị Admin/người quản lý khóa. Vui lòng liên hệ để được mở khóa.") };
     }
     if (u.locked) {
       await attempt(u.id, false, "locked");
-      return { ok: false, error: new ApiError(423, "LOCKED", `Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Thử lại sau ${LOCK_MINUTES} phút hoặc liên hệ Ban điều hành.`) };
+      return { ok: false, error: new ApiError(423, "LOCKED", `Tài khoản đang tạm khóa do đăng nhập sai nhiều lần. Thử lại sau ${LOCK_MINUTES} phút hoặc liên hệ người quản lý.`) };
     }
     if (!good) {
       await attempt(u.id, false, "bad_password");
@@ -150,7 +150,7 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
     }
     if (u.status === "disabled") {
       await attempt(u.id, false, "disabled");
-      return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản đã bị vô hiệu hóa. Liên hệ Ban điều hành nếu đây là nhầm lẫn.") };
+      return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản đã bị vô hiệu hóa. Liên hệ người quản lý nếu đây là nhầm lẫn.") };
     }
     // Có xác thực 2 bước ⇒ dừng ở đây: ghi nhận bước mật khẩu đã đúng, phiên chỉ tạo sau khi nhập đúng mã
     if (await hasMfa(tx, u.id)) {
@@ -176,7 +176,7 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
 export async function completeMfaLogin(userId: string, code: string, meta: ReqMeta): Promise<LoginOutcome> {
   return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx): Promise<LoginOutcome> => {
     const u = (await tx.query<{ status: string; locked: boolean }>("SELECT status::text, (locked_until IS NOT NULL AND locked_until > now()) AS locked FROM users WHERE id = $1 AND deleted_at IS NULL", [userId])).rows[0];
-    if (!u || u.status === "disabled" || u.status === "locked") return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản không thể đăng nhập. Liên hệ Ban điều hành.") };
+    if (!u || u.status === "disabled" || u.status === "locked") return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản không thể đăng nhập. Liên hệ người quản lý.") };
     let good = false;
     try {
       good = await verifySecondFactor(tx, userId, code, meta);

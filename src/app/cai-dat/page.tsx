@@ -83,7 +83,7 @@ export default function CaiDatPage() {
   const dirtyIn = (pred: (k: string) => boolean) => draft.dirtyKeys.filter(pred).length;
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-6xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER & QUICK ACTIONS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

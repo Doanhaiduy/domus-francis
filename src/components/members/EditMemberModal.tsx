@@ -218,7 +218,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
 
                 {member.canEditPrivate ? (
                   <>
-                    {section(<Lock className="w-4 h-4" />, "Thông tin riêng tư", "(chỉ chính chủ và Ban điều hành xem được)")}
+                    {section(<Lock className="w-4 h-4" />, "Thông tin riêng tư", "(chỉ chính chủ và người quản lý xem được)")}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <CustomInput label="Ngày sinh" type="date" value={f.birthDate ?? ""} onChange={set("birthDate")} />
                       <CustomInput
@@ -267,7 +267,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                   </>
                 ) : (
                   <p className="text-[11px] text-gray-400 bg-gray-50 rounded-xl px-3 py-2">
-                    Thông tin riêng tư và hồ sơ Công giáo chỉ chính chủ hoặc Ban điều hành được chỉnh sửa.
+                    Thông tin riêng tư và hồ sơ Công giáo chỉ chính chủ hoặc người quản lý được chỉnh sửa.
                   </p>
                 )}
 

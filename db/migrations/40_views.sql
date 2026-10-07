@@ -75,7 +75,7 @@ SELECT ct.member_id,
   FROM contributions ct
  WHERE ct.status IN ('unpaid', 'partial')
  GROUP BY ct.member_id;
-COMMENT ON VIEW v_member_debts IS 'Công nợ quỹ theo thành viên (dùng nhắc đóng quỹ và báo cáo nợ; chỉ Thủ quỹ/Ban điều hành thấy theo RLS).';
+COMMENT ON VIEW v_member_debts IS 'Công nợ quỹ theo thành viên (dùng nhắc đóng quỹ và báo cáo nợ; chỉ Thủ quỹ/người quản lý thấy theo RLS).';
 
 -- Tổng hợp công khai nội bộ (số liệu tổng, không lộ tên người nợ): chạy với quyền định nghĩa
 CREATE OR REPLACE FUNCTION app.fn_finance_summary(p_from date, p_to date)

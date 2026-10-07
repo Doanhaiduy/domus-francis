@@ -77,14 +77,14 @@ export interface AnnouncementDto {
   acknowledgedAt: string | null;
   event: AnnouncementEventDto | null;
   attachments: AttachmentDto[];
-  /** Mô tả đối tượng nhận — chi tiết chỉ người đăng/Ban điều hành thấy */
+  /** Mô tả đối tượng nhận — chi tiết chỉ người đăng/người quản lý thấy */
   targetLabel: string;
   /** Mình thuộc đối tượng nhận */
   isTarget: boolean;
   stats: {
     /** Số thành viên đang ở thuộc đối tượng nhận */
     targetCount: number;
-    /** Số đã đọc / đã xác nhận — null nếu người xem không có quyền xem (chỉ người đăng & Ban điều hành) */
+    /** Số đã đọc / đã xác nhận — null nếu người xem không có quyền xem (chỉ người đăng & người quản lý) */
     readCount: number | null;
     ackCount: number | null;
   };
@@ -183,7 +183,7 @@ export interface PrayerDto {
   isAnonymous: boolean;
   /** Tên tác giả hoặc "Ẩn danh" */
   author: string;
-  /** null với ý ẩn danh (kể cả với Ban điều hành — chỉ xem qua quy trình báo cáo vi phạm) */
+  /** null với ý ẩn danh (kể cả với người quản lý — chỉ xem qua quy trình báo cáo vi phạm) */
   authorId: string | null;
   isMine: boolean;
   createdAt: string;

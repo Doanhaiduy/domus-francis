@@ -8,6 +8,7 @@ import { prayersApi, refreshPrayers } from "@/lib/data/community";
 import { formatRelative } from "@/lib/community-format";
 import { CustomTextarea } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { ReasonDialog } from "@/app/dien-dan/_parts/ReasonDialog";
 
 interface Props {
@@ -199,6 +200,7 @@ export default function PrayerBox({ data, canModerate, canReveal, canPost, showT
                   <ShieldCheck className="w-3 h-3" /> Bỏ qua báo cáo
                 </button>
               )}
+              <PurgeButton variant="text" url={`/api/v1/prayers/${p.id}`} what="ý cầu nguyện này" className="!px-2 !py-0.5 !text-[10px]" />
               {canReveal && p.revealable && !revealed[p.id] && (
                 <button onClick={() => setRevealTarget(p)} className="flex items-center gap-0.5 text-rose-500 hover:text-rose-700">
                   <UserSearch className="w-3 h-3" /> Xem tác giả (có báo cáo)
@@ -223,14 +225,14 @@ export default function PrayerBox({ data, canModerate, canReveal, canPost, showT
         isOpen={!!reportTarget}
         onClose={() => setReportTarget(null)}
         title="Báo cáo ý cầu nguyện vi phạm"
-        description="Báo cáo được gửi tới Ban điều hành. Chỉ khi có báo cáo, Trưởng nhà mới được xem tác giả ý ẩn danh (có ghi nhật ký)."
+        description="Báo cáo được gửi tới người quản lý. Chỉ khi có báo cáo, Trưởng nhà mới được xem tác giả ý ẩn danh (có ghi nhật ký)."
         placeholder="Ý cầu nguyện này vi phạm nội quy như thế nào?"
         confirmText="Gửi báo cáo"
         onConfirm={async (reason) => {
           try {
             await prayersApi.report(reportTarget!.id, reason);
             await refreshPrayers();
-            showToast("success", "Đã gửi báo cáo tới Ban điều hành.");
+            showToast("success", "Đã gửi báo cáo tới người quản lý.");
           } catch (e) {
             showToast("error", errorMessage(e));
             throw e;

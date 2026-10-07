@@ -3,7 +3,7 @@ import "server-only";
 // Gửi email giao dịch (đặt lại mật khẩu, thông báo quan trọng) qua Resend (https://resend.com) bằng HTTP — không thêm thư viện.
 //   RESEND_API_KEY  khóa API (chỉ ở máy chủ)
 //   EMAIL_FROM      địa chỉ gửi đã xác minh miền, vd. "Lưu Xá Phanxicô <no-reply@luuxa.example>"
-// Chưa cấu hình ⇒ emailConfigured() = false và các tính năng cần email tự báo "liên hệ Ban điều hành" thay vì lỗi.
+// Chưa cấu hình ⇒ emailConfigured() = false và các tính năng cần email tự báo "liên hệ người quản lý" thay vì lỗi.
 // Chạy thử không ra ngoài: EMAIL_DEV_LOG=1 in nội dung email ra log; EMAIL_TEST_BASE_URL=http://127.0.0.1:<cổng> trỏ máy chủ giả.
 
 export const emailConfigured = () => !!process.env.EMAIL_FROM && (!!process.env.RESEND_API_KEY || process.env.EMAIL_DEV_LOG === "1");

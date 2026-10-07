@@ -2,7 +2,7 @@
 -- KHỐI 4.3 — BẢNG DỮ LIỆU (2/9): THÀNH VIÊN, DỮ LIỆU NHẠY CẢM, ĐỒNG Ý, NĂM HỌC–NHIỆM KỲ, GÁN VAI TRÒ
 -- Nguyên tắc phân tầng dữ liệu (xem Phần 9):
 --   Tầng 1 (hiển thị nội bộ): members, student_profiles (một phần), member_positions
---   Tầng 2 (nhạy cảm)       : member_private_details, member_guardians   — chỉ chính chủ + Ban điều hành
+--   Tầng 2 (nhạy cảm)       : member_private_details, member_guardians   — chỉ chính chủ + người quản lý
 --   Tầng 3 (rất nhạy cảm)   : catholic_profiles, member_sacraments, CCCD (cột *_enc) — cần đồng ý rõ ràng + nhật ký truy cập
 -- =====================================================================
 
@@ -75,7 +75,7 @@ CREATE TABLE members (
 COMMENT ON TABLE members IS
   'Hồ sơ cộng đoàn (tầng 1, mọi thành viên đăng nhập đều xem được tên/ảnh/trạng thái). Dữ liệu nhạy cảm tách sang member_private_details, member_guardians, catholic_profiles. user_id ON DELETE SET NULL: hồ sơ giữ lại khi tài khoản bị xóa (lưu trữ cựu thành viên). Xóa mềm; quyền xóa dữ liệu xử lý bằng ẩn danh hóa (Phần 9).';
 COMMENT ON COLUMN members.member_no IS 'Số thứ tự thành viên tăng dần (IDENTITY). Mã hiển thị TV0001 do ứng dụng định dạng.';
-COMMENT ON COLUMN members.hide_phone IS 'Thành viên chọn không chia sẻ SĐT cho thành viên khác; API danh bạ che số trừ chính chủ và Ban điều hành.';
+COMMENT ON COLUMN members.hide_phone IS 'Thành viên chọn không chia sẻ SĐT cho thành viên khác; API danh bạ che số trừ chính chủ và người quản lý.';
 
 CREATE TABLE member_private_details (
   member_id               uuid        PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,
@@ -228,7 +228,7 @@ COMMENT ON TABLE data_subject_requests IS
   'Yêu cầu quyền của chủ thể dữ liệu (truy cập, sửa, xóa, rút đồng ý…). due_at mặc định 72 giờ [GIẢ ĐỊNH: theo khuyến nghị Nghị định 13/2023/NĐ-CP — cần tư vấn pháp lý xác nhận].';
 
 -- ---------------------------------------------------------------------
--- 4.3.10  Năm học, học kỳ, nhiệm kỳ Ban điều hành, trách vụ
+-- 4.3.10  Năm học, học kỳ, nhiệm kỳ người quản lý, trách vụ
 -- ---------------------------------------------------------------------
 CREATE TABLE academic_years (
   id          uuid        PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -279,7 +279,7 @@ CREATE TABLE board_terms (
   CONSTRAINT ck_board_terms__closed CHECK ((status = 'closed') = (closed_at IS NOT NULL)),
   CONSTRAINT ex_board_terms__no_overlap EXCLUDE USING gist (daterange(starts_on, ends_on, '[]') WITH &&)
 );
-COMMENT ON TABLE board_terms IS 'Nhiệm kỳ Ban điều hành. Vai trò/trách vụ gắn nhiệm kỳ; khi đóng nhiệm kỳ, các user_roles có valid_to = ends_on tự hết hiệu lực. handover_notes = biên bản bàn giao.';
+COMMENT ON TABLE board_terms IS 'Nhiệm kỳ người quản lý. Vai trò/trách vụ gắn nhiệm kỳ; khi đóng nhiệm kỳ, các user_roles có valid_to = ends_on tự hết hiệu lực. handover_notes = biên bản bàn giao.';
 
 CREATE TABLE positions (
   id          uuid            PRIMARY KEY DEFAULT app.uuid_v7(),

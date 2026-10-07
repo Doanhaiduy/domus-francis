@@ -286,7 +286,7 @@ CREATE POLICY duty_swap_requests__select ON duty_swap_requests FOR SELECT TO luu
 CREATE POLICY duty_swap_requests__insert ON duty_swap_requests FOR INSERT TO luuxa_app
   WITH CHECK (from_member_id = (SELECT app.current_member_id()) AND (SELECT app.has_permission('duty.swap.request')));
 -- BR-DUTY-21: UPDATE trực tiếp chỉ dành cho người xin HỦY đơn còn đang chờ của chính mình (GRANT UPDATE (status) ở 49_b);
--- xác nhận của người nhận và quyết định của Ban điều hành đi qua fn_peer_respond_duty_swap / fn_admin_decide_duty_swap (SECURITY DEFINER).
+-- xác nhận của người nhận và quyết định của người quản lý đi qua fn_peer_respond_duty_swap / fn_admin_decide_duty_swap (SECURITY DEFINER).
 CREATE POLICY duty_swap_requests__update ON duty_swap_requests FOR UPDATE TO luuxa_app
   USING (from_member_id = (SELECT app.current_member_id()) AND status IN ('pending_peer', 'pending_admin'))
   WITH CHECK (from_member_id = (SELECT app.current_member_id()) AND status = 'cancelled');

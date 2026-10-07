@@ -33,7 +33,7 @@ const CONSENT_TEXT: Record<AiConsentPurpose, { body: React.ReactNode; button: st
     body: (
       <>
         Để AI nhận xét kết quả học tập của bạn, hệ thống chỉ gửi <b>điểm trung bình, số tín chỉ và số môn theo từng học kỳ</b> — <b>đã ẩn danh</b> (không tên, không
-        trường, không mã sinh viên, không tên môn) — tới dịch vụ AI bên ngoài (Groq, dự phòng Gemini). Nhận xét <b>chỉ hiển thị cho riêng bạn</b>, Ban điều hành không
+        trường, không mã sinh viên, không tên môn) — tới dịch vụ AI bên ngoài (Groq, dự phòng Gemini). Nhận xét <b>chỉ hiển thị cho riêng bạn</b>, người quản lý không
         xem được. Bạn có thể rút lại đồng ý bất cứ lúc nào ngay tại thẻ nhận xét.
       </>
     ),

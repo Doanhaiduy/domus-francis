@@ -1,5 +1,5 @@
 "use client";
-// Hook dữ liệu + thao tác Cài đặt → "Danh mục học tập": trường đại học, năm học & học kỳ, nhiệm kỳ Ban điều hành (SWR + api).
+// Hook dữ liệu + thao tác Cài đặt → "Danh mục học tập": trường đại học, năm học & học kỳ, nhiệm kỳ người quản lý (SWR + api).
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, inBackground, swrFetcher } from "../api";
 import type {

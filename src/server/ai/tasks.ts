@@ -5,6 +5,7 @@ import { badRequest, forbidden } from "../errors";
 import type { AcademicInsightOutput, AcademicInsightRow, AiOutputMap, AiTaskCode } from "@/lib/types/ai";
 import { maskText, sanitizeOutput } from "./mask";
 import { retrieve } from "./retrieval";
+import { AI_LINKS, ROLE_HINT } from "./knowledge";
 import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
 
 // ---------------------------------------------------------------------
@@ -102,13 +103,40 @@ const duesTask: TaskDef<"finance.dues_message"> = {
   },
 };
 
-// ======================= 2) Hỏi đáp nội quy (RAG) =======================
-const ragIn = z.object({ question: z.string().trim().min(3).max(500) });
+// ======================= 2) Trợ lý Lưu Xá: hướng dẫn thao tác + hỏi đáp nội quy (RAG) =======================
+const ragIn = z.object({
+  question: z.string().trim().min(3).max(500),
+  /** Vài lượt gần nhất của cuộc trò chuyện (để hiểu câu hỏi nối tiếp). */
+  history: z
+    .array(z.object({ q: z.string().trim().max(500), a: z.string().trim().max(1500).optional() }))
+    .max(4)
+    .default([]),
+});
 const ragOut = z.object({
   answer: str(1500, 1),
   confident: z.boolean().default(false),
   sources: z.array(z.string().max(10)).max(8).default([]),
+  actions: z.array(z.string().max(120)).max(4).default([]),
 });
+
+const ASSISTANT_SYSTEM = [
+  BASE_SYSTEM,
+  "",
+  "VAI TRÒ: bạn là Trợ lý Lưu Xá — hướng dẫn viên của ứng dụng quản lý cộng đoàn sinh viên Công giáo Lưu Xá Phanxicô. Bạn giúp thành viên (1) biết cách thao tác trong ứng dụng, (2) tra cứu nội quy, thông báo, lịch sự kiện mà chính họ được xem.",
+  "CÁCH TRẢ LỜI:",
+  "- Chỉ dựa vào tài liệu trong khối dữ liệu (Hướng dẫn, Nội quy, Thông báo, Lịch) và thông tin ngữ cảnh người hỏi. Thiếu thông tin thì nói rõ là chưa có và gợi ý hỏi Trưởng nhà/người quản lý hoặc mở trang Hướng dẫn sử dụng.",
+  "- Câu hỏi 'làm thế nào / ở đâu': trả lời bằng các BƯỚC đánh số, mỗi bước một dòng ngắn (ví dụ \"1. Mở Cài đặt → Thông báo.\"). Tên nút/mục đặt trong dấu ngoặc kép “…”, đường đi menu viết bằng mũi tên →. Nêu rõ khác biệt theo thiết bị (iPhone/Android/máy tính) nếu tài liệu có.",
+  "- Kiểm tra VAI TRÒ của người hỏi: nếu thao tác cần vai trò họ không có, nói rõ cần vai trò nào và nhờ ai (Trưởng nhà, Thủ quỹ, Admin…) thay vì hướng dẫn như thể họ làm được.",
+  "- Bạn KHÔNG thể tự bấm nút hay thay đổi dữ liệu giúp người dùng, và không được tiết lộ dữ liệu cá nhân, tài chính, điểm số của người khác — từ chối khéo và chỉ đường tới đúng nơi.",
+  "- Ngắn gọn: thường 2–6 dòng (dưới ~900 ký tự), không chào hỏi dài, không lặp lại câu hỏi. Có thể in đậm tên mục bằng **…**. Không dùng bảng, tiêu đề hay liên kết.",
+  "- Câu hỏi mơ hồ: hỏi lại đúng một câu ngắn. Câu hỏi ngoài phạm vi ứng dụng/nội quy (tin tức, bài tập, tư vấn cá nhân…): từ chối lịch sự một câu và nói bạn hỗ trợ gì.",
+  "- Mục 'actions': chọn tối đa 3 trang liên quan nhất để người dùng bấm mở, CHỈ dùng đúng đường dẫn trong danh sách 'Trang có thể gợi ý mở'; không có trang phù hợp thì để mảng rỗng.",
+].join("\n");
+
+const SMALL_TALK: { re: RegExp; reply: string }[] = [
+  { re: /^(xin\s*chào|chào|hello|hi|hey|alo)\b/i, reply: "Chào bạn! Mình là Trợ lý Lưu Xá. Bạn cần hỏi cách thao tác (đăng ký cơm, xin phép, đóng quỹ, bật thông báo…), nội quy hay lịch sinh hoạt? Cứ hỏi nhé." },
+  { re: /^(cảm\s*ơn|cám\s*ơn|thanks|thank you|ok|okay|được rồi|tốt rồi)\b/i, reply: "Rất vui được giúp bạn! Cần gì thêm cứ hỏi mình nhé." },
+];
 
 const ragTask: TaskDef<"community.policy_rag"> = {
   code: "community.policy_rag",
@@ -116,26 +144,57 @@ const ragTask: TaskDef<"community.policy_rag"> = {
   input: ragIn,
   async prepare(tx, input: z.infer<typeof ragIn>) {
     const q = await maskText(tx, input.question, false);
-    const chunks = await retrieve(tx, q);
+    const history = await Promise.all(input.history.slice(-3).map(async (h) => ({ q: await maskText(tx, h.q, false), a: h.a ? await maskText(tx, h.a, false) : "" })));
+    const short = q.split(/\s+/).filter(Boolean).length <= 5;
+    const prevQ = short && history.length ? history[history.length - 1].q : "";
+    const chunks = await retrieve(tx, q, 7, 7500, prevQ);
+
     const NONE: AiOutputMap["community.policy_rag"] = {
-      answer: "Mình chưa tìm thấy nội dung nào trong nội quy, thông báo hay lịch sự kiện liên quan đến câu hỏi này. Bạn thử diễn đạt khác hoặc hỏi trực tiếp Ban điều hành nhé.",
+      answer:
+        "Mình chưa tìm thấy nội dung nào trong hướng dẫn, nội quy, thông báo hay lịch sự kiện liên quan đến câu hỏi này. Bạn thử diễn đạt cụ thể hơn (ví dụ “làm sao đổi mật khẩu”, “giờ giới nghiêm là mấy giờ”) hoặc mở mục Hướng dẫn sử dụng; việc cần người quyết định thì hỏi trực tiếp người quản lý nhé.",
       confident: false,
       sources: [],
+      actions: [{ label: "Hướng dẫn sử dụng", href: "/huong-dan" }],
     };
-    const ctx = chunks.map((c) => `[${c.label}] (${c.kind === "policy" ? "Nội quy" : c.kind === "announcement" ? "Thông báo" : "Lịch"}: ${clean(c.title)})\n${clean(c.text)}`).join("\n\n");
+    const talk = SMALL_TALK.find((t) => t.re.test(q.trim()));
+    const shortCircuit: AiOutputMap["community.policy_rag"] | undefined = talk
+      ? { answer: talk.reply, confident: true, sources: [], actions: [] }
+      : chunks.length
+        ? undefined
+        : NONE;
+
+    // Ngữ cảnh người hỏi: vai trò hiện hành (RLS: chỉ thấy vai trò của chính mình)
+    const roles = (
+      await tx.query<{ code: string; name_vi: string }>(
+        `SELECT DISTINCT r.code, r.name_vi
+           FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+          WHERE ur.user_id = app.current_user_id() AND ur.revoked_at IS NULL AND ur.valid_from <= now() AND (ur.valid_to IS NULL OR ur.valid_to > now())`,
+      )
+    ).rows;
+    const roleText = roles.length ? roles.map((r) => r.name_vi || ROLE_HINT[r.code] || r.code).join(", ") : "Thành viên";
+    const today = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "full" }).format(new Date());
+
+    const KIND_LABEL = { policy: "Nội quy", announcement: "Thông báo", event: "Lịch", guide: "Hướng dẫn" } as const;
+    const ctx = chunks.map((c) => `[${c.label}] (${KIND_LABEL[c.kind]}: ${clean(c.title)})\n${clean(c.text)}`).join("\n\n");
+    const links = AI_LINKS.map((l) => `- ${l.href} — ${l.label}: ${l.hint}`).join("\n");
+    const convo = history.length ? history.map((h) => `Người hỏi: ${clean(h.q)}${h.a ? `\nTrợ lý: ${clean(h.a)}` : ""}`).join("\n") : "";
     const user = [
-      "Trả lời câu hỏi của thành viên CHỈ dựa vào các đoạn tài liệu trong khối dữ liệu. Nếu tài liệu không đủ để trả lời, đặt confident=false và nói rõ là chưa có thông tin.",
+      "Trả lời câu hỏi của thành viên theo đúng VAI TRÒ và CÁCH TRẢ LỜI đã nêu. Nếu tài liệu không đủ để trả lời, đặt confident=false và nói rõ là chưa có thông tin (đừng đoán).",
       "Trích nguồn bằng nhãn đoạn (ví dụ S1) trong mảng sources; không dùng nhãn không có trong tài liệu.",
-      'Lược đồ: {"answer": "<câu trả lời>", "confident": true|false, "sources": ["S1"]}',
-      `Câu hỏi: ${clean(q)}`,
-      block(ctx),
+      'Lược đồ: {"answer": "<câu trả lời>", "confident": true|false, "sources": ["S1"], "actions": ["/duong-dan"]}',
+      `Ngữ cảnh người hỏi: vai trò = ${roleText}; hôm nay = ${today}.`,
+      `Trang có thể gợi ý mở (chỉ chọn trong danh sách này):\n${links}`,
+      `Câu hỏi hiện tại: ${clean(q)}`,
+      block(`${convo ? `LỊCH SỬ TRÒ CHUYỆN GẦN ĐÂY\n${convo}\n\n` : ""}TÀI LIỆU\n${ctx}`),
     ].join("\n");
     return {
-      system: BASE_SYSTEM,
+      system: ASSISTANT_SYSTEM,
       user,
-      hashInput: `${q.toLowerCase()}|${chunks.map((c) => `${c.label}:${c.title}:${c.text.length}`).join(",")}`,
-      inputRef: { kind: "policy_rag", chunks: chunks.length },
-      shortCircuit: chunks.length ? undefined : NONE,
+      hashInput: `${q.toLowerCase()}|${prevQ.toLowerCase()}|${roleText}|${chunks.map((c) => `${c.label}:${c.title}:${c.text.length}`).join(",")}`,
+      inputRef: { kind: "policy_rag", chunks: chunks.length, turns: history.length },
+      temperature: 0.2,
+      maxOutputTokens: 700,
+      shortCircuit,
       parse(raw) {
         const o = ragOut.parse(raw);
         const known = new Map(chunks.map((c) => [c.label, c]));
@@ -143,8 +202,15 @@ const ragTask: TaskDef<"community.policy_rag"> = {
           .map((l) => known.get(l))
           .filter((c): c is NonNullable<typeof c> => !!c)
           .map((c) => ({ label: c.label, title: sanitizeOutput(c.title, 120), kind: c.kind }));
+        // Chỉ nhận đường dẫn nằm trong danh sách cho phép (chống mô hình bịa/chèn liên kết lạ)
+        const byHref = new Map(AI_LINKS.map((l) => [l.href, l]));
+        const actions = [...new Set(o.actions.map((a) => a.trim()))]
+          .map((h) => byHref.get(h))
+          .filter((l): l is NonNullable<typeof l> => !!l)
+          .slice(0, 3)
+          .map((l) => ({ label: l.label, href: l.href }));
         // Không có nguồn hợp lệ ⇒ không thể tuyên bố chắc chắn.
-        return { answer: sanitizeOutput(o.answer, 1500), confident: o.confident && sources.length > 0, sources };
+        return { answer: sanitizeOutput(o.answer, 1500), confident: o.confident && sources.length > 0, sources, actions };
       },
     };
   },
@@ -402,7 +468,7 @@ const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
   suggestionType: "finance_insight",
   input: finIn,
   async prepare(tx, input: z.infer<typeof finIn>) {
-    // Quyền: số liệu tổng hợp (finance.summary.read) + vai trò quản lý quỹ (Thủ quỹ/Ban điều hành). Thành viên thường chỉ xem
+    // Quyền: số liệu tổng hợp (finance.summary.read) + vai trò quản lý quỹ (Thủ quỹ/người quản lý). Thành viên thường chỉ xem
     // tổng quan trên trang Thu chi — không chạy AI (mỗi người một lượt gọi/ngày sẽ tốn ngân sách mà không thêm thông tin).
     const p = (
       await tx.query<{ today: string; summary: boolean; board: boolean; exp_all: boolean; contrib_all: boolean }>(
@@ -411,7 +477,7 @@ const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
                 app.has_permission('finance.expense.read_all') AS exp_all, app.has_permission('finance.contribution.read_all') AS contrib_all`,
       )
     ).rows[0];
-    if (!p.summary || !p.board) throw forbidden("Nhận xét thu chi bằng AI chỉ dành cho Thủ quỹ và Ban điều hành.");
+    if (!p.summary || !p.board) throw forbidden("Nhận xét thu chi bằng AI chỉ dành cho Thủ quỹ và người quản lý.");
     const thisMonth = p.today.slice(0, 7);
     const month = input.month ?? thisMonth;
     if (month > thisMonth) throw badRequest("Chưa có số liệu cho tháng trong tương lai.");
@@ -548,7 +614,7 @@ const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
       "Nhận xét tình hình thu chi quỹ của cộng đoàn trong tháng đang xem so với tháng trước, CHỈ dựa vào số liệu trong khối dữ liệu (hệ thống đã tính sẵn — không tự tính lại, không bịa số, không nêu hay đoán tên người).",
       "Giọng văn: khách quan, ngắn gọn, mang tính xây dựng, không trách móc.",
       "headline: 1 câu ≤ 120 ký tự nêu điểm chính. summary: 2–4 câu. comparisons: với MỖI nhãn trong bảng so sánh viết 1 nhận xét ngắn (≤ 150 ký tự), giữ nguyên nhãn (không kèm ngoặc vuông).",
-      "highlights: tối đa 4 điểm tích cực; warnings: tối đa 4 điều cần lưu ý (chi tăng mạnh, thu quỹ chậm, quá hạn, số dư giảm…); suggestions: tối đa 4 gợi ý cụ thể cho Thủ quỹ/Ban điều hành. Không có ý thì để mảng rỗng.",
+      "highlights: tối đa 4 điểm tích cực; warnings: tối đa 4 điều cần lưu ý (chi tăng mạnh, thu quỹ chậm, quá hạn, số dư giảm…); suggestions: tối đa 4 gợi ý cụ thể cho Thủ quỹ/người quản lý. Không có ý thì để mảng rỗng.",
       'Lược đồ: {"headline":"…","summary":"…","comparisons":[{"label":"Tổng thu","comment":"…"}],"highlights":["…"],"warnings":["…"],"suggestions":["…"]}',
       block(data),
     ].join("\n");
@@ -796,7 +862,7 @@ const academicHouseTask: TaskDef<"academic.house_insight"> = {
   async prepare(tx) {
     const [pR, yearsR] = await batchRows(tx, [["SELECT app.local_today()::text AS today, app.has_permission('academic.read_aggregate') AS agg"], YEARS_SQL]);
     const { today, agg } = pR[0] as { today: string; agg: boolean };
-    if (!agg) throw forbidden("Nhận xét học tập toàn nhà chỉ dành cho Ban điều hành.");
+    if (!agg) throw forbidden("Nhận xét học tập toàn nhà chỉ dành cho người quản lý.");
     const { cur, prev } = pickYears(yearsR as YearRow[], today);
     const ids = [cur?.id, prev?.id].filter((x): x is string => !!x);
     // Hàm DB tự kiểm quyền và bỏ học kỳ có < 3 bảng điểm (k-anonymity) — chỉ số liệu tổng hợp, không tên/trường/mã SV.
@@ -870,7 +936,7 @@ const academicHouseTask: TaskDef<"academic.house_insight"> = {
       "Nhận xét tình hình học tập CHUNG của cộng đoàn sinh viên dựa CHỈ vào số liệu tổng hợp ẩn danh trong khối dữ liệu; không suy đoán về bất kỳ cá nhân nào.",
       "So sánh năm học hiện tại với năm học trước nếu có (hoặc theo so sánh học kỳ hệ thống đã nêu). Xu hướng đã do hệ thống tính — không nói ngược lại.",
       ACAD_TONE,
-      "headline ≤ 120 ký tự; summary 2–4 câu; points: tối đa 5 ý; suggestions: tối đa 4 gợi ý cho Ban điều hành để hỗ trợ học tập chung (nhóm học, phụ đạo, giờ học chung…), mang tính khích lệ.",
+      "headline ≤ 120 ký tự; summary 2–4 câu; points: tối đa 5 ý; suggestions: tối đa 4 gợi ý cho người quản lý để hỗ trợ học tập chung (nhóm học, phụ đạo, giờ học chung…), mang tính khích lệ.",
       ACAD_SCHEMA,
       block(data),
     ].join("\n");

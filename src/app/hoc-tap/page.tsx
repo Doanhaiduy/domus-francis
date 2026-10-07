@@ -95,7 +95,7 @@ export default function HocTapPage() {
   }, [scopeRecords, selectedRank, selectedStatus, searchTerm]);
 
   // Thống kê từ dữ liệu nhìn thấy được, theo phạm vi niên khóa/học kỳ đang chọn
-  // Ban điều hành: chỉ tính bảng điểm đã nộp/xác minh (số liệu chính thức, không lẫn bản nháp của chính mình)
+  // người quản lý: chỉ tính bảng điểm đã nộp/xác minh (số liệu chính thức, không lẫn bản nháp của chính mình)
   const statsRecords = useMemo(() => (leaderView ? scopeRecords.filter(official) : scopeRecords), [scopeRecords, leaderView]);
   const stats = useMemo(() => computeStats(statsRecords), [statsRecords]);
   const pendingForMe = useMemo(() => records.filter((r) => r.can.verify), [records]);
@@ -122,7 +122,7 @@ export default function HocTapPage() {
     try {
       const res = await academicApi.act(r.id, action, reason ?? null);
       const msg: Record<AcademicAction, string> = {
-        submit: "Đã nộp bảng điểm — chờ Ban điều hành xác minh.",
+        submit: "Đã nộp bảng điểm — chờ người quản lý xác minh.",
         withdraw: "Đã rút bảng điểm về bản nháp — có thể chỉnh sửa.",
         verify: `Đã xác minh bảng điểm của ${r.memberName}.`,
         reject: `Đã trả lại bảng điểm cho ${r.memberName}.`,
@@ -174,7 +174,7 @@ export default function HocTapPage() {
   );
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -310,8 +310,8 @@ export default function HocTapPage() {
         <div className="flex items-center gap-2 text-[11px] text-gray-500 px-1 -mt-2">
           <Lock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
           {leaderView
-            ? "Ban điều hành chỉ xem bảng điểm đã nộp của anh em đồng ý chia sẻ kết quả học tập; số liệu trên tính từ các bảng điểm đó."
-            : "Điểm số là dữ liệu riêng tư: bạn chỉ xem được bảng điểm của chính mình; Ban điều hành xem khi bạn đã nộp và đồng ý chia sẻ."}
+            ? "Người quản lý chỉ xem bảng điểm đã nộp của anh em đồng ý chia sẻ kết quả học tập; số liệu trên tính từ các bảng điểm đó."
+            : "Điểm số là dữ liệu riêng tư: bạn chỉ xem được bảng điểm của chính mình; người quản lý xem khi bạn đã nộp và đồng ý chia sẻ."}
         </div>
       )}
 
@@ -436,8 +436,8 @@ export default function HocTapPage() {
               <h3 className="text-base font-bold text-gray-900">{canWrite ? "Bạn chưa có bảng điểm nào" : "Chưa có bảng điểm nào để hiển thị"}</h3>
               <p className="text-xs text-gray-500 max-w-sm">
                 {canWrite
-                  ? "Nhập điểm quá trình/giữa kỳ, cuối kỳ của học kỳ này và tải ảnh minh chứng để Ban điều hành xác minh."
-                  : "Bảng điểm chỉ hiển thị khi anh em đã nộp và đồng ý chia sẻ với Ban điều hành."}
+                  ? "Nhập điểm quá trình/giữa kỳ, cuối kỳ của học kỳ này và tải ảnh minh chứng để người quản lý xác minh."
+                  : "Bảng điểm chỉ hiển thị khi anh em đã nộp và đồng ý chia sẻ với người quản lý."}
               </p>
               {canWrite && (
                 <button onClick={openCreate} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-[#4d2dbf] transition shadow-xs">

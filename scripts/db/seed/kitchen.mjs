@@ -56,7 +56,7 @@ export async function seed(ctx) {
   const lead = userOf["Đình Khôi"] ?? ids.userByRole.kitchen_lead;
   const head = ids.userByRole.house_head;
 
-  // 1) Ban điều hành bật lại phân hệ (khóa feature.meals.enabled cần setting.write)
+  // 1) người quản lý bật lại phân hệ (khóa feature.meals.enabled cần setting.write)
   await ctx.as(head);
   await q("UPDATE settings SET value = 'true'::jsonb, updated_by = $1 WHERE key = 'feature.meals.enabled'", [head]);
 

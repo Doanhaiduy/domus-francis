@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { CheckCircle2, XCircle, Mail, Phone, GraduationCap, Clock, Inbox } from "lucide-react";
 import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { membersApi, refreshPeople, useApplications } from "@/lib/data/members";
@@ -73,9 +74,12 @@ export default function ApplicationsPanel() {
                     <Clock className="w-3 h-3" /> {new Date(a.createdAt).toLocaleString("vi-VN")}
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${pending ? "bg-amber-100 text-amber-800" : a.status === "approved" ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
-                  {STATUS[a.status] ?? a.status}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${pending ? "bg-amber-100 text-amber-800" : a.status === "approved" ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"}`}>
+                    {STATUS[a.status] ?? a.status}
+                  </span>
+                  {!pending && <PurgeButton variant="icon" url={`/api/v1/applications/${a.id}`} what={`đơn đăng ký của ${a.fullName}`} refreshPrefixes={["/api/v1/applications", "/api/v1/members"]} />}
+                </div>
               </div>
               <div className="text-xs text-gray-600 space-y-1">
                 {a.email && <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-400" /> {a.email}</div>}

@@ -560,7 +560,7 @@ function DienDanContent() {
           <>
             <b>{reportTarget?.title}</b>
             <br />
-            Ban điều hành sẽ xem xét và xử lý. Danh tính người báo cáo chỉ người kiểm duyệt thấy.
+            Người quản lý sẽ xem xét và xử lý. Danh tính người báo cáo chỉ người kiểm duyệt thấy.
           </>
         }
         placeholder="Nội dung này vi phạm nội quy như thế nào?"
@@ -570,7 +570,7 @@ function DienDanContent() {
           try {
             await (t.kind === "post" ? forumApi.report(t.id, reason) : forumApi.reportComment(t.id, reason));
             await Promise.all([refreshForum(), mutateDetail()]);
-            showToast("success", "Đã gửi báo cáo tới Ban điều hành. Cảm ơn bạn!");
+            showToast("success", "Đã gửi báo cáo tới người quản lý. Cảm ơn bạn!");
           } catch (e) {
             showToast("error", errorMessage(e));
             throw e;

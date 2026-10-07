@@ -1,5 +1,6 @@
 import "server-only";
 import type { Tx } from "../db";
+import { guideChunks } from "./knowledge";
 
 // ---------------------------------------------------------------------
 // Truy hồi cho trợ lý hỏi đáp (RAG, BR-AI-08): chỉ đọc nội dung mà CHÍNH NGƯỜI HỎI được phép xem — truy vấn chạy
@@ -9,7 +10,7 @@ import type { Tx } from "../db";
 
 export interface Chunk {
   label: string;
-  kind: "policy" | "announcement" | "event";
+  kind: "policy" | "announcement" | "event" | "guide";
   title: string;
   text: string;
   score: number;
@@ -53,8 +54,9 @@ function split(md: string, max = 900): string[] {
 const fmtVn = (d: Date) =>
   new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" }).format(d);
 
-export async function retrieve(tx: Tx, question: string, topK = 6, maxChars = 6000): Promise<Chunk[]> {
-  const q = [...new Set(tokens(question))];
+export async function retrieve(tx: Tx, question: string, topK = 7, maxChars = 7500, extraQuery = ""): Promise<Chunk[]> {
+  // extraQuery: câu hỏi trước đó trong cuộc trò chuyện — dùng cho câu hỏi nối tiếp ngắn ("còn trên iPhone thì sao?")
+  const q = [...new Set(tokens(`${question} ${extraQuery}`))];
   if (!q.length) return [];
 
   const raw: Omit<Chunk, "label" | "score">[] = [];
@@ -89,6 +91,9 @@ export async function retrieve(tx: Tx, question: string, topK = 6, maxChars = 60
       text: `Sự kiện "${e.title}" — ${fmtVn(e.starts_at)}${e.location_text ? ` tại ${e.location_text}` : ""}.${e.description ? ` ${e.description.slice(0, 400)}` : ""}`,
     });
 
+  // Hướng dẫn sử dụng của ứng dụng (cách thao tác, đường đi menu) — tài liệu công khai, không phụ thuộc quyền xem dữ liệu
+  for (const g of guideChunks()) raw.push({ kind: "guide", title: g.title, text: g.text });
+
   // Chấm điểm kiểu TF-IDF rút gọn: từ hiếm (ví dụ "nghiêm") nặng hơn từ phổ biến ("giờ", "nhà"); tiêu đề nặng gấp đôi;
   // cặp từ liền kề trong câu hỏi xuất hiện liền kề trong đoạn được cộng thêm; nội quy được ưu tiên nhẹ so với thông báo/lịch.
   const docs2 = raw.map((r) => ({ r, body: tokens(r.text), head: new Set(tokens(r.title)) }));
@@ -96,6 +101,7 @@ export async function retrieve(tx: Tx, question: string, topK = 6, maxChars = 60
   for (const d of docs2) for (const t of new Set([...d.body, ...d.head])) df.set(t, (df.get(t) ?? 0) + 1);
   const idf = (t: string) => Math.log(1 + docs2.length / (df.get(t) ?? 1));
   const qTok = tokens(question);
+  const howTo = /(lam sao|cach|the nao|o dau|huong dan|bam|nut|buoc|dang nhap|mat khau|thong bao|cai dat|bat|tat|doi|xoa|sua)/.test(fold(question));
   const bigrams = qTok.slice(0, -1).map((t, i) => `${t} ${qTok[i + 1]}`);
 
   const scored = docs2
@@ -105,7 +111,7 @@ export async function retrieve(tx: Tx, question: string, topK = 6, maxChars = 60
       let s = 0;
       for (const t of q) s += idf(t) * ((set.has(t) ? 1 : 0) + (head.has(t) ? 2 : 0));
       for (const bg of bigrams) if (joined.includes(` ${bg} `)) s += 1.5 * Math.max(...bg.split(" ").map(idf));
-      const prior = r.kind === "policy" ? 1.25 : 1;
+      const prior = r.kind === "policy" ? 1.25 : r.kind === "guide" ? (howTo ? 1.35 : 1.05) : 1;
       return { ...r, score: (s * prior) / Math.sqrt(1 + r.text.length / 800) };
     })
     .filter((r) => r.score > 0)

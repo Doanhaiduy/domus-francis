@@ -28,6 +28,8 @@ const REGISTRY: Record<string, React.ComponentType> = {
   aiAssistant: AiAssistantModal,
 };
 
+const DOCKED = new Set(["aiAssistant"]);
+
 export const Modals: React.FC = () => {
   const { activeModal, closeModal } = useApp();
 
@@ -41,6 +43,15 @@ export const Modals: React.FC = () => {
 
   const Body = activeModal ? REGISTRY[activeModal] : null;
   if (!Body) return null;
+
+  // Khung chat nổi: không có lớp phủ, người dùng vẫn thao tác được trên trang phía sau
+  if (activeModal && DOCKED.has(activeModal)) {
+    return (
+      <Portal>
+        <Body />
+      </Portal>
+    );
+  }
 
   return (
     <Portal>

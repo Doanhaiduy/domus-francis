@@ -1,4 +1,5 @@
 import { api, uuidParam } from "@/server/http";
+import { adminDelete } from "@/server/modules/admin-delete";
 import { notFound } from "@/server/errors";
 import { listIssues, updateIssue } from "@/server/modules/facilities";
 import { IssueUpdateSchema } from "@/server/modules/duty-schema";
@@ -30,3 +31,6 @@ export const PATCH = api({}, async (ctx) => {
   }
   return out.issue;
 });
+
+/** Admin dọn dữ liệu rác: xóa vĩnh viễn phiếu báo hỏng (quyền data.purge). */
+export const DELETE = api({}, async (ctx) => ctx.db((tx) => adminDelete(tx, "issue", uuidParam(ctx, "id"))));

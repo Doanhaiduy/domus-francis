@@ -6,10 +6,8 @@ import {
   Bell,
   Pin,
   Trash2,
-  Download,
   CheckCircle,
   Plus,
-  FileText,
   Search,
   Users,
   CalendarCheck,
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import HouseRules from "./_components/HouseRules";
+import { AttachmentCard } from "@/components/ui/AttachmentCard";
 import { useZaloSend } from "@/lib/zalo-client";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -35,7 +34,6 @@ import {
   formatAnnouncementForZalo,
   formatDate,
   formatDateTime,
-  formatFileSize,
   formatRelative,
 } from "@/lib/community-format";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -402,30 +400,13 @@ function ThongBaoContent() {
               </div>
             )}
 
-            {selectedAnn.attachments.map((f) => (
-              <div key={f.id} className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-primary flex items-center justify-center font-bold shrink-0">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-gray-900 truncate">{f.name}</div>
-                    <div className="text-[10px] text-gray-400">
-                      {formatFileSize(f.sizeBytes)} · {f.mime === "application/pdf" ? "Tài liệu PDF" : "Hình ảnh"} đính kèm
-                    </div>
-                  </div>
-                </div>
-                <a
-                  href={f.downloadUrl}
-                  download={f.name}
-                  onClick={() => showToast("success", `Đang tải xuống ${f.name}…`)}
-                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 transition flex items-center gap-1.5 shadow-2xs active:scale-95 shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Tải về</span>
-                </a>
+            {selectedAnn.attachments.length > 0 && (
+              <div className="space-y-3">
+                {selectedAnn.attachments.map((f) => (
+                  <AttachmentCard key={f.id} file={f} onDownload={() => showToast("success", `Đang tải xuống ${f.name}…`)} />
+                ))}
               </div>
-            ))}
+            )}
 
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">

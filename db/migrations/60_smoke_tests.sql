@@ -284,7 +284,7 @@ BEGIN
   ASSERT app_test.n('SELECT 1 FROM member_private_details') = 0, 'Admin kỹ thuật không thấy dữ liệu tầng 2';
   ASSERT app_test.n('SELECT 1 FROM member_guardians') = 0, 'Admin kỹ thuật không thấy người giám hộ';
 
-  -- Dữ liệu Công giáo: ghi bị chặn nếu chưa có đồng ý; sau khi đồng ý thì ghi được; Ban điều hành chỉ xem khi chủ thể đồng ý chia sẻ
+  -- Dữ liệu Công giáo: ghi bị chặn nếu chưa có đồng ý; sau khi đồng ý thì ghi được; người quản lý chỉ xem khi chủ thể đồng ý chia sẻ
   PERFORM app_test.as_user(v_m1);
   PERFORM app_test.expect_error(format($q$INSERT INTO catholic_profiles (member_id, holy_name, parish_name) VALUES (%L, 'Giuse', 'Giáo xứ Trung Lao')$q$, v_mem1), 'chưa đồng ý xử lý dữ liệu tôn giáo');
   INSERT INTO consents (member_id, purpose_code, policy_version, method) VALUES (v_mem1, 'catholic_profile', 1, 'in_app');
@@ -1279,7 +1279,7 @@ BEGIN
   PERFORM app_test.as_user(v_head);
   UPDATE contributions SET discount_vnd = 100000, discount_reason = 'Hoàn cảnh khó khăn' WHERE id = v_c4_0;
   ASSERT (SELECT discount_approved_by FROM contributions WHERE id = v_c4_0) = v_head, 'người duyệt miễn giảm do hệ thống ghi = Trưởng nhà';
-  UPDATE contributions SET discount_vnd = amount_due_vnd, discount_reason = 'Miễn toàn phần theo quyết định Ban điều hành' WHERE id = v_c4_1;
+  UPDATE contributions SET discount_vnd = amount_due_vnd, discount_reason = 'Miễn toàn phần theo quyết định người quản lý' WHERE id = v_c4_1;
   ASSERT (SELECT status FROM contributions WHERE id = v_c4_1) = 'waived', 'miễn toàn phần ⇒ waived';
   PERFORM app_test.expect_error(format($q$UPDATE contributions SET discount_vnd = amount_due_vnd + 1, discount_reason = 'Quá mức' WHERE id = %L$q$, v_c4_0), 'ck_contributions__discount_le_due');
   PERFORM app_test.as_user(v_treas);
@@ -2484,7 +2484,7 @@ BEGIN
   -- ===== Tạo album: RLS (tác giả = chính mình, có album.create) + bảo vệ cột + ràng buộc dữ liệu =====
   PERFORM app_test.as_user(v_m1);
   INSERT INTO albums (title, category_id, taken_on, author_member_id, tags) VALUES ('Dã ngoại Suối Tiên', v_cat, app.local_today() - 3, v_mem1, ARRAY['dangoai']) RETURNING id INTO v_pub;
-  INSERT INTO albums (title, category_id, taken_on, author_member_id, visibility) VALUES ('Họp Ban điều hành', v_cat, app.local_today(), v_mem1, 'leadership') RETURNING id INTO v_lead;
+  INSERT INTO albums (title, category_id, taken_on, author_member_id, visibility) VALUES ('Họp người quản lý', v_cat, app.local_today(), v_mem1, 'leadership') RETURNING id INTO v_lead;
   INSERT INTO albums (title, category_id, taken_on, author_member_id, visibility) VALUES ('Nháp riêng tư', v_cat, app.local_today(), v_mem1, 'private') RETURNING id INTO v_priv;
   INSERT INTO albums (title, category_id, taken_on, author_member_id) VALUES ('Giải bóng đá mùa hè', v_cat, app.local_today() - 10, v_mem1) RETURNING id INTO v_hid;
   ASSERT (SELECT likes_count = 0 AND photos_count = 0 AND NOT is_featured AND status = 'published' AND visibility = 'community' AND version = 1 FROM albums WHERE id = v_pub), 'album mới: công khai trong cộng đoàn, không nổi bật, bộ đếm 0';

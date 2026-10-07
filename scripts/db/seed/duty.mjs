@@ -227,7 +227,7 @@ export async function seed(ctx) {
     await clearReason();
 
     // ------------------------------------------------------------------
-    // 3) Đơn đổi ca: một đơn chờ người nhận, một đơn chờ Ban điều hành duyệt
+    // 3) Đơn đổi ca: một đơn chờ người nhận, một đơn chờ người quản lý duyệt
     // ------------------------------------------------------------------
     const memberOf = (mockId) => created.filter((c) => c.members.includes(mockId));
     const busyAt = (mockId, date, shift) => created.some((c) => c.date === date && c.shift === shift && c.members.includes(mockId));

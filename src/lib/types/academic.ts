@@ -126,7 +126,7 @@ export interface AcademicRecordInput {
   goalsVisibility?: GoalsVisibility;
   supportNeeded?: boolean;
   supportSubject?: string | null;
-  /** Lưu xong thì nộp luôn để Ban điều hành xác minh */
+  /** Lưu xong thì nộp luôn để người quản lý xác minh */
   submit?: boolean;
 }
 

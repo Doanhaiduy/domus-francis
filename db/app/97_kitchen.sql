@@ -8,7 +8,7 @@
 -- meal.manage / meal.register / app.is_self, GRANT mức cột, OWNER luuxa_owner, trigger touch/audit, IDEMPOTENT.
 --
 -- KHÔNG bật cờ feature.meals.enabled ở đây (smoke test kiểm định khẳng định mặc định đang tạm hoãn); việc bật là
--- quyết định của Ban điều hành (Cài đặt / nút "Bật lại phân hệ" trên /bep-com cho người có setting.write).
+-- quyết định của người quản lý (Cài đặt / nút "Bật lại phân hệ" trên /bep-com cho người có setting.write).
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -48,7 +48,7 @@ BEGIN
     RAISE EXCEPTION 'BR-MEAL-02: bạn không có quyền đăng ký suất ăn.' USING ERRCODE = 'insufficient_privilege';
   END IF;
   IF NOT app.setting_bool('feature.meals.enabled') THEN
-    RAISE EXCEPTION 'BR-MEAL-00: phân hệ Bếp & Cơm đang tạm hoãn theo quyết định Ban điều hành.' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'BR-MEAL-00: phân hệ Bếp & Cơm đang tạm hoãn theo quyết định người quản lý.' USING ERRCODE = 'check_violation';
   END IF;
   SELECT m.id INTO v_id FROM public.meal_menus m WHERE m.menu_date = p_date AND m.meal_type = p_meal;
   IF FOUND THEN

@@ -4,7 +4,7 @@
 --   * ENUM  : tập GIÁ TRỊ ĐÓNG, gắn với máy trạng thái hoặc logic code (đổi = phải sửa code).
 --             Thêm giá trị mới: ALTER TYPE … ADD VALUE (không khóa bảng); KHÔNG xóa/đổi tên giá trị.
 --   * BẢNG TRA CỨU (categories, amenities, duty_shifts, cleaning_areas, universities, dioceses,
---             positions, permissions…) : giá trị Ban điều hành tự thêm/sửa/ẩn trên màn hình Cài đặt.
+--             positions, permissions…) : giá trị người quản lý tự thêm/sửa/ẩn trên màn hình Cài đặt.
 -- Quy ước: tên kiểu kết thúc bằng _t; giá trị snake_case tiếng Anh; nhãn tiếng Việt nằm trong COMMENT.
 -- =====================================================================
 
@@ -30,10 +30,10 @@ CREATE TYPE scope_type_t AS ENUM ('global', 'floor', 'cleaning_area');
 COMMENT ON TYPE scope_type_t IS 'Phạm vi hiệu lực của một vai trò: global=toàn nhà, floor=một tầng (floors.id), cleaning_area=một khu vực vệ sinh (cleaning_areas.id).';
 
 CREATE TYPE position_kind_t AS ENUM ('leadership', 'committee', 'task');
-COMMENT ON TYPE position_kind_t IS 'Loại trách vụ: leadership=Ban điều hành, committee=trưởng/phó ban chuyên trách, task=phụ trách một việc cụ thể.';
+COMMENT ON TYPE position_kind_t IS 'Loại trách vụ: leadership=người quản lý, committee=trưởng/phó ban chuyên trách, task=phụ trách một việc cụ thể.';
 
 CREATE TYPE term_status_t AS ENUM ('planned', 'active', 'closed');
-COMMENT ON TYPE term_status_t IS 'Trạng thái nhiệm kỳ Ban điều hành: planned=sắp tới, active=đang hiệu lực, closed=đã bàn giao.';
+COMMENT ON TYPE term_status_t IS 'Trạng thái nhiệm kỳ người quản lý: planned=sắp tới, active=đang hiệu lực, closed=đã bàn giao.';
 
 CREATE TYPE application_status_t AS ENUM ('submitted', 'under_review', 'approved', 'rejected', 'withdrawn');
 COMMENT ON TYPE application_status_t IS 'Đơn xin vào lưu xá / đăng ký tài khoản chờ phê duyệt.';
@@ -141,7 +141,7 @@ CREATE TYPE appeal_status_t AS ENUM ('open', 'upheld', 'dismissed', 'withdrawn')
 COMMENT ON TYPE appeal_status_t IS 'Khiếu nại kết quả nghiệm thu: open=đang chờ, upheld=chấp nhận (đổi thành đạt), dismissed=bác bỏ, withdrawn=rút.';
 
 CREATE TYPE swap_status_t AS ENUM ('pending_peer', 'pending_admin', 'approved', 'rejected', 'cancelled', 'expired');
-COMMENT ON TYPE swap_status_t IS 'Đổi ca 3 bước: pending_peer=chờ người nhận xác nhận, pending_admin=chờ Ban điều hành duyệt, approved, rejected, cancelled=người xin rút, expired=quá hạn.';
+COMMENT ON TYPE swap_status_t IS 'Đổi ca 3 bước: pending_peer=chờ người nhận xác nhận, pending_admin=chờ người quản lý duyệt, approved, rejected, cancelled=người xin rút, expired=quá hạn.';
 
 -- ---------------------------------------------------------------------
 -- 4.2.8  Học tập

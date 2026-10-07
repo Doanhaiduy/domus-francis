@@ -404,7 +404,7 @@ export default function ProfileTab() {
             {canManageMembers ? (
               <JoinedMonthYear value={f.joinedOn ?? ""} onChange={set("joinedOn")} />
             ) : (
-              member.joinedOn && <p className="text-xs text-gray-500">Vào nhà lưu xá: <b className="text-gray-800">{`${member.joinedOn.slice(5, 7)}/${member.joinedOn.slice(0, 4)}`}</b> (do Ban điều hành cập nhật)</p>
+              member.joinedOn && <p className="text-xs text-gray-500">Vào nhà lưu xá: <b className="text-gray-800">{`${member.joinedOn.slice(5, 7)}/${member.joinedOn.slice(0, 4)}`}</b> (do người quản lý cập nhật)</p>
             )}
 
             <CustomInput label="Mã sinh viên" value={f.studentCode ?? ""} onChange={set("studentCode")} placeholder="VD: 20210001" />
@@ -436,7 +436,7 @@ export default function ProfileTab() {
             </div>
             <div>
               <h3 className="text-sm font-bold text-gray-900">Thông tin riêng tư &amp; Quê quán</h3>
-              <p className="text-[11px] text-gray-400">Chỉ chính chủ và Ban điều hành xem được</p>
+              <p className="text-[11px] text-gray-400">Chỉ chính chủ và người quản lý xem được</p>
             </div>
           </div>
 
@@ -500,7 +500,7 @@ export default function ProfileTab() {
                 checked={!!consents?.catholic_share_leadership}
                 onChange={(v) => toggleConsent("catholic_share_leadership", v)}
                 disabled={consentBusy}
-                label="Cho Ban điều hành xem hồ sơ Công giáo"
+                label="Cho người quản lý xem hồ sơ Công giáo"
                 description="Để phục vụ sinh hoạt phụng vụ (Trưởng nhà, Trưởng ban Phụng vụ)."
               />
               <button type="button" onClick={() => toggleConsent("catholic_profile", false)} disabled={consentBusy} className="text-[11px] font-semibold text-gray-400 hover:text-rose-600 transition">

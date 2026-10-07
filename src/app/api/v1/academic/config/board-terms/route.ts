@@ -1,7 +1,7 @@
 import { api } from "@/server/http";
 import { BoardTermCreateSchema, createBoardTerm, listBoardTerms } from "@/server/modules/academic-config";
 
-/** Nhiệm kỳ Ban điều hành (mới nhất trước). */
+/** Nhiệm kỳ người quản lý (mới nhất trước). */
 export const GET = api({}, (ctx) => ctx.db((tx) => listBoardTerms(tx)));
 
 /** Thêm nhiệm kỳ (term.manage) — trạng thái Sắp tới hoặc Đang hiệu lực (chỉ một nhiệm kỳ hiệu lực). */

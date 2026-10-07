@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { BookOpen, Church } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useLiturgyWeek, usePrayers } from "@/lib/data/community";
@@ -11,10 +13,22 @@ import PrayerBox from "./_parts/PrayerBox";
 import ReflectionCard from "./_parts/ReflectionCard";
 import LiturgyDocuments from "./_parts/LiturgyDocuments";
 
+type Tab = "main" | "docs";
+const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: "main", label: "Phụng Vụ & Đời Sống Thiêng Liêng", icon: <Church className="w-3.5 h-3.5" /> },
+  { key: "docs", label: "Tài liệu phụng vụ", icon: <BookOpen className="w-3.5 h-3.5" /> },
+];
+
 export default function PhungVuPage() {
   const { members, showToast, isLoadingSkeleton } = useApp();
   const { can } = useSession();
   const [from, setFrom] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("main");
+
+  // Liên kết cũ dạng #tai-lieu-phung-vu mở thẳng tab Tài liệu
+  useEffect(() => {
+    if (window.location.hash === "#tai-lieu-phung-vu") setTab("docs");
+  }, []);
   const { week, isLoading: weekLoading } = useLiturgyWeek(from);
   const { data: prayers, isLoading: prayersLoading, mutate: mutatePrayers } = usePrayers();
 
@@ -34,18 +48,12 @@ export default function PhungVuPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Phụng Vụ &amp; Đời Sống Thiêng Liêng</h1>
-          <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, ý hiệp thông cầu nguyện và suy niệm Lời Chúa hàng tuần</p>
+          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Phụng Vụ</h1>
+          <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, ý hiệp thông cầu nguyện, suy niệm Lời Chúa hàng tuần và kho tài liệu phụng vụ</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-          <button
-            onClick={() => document.getElementById("tai-lieu-phung-vu")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-100 bg-white hover:bg-purple-50 text-primary font-bold text-xs transition"
-          >
-            <span>📚 Tài liệu phụng vụ</span>
-          </button>
-          {can("prayer.post") && (
+          {tab === "main" && can("prayer.post") && (
             <button
               onClick={() => {
                 const input = document.getElementById("prayer-input");
@@ -60,6 +68,23 @@ export default function PhungVuPage() {
         </div>
       </div>
 
+      <div role="tablist" className="flex flex-wrap p-1 rounded-xl bg-gray-100 gap-1 self-start">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className={cn("inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition", tab === t.key ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-800")}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "main" && (
+      <>
       {/* TOP 3 CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex items-center justify-between gap-3">
@@ -131,8 +156,11 @@ export default function PhungVuPage() {
         </div>
       </div>
 
-      {/* THƯ VIỆN TÀI LIỆU PHỤNG VỤ (kinh, bài hát, video, PDF, liên kết) */}
-      <LiturgyDocuments showToast={showToast} />
+      </>
+      )}
+
+      {/* TAB 2: THƯ VIỆN TÀI LIỆU PHỤNG VỤ (kinh, bài hát, video, PDF, liên kết) */}
+      {tab === "docs" && <LiturgyDocuments showToast={showToast} />}
     </div>
   );
 }

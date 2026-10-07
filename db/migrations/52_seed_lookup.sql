@@ -156,7 +156,7 @@ INSERT INTO duty_shifts (code, name, start_time, end_time, sort_order) VALUES
   ('AFTERNOON', 'Ca Chiều', TIME '17:30', TIME '19:00', 2),
   ('EVENING',   'Ca Tối',   TIME '21:00', TIME '22:00', 3)
 ON CONFLICT (code) DO NOTHING;
-COMMENT ON COLUMN duty_shifts.end_time IS 'FE chỉ có giờ bắt đầu trong nhãn ca ("Ca Sáng (06:30)"); giờ kết thúc seed là [GIẢ ĐỊNH] cần Ban điều hành xác nhận.';
+COMMENT ON COLUMN duty_shifts.end_time IS 'FE chỉ có giờ bắt đầu trong nhãn ca ("Ca Sáng (06:30)"); giờ kết thúc seed là [GIẢ ĐỊNH] cần người quản lý xác nhận.';
 
 INSERT INTO checklist_templates (area_id, name, version) SELECT NULL, 'Mẫu 4 tiêu chí chuẩn', 1
  WHERE NOT EXISTS (SELECT 1 FROM checklist_templates WHERE area_id IS NULL AND name = 'Mẫu 4 tiêu chí chuẩn');
@@ -178,7 +178,7 @@ INSERT INTO merit_rules (code, name_vi, points, is_automatic, description) VALUE
   ('event_present',  'Có mặt đầy đủ sự kiện',        1, true,  'Cộng khi điểm danh có mặt/đi muộn ở sự kiện bắt buộc.'),
   ('event_absent',   'Vắng sự kiện không phép',     -1, true,  'Trừ khi vắng sự kiện bắt buộc mà không có đơn xin phép được duyệt.'),
   ('tutoring_hour',  'Kèm học một giờ',              2, true,  'Cộng cho người kèm cho mỗi giờ kèm đã được hai bên xác nhận.'),
-  ('manual_adjust',  'Điều chỉnh thủ công',          1, false, 'Ban điều hành cộng/trừ điểm có lý do (ghi chú bắt buộc).')
+  ('manual_adjust',  'Điều chỉnh thủ công',          1, false, 'Người quản lý cộng/trừ điểm có lý do (ghi chú bắt buộc).')
 ON CONFLICT (code) DO NOTHING;
 
 -- ---------------------------------------------------------------------
@@ -260,8 +260,8 @@ INSERT INTO consent_purposes (code, name_vi, description, legal_basis, is_sensit
   ('terms_of_use',              'Điều khoản sử dụng hệ thống',          'Đồng ý điều khoản sử dụng và nội quy phần mềm Lưu Xá.', 'contract', false, true,  true, NULL),
   ('privacy_notice_ack',        'Đã đọc thông báo quyền riêng tư',      'Xác nhận đã đọc cách Lưu Xá thu thập và sử dụng dữ liệu cá nhân.', 'legal_obligation', false, true, true, NULL),
   ('catholic_profile',          'Lưu hồ sơ Công giáo',                  'Lưu Tên Thánh, giáo phận, giáo xứ, linh mục quản xứ, các Bí tích (dữ liệu nhạy cảm về tôn giáo).', 'consent', true, false, true, 365),
-  ('catholic_share_leadership', 'Cho Ban điều hành xem hồ sơ Công giáo','Cho phép Trưởng nhà/Phó nhà/Trưởng ban Phụng vụ xem hồ sơ Công giáo để phục vụ sinh hoạt phụng vụ.', 'consent', true, false, true, 365),
-  ('academic_share_leadership', 'Chia sẻ bảng điểm cho Ban điều hành',  'Cho phép Ban điều hành xem điểm chi tiết để hỗ trợ học tập, xét học bổng.', 'consent', true, false, true, 365),
+  ('catholic_share_leadership', 'Cho người quản lý xem hồ sơ Công giáo','Cho phép Trưởng nhà/Phó nhà/Trưởng ban Phụng vụ xem hồ sơ Công giáo để phục vụ sinh hoạt phụng vụ.', 'consent', true, false, true, 365),
+  ('academic_share_leadership', 'Chia sẻ bảng điểm cho người quản lý',  'Cho phép người quản lý xem điểm chi tiết để hỗ trợ học tập, xét học bổng.', 'consent', true, false, true, 365),
   ('academic_share_tutoring',   'Chia sẻ nhu cầu học tập cho người kèm', 'Cho phép người được ghép cặp phụ đạo biết môn cần hỗ trợ.', 'consent', false, false, true, 180),
   ('academic_public_ranking',   'Hiện trong thống kê học tập nội bộ',   'Cho phép điểm tổng hợp của mình tham gia thống kê ẩn danh (nhóm ≥ 3 người).', 'consent', false, false, true, 365),
   ('photo_tagging',             'Gắn thẻ tên vào ảnh/album',            'Cho phép thành viên khác gắn thẻ tên mình vào album khoảnh khắc.', 'consent', false, false, true, 365),
@@ -317,7 +317,7 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO funds (code, name, fund_type, bank_name, bank_account_last4, account_holder_name, is_personal_account, description) VALUES
   ('CASH',      'Quỹ tiền mặt',                     'cash', NULL,         NULL,   NULL,            false, 'Tiền mặt do Thủ quỹ giữ (nên đựng trong két có hai người giữ chìa)'),
-  ('BANK_MAIN', 'Tài khoản ngân hàng Lưu Xá',       'bank', 'Techcombank','9999', 'Trần Văn Đức',  true,  '[HIỆN CÓ ở FE Cài đặt] STK đứng tên cá nhân Trưởng nhà — rủi ro quản trị, khuyến nghị chuyển sang tài khoản đứng tên pháp nhân/Ban điều hành hoặc đồng sở hữu')
+  ('BANK_MAIN', 'Tài khoản ngân hàng Lưu Xá',       'bank', 'Techcombank','9999', 'Trần Văn Đức',  true,  '[HIỆN CÓ ở FE Cài đặt] STK đứng tên cá nhân Trưởng nhà — rủi ro quản trị, khuyến nghị chuyển sang tài khoản đứng tên pháp nhân/người quản lý hoặc đồng sở hữu')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO laundry_machines (code, name, brand, capacity_kg, sort_order) VALUES
@@ -344,6 +344,6 @@ ON CONFLICT (month) DO NOTHING;
 
 INSERT INTO policy_documents (slug, title, version, doc_kind, content_md, is_current, requires_ack)
 VALUES ('noi-quy-luu-xa', 'Nội quy Lưu Xá Phanxicô (bản mẫu)', 1, 'house_rules',
-        E'# Nội quy Lưu Xá Phanxicô (BẢN MẪU)\n\n> Ban điều hành thay bằng nội quy chính thức trước khi dùng.\n\n1. Giờ giới nghiêm: 22:30 (xin phép trước nếu về muộn).\n2. Trực nhật theo roster tuần; check-in kèm ảnh chụp tại chỗ.\n3. Đóng quỹ sinh hoạt hạn ngày 05 hằng tháng.\n4. Giữ gìn trật tự, yên lặng giờ học và giờ kinh.\n5. Báo hỏng cơ sở vật chất qua hệ thống, không tự ý sửa chữa thiết bị điện.',
+        E'# Nội quy Lưu Xá Phanxicô (BẢN MẪU)\n\n> người quản lý thay bằng nội quy chính thức trước khi dùng.\n\n1. Giờ giới nghiêm: 22:30 (xin phép trước nếu về muộn).\n2. Trực nhật theo roster tuần; check-in kèm ảnh chụp tại chỗ.\n3. Đóng quỹ sinh hoạt hạn ngày 05 hằng tháng.\n4. Giữ gìn trật tự, yên lặng giờ học và giờ kinh.\n5. Báo hỏng cơ sở vật chất qua hệ thống, không tự ý sửa chữa thiết bị điện.',
         true, true)
 ON CONFLICT (slug, version) DO NOTHING;

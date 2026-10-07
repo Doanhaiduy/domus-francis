@@ -573,7 +573,7 @@ DECLARE
   v_status text;
 BEGIN
   IF NOT app.setting_bool('feature.meals.enabled') THEN
-    RAISE EXCEPTION 'Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định Ban điều hành.' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định người quản lý.' USING ERRCODE = 'check_violation';
   END IF;
   SELECT m.cutoff_at, m.status INTO v_cutoff, v_status FROM public.meal_menus m WHERE m.id = NEW.menu_id;
   IF v_status NOT IN ('open') AND NOT (app.current_user_id() IS NOT NULL AND app.has_permission('meal.manage')) THEN

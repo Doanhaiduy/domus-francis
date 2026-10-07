@@ -114,7 +114,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   },
   "feature.meals.enabled": {
     label: "Bật phân hệ Bếp & Cơm",
-    help: "Cho phép anh em đăng ký suất ăn. Tắt khi Ban điều hành tạm hoãn việc nấu chung.",
+    help: "Cho phép anh em đăng ký suất ăn. Tắt khi người quản lý tạm hoãn việc nấu chung.",
   },
 
   // --- Tài chính ---
@@ -163,7 +163,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "finance.reminder.overdue_every_days": { label: "Chu kỳ nhắc khi quá hạn", help: "Quá hạn mà chưa nộp thì cứ sau số ngày này nhắc lại." },
   "finance.transparency.show_debtor_names": {
     label: "Công khai danh sách người chưa đóng quỹ",
-    help: "Bật thì mọi thành viên thấy tên người chưa đóng; tắt thì chỉ Thủ quỹ / Ban điều hành thấy, thành viên chỉ thấy số liệu tổng.",
+    help: "Bật thì mọi thành viên thấy tên người chưa đóng; tắt thì chỉ Thủ quỹ / người quản lý thấy, thành viên chỉ thấy số liệu tổng.",
   },
   "finance.utility_due_day": { label: "Hạn nộp tiền điện nước", help: "Ngày trong tháng sau tháng hóa đơn phải nộp (1–28)." },
 

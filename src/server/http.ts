@@ -106,7 +106,7 @@ export function api(opts: RouteOptions, handler: Handler) {
       actor = session?.sub ?? null;
       if (auth !== "public") {
         if (!session) throw unauthorized();
-        if (auth === "member" && session.pnd) throw new ApiError(403, "PENDING_APPROVAL", "Tài khoản của bạn đang chờ Ban điều hành duyệt.");
+        if (auth === "member" && session.pnd) throw new ApiError(403, "PENDING_APPROVAL", "Tài khoản của bạn đang chờ người quản lý duyệt.");
       }
       const method = req.method.toUpperCase();
       if ((opts.csrf ?? true) && !bearer && !["GET", "HEAD", "OPTIONS"].includes(method)) checkCsrf(req);

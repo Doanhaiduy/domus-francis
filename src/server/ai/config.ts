@@ -73,6 +73,8 @@ export const AI_LIMITS = {
   breakerPauseMs: 10 * 60 * 1000,
   /** Giới hạn tốc độ: 20 yêu cầu/giờ/người (thiết kế nhóm `ai`). */
   perUserPerHour: 20,
+  /** Riêng Trợ lý hỏi đáp (chat nhiều lượt): 40 lượt/giờ/người, không tính chung với các tác vụ khác. */
+  assistantPerHour: 40,
   /** Cache theo nội dung: cùng đầu vào trong 24 giờ thì trả gợi ý cũ. */
   cacheHours: 24,
   /** Các thẻ "AI nhận xét" (thu chi, học tập): giữ kết quả 60 phút theo phạm vi (tháng / cá nhân / toàn nhà), bất kể số liệu có đổi;

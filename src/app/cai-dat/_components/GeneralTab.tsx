@@ -355,7 +355,7 @@ export default function GeneralTab({ draft, roles }: Props) {
                   draft={draft}
                   k="finance.transparency.show_debtor_names"
                   label="Công khai danh sách người chưa đóng quỹ cho mọi thành viên"
-                  description="Mặc định chỉ Thủ quỹ / Ban điều hành thấy tên; thành viên chỉ thấy số liệu tổng hợp"
+                  description="Mặc định chỉ Thủ quỹ / người quản lý thấy tên; thành viên chỉ thấy số liệu tổng hợp"
                 />
               </div>
             </LockNoteShown.Provider>

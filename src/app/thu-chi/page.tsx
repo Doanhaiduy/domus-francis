@@ -329,7 +329,7 @@ export default function ThuChiPage() {
             <button
               onClick={() => openModal("addExpense")}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-[#4d2dbf] text-white font-bold text-xs shadow-md shadow-primary/20 transition active:scale-95"
-              title={canManageFinances ? "Lập phiếu chi (chờ Ban điều hành phê duyệt)" : "Đề xuất chi / xin hoàn ứng khoản bạn đã chi cho nhà"}
+              title={canManageFinances ? "Lập phiếu chi (chờ người quản lý phê duyệt)" : "Đề xuất chi / xin hoàn ứng khoản bạn đã chi cho nhà"}
             >
               <Plus className="w-4 h-4" />
               <span>{canManageFinances ? "Lập phiếu chi" : "Đề xuất chi"}</span>

@@ -81,7 +81,7 @@ export const DUTY_STATUS_PLAIN: Record<DutyStatus, string> = {
 };
 export const SWAP_STATUS_LABEL: Record<SwapStatus, string> = {
   pending_peer: "Chờ người nhận xác nhận",
-  pending_admin: "Chờ Ban điều hành duyệt",
+  pending_admin: "Chờ người quản lý duyệt",
   approved: "Đã duyệt đổi ca",
   rejected: "Bị từ chối",
   cancelled: "Đã rút đơn",

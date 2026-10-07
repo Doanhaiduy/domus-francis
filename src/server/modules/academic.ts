@@ -15,7 +15,7 @@ import type { RecordInput } from "./academic-schema";
 
 // =====================================================================
 // Học tập — mọi quyền đọc/ghi do RLS + trigger của DB quyết định:
-//   • đọc: chính chủ; Ban điều hành (academic.read_all) chỉ thấy bảng điểm đã nộp/xác minh của người còn đồng ý
+//   • đọc: chính chủ; người quản lý (academic.read_all) chỉ thấy bảng điểm đã nộp/xác minh của người còn đồng ý
 //     academic_share_leadership (app.can_view_academic);
 //   • ghi: chỉ chính chủ (bảng điểm, điểm môn, minh chứng, nguyện vọng, yêu cầu phụ đạo);
 //   • tổng kết môn/điểm chữ/điểm hệ 4/đạt-nợ do trg_grade_records__compute tính theo thang của bảng điểm;
@@ -482,7 +482,7 @@ async function loadOwn(tx: Tx, id: string): Promise<OwnRow> {
 
 const LOCKED_MSG: Record<string, string> = {
   submitted: "Bảng điểm đang chờ xác minh — bấm \"Rút lại để sửa\" trước khi chỉnh điểm.",
-  verified: "Bảng điểm đã được xác minh — chỉ Ban điều hành (người có quyền xác minh) mới mở lại được để chỉnh sửa.",
+  verified: "Bảng điểm đã được xác minh — chỉ người quản lý (người có quyền xác minh) mới mở lại được để chỉnh sửa.",
 };
 
 export async function updateRecord(tx: Tx, id: string, i: RecordInput) {

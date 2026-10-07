@@ -239,7 +239,7 @@ export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
   dues_reminder: "Nhắc đóng quỹ / điện nước",
   facility_new: "Có báo hỏng cơ sở vật chất mới",
   liturgy: "Nhắc lễ trọng, Bổn mạng, ngày đặc biệt",
-  announcement: "Thông báo của Ban điều hành",
+  announcement: "Thông báo của người quản lý",
   event_new: "Sự kiện mới",
   event_reminder: "Nhắc sự kiện hôm nay / ngày mai",
   reminder_schedule: "Lịch nhắc lặp (họp nhà, sinh hoạt…)",

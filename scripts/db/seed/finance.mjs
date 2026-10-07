@@ -110,7 +110,7 @@ export async function seed(ctx) {
   await ctx.as(head);
   await q("UPDATE contributions SET discount_vnd = $2, discount_reason = $3 WHERE id = $1", [
     contrib[M(11)][dues.id], Math.round(dues.amount / 2 / 1000) * 1000,
-    "Đi thực tập xa 3 tháng trong kỳ, không ở lưu xá — Ban điều hành giảm một nửa quỹ kỳ",
+    "Đi thực tập xa 3 tháng trong kỳ, không ở lưu xá — người quản lý giảm một nửa quỹ kỳ",
   ]);
 
   // ---------------------------------------------------------------- 4. Thu quỹ (Thủ quỹ — fn_record_contribution_payment)

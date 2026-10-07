@@ -191,7 +191,7 @@ export default function PollFormModal({ open, onClose, events, presetEventId }: 
               )}
               <CustomToggle
                 label="Biểu quyết ẩn danh"
-                description="Không ai (kể cả Ban điều hành) xem được ai chọn gì; số phiếu từng phương án công bố khi đóng"
+                description="Không ai (kể cả người quản lý) xem được ai chọn gì; số phiếu từng phương án công bố khi đóng"
                 checked={anonymous}
                 onChange={setAnonymous}
               />

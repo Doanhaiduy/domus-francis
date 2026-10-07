@@ -288,12 +288,12 @@ export default function DangNhapPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="message" className="block text-xs font-semibold text-gray-600 mb-1.5">Lời nhắn cho Ban điều hành</label>
+                <label htmlFor="message" className="block text-xs font-semibold text-gray-600 mb-1.5">Lời nhắn cho người quản lý</label>
                 <textarea id="message" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Giới thiệu ngắn: giáo xứ, năm học, nguyện vọng…" disabled={isPending}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition disabled:opacity-60 resize-none" />
               </div>
               <p className="text-[11px] text-gray-500 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2">
-                Sau khi đăng ký, tài khoản cần Ban điều hành duyệt trước khi sử dụng đầy đủ chức năng.
+                Sau khi đăng ký, tài khoản cần người quản lý duyệt trước khi sử dụng đầy đủ chức năng.
               </p>
             </>
           )}

@@ -137,7 +137,7 @@ export default function HuongDanPage() {
   const quick = GUIDE_QUICK.filter((x) => GUIDE_SECTIONS.some((s) => s.id === x.target));
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-6 pb-16">
       {/* HERO */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-violet-600 to-indigo-500 text-white p-5 sm:p-8">
         <div aria-hidden className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" />

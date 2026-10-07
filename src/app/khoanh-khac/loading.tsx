@@ -2,7 +2,7 @@ import React from "react";
 
 export default function KhoanhKhacLoading() {
   return (
-    <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto animate-pulse">
+    <div className="flex flex-col w-full gap-6 animate-pulse">
       {/* HEADER SKELETON */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">

@@ -59,11 +59,11 @@ export default function ReportPage() {
   const d = report?.duty;
 
   return (
-    <div className="flex flex-col w-full gap-5 max-w-6xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-5 pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5"><FileText className="w-6 h-6 text-primary" /> Báo cáo hoạt động</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">Tổng hợp nhân sự, tài chính, sự kiện và trực nhật theo quý hoặc năm — tải PDF để gửi Tỉnh Dòng, Ban điều hành hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.</p>
+          <p className="text-sm text-gray-500 mt-1 max-w-xl">Tổng hợp nhân sự, tài chính, sự kiện và trực nhật theo quý hoặc năm — tải PDF để gửi Tỉnh Dòng, người quản lý hay phụ huynh. Chỉ có số liệu tổng hợp, không có thông tin cá nhân.</p>
         </div>
         <button type="button" onClick={download} disabled={!report || busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95 disabled:opacity-50">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Tải báo cáo PDF

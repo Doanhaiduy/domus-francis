@@ -272,7 +272,7 @@ export async function bulkRegister(
   b: { scope: "self-week"; date: string } | { scope: "all-members"; date: string; meals?: MealType[] }
 ): Promise<{ registered: number; skipped: number; message: string }> {
   const p = await perms(tx);
-  if (!p.enabled) throw new ApiError(422, "MEAL_DISABLED", "Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định Ban điều hành.");
+  if (!p.enabled) throw new ApiError(422, "MEAL_DISABLED", "Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định người quản lý.");
   if (b.scope === "all-members") {
     if (!p.manage) throw forbidden("Chỉ Ban Ẩm thực mới đăng ký hộ cả nhà.");
     let registered = 0;

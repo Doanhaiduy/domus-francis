@@ -82,7 +82,7 @@ CREATE TABLE duty_rosters (
   CONSTRAINT ck_duty_rosters__monday CHECK (EXTRACT(ISODOW FROM week_start) = 1),
   CONSTRAINT ck_duty_rosters__published CHECK (status = 'draft' OR published_at IS NOT NULL)
 );
-COMMENT ON TABLE duty_rosters IS 'Roster trực nhật theo tuần ISO (week_start luôn là Thứ Hai). draft chỉ Ban điều hành thấy; published thành viên thấy và nhận thông báo; closed khóa sau tuần.';
+COMMENT ON TABLE duty_rosters IS 'Roster trực nhật theo tuần ISO (week_start luôn là Thứ Hai). draft chỉ người quản lý thấy; published thành viên thấy và nhận thông báo; closed khóa sau tuần.';
 
 CREATE TABLE duty_assignments (
   id                     uuid          PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -124,7 +124,7 @@ CREATE TABLE duty_assignment_members (
   CONSTRAINT ck_duty_assignment_members__role CHECK (member_role IN ('lead', 'member'))
 );
 COMMENT ON TABLE duty_assignment_members IS
-  'Người trực của một ca (thay cho mảng tên assignedMembers). duty_date/shift_id được sao chép CÓ CHỦ ĐÍCH và ràng buộc bằng FK phức hợp để ux_duty_assignment_members__member_slot bảo đảm một người không bị xếp trùng ca (BR-DUTY-04). override_reason: Ban điều hành ghi đè cảnh báo bận/nghỉ phép.';
+  'Người trực của một ca (thay cho mảng tên assignedMembers). duty_date/shift_id được sao chép CÓ CHỦ ĐÍCH và ràng buộc bằng FK phức hợp để ux_duty_assignment_members__member_slot bảo đảm một người không bị xếp trùng ca (BR-DUTY-04). override_reason: người quản lý ghi đè cảnh báo bận/nghỉ phép.';
 
 CREATE TABLE duty_checkins (
   id                      uuid        PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -205,7 +205,7 @@ CREATE TABLE duty_swap_requests (
   CONSTRAINT ck_duty_swap_requests__reason CHECK (app.has_text(reason, 5)),
   CONSTRAINT ck_duty_swap_requests__admin CHECK (status NOT IN ('approved') OR (admin_decided_at IS NOT NULL AND peer_responded_at IS NOT NULL))
 );
-COMMENT ON TABLE duty_swap_requests IS 'Đơn đổi ca 3 bước: người xin → người nhận xác nhận (pending_peer→pending_admin) → Ban điều hành duyệt (approved ⇒ trigger hoán đổi dòng trong duty_assignment_members). Thay cho swapCleaningDuty của FE (đổi thẳng, ghi đè checkInNote).';
+COMMENT ON TABLE duty_swap_requests IS 'Đơn đổi ca 3 bước: người xin → người nhận xác nhận (pending_peer→pending_admin) → người quản lý duyệt (approved ⇒ trigger hoán đổi dòng trong duty_assignment_members). Thay cho swapCleaningDuty của FE (đổi thẳng, ghi đè checkInNote).';
 
 CREATE UNIQUE INDEX ux_duty_swap_requests__open_per_assignment
   ON duty_swap_requests (assignment_id, from_member_id)
@@ -245,7 +245,7 @@ CREATE TABLE member_unavailability (
   CONSTRAINT ck_member_unavailability__range CHECK (ends_at > starts_at),
   CONSTRAINT ck_member_unavailability__max CHECK (ends_at - starts_at <= interval '120 days')
 );
-COMMENT ON TABLE member_unavailability IS 'Khoảng thời gian bận do thành viên tự khai (lịch thi, thực tập…) để thuật toán phân công và trigger tránh xếp trực trùng (BR-DUTY-05). Chỉ chính chủ và Ban điều hành thấy.';
+COMMENT ON TABLE member_unavailability IS 'Khoảng thời gian bận do thành viên tự khai (lịch thi, thực tập…) để thuật toán phân công và trigger tránh xếp trực trùng (BR-DUTY-05). Chỉ chính chủ và người quản lý thấy.';
 
 -- ---------------------------------------------------------------------
 -- Điểm đóng góp (merit) — sổ ghi thêm, không sửa

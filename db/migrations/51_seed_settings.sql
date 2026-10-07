@@ -1,7 +1,7 @@
 -- =====================================================================
 -- KHỐI 4.7.2 — SEED CẤU HÌNH HỆ THỐNG (settings)
--- Mọi giá trị dưới đây là MẶC ĐỊNH KHỞI TẠO, Ban điều hành sửa trên màn hình Cài đặt (có audit).
--- Các số đánh dấu [GIẢ ĐỊNH] cần Ban điều hành xác nhận (xem Phần 0).
+-- Mọi giá trị dưới đây là MẶC ĐỊNH KHỞI TẠO, người quản lý sửa trên màn hình Cài đặt (có audit).
+-- Các số đánh dấu [GIẢ ĐỊNH] cần người quản lý xác nhận (xem Phần 0).
 -- =====================================================================
 INSERT INTO settings (key, value, value_type, description, min_value, max_value, is_public) VALUES
   -- Tài chính
@@ -11,7 +11,7 @@ INSERT INTO settings (key, value, value_type, description, min_value, max_value,
   ('finance.expense.receipt_required_min_vnd',    '200000'::jsonb,  'vnd',     '[GIẢ ĐỊNH] Phiếu chi từ mức này bắt buộc đính kèm ảnh hóa đơn (hoặc nêu lý do không có).', 0, 1000000000, false),
   ('finance.expense.treasurer_solo_approve_max_vnd','200000'::jsonb,'vnd',     '[GIẢ ĐỊNH] Thủ quỹ được tự duyệt (một chữ ký) phiếu chi nhỏ đến mức này (chi lặt vặt); trên mức đó phiếu một chữ ký phải do Trưởng nhà duyệt — tách người duyệt khỏi người ghi chi (BR-FIN-17).', 0, 1000000000, false),
   ('finance.period.close_requires_reconciliation','true'::jsonb,    'boolean', 'Bắt buộc đối soát sao kê cho quỹ ngân hàng trước khi chốt sổ tháng.', NULL, NULL, false),
-  ('finance.transparency.show_debtor_names',      'false'::jsonb,   'boolean', 'Cho phép mọi thành viên thấy danh sách người chưa đóng quỹ (mặc định chỉ Thủ quỹ/Ban điều hành; thành viên chỉ thấy số liệu tổng hợp).', NULL, NULL, true),
+  ('finance.transparency.show_debtor_names',      'false'::jsonb,   'boolean', 'Cho phép mọi thành viên thấy danh sách người chưa đóng quỹ (mặc định chỉ Thủ quỹ/người quản lý; thành viên chỉ thấy số liệu tổng hợp).', NULL, NULL, true),
   ('finance.reminder.days_before_due',            '3'::jsonb,       'integer', 'Nhắc đóng quỹ trước hạn bao nhiêu ngày.', 0, 14, false),
   ('finance.reminder.overdue_every_days',         '7'::jsonb,       'integer', 'Chu kỳ nhắc nợ khi quá hạn (ngày).', 1, 30, false),
   -- Trực nhật & vệ sinh
@@ -44,7 +44,7 @@ INSERT INTO settings (key, value, value_type, description, min_value, max_value,
   ('laundry.noshow_cancel_minutes',               '15'::jsonb,      'integer', 'Không check-in sau bao nhiêu phút kể từ giờ bắt đầu thì tự hủy (no_show).', 5, 120, true),
   ('laundry.cancel_min_minutes',                  '30'::jsonb,      'integer', 'Chỉ được tự hủy lượt trước giờ bắt đầu ít nhất bao nhiêu phút.', 0, 720, true),
   -- Cờ tính năng
-  ('feature.meals.enabled',                       'false'::jsonb,   'boolean', 'Bật phân hệ Bếp & Cơm (đăng ký suất ăn). Hiện TẠM HOÃN theo quyết định Ban điều hành.', NULL, NULL, true),
+  ('feature.meals.enabled',                       'false'::jsonb,   'boolean', 'Bật phân hệ Bếp & Cơm (đăng ký suất ăn). Hiện TẠM HOÃN theo quyết định người quản lý.', NULL, NULL, true),
   ('feature.ai.enabled',                          'false'::jsonb,   'boolean', 'Công tắc tổng cho mọi tính năng AI (mỗi tác vụ còn có cờ riêng ở ai_task_types).', NULL, NULL, true),
   -- Lưu trữ tệp
   ('upload.max_image_bytes',                      '10485760'::jsonb,'integer', 'Dung lượng tối đa ảnh tải lên (byte). Trần cứng của DB là 20 MB.', 102400, 20971520, true),

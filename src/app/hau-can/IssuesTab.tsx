@@ -11,6 +11,7 @@ import { CustomInput, CustomSelect, CustomTextarea, ImageUploadDropzone, preview
 import { issuesApi, refreshIssues } from "@/lib/data/duty";
 import { ISSUE_STATUS_CLASS, ISSUE_STATUS_LABEL, URGENCY_CLASS, URGENCY_LABEL, isOpenIssue, vnStamp, vnToday } from "@/lib/duty-format";
 import type { IssueDto, IssueStatus, IssueUrgency } from "@/lib/types/duty";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { Lightbox, ModalShell } from "./ui";
 
 export default function IssuesTab({ issues, loadedAt, loading }: { issues: IssueDto[]; loadedAt: string | null; loading: boolean }) {
@@ -135,7 +136,10 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${ISSUE_STATUS_CLASS[selected.status]}`}>
               {ISSUE_STATUS_LABEL[selected.status]} #{selected.code}
             </span>
-            <span className="text-xs text-gray-400">{vnStamp(selected.createdAt, today)}</span>
+            <span className="flex items-center gap-2 text-xs text-gray-400">
+              {vnStamp(selected.createdAt, today)}
+              <PurgeButton variant="icon" url={`/api/v1/issues/${selected.id}`} what={`phiếu ${selected.code} “${selected.title}”`} refreshPrefixes={["/api/v1/issues", "/api/v1/duty"]} />
+            </span>
           </div>
 
           <div>
@@ -328,7 +332,7 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
                 )}
                 {(selected.isMine || canTriage) && (
                   <button
-                    onClick={() => setStatus(selected, "cancelled", selected.isMine ? "Người báo hủy phiếu" : "Ban điều hành hủy phiếu", `Đã hủy phiếu ${selected.code}.`)}
+                    onClick={() => setStatus(selected, "cancelled", selected.isMine ? "Người báo hủy phiếu" : "Người quản lý hủy phiếu", `Đã hủy phiếu ${selected.code}.`)}
                     disabled={!!busy}
                     className="w-full py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-bold transition disabled:opacity-60"
                   >

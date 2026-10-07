@@ -9,6 +9,7 @@ import { leaveApi, useLeave } from "@/lib/data/leave";
 import { LEAVE_KIND_LABEL, LEAVE_STATUS_LABEL, type LeaveRequestDto, type LeaveStatus } from "@/lib/types/leave";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomTextarea } from "@/components/ui/FormControls";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
 import { LeaveForm } from "./_components/LeaveForm";
@@ -55,11 +56,11 @@ export default function LeavePage() {
   };
 
   return (
-    <div className="flex flex-col w-full gap-5 max-w-6xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-5 pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5"><CalendarOff className="w-6 h-6 text-primary" /> Xin phép</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">Vắng sự kiện, về muộn, ngủ ngoài hay đi xa vài ngày — gửi đơn để Ban điều hành biết và duyệt. Đơn vắng sự kiện được duyệt sẽ ghi “có phép”, không bị trừ điểm.</p>
+          <p className="text-sm text-gray-500 mt-1 max-w-xl">Vắng sự kiện, về muộn, ngủ ngoài hay đi xa vài ngày — gửi đơn để người quản lý biết và duyệt. Đơn vắng sự kiện được duyệt sẽ ghi “có phép”, không bị trừ điểm.</p>
         </div>
         {data?.canRequest && (
           <button type="button" onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95">
@@ -101,6 +102,7 @@ export default function LeavePage() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{when(r)}</p>
                 </div>
+                <PurgeButton variant="icon" url={`/api/v1/leave/${r.id}`} what={`đơn xin phép “${LEAVE_KIND_LABEL[r.kind]}” của ${r.memberName}`} />
               </div>
               <p className="text-sm text-gray-700">{r.reason}</p>
               {(r.destination || r.contactPhone) && (

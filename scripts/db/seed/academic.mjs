@@ -60,7 +60,7 @@ const FIT = {
   // Đặng Thanh Phong — HMU, Bác sĩ Đa khoa
   "acad-6": {
     subjects: ["Hóa sinh", "Giải phẫu học 2", "Mô phôi", "Sinh lý học"],
-    aspirations: "Gặp khó khăn lớn ở môn Hóa sinh và Sinh lý học. Rất mong Ban điều hành ghép cặp với anh em có kinh nghiệm học khối Y để kèm vào tối thứ Năm.",
+    aspirations: "Gặp khó khăn lớn ở môn Hóa sinh và Sinh lý học. Rất mong người quản lý ghép cặp với anh em có kinh nghiệm học khối Y để kèm vào tối thứ Năm.",
     supportSubject: "Hóa sinh & Sinh lý học",
   },
   // Bùi Văn Hiếu — UTC, Logistics & Quản lý Chuỗi Cung Ứng
@@ -262,7 +262,7 @@ export async function seed(ctx) {
       );
     }
 
-    // 3) Nguyện vọng (chia sẻ cho Ban điều hành) + yêu cầu phụ đạo
+    // 3) Nguyện vọng (chia sẻ cho người quản lý) + yêu cầu phụ đạo
     if (rec.aspirations) {
       await q(
         `INSERT INTO study_goals (member_id, semester_id, goals, visibility) VALUES ($1, $2, $3, 'leadership')

@@ -90,7 +90,7 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
                 <a href={`tel:${o.phone.replace(/[^\d+]/g, "")}`} className="hover:text-primary font-semibold">{o.phone}</a>
               </li>
             )}
-            {!o.address && !o.phone && <li className="text-gray-400">Liên hệ qua Ban điều hành lưu xá.</li>}
+            {!o.address && !o.phone && <li className="text-gray-400">Liên hệ qua người quản lý lưu xá.</li>}
           </ul>
         </div>
 

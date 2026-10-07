@@ -22,7 +22,7 @@ export const STATUS_META: Record<AcademicStatus, { label: string; cls: string }>
 
 export const VISIBILITY_LABEL: Record<GoalsVisibility, string> = {
   private: "Chỉ mình tôi",
-  leadership: "Ban điều hành",
+  leadership: "Người quản lý",
   community: "Cả cộng đoàn",
 };
 

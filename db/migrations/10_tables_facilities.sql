@@ -17,7 +17,7 @@ CREATE TABLE vendors (
   CONSTRAINT ck_vendors__name CHECK (char_length(btrim(name)) BETWEEN 2 AND 150),
   CONSTRAINT ck_vendors__phone CHECK (app.is_e164(phone_e164))
 );
-COMMENT ON TABLE vendors IS 'Danh bạ thợ/nhà cung cấp bên ngoài (điện nước, sửa máy giặt…). Số điện thoại là dữ liệu của bên thứ ba, chỉ Ban điều hành/phụ trách cơ sở vật chất xem.';
+COMMENT ON TABLE vendors IS 'Danh bạ thợ/nhà cung cấp bên ngoài (điện nước, sửa máy giặt…). Số điện thoại là dữ liệu của bên thứ ba, chỉ người quản lý/phụ trách cơ sở vật chất xem.';
 
 CREATE TABLE assets (
   id                 uuid           PRIMARY KEY DEFAULT app.uuid_v7(),

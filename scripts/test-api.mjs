@@ -329,12 +329,12 @@ async function suiteMembers() {
     const l = (await head.get("/api/v1/members")).json;
     ok(l.find((m) => m.id === hieu.id).holyName, "lãnh đạo phải thấy");
   });
-  await test("Ẩn SĐT: người khác không thấy, Ban điều hành vẫn thấy", async () => {
+  await test("Ẩn SĐT: người khác không thấy, người quản lý vẫn thấy", async () => {
     eq((await other.patch(`/api/v1/members/${hieu.id}`, { hidePhone: true })).status, 200);
     const seen = (await member.get("/api/v1/members")).json.find((m) => m.id === hieu.id);
     eq(seen.phone, "");
     const byHead = (await head.get("/api/v1/members")).json.find((m) => m.id === hieu.id);
-    ok(byHead.phone.length > 0, "Ban điều hành phải thấy SĐT");
+    ok(byHead.phone.length > 0, "Người quản lý phải thấy SĐT");
     await other.patch(`/api/v1/members/${hieu.id}`, { hidePhone: false });
   });
   await test("Thành viên không đọc được thông tin riêng tư (ngày sinh, quê, phụ huynh) của người khác", async () => {

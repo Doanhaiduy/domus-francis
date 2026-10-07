@@ -129,7 +129,7 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
         {/* LIÊN HỆ */}
         <aside className="mt-10 rounded-3xl bg-gradient-to-br from-[#5f3add] to-[#7857f8] text-white p-6 sm:p-8">
           <h2 className="text-xl font-extrabold">Bạn quan tâm đến {org.houseName}?</h2>
-          <p className="mt-1.5 text-purple-100 text-sm leading-relaxed">Liên hệ Ban điều hành để được tư vấn, hoặc ghé thăm nhà vào một buổi chiều cuối tuần.</p>
+          <p className="mt-1.5 text-purple-100 text-sm leading-relaxed">Liên hệ người quản lý để được tư vấn, hoặc ghé thăm nhà vào một buổi chiều cuối tuần.</p>
           <ul className="mt-4 space-y-2 text-sm text-purple-50">
             {org.address && <li className="flex gap-2.5"><MapPin className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />{org.address}</li>}
             {org.phone && (

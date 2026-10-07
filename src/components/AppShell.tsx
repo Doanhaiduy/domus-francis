@@ -28,7 +28,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { status: aiStatus } = useAiStatus(!isAuthPage && !isPublicSite && !!session?.member);
   const showAssistant = !!aiStatus?.available.includes("community.policy_rag");
 
-  // Mật khẩu tạm (do Ban điều hành cấp/đặt lại) ⇒ bắt buộc đổi trước khi dùng tiếp
+  // Mật khẩu tạm (do người quản lý cấp/đặt lại) ⇒ bắt buộc đổi trước khi dùng tiếp
   useEffect(() => {
     if (!isAuthPage && session?.user.mustChangePassword && activeModal !== "changePassword") openModal("changePassword");
   }, [isAuthPage, session?.user.mustChangePassword, activeModal, openModal]);

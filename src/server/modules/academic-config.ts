@@ -29,7 +29,7 @@ import {
 } from "@/lib/types/academic-config";
 
 // =====================================================================
-// Cài đặt → Danh mục học tập: trường đại học, năm học (+ học kỳ), nhiệm kỳ Ban điều hành.
+// Cài đặt → Danh mục học tập: trường đại học, năm học (+ học kỳ), nhiệm kỳ người quản lý.
 //   • Quyền: trường — academic.university.manage (db/app/997, Admin + Trưởng nhà) hoặc academic.scale.manage;
 //            năm học/học kỳ/nhiệm kỳ — term.manage; đóng/mở lại nhiệm kỳ — thêm term.handover.
 //     Kiểm trước để trả 403 rõ ràng; RLS của thiết kế (46_rls_policies_1 + 997) là lớp thứ hai.
@@ -569,7 +569,7 @@ export async function deleteSemester(tx: Tx, id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------
-// Nhiệm kỳ Ban điều hành
+// Nhiệm kỳ người quản lý
 // ---------------------------------------------------------------------
 async function getTerm(tx: Tx, id: string): Promise<BoardTermDto> {
   const r = (await tx.query(`${TERMS_Q[0].replace(/ORDER BY[\s\S]*$/, "")} WHERE b.id = $1`, [id])).rows[0];

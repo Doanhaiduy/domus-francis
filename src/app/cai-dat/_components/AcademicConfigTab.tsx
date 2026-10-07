@@ -578,7 +578,7 @@ function SemesterDialog({
 }
 
 // =====================================================================
-// Hộp thoại: Nhiệm kỳ Ban điều hành
+// Hộp thoại: Nhiệm kỳ người quản lý
 // =====================================================================
 function TermDialog({
   open,
@@ -670,8 +670,8 @@ function TermDialog({
       open={open}
       onClose={onClose}
       icon={<Users className="w-5 h-5" />}
-      title={initial ? "Sửa nhiệm kỳ" : "Thêm nhiệm kỳ Ban điều hành"}
-      subtitle="Vai trò và chức vụ của Ban điều hành gắn theo nhiệm kỳ"
+      title={initial ? "Sửa nhiệm kỳ" : "Thêm nhiệm kỳ người quản lý"}
+      subtitle="Vai trò và chức vụ của người quản lý gắn theo nhiệm kỳ"
       footer={
         <>
           <button type="button" onClick={onClose} className={btnGhost}>
@@ -1087,14 +1087,14 @@ export default function AcademicConfigTab() {
         </div>
       </section>
 
-      {/* ============ 3. NHIỆM KỲ BAN ĐIỀU HÀNH ============ */}
+      {/* ============ 3. NHIỆM KỲ NGƯỜI QUẢN LÝ ============ */}
       <section className={card}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <Users className="w-5 h-5 text-primary" />
             <div>
-              <h2 className="text-base font-bold text-gray-900">Nhiệm kỳ Ban điều hành</h2>
-              <p className="text-xs text-gray-500">Vai trò, chức vụ của Ban điều hành gắn theo nhiệm kỳ; chỉ một nhiệm kỳ hiệu lực</p>
+              <h2 className="text-base font-bold text-gray-900">Nhiệm kỳ người quản lý</h2>
+              <p className="text-xs text-gray-500">Vai trò, chức vụ của người quản lý gắn theo nhiệm kỳ; chỉ một nhiệm kỳ hiệu lực</p>
             </div>
           </div>
           {canTerms && (

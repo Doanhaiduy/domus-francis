@@ -105,7 +105,7 @@ CREATE TABLE academic_records (
   CONSTRAINT ck_academic_records__rejected CHECK (status <> 'rejected' OR app.has_text(reject_reason, 5))
 );
 COMMENT ON TABLE academic_records IS
-  'Bảng điểm của một thành viên trong một học kỳ (FE AcademicRecord). Duy nhất theo (member, semester) — nhập lại là CẬP NHẬT, không tạo bản ghi trùng như FE. Dữ liệu học tập nhạy cảm: chỉ chính chủ xem chi tiết; Ban điều hành xem khi có đồng ý academic_share_leadership. Minh chứng bảng điểm = media_attachments(entity=academic_record, purpose=transcript). major/student_code là ảnh chụp tại thời điểm nhập.';
+  'Bảng điểm của một thành viên trong một học kỳ (FE AcademicRecord). Duy nhất theo (member, semester) — nhập lại là CẬP NHẬT, không tạo bản ghi trùng như FE. Dữ liệu học tập nhạy cảm: chỉ chính chủ xem chi tiết; người quản lý xem khi có đồng ý academic_share_leadership. Minh chứng bảng điểm = media_attachments(entity=academic_record, purpose=transcript). major/student_code là ảnh chụp tại thời điểm nhập.';
 
 CREATE TABLE grade_records (
   id                    uuid         PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -166,7 +166,7 @@ CREATE TABLE study_goals (
   CONSTRAINT ck_study_goals__visibility CHECK (visibility IN ('private', 'leadership', 'community')),
   CONSTRAINT ck_study_goals__len CHECK (char_length(COALESCE(goals, '')) <= 2000 AND char_length(COALESCE(difficulties, '')) <= 2000)
 );
-COMMENT ON TABLE study_goals IS 'Nguyện vọng/mục tiêu và khó khăn học tập (FE: aspirations). Mặc định riêng tư; chia sẻ cho Ban điều hành/cộng đoàn do chính chủ chọn.';
+COMMENT ON TABLE study_goals IS 'Nguyện vọng/mục tiêu và khó khăn học tập (FE: aspirations). Mặc định riêng tư; chia sẻ cho người quản lý/cộng đoàn do chính chủ chọn.';
 
 CREATE TABLE tutoring_offers (
   id               uuid              PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -195,7 +195,7 @@ CREATE TABLE tutoring_requests (
   updated_at        timestamptz       NOT NULL DEFAULT now(),
   CONSTRAINT ck_tutoring_requests__subject CHECK (char_length(btrim(subject_text)) BETWEEN 2 AND 200)
 );
-COMMENT ON TABLE tutoring_requests IS 'Yêu cầu được kèm (FE: supportNeeded + supportSubject). Chỉ chính chủ và Ban điều hành/người được ghép thấy; không bắt buộc kèm điểm.';
+COMMENT ON TABLE tutoring_requests IS 'Yêu cầu được kèm (FE: supportNeeded + supportSubject). Chỉ chính chủ và người quản lý/người được ghép thấy; không bắt buộc kèm điểm.';
 
 CREATE TABLE tutoring_matches (
   id                uuid           PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -213,7 +213,7 @@ CREATE TABLE tutoring_matches (
   CONSTRAINT ck_tutoring_matches__distinct CHECK (tutor_member_id <> mentee_member_id),
   CONSTRAINT ck_tutoring_matches__active CHECK (status NOT IN ('active', 'completed') OR (tutor_accepted_at IS NOT NULL AND mentee_accepted_at IS NOT NULL))
 );
-COMMENT ON TABLE tutoring_matches IS 'Ghép cặp phụ đạo: Ban điều hành hoặc hệ thống đề xuất (proposed), chỉ chuyển active khi CẢ HAI bên đồng ý (CHECK). Không tiết lộ điểm của bên nào cho bên kia.';
+COMMENT ON TABLE tutoring_matches IS 'Ghép cặp phụ đạo: người quản lý hoặc hệ thống đề xuất (proposed), chỉ chuyển active khi CẢ HAI bên đồng ý (CHECK). Không tiết lộ điểm của bên nào cho bên kia.';
 
 CREATE TABLE tutoring_sessions (
   id                    uuid        PRIMARY KEY DEFAULT app.uuid_v7(),

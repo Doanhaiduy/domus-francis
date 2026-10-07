@@ -61,7 +61,7 @@ export default async function ContactPage() {
           <div className="rounded-3xl bg-purple-50/70 border border-purple-100 p-6 text-sm text-gray-700 leading-relaxed">
             <b className="text-gray-900">Điều gì xảy ra tiếp theo?</b>
             <ol className="mt-2 space-y-1.5 list-decimal pl-5">
-              <li>Ban điều hành nhận thông tin của bạn.</li>
+              <li>Người quản lý nhận thông tin của bạn.</li>
               <li>Chúng tôi gọi/nhắn tin trao đổi và tư vấn.</li>
               <li>Hẹn bạn đến thăm nhà và gặp gỡ anh em.</li>
             </ol>

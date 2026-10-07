@@ -217,7 +217,7 @@ export default function RecordFormModal({
         onSaved(res);
         return;
       }
-      showToast("success", submit ? "Đã nộp bảng điểm — chờ Ban điều hành xác minh." : "Đã lưu bản nháp bảng điểm.");
+      showToast("success", submit ? "Đã nộp bảng điểm — chờ người quản lý xác minh." : "Đã lưu bản nháp bảng điểm.");
       onSaved(res);
       onClose();
     } catch (e) {
@@ -289,7 +289,7 @@ export default function RecordFormModal({
                     Bạn đã có bảng điểm {semesterLabel(lockedHere.semester)} ({STATUS_META[lockedHere.status].label}).{" "}
                     {lockedHere.status === "submitted"
                       ? "Mở bảng điểm đó và bấm “Rút lại để sửa” nếu cần chỉnh."
-                      : "Bảng điểm đã xác minh chỉ Ban điều hành mới mở lại được."}
+                      : "Bảng điểm đã xác minh chỉ người quản lý mới mở lại được."}
                   </span>
                 </div>
               )}
@@ -458,7 +458,7 @@ export default function RecordFormModal({
                 />
               )}
               {supportNeeded && (
-                <p className="-mt-2 text-[10px] text-gray-500">Yêu cầu phụ đạo được gửi tới Ban điều hành để ghép cặp — điểm số của bạn không được chia sẻ cho người kèm.</p>
+                <p className="-mt-2 text-[10px] text-gray-500">Yêu cầu phụ đạo được gửi tới người quản lý để ghép cặp — điểm số của bạn không được chia sẻ cho người kèm.</p>
               )}
 
               <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-gray-100">

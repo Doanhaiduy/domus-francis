@@ -78,7 +78,7 @@ export default function RecordDetailModal({
                 {r.status === "verified" && (
                   <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    Xác minh bởi {r.verifiedByName ?? "Ban điều hành"} • {fmtDateTime(r.verifiedAt)}
+                    Xác minh bởi {r.verifiedByName ?? "Người quản lý"} • {fmtDateTime(r.verifiedAt)}
                   </span>
                 )}
               </div>

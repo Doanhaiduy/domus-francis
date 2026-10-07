@@ -109,7 +109,7 @@ async function senderFooter(ctx: PostCtx): Promise<string> {
   const name = await ctx
     .dbAs("luuxa_worker", async (tx) => (await tx.query<{ n: string }>("SELECT display_name AS n FROM members WHERE user_id = $1 LIMIT 1", [ctx.userId]).then((r) => r.rows[0]?.n)))
     .catch(() => null);
-  return `— Thao tác bởi ${name ?? "Ban điều hành"}`;
+  return `— Thao tác bởi ${name ?? "Người quản lý"}`;
 }
 
 /** Ghi nhật ký tin gửi nhóm Zalo (db/app/1017_zalo_message_log.sql). Không bao giờ ném lỗi. */

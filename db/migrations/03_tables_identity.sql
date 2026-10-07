@@ -199,7 +199,7 @@ COMMENT ON TABLE settings IS 'Cấu hình hệ thống dạng khóa–giá trị
 COMMENT ON COLUMN settings.write_permission IS 'Quyền cần có để SỬA cấu hình này (mặc định setting.write — Admin kỹ thuật và Trưởng nhà). Cấu hình tài chính (finance.*) yêu cầu finance.settings.write chỉ Trưởng nhà có: Admin kỹ thuật không thể hạ ngưỡng hai chữ ký hay tắt bắt buộc đối soát (tách quyền kỹ thuật khỏi quyền tài chính).';
 
 -- ---------------------------------------------------------------------
--- 4.3.5  categories — danh mục do Ban điều hành quản lý (khớp màn hình Cài đặt)
+-- 4.3.5  categories — danh mục do người quản lý quản lý (khớp màn hình Cài đặt)
 --        Một bảng + cột kind; các bảng dùng danh mục tham chiếu bằng FK phức hợp (category_id, category_kind).
 -- ---------------------------------------------------------------------
 CREATE TABLE categories (

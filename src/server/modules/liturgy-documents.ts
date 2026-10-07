@@ -199,7 +199,7 @@ export async function getDocument(tx: Tx, id: string): Promise<LiturgyDocumentDt
 // Ghi
 // ---------------------------------------------------------------------
 function assertCanManage(ok: unknown, action: string) {
-  if (!ok) throw forbidden(`Chỉ Ban Phụng vụ hoặc Ban điều hành (quyền "Thêm/sửa/xóa tài liệu phụng vụ") mới ${action} tài liệu phụng vụ.`);
+  if (!ok) throw forbidden(`Chỉ Ban Phụng vụ hoặc người quản lý (quyền "Thêm/sửa/xóa tài liệu phụng vụ") mới ${action} tài liệu phụng vụ.`);
 }
 
 export async function createDocument(tx: Tx, b: LiturgyDocumentInput): Promise<LiturgyDocumentDto> {

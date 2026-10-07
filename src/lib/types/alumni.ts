@@ -21,7 +21,7 @@ export interface AlumniDto {
   /** Đã đồng ý chia sẻ thông tin trong cộng đoàn / còn giữ liên lạc */
   keepsContact: boolean;
   note: string | null;
-  /** Người xem sửa được hồ sơ cựu này (ban điều hành hoặc chính chủ) */
+  /** Người xem sửa được hồ sơ cựu này (người quản lý hoặc chính chủ) */
   canEdit: boolean;
 }
 

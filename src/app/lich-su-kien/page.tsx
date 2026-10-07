@@ -228,7 +228,7 @@ export default function LichSuKienPage() {
   };
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto pb-16">
+    <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

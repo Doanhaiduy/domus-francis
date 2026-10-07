@@ -7,7 +7,7 @@ export const GET = api({}, (ctx) => ctx.db((tx) => getMyConsents(tx)));
 
 const Body = z.object({ purpose: z.enum(SELF_CONSENT_PURPOSES), granted: z.boolean() });
 
-/** Bật/tắt một đồng ý của chính mình (hồ sơ Công giáo, cho Ban điều hành xem hồ sơ Công giáo). */
+/** Bật/tắt một đồng ý của chính mình (hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo). */
 export const PUT = api({}, async (ctx) => {
   const b = await ctx.body(Body);
   return ctx.db((tx) => setMyConsent(tx, b.purpose, b.granted, ctx.ip));

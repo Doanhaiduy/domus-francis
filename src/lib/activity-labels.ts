@@ -88,6 +88,12 @@ const RULES: [string, string, string][] = [
     "DELETE /api/v1/members/[id]/payment-account": "Xóa tài khoản ngân hàng thành viên",
     "POST /api/v1/applications/[id]/approve": "Duyệt đơn vào lưu xá",
     "POST /api/v1/applications/[id]/reject": "Từ chối đơn vào lưu xá",
+    "DELETE /api/v1/applications/[id]": "Xóa đơn vào lưu xá (Admin dọn dữ liệu)",
+    "POST /api/v1/leave": "Gửi đơn xin phép",
+    "PATCH /api/v1/leave/[id]": "Duyệt / từ chối / hủy đơn xin phép",
+    "DELETE /api/v1/leave/[id]": "Xóa đơn xin phép (Admin dọn dữ liệu)",
+    "PATCH /api/v1/inquiries/[id]": "Cập nhật đăng ký tìm hiểu",
+    "DELETE /api/v1/inquiries/[id]": "Xóa đăng ký tìm hiểu (Admin dọn dữ liệu)",
   }),
   ...A("account", {
     "POST /api/v1/accounts": "Cấp tài khoản đăng nhập",
@@ -132,9 +138,9 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/academic/config/universities": "Thêm trường",
     "PATCH /api/v1/academic/config/universities/[id]": "Sửa trường",
     "DELETE /api/v1/academic/config/universities/[id]": "Xóa trường",
-    "POST /api/v1/academic/config/board-terms": "Thêm nhiệm kỳ ban điều hành",
-    "PATCH /api/v1/academic/config/board-terms/[id]": "Sửa nhiệm kỳ ban điều hành",
-    "DELETE /api/v1/academic/config/board-terms/[id]": "Xóa nhiệm kỳ ban điều hành",
+    "POST /api/v1/academic/config/board-terms": "Thêm nhiệm kỳ người quản lý",
+    "PATCH /api/v1/academic/config/board-terms/[id]": "Sửa nhiệm kỳ người quản lý",
+    "DELETE /api/v1/academic/config/board-terms/[id]": "Xóa nhiệm kỳ người quản lý",
   }),
   ...A("kitchen", {
     "PUT /api/v1/meals/registrations": "Đăng ký suất ăn",
@@ -183,6 +189,7 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/prayers/[id]/reveal": "Xem tác giả ý cầu nguyện ẩn danh",
     "POST /api/v1/prayers/[id]/status": "Đổi trạng thái ý cầu nguyện",
     "POST /api/v1/prayers/[id]/visibility": "Đổi chế độ hiển thị ý cầu nguyện",
+    "DELETE /api/v1/prayers/[id]": "Xóa ý cầu nguyện (Admin dọn dữ liệu)",
   }),
   ...A("community", {
     "POST /api/v1/announcements": "Đăng thông báo",
@@ -228,6 +235,7 @@ const RULES: [string, string, string][] = [
     "DELETE /api/v1/house/assignments/[memberId]": "Gỡ thành viên khỏi phòng",
     "POST /api/v1/issues": "Báo sự cố / hỏng hóc",
     "PATCH /api/v1/issues/[id]": "Cập nhật sự cố",
+    "DELETE /api/v1/issues/[id]": "Xóa phiếu sự cố (Admin dọn dữ liệu)",
     "POST /api/v1/issues/[id]/assign": "Giao xử lý sự cố",
     "POST /api/v1/issues/[id]/verify": "Nghiệm thu sự cố",
     "POST /api/v1/issues/[id]/photos": "Thêm ảnh sự cố",
@@ -251,7 +259,7 @@ const RULES: [string, string, string][] = [
 const BY_KEY = new Map(RULES.map(([k, area, label]) => [k, { area, label }]));
 
 const SEGMENT_AREA: Record<string, string> = {
-  finance: "finance", events: "event", polls: "event", duty: "duty", members: "member", applications: "member", accounts: "account",
+  finance: "finance", events: "event", polls: "event", duty: "duty", members: "member", applications: "member", inquiries: "member", leave: "event", accounts: "account",
   rbac: "account", settings: "setting", categories: "setting", reminders: "setting", "house-rules": "setting", academic: "academic",
   meals: "kitchen", pantry: "kitchen", liturgy: "liturgy", prayers: "liturgy", announcements: "community", notifications: "community",
   forum: "community", moments: "community", files: "community", house: "house", issues: "house", ai: "ai", integrations: "integration", auth: "auth",
@@ -298,7 +306,7 @@ export const ENTITY_LABEL: Record<string, string> = {
   catholic_profiles: "Hồ sơ Công giáo",
   student_profiles: "Hồ sơ sinh viên",
   member_applications: "Đơn xin vào lưu xá",
-  board_terms: "Nhiệm kỳ ban điều hành",
+  board_terms: "Nhiệm kỳ người quản lý",
   member_positions: "Chức vụ",
   academic_years: "Năm học",
   semesters: "Học kỳ",

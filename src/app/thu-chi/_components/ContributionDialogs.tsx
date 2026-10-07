@@ -419,7 +419,7 @@ export function CellDialog({
               <div className="p-3 rounded-2xl border border-purple-100 bg-purple-50/40 space-y-2">
                 <div className="flex items-center justify-between">
                   <h5 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
-                    <Pencil className="w-3.5 h-3.5 text-primary" /> Điều chỉnh mức phải thu (Ban điều hành)
+                    <Pencil className="w-3.5 h-3.5 text-primary" /> Điều chỉnh mức phải thu (người quản lý)
                   </h5>
                   <button
                     type="button"

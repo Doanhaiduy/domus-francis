@@ -192,7 +192,7 @@ CREATE TABLE leave_requests (
   CONSTRAINT ck_leave_requests__decided CHECK ((status IN ('approved', 'rejected')) = (decided_at IS NOT NULL AND decided_by IS NOT NULL)),
   CONSTRAINT ck_leave_requests__reject_note CHECK (status <> 'rejected' OR app.has_text(decision_note, 5))
 );
-COMMENT ON TABLE leave_requests IS 'Đơn xin phép: vắng sự kiện, về muộn quá giờ giới nghiêm, ngủ ngoài, tạm vắng dài. Đơn được duyệt ⇒ điểm danh vắng thành excused và không bị trừ điểm; đồng thời là cơ sở để không xếp trực trùng (trigger duty_assignment_members). Ban điều hành duyệt (không tự duyệt đơn của chính mình).';
+COMMENT ON TABLE leave_requests IS 'Đơn xin phép: vắng sự kiện, về muộn quá giờ giới nghiêm, ngủ ngoài, tạm vắng dài. Đơn được duyệt ⇒ điểm danh vắng thành excused và không bị trừ điểm; đồng thời là cơ sở để không xếp trực trùng (trigger duty_assignment_members). Người quản lý duyệt (không tự duyệt đơn của chính mình).';
 
 CREATE TABLE polls (
   id                    uuid          PRIMARY KEY DEFAULT app.uuid_v7(),

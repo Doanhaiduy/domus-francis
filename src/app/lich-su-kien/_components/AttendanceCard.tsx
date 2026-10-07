@@ -244,7 +244,7 @@ export default function AttendanceCard({ event: evt, canReadAll, onOpenQr, onChe
       {!canSeeRoster && (
         <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
           <Lock className="w-3.5 h-3.5" />
-          Danh sách điểm danh chi tiết chỉ hiển thị cho Ban điều hành và ban tổ chức sự kiện.
+          Danh sách điểm danh chi tiết chỉ hiển thị cho người quản lý và ban tổ chức sự kiện.
         </p>
       )}
 

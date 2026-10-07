@@ -173,7 +173,7 @@ export async function attendanceRoster(tx: Tx, eventId: string): Promise<Attenda
       [eventId]
     )
   ).rows[0];
-  if (!perm.rec && !perm.all) throw forbidden("Danh sách điểm danh chỉ dành cho Ban điều hành và ban tổ chức sự kiện.");
+  if (!perm.rec && !perm.all) throw forbidden("Danh sách điểm danh chỉ dành cho người quản lý và ban tổ chức sự kiện.");
   const rows = (
     await tx.query(
       `WITH ev AS (SELECT id, starts_at, expected_scope FROM events WHERE id = $1)

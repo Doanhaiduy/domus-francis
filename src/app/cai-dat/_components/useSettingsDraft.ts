@@ -145,7 +145,7 @@ export function useSettingsDraft(roleCodes: string[] = []): SettingsDraft {
       if (!m) return "Bạn không có quyền xem cấu hình này.";
       if (m.canWrite) return null;
       const w = writers[m.writePermission];
-      const who = w?.roles.length ? w.roles.join(", ") : "Ban điều hành";
+      const who = w?.roles.length ? w.roles.join(", ") : "Người quản lý";
       if (m.writePermission === "finance.settings.write")
         return `Chỉ ${who} được sửa (Admin kỹ thuật không có quyền tài chính)`;
       return `Chỉ ${who} được sửa`;

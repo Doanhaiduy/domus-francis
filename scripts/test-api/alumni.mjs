@@ -1,5 +1,5 @@
 // Kiểm thử MẠNG LƯỚI CỰU THÀNH VIÊN (/api/v1/alumni): chỉ liệt kê người đã ra trường / đã rời; hồ sơ nghề nghiệp chỉ hiện với thành viên
-// thường khi được đánh dấu "còn giữ liên lạc" (đã đồng ý chia sẻ); ban điều hành xem/sửa tất cả; thành viên thường không sửa được hồ sơ người khác.
+// thường khi được đánh dấu "còn giữ liên lạc" (đã đồng ý chia sẻ); người quản lý xem/sửa tất cả; thành viên thường không sửa được hồ sơ người khác.
 // Dữ liệu thử: tạo thành viên mới qua nhập hàng loạt rồi chuyển sang "cựu"; dọn dẹp bằng cách chuyển sang "đã rời".
 
 export async function run({ as, test, eq, ok, section, Client }) {
@@ -38,7 +38,7 @@ export async function run({ as, test, eq, ok, section, Client }) {
     eq(r.canManage, false);
   });
 
-  await test("Ban điều hành lưu hồ sơ cựu; năm ra trường ngoài 1980–2100 → 400", async () => {
+  await test("Người quản lý lưu hồ sơ cựu; năm ra trường ngoài 1980–2100 → 400", async () => {
     eq((await head.req("PUT", `/api/v1/alumni/${a}`, { graduationYear: 1900 })).status, 400);
     const r = await head.req("PUT", `/api/v1/alumni/${a}`, { graduationYear: 2026, occupation: "Kỹ sư phần mềm", workplace: "Công ty ABC", city: "TP. Hồ Chí Minh", keepsContact: false, note: "Sẵn lòng hướng dẫn thực tập" });
     eq(r.status, 200, JSON.stringify(r.json));
@@ -49,7 +49,7 @@ export async function run({ as, test, eq, ok, section, Client }) {
     eq((await get(head)).canManage, true);
   });
 
-  await test("Chưa 'giữ liên lạc' ⇒ thành viên thường KHÔNG thấy nghề nghiệp/nơi làm việc; ban điều hành thấy", async () => {
+  await test("Chưa 'giữ liên lạc' ⇒ thành viên thường KHÔNG thấy nghề nghiệp/nơi làm việc; người quản lý thấy", async () => {
     const asMember = (await get(member)).items.find((i) => i.id === a);
     eq(asMember.occupation, null);
     eq(asMember.workplace, null);

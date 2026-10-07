@@ -39,13 +39,13 @@ const TASK_TEXT: Record<string, { name: string; desc: string }> = {
   "duty.roster_solver": { name: "Gợi ý phân công trực nhật", desc: "Gợi ý lịch trực cân bằng, tránh ngày bận — chạy nội bộ." },
   "academic.transcript_ocr": { name: "Đọc bảng điểm từ ảnh", desc: "Điểm cá nhân là dữ liệu nhạy cảm nên chỉ được chạy trên máy chủ riêng, cần thành viên đồng ý." },
   "academic.risk_forecast": { name: "Cảnh báo sớm nguy cơ nợ môn", desc: "Phân tích điểm (khi thành viên đồng ý) để cảnh báo sớm — chạy nội bộ." },
-  "community.policy_rag": { name: "Hỏi đáp nội quy & lịch sinh hoạt", desc: "Trả lời câu hỏi từ nội quy, thông báo, lịch sự kiện; luôn ghi nguồn, chỉ dùng nội dung người hỏi được xem." },
+  "community.policy_rag": { name: "Trợ lý Lưu Xá (hướng dẫn & hỏi đáp)", desc: "Hướng dẫn thao tác theo sách hướng dẫn của ứng dụng + trả lời từ nội quy, thông báo, lịch sự kiện; nhớ vài lượt trò chuyện, gợi ý mở đúng trang, luôn ghi nguồn, chỉ dùng nội dung người hỏi được xem." },
   "community.moderation": { name: "Soát nội dung trước khi đăng", desc: "Phát hiện lời lẽ xúc phạm hoặc lộ thông tin cá nhân; không gửi danh tính tác giả." },
   "facility.issue_triage": { name: "Phân loại & ưu tiên sự cố", desc: "Gợi ý mức khẩn, loại sự cố và cảnh báo báo hỏng trùng; Ban hậu cần xác nhận." },
   "community.minutes": { name: "Tóm tắt biên bản / bản tin", desc: "Tóm tắt ghi chú cuộc họp, soạn bản tin tuần từ các ý chính." },
   "finance.monthly_insight": {
     name: "Nhận xét thu chi theo tháng",
-    desc: "Khi Thủ quỹ/Ban điều hành mở trang Thu chi, AI tóm tắt và so sánh thu chi tháng này với tháng trước. Chỉ gửi số liệu tổng hợp của quỹ, không tên người; số tiền do hệ thống tính.",
+    desc: "Khi Thủ quỹ/người quản lý mở trang Thu chi, AI tóm tắt và so sánh thu chi tháng này với tháng trước. Chỉ gửi số liệu tổng hợp của quỹ, không tên người; số tiền do hệ thống tính.",
   },
   "academic.insight": {
     name: "Nhận xét kết quả học tập cá nhân",
@@ -53,7 +53,7 @@ const TASK_TEXT: Record<string, { name: string; desc: string }> = {
   },
   "academic.house_insight": {
     name: "Nhận xét học tập toàn nhà",
-    desc: "Cho Ban điều hành: nhận xét tình hình học tập chung so với năm học trước, chỉ từ số liệu tổng hợp ẩn danh (học kỳ có từ 3 bảng điểm).",
+    desc: "Cho người quản lý: nhận xét tình hình học tập chung so với năm học trước, chỉ từ số liệu tổng hợp ẩn danh (học kỳ có từ 3 bảng điểm).",
   },
 };
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
@@ -68,7 +68,7 @@ const PROVIDER_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini",
 const CONSENT_LABEL: Record<string, string> = {
   ai_processing: "“Dùng AI xử lý nội dung do tôi tạo”",
   ai_academic: "“Dùng AI phân tích dữ liệu học tập”",
-  academic_share_leadership: "“Chia sẻ bảng điểm cho Ban điều hành”",
+  academic_share_leadership: "“Chia sẻ bảng điểm cho người quản lý”",
   ai_academic_summary: "“Dùng AI nhận xét điểm học tập của tôi”",
 };
 /** Lý do chặn/lỗi từ máy chủ có thể chứa mã kỹ thuật (BR-AI-03, ai_processing, feature.ai.enabled…) ⇒ diễn đạt lại. */
