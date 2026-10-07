@@ -481,14 +481,14 @@ async function suiteFiles() {
   });
 }
 
-// Bộ kiểm thử của từng phân hệ (nếu có file scripts/test-api/<tên>.mjs export async function run({ as, test, eq, ok, section, BASE }))
+// Bộ kiểm thử của từng phân hệ (nếu có file scripts/test-api/<tên>.mjs export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig }); pgConfig() = cấu hình pg (quyền chủ DB) tới DB đang thử)
 async function suiteModules() {
   const { readdirSync } = await import("node:fs");
   const dir = path.join(ROOT, "scripts", "test-api");
   if (!existsSync(dir)) return;
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".mjs") && x.startsWith(ONLY)).sort()) {
     const mod = await import(`./test-api/${f}`);
-    await mod.run({ as, test, eq, ok, section, BASE, Client });
+    await mod.run({ as, test, eq, ok, section, BASE, Client, pgConfig: () => pgConfig({ database: NO_SERVER ? "luuxa" : DB }) });
   }
 }
 

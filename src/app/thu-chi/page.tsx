@@ -68,6 +68,7 @@ import { ReasonDialog } from "./_components/dialogs";
 import { ClaimDialog, QuickPayDialog, RemindDialog } from "./_components/CollectionDialogs";
 import StatsPanel from "./_components/StatsPanel";
 import DonationsPanel from "./_components/DonationsPanel";
+import { OpeningBalanceBanner, OpeningBalanceButton } from "./_components/OpeningBalance";
 import BankLinesCard from "./_components/BankLinesCard";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
@@ -529,6 +530,9 @@ export default function ThuChiPage() {
       {/* ========================================================================= */}
       {activeTab === "tong-quan" && o && (
         <>
+          {/* Mới triển khai (sổ quỹ còn trống): nhắc Trưởng nhà nhập số dư quỹ khởi đầu */}
+          <OpeningBalanceBanner />
+
           {/* AI nhận xét thu chi tháng đang xem so với tháng trước (tự ẩn khi tác vụ tắt hoặc không đủ quyền) */}
           {periodMode === "month" && selectedMonth !== "all" && <AiFinanceInsight month={selectedMonth} />}
 
@@ -621,12 +625,13 @@ export default function ThuChiPage() {
             <div className="lg:col-span-5 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <AreaTrendChart data={trendData} height={190} title="Tăng Trưởng Số Dư Quỹ Lưu Xá" subtitle="Số dư cuối mỗi tháng theo sổ cái" />
               {o.funds && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   {o.funds.map((f) => (
                     <span key={f.id} className="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-semibold text-gray-700">
                       {f.name}: <b className="text-gray-900">{formatVND(f.balanceVnd)}</b>
                     </span>
                   ))}
+                  <OpeningBalanceButton />
                 </div>
               )}
             </div>

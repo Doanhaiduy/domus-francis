@@ -574,6 +574,23 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
           {
+            title: "Số dư quỹ khởi đầu (khi mới triển khai)",
+            blocks: [
+              { t: "path", items: ["Thu Chi & Báo cáo", "Tổng quan", "Nhập số dư đầu kỳ"] },
+              { t: "md", text: "Khi mới bắt đầu dùng hệ thống, quỹ nhà đã có sẵn tiền (tiền mặt Thủ quỹ đang giữ, số dư tài khoản ngân hàng). **Trưởng nhà hoặc Admin** nhập số tiền đó một lần để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh số dư các túi quỹ." },
+              {
+                t: "steps",
+                items: [
+                  { title: "Mở hộp thoại", text: "Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh số dư các túi quỹ)." },
+                  { title: "Chọn ngày chốt số dư", text: "Ngày bạn đối chiếu số tiền thực tế (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ." },
+                  { title: "Nhập số tiền từng túi quỹ", text: "Quỹ tiền mặt và tài khoản ngân hàng. Túi quỹ không dùng thì **để trống**. Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”)." },
+                  { title: "Xem lại rồi xác nhận ghi sổ", text: "Kiểm tra từng số tiền và tổng, bấm **Xác nhận ghi sổ**." },
+                ],
+              },
+              { t: "callout", tone: "warn", text: "Mỗi túi quỹ chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của túi quỹ đó; túi quỹ đã có giao dịch thì không nhập được nữa. Bút toán **không sửa, không xóa** (sổ quỹ bất biến) — nhập sai thì ghi bút toán điều chỉnh kèm lý do. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ." },
+            ],
+          },
+          {
             title: "Ủng hộ / quyên góp vào quỹ",
             blocks: [
               { t: "path", items: ["Thu Chi & Báo cáo", "Thu chi", "Ủng hộ"] },

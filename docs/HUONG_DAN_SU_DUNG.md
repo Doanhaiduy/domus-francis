@@ -504,6 +504,19 @@ Khi nhà đã kết nối SePay/Casso (Admin cấu hình — xem mục Admin), m
 
 > **ℹ️ Lưu ý** — Hệ thống **không bao giờ tự ghi sổ** từ ngân hàng — luôn do Thủ quỹ bấm xác nhận. Bấm hai lần không ghi thu hai lần.
 
+#### Số dư quỹ khởi đầu (khi mới triển khai)
+
+**Thu Chi & Báo cáo → Tổng quan → Nhập số dư đầu kỳ**
+
+Khi mới bắt đầu dùng hệ thống, quỹ nhà đã có sẵn tiền (tiền mặt Thủ quỹ đang giữ, số dư tài khoản ngân hàng). **Trưởng nhà hoặc Admin** nhập số tiền đó một lần để tồn quỹ, biểu đồ và báo cáo tính đúng ngay từ đầu. Khi sổ quỹ còn trống, đầu trang **Tổng quan** có thẻ vàng **“Nhập số dư khởi đầu”**; sau này vẫn mở được bằng nút **Nhập số dư đầu kỳ** cạnh số dư các túi quỹ.
+
+1. **Mở hộp thoại** — Bấm **Nhập số dư khởi đầu** (hoặc nút cạnh số dư các túi quỹ).
+2. **Chọn ngày chốt số dư** — Ngày bạn đối chiếu số tiền thực tế (mặc định hôm nay, **không chọn ngày tương lai**). Tháng đó phải còn mở sổ.
+3. **Nhập số tiền từng túi quỹ** — Quỹ tiền mặt và tài khoản ngân hàng. Túi quỹ không dùng thì **để trống**. Có thể ghi chú nguồn số liệu (ví dụ “theo sổ tay Thủ quỹ cũ”).
+4. **Xem lại rồi xác nhận ghi sổ** — Kiểm tra từng số tiền và tổng, bấm **Xác nhận ghi sổ**.
+
+> **⚠️ Chú ý** — Mỗi túi quỹ chỉ nhập số dư đầu kỳ được **một lần** và phải là bút toán **đầu tiên** của túi quỹ đó; túi quỹ đã có giao dịch thì không nhập được nữa. Bút toán **không sửa, không xóa** (sổ quỹ bất biến) — nhập sai thì ghi bút toán điều chỉnh kèm lý do. Số dư đầu kỳ **không tính vào tổng thu** trong kỳ.
+
 #### Ủng hộ / quyên góp vào quỹ
 
 **Thu Chi & Báo cáo → Thu chi → Ủng hộ**
