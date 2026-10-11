@@ -2,7 +2,7 @@ import "server-only";
 import type { Tx } from "../db";
 import { ApiError, badRequest, forbidden, notFound } from "../errors";
 import { financeCaller, type FinanceCaller } from "./finance";
-import type { CreateExpenseInput, UpdateExpenseInput } from "./finance-schema";
+import type { CreateExpenseInput, ExpenseItemInput, UpdateExpenseInput } from "./finance-schema";
 import type { ExpenseDetailDto, ExpenseDto, ExpenseStatus, PaymentMethod } from "@/lib/types/finance";
 
 // ---------------------------------------------------------------------
@@ -26,7 +26,10 @@ const EXPENSE_SELECT = `
                 WHERE ea.voucher_id = ev.id AND ea.round = ev.approval_round AND ea.decision = 'approved') AS used_roles,
          COALESCE((SELECT json_agg(json_build_object('fileId', ma.file_id, 'mime', sf.detected_mime) ORDER BY ma.position, ma.created_at)
                      FROM media_attachments ma LEFT JOIN storage_files sf ON sf.id = ma.file_id
-                    WHERE ma.entity_type = 'expense_voucher' AND ma.entity_id = ev.id AND ma.purpose = 'receipt'), '[]'::json) AS receipts
+                    WHERE ma.entity_type = 'expense_voucher' AND ma.entity_id = ev.id AND ma.purpose = 'receipt'), '[]'::json) AS receipts,
+         COALESCE((SELECT json_agg(json_build_object('id', i.id, 'position', i.position, 'name', i.name, 'quantity', i.quantity, 'unit', i.unit,
+                                                     'unitPriceVnd', i.unit_price_vnd, 'amountVnd', i.amount_vnd) ORDER BY i.position)
+                     FROM expense_voucher_items i WHERE i.voucher_id = ev.id), '[]'::json) AS items
     FROM expense_vouchers ev
     JOIN categories c ON c.id = ev.category_id
     LEFT JOIN members pm ON pm.id = ev.paid_by_member_id
@@ -87,6 +90,7 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
     cancelReason: r.cancel_reason,
     createdAt: ts(r.created_at)!,
     receipts: (r.receipts as { fileId: string; mime: string | null }[]).map((f) => ({ ...f, url: `/api/v1/files/${f.fileId}` })),
+    items: (r.items as ExpenseDto["items"]).map((i) => ({ ...i, quantity: Number(i.quantity), unitPriceVnd: Number(i.unitPriceVnd), amountVnd: Number(i.amountVnd) })),
     can: {
       edit: mine && OWNER_EDITABLE.includes(status),
       submit: mine && status === "draft",
@@ -194,6 +198,28 @@ async function attachReceipt(tx: Tx, voucherId: string, fileId: string) {
   );
 }
 
+/** Thành tiền một món (làm tròn nửa lên) — CHỈ để ước tính số tiền ban đầu của phiếu; số chính thức là tổng amount_vnd do CSDL tính. */
+const estimateItem = (it: ExpenseItemInput) => Math.round((Math.round(it.quantity * 1000) * it.unitPriceVnd) / 1000);
+
+/** Thay toàn bộ các món của phiếu (đang nháp) rồi đồng bộ số tiền phiếu = tổng các món. items rỗng ⇒ chỉ xóa món. */
+async function replaceItems(tx: Tx, voucherId: string, items: ExpenseItemInput[]) {
+  await tx.query("DELETE FROM expense_voucher_items WHERE voucher_id = $1", [voucherId]);
+  if (!items.length) return;
+  await tx.query(
+    `INSERT INTO expense_voucher_items (voucher_id, position, name, quantity, unit, unit_price_vnd)
+     SELECT $1, t.ord::smallint, t.name, t.qty, t.unit, t.price
+       FROM unnest($2::text[], $3::numeric[], $4::text[], $5::bigint[]) WITH ORDINALITY AS t(name, qty, unit, price, ord)`,
+    [voucherId, items.map((i) => i.name), items.map((i) => i.quantity), items.map((i) => i.unit ?? null), items.map((i) => i.unitPriceVnd)]
+  );
+  // Số tiền phiếu = tổng thành tiền các món (CSDL là nguồn chính thức, không phụ thuộc cách làm tròn ở trình duyệt)
+  await tx.query(
+    `UPDATE expense_vouchers SET amount_vnd = s.total
+       FROM (SELECT sum(amount_vnd)::bigint AS total FROM expense_voucher_items WHERE voucher_id = $1) s
+      WHERE id = $1 AND amount_vnd IS DISTINCT FROM s.total`,
+    [voucherId]
+  );
+}
+
 export async function createExpense(tx: Tx, b: CreateExpenseInput): Promise<string> {
   const c = await financeCaller(tx);
   if (!c.create) throw forbidden("Bạn không có quyền lập phiếu chi.");
@@ -213,7 +239,7 @@ export async function createExpense(tx: Tx, b: CreateExpenseInput): Promise<stri
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, app.current_user_id(), $11) RETURNING id`,
       [
         b.title,
-        b.amountVnd,
+        b.items?.length ? b.items.reduce((sum, i) => sum + estimateItem(i), 0) : b.amountVnd,
         b.categoryId,
         b.expenseDate,
         b.fundId,
@@ -226,6 +252,7 @@ export async function createExpense(tx: Tx, b: CreateExpenseInput): Promise<stri
       ]
     )
   ).rows[0].id;
+  if (b.items?.length) await replaceItems(tx, id, b.items);
   if (b.receiptFileId) await attachReceipt(tx, id, b.receiptFileId);
   if (b.submit) await tx.query("SELECT app.fn_submit_expense($1)", [id]);
   return id;
@@ -263,6 +290,7 @@ export async function updateExpense(tx: Tx, id: string, b: UpdateExpenseInput) {
     const r = await tx.query(`UPDATE expense_vouchers SET ${sets.join(", ")} WHERE id = $1`, vals);
     if (!r.rowCount) throw forbidden("Bạn không được sửa phiếu chi này.");
   }
+  if (b.items !== undefined) await replaceItems(tx, id, b.items);
   if (b.receiptFileId !== undefined) await setReceipt(tx, id, b.receiptFileId);
   if (b.submit) await tx.query("SELECT app.fn_submit_expense($1)", [id]);
 }

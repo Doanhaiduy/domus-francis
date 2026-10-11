@@ -819,6 +819,7 @@ export default function ThuChiPage() {
                   <span className="font-bold text-xs text-gray-900 min-w-0">
                     {exp.title}
                     {exp.receipts.length > 0 && <Paperclip className="inline w-3 h-3 ml-1 text-primary" aria-label="Có hóa đơn" />}
+                    {exp.items.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-purple-50 text-[10px] font-bold text-primary whitespace-nowrap">{exp.items.length} món</span>}
                   </span>
                   <span className={`text-xs font-extrabold shrink-0 ${NOT_COUNTED.includes(exp.status) ? "text-gray-400 line-through" : "text-rose-600"}`}>
                     -{formatVND(exp.amountVnd)}
@@ -866,6 +867,7 @@ export default function ThuChiPage() {
                       <span className="inline-flex items-center gap-1.5">
                         {exp.title}
                         {exp.receipts.length > 0 && <Paperclip className="w-3 h-3 text-primary shrink-0" aria-label="Có hóa đơn" />}
+                        {exp.items.length > 0 && <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-[10px] font-bold text-primary whitespace-nowrap">{exp.items.length} món</span>}
                       </span>
                     </td>
                     <td className="py-3">

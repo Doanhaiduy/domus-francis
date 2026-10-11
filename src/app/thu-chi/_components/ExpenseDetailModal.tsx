@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Receipt, FileText, Check, X, Pencil, Send, Undo2, Wallet, Ban, RotateCcw, ShieldCheck, Clock, ExternalLink, AlertCircle, UserCog } from "lucide-react";
+import { Receipt, ShoppingBasket, FileText, Check, X, Pencil, Send, Undo2, Wallet, Ban, RotateCcw, ShieldCheck, Clock, ExternalLink, AlertCircle, UserCog } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
-import { dmy, dateTimeVN } from "@/lib/finance-format";
+import { dmy, dateTimeVN, formatQuantity } from "@/lib/finance-format";
 import { financeApi, refreshFinance, useExpenseDetail, useFinanceOptions } from "@/lib/data/finance";
 import {
   APPROVER_ROLE_LABEL,
@@ -268,6 +268,51 @@ export default function ExpenseDetailModal({
                 </div>
               )}
             </div>
+
+            {/* CHI TIẾT TỪNG MÓN (đi chợ nhiều món) */}
+            {e.items.length > 0 && (
+              <div>
+                <h5 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide mb-2 inline-flex items-center gap-1.5">
+                  <ShoppingBasket className="w-3.5 h-3.5 text-primary" /> Chi tiết các món ({e.items.length})
+                </h5>
+                <div className="rounded-2xl border border-purple-100 overflow-hidden text-xs">
+                  <div className="hidden sm:grid grid-cols-[2rem_minmax(0,1fr)_6rem_6.5rem_6.5rem] gap-2 px-3 py-2 bg-purple-50/70 text-[10px] font-bold uppercase text-gray-500">
+                    <span>#</span>
+                    <span>Tên món</span>
+                    <span className="text-right">Số lượng</span>
+                    <span className="text-right">Đơn giá</span>
+                    <span className="text-right">Thành tiền</span>
+                  </div>
+                  <ul className="divide-y divide-gray-50">
+                    {e.items.map((it) => (
+                      <li key={it.id} className="px-3 py-2.5 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_6rem_6.5rem_6.5rem] sm:gap-2 sm:items-center">
+                        <span className="hidden sm:block text-gray-400 tabular-nums">{it.position}</span>
+                        <div className="flex items-start justify-between gap-3 sm:contents">
+                          <div className="min-w-0 sm:contents">
+                            <span className="font-bold text-gray-900 break-words sm:min-w-0">{it.name}</span>
+                            {/* điện thoại: số lượng × đơn giá nằm dưới tên; từ sm: là hai cột riêng */}
+                            <span className="block sm:hidden text-[11px] text-gray-500 mt-0.5">
+                              {formatQuantity(it.quantity)}
+                              {it.unit ? ` ${it.unit}` : ""} × {formatVND(it.unitPriceVnd)}
+                            </span>
+                          </div>
+                          <span className="hidden sm:block text-right text-gray-700 tabular-nums">
+                            {formatQuantity(it.quantity)}
+                            {it.unit ? ` ${it.unit}` : ""}
+                          </span>
+                          <span className="hidden sm:block text-right text-gray-700 tabular-nums">{formatVND(it.unitPriceVnd)}</span>
+                          <span className="text-right font-extrabold text-gray-900 tabular-nums shrink-0">{formatVND(it.amountVnd)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-purple-50/50 border-t border-purple-100">
+                    <span className="font-bold text-gray-700">Tổng cộng {e.items.length} món</span>
+                    <span className="text-sm font-extrabold text-rose-600 tabular-nums">{formatVND(e.items.reduce((sum, it) => sum + it.amountVnd, 0))}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Hoàn ứng: QR tài khoản nhận tiền của người ứng (có sẵn số tiền + nội dung) */}
             {e.paidBy && (e.status === "approved" || e.status === "paid") && (

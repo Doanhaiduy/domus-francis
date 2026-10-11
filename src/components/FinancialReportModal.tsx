@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Send, Download } from "lucide-react";
+import { X, Send, Download, FileSpreadsheet } from "lucide-react";
 import { formatVND } from "@/lib/utils";
 import { useZaloSend } from "@/lib/zalo-client";
 import { useApp } from "@/lib/store";
 import { Portal } from "@/components/ui/Portal";
 import { downloadFinancialReportPdf } from "@/lib/pdf/financial-report";
-import { dmy, formatFinanceReportForZalo, vnToday, type FinanceReportText } from "@/lib/finance-format";
+import { downloadExpenseItemsXlsx } from "@/lib/export/expense-items-xlsx";
+import { dmy, formatFinanceReportForZalo, formatQuantity, vnToday, type FinanceReportText } from "@/lib/finance-format";
 import {
   CONTRIBUTION_STATUS_LABEL,
   EXPENSE_STATUS_LABEL,
@@ -109,6 +110,16 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
     }
   };
 
+  const handleExportXlsx = async () => {
+    try {
+      await downloadExpenseItemsXlsx(props.expenses, periodLabel);
+      showToast("success", "Đã tải bảng kê chi tiết (Excel): từng món, theo phiếu và tổng hợp theo món.");
+    } catch (err) {
+      console.error(err);
+      showToast("error", "Không tạo được file Excel. Vui lòng thử lại!");
+    }
+  };
+
   const handleCopyZalo = async () => {
     await zaloSend(formatFinanceReportForZalo(report), "Đã gửi báo cáo tài chính vào nhóm Zalo.");
   };
@@ -155,6 +166,16 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{zaloSending ? "Đang gửi…" : "Gửi nhóm Zalo"}</span>
+                  </button>
+                )}
+                {props.canSeeAllExpenses && (
+                  <button
+                    onClick={handleExportXlsx}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition active:scale-95"
+                    title="Bảng kê chi tiết từng món của các phiếu đã chi (Excel)"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Excel chi tiết</span>
                   </button>
                 )}
                 <button
@@ -273,6 +294,16 @@ export default function FinancialReportModal(props: FinancialReportModalProps) {
                               </td>
                               <td className="py-2 px-3 font-medium text-gray-900">
                                 {e.title}
+                                {e.items.length > 0 && (
+                                  <ul className="mt-1 space-y-0.5 font-normal text-gray-500 text-[10px]">
+                                    {e.items.map((i) => (
+                                      <li key={i.id}>
+                                        • {i.name} — {formatQuantity(i.quantity)}
+                                        {i.unit ? ` ${i.unit}` : ""} × {formatVND(i.unitPriceVnd)} = {formatVND(i.amountVnd)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
                                 {e.note && <span className="text-gray-400 block text-[10px]">Ghi chú: {e.note}</span>}
                               </td>
                               <td className="py-2 px-3">

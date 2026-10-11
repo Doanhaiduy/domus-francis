@@ -12,9 +12,30 @@ const zAmount = z
   .max(1_000_000_000, "Số tiền tối đa 1.000.000.000đ.");
 export const zMethod = z.enum(["cash", "bank_transfer", "e_wallet", "other"], { error: "Phương thức thanh toán không hợp lệ." });
 
+/** Một món của phiếu chi: tên · số lượng (tối đa 3 chữ số thập phân) · đơn vị · đơn giá. Thành tiền do CSDL tính. */
+export const ExpenseItemSchema = z.object({
+  name: zText(1, 200, "Tên món"),
+  quantity: z
+    .number({ error: "Số lượng phải là số." })
+    .positive("Số lượng phải lớn hơn 0.")
+    .max(1_000_000, "Số lượng tối đa 1.000.000.")
+    .refine((q) => Math.abs(q * 1000 - Math.round(q * 1000)) < 1e-6, "Số lượng tối đa 3 chữ số thập phân."),
+  unit: optText(30, "Đơn vị tính"),
+  unitPriceVnd: z
+    .number({ error: "Đơn giá phải là số." })
+    .int("Đơn giá phải là số nguyên (đồng).")
+    .min(1, "Đơn giá phải lớn hơn 0.")
+    .max(1_000_000_000, "Đơn giá tối đa 1.000.000.000đ."),
+});
+export type ExpenseItemInput = z.infer<typeof ExpenseItemSchema>;
+export const MAX_EXPENSE_ITEMS = 100;
+
 const expenseFields = {
   title: zText(3, 200, "Tên khoản chi"),
-  amountVnd: zAmount,
+  /** Bỏ trống khi có chi tiết các món — khi đó số tiền = tổng các món (máy chủ tự tính) */
+  amountVnd: zAmount.optional(),
+  /** Chi tiết từng món (đi chợ nhiều món); [] ở phiếu đang sửa = bỏ chi tiết, quay về một khoản */
+  items: z.array(ExpenseItemSchema).max(MAX_EXPENSE_ITEMS, `Tối đa ${MAX_EXPENSE_ITEMS} món mỗi phiếu.`).optional(),
   categoryId: zUuid,
   expenseDate: zDate,
   fundId: zUuid,
@@ -34,13 +55,15 @@ const noReceiptMsg = { message: "Lý do không có hóa đơn tối thiểu 5 k�
 
 export const CreateExpenseSchema = z
   .object({ ...expenseFields, clientRequestId: zUuid.optional() })
-  .refine(noReceiptRule, noReceiptMsg);
+  .refine(noReceiptRule, noReceiptMsg)
+  .refine((v) => !!v.items?.length || v.amountVnd !== undefined, { message: "Nhập số tiền hoặc thêm chi tiết các món.", path: ["amountVnd"] });
 export type CreateExpenseInput = z.infer<typeof CreateExpenseSchema>;
 
 export const UpdateExpenseSchema = z
   .object({
     title: expenseFields.title.optional(),
     amountVnd: zAmount.optional(),
+    items: expenseFields.items,
     categoryId: zUuid.optional(),
     expenseDate: zDate.optional(),
     fundId: zUuid.optional(),

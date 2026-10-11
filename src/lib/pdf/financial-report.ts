@@ -2,7 +2,7 @@
 
 import type { Content, TableCell } from "pdfmake/interfaces";
 import type { buildFinanceReport } from "@/components/FinancialReportModal";
-import { dmy, vnToday } from "@/lib/finance-format";
+import { dmy, formatQuantity, vnToday } from "@/lib/finance-format";
 import { CONTRIBUTION_STATUS_LABEL, EXPENSE_STATUS_LABEL, type ContributionPlanDto, type FinanceOverviewDto } from "@/lib/types/finance";
 import { C, FONT, baseDoc, docTitle, doubleRule, downloadPdf, fileSlug, kpiRow, letterhead, money, nowText, num, plain, sectionBar, signatures, tableLayout, th } from "./core";
 
@@ -68,7 +68,20 @@ export async function downloadFinancialReportPdf(p: FinancialReportPdfInput) {
       ...report.paid.map((e, i): TableCell[] => [
         { text: String(i + 1), alignment: "center", color: C.muted },
         { stack: [{ text: e.voucherNo, fontSize: 8, bold: true }, { text: dmy(e.expenseDate), fontSize: 7.5, color: C.faint }] },
-        { stack: [{ text: plain(e.title), bold: true }, ...(e.note ? [{ text: `Ghi chú: ${plain(e.note)}`, fontSize: 7.5, color: C.faint }] : [])] },
+        {
+          stack: [
+            { text: plain(e.title), bold: true },
+            // Chi tiết từng món (đi chợ nhiều món); tối đa 25 dòng để dòng không dài hơn một trang
+            ...e.items.slice(0, 25).map((i) => ({
+              text: `• ${plain(i.name)} — ${formatQuantity(i.quantity)}${i.unit ? ` ${plain(i.unit)}` : ""} × ${num(i.unitPriceVnd)} = ${num(i.amountVnd)}`,
+              fontSize: 7.5,
+              color: C.muted,
+              margin: [0, 1, 0, 0] as [number, number, number, number],
+            })),
+            ...(e.items.length > 25 ? [{ text: `… và ${e.items.length - 25} món khác (xem trong ứng dụng)`, fontSize: 7.5, italics: true, color: C.faint }] : []),
+            ...(e.note ? [{ text: `Ghi chú: ${plain(e.note)}`, fontSize: 7.5, color: C.faint }] : []),
+          ],
+        },
         { text: plain(e.category.name), fontSize: 8, color: C.muted },
         { text: num(e.amountVnd), alignment: "right", bold: true, color: e.status === "reversed" ? C.faint : C.ink, decoration: e.status === "reversed" ? "lineThrough" : undefined },
         { text: e.paidBy?.name ?? "Quỹ chi trực tiếp", fontSize: 8.5 },

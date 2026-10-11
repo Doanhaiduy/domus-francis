@@ -10,6 +10,7 @@ import { financeApi, newRequestId, refreshFinance, useFinanceOptions } from "@/l
 import type { ExpenseDetailDto, ExpenseDto } from "@/lib/types/finance";
 import { CustomInput, CustomSelect, CustomDatePicker, CustomTextarea, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { FundSelect } from "@/components/finance/FundSelect";
+import { ExpenseItemsEditor, draftsFromItems, draftsToPayload, draftsTotal, validateDrafts, type ItemDraft } from "@/components/finance/ExpenseItemsEditor";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   FOOD: "🛒",
@@ -36,7 +37,9 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   const editing = !!expense;
 
   const [title, setTitle] = useState(expense?.title ?? "");
-  const [amount, setAmount] = useState(expense ? String(expense.amountVnd) : "");
+  const [amount, setAmount] = useState(expense && !expense.items?.length ? String(expense.amountVnd) : "");
+  // Chi tiết từng món (đi chợ nhiều món); có món thì số tiền phiếu = tổng các món
+  const [items, setItems] = useState<ItemDraft[]>(() => draftsFromItems(expense?.items ?? []));
   const [categoryId, setCategoryId] = useState(expense?.category.id ?? "");
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate ?? "");
   const [fundId, setFundId] = useState(expense?.fundId ?? "");
@@ -57,7 +60,14 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
     if (!categoryId && options.categories.length) setCategoryId(options.categories[0].id);
   }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const amountVnd = Number(amount.replace(/\D/g, "")) || 0;
+  const hasItems = items.length > 0;
+  const itemsTotal = draftsTotal(items);
+  const amountVnd = hasItems ? itemsTotal : Number(amount.replace(/\D/g, "")) || 0;
+  // Bỏ chi tiết ⇒ giữ lại tổng đã cộng làm số tiền một khoản (không mất công nhập lại)
+  const onItemsChange = (next: ItemDraft[]) => {
+    if (!next.length && items.length && itemsTotal > 0) setAmount(String(itemsTotal));
+    setItems(next);
+  };
   const receiptMin = options?.receiptRequiredMinVnd ?? null;
   const dualMin = options?.dualApprovalMinVnd ?? null;
   const needReason = !receipt && receiptMin !== null && amountVnd >= receiptMin;
@@ -75,6 +85,10 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   const save = async (submit: boolean) => {
     setError(null);
     if (title.trim().length < 3) return setError("Tên khoản chi tối thiểu 3 ký tự.");
+    const itemsErr = hasItems ? validateDrafts(items) : null;
+    if (itemsErr) return setError(itemsErr);
+    const itemsPayload = hasItems ? draftsToPayload(items) : [];
+    if (hasItems && !itemsPayload.length) return setError("Nhập ít nhất một món (tên + đơn giá), hoặc bấm “Bỏ chi tiết” để chi một khoản.");
     if (amountVnd <= 0) return setError("Nhập số tiền lớn hơn 0.");
     if (!categoryId || !fundId || !expenseDate) return setError("Chọn danh mục, túi quỹ và ngày chi.");
     if (submit && needReason && noReceiptReason.trim().length < 5)
@@ -82,7 +96,10 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
     setBusy(true);
     const body = {
       title: title.trim(),
-      amountVnd,
+      // có món ⇒ máy chủ tự cộng; không có món ⇒ số tiền nhập tay
+      amountVnd: itemsPayload.length ? undefined : amountVnd,
+      // sửa phiếu: luôn gửi items ([] = bỏ chi tiết); lập mới: chỉ gửi khi có món
+      ...(editing || itemsPayload.length ? { items: itemsPayload } : {}),
       categoryId,
       expenseDate,
       fundId,
@@ -147,19 +164,22 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
             placeholder="Ví dụ: Thịt cá chợ sáng, Bóng đèn, Nước lau sàn..."
           />
 
+          {hasItems && <ExpenseItemsEditor items={items} onChange={onItemsChange} disabled={busy} />}
+
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              Số tiền thanh toán <span className="text-rose-500">*</span>
+              {hasItems ? "Tổng số tiền (tự cộng từ các món)" : "Số tiền thanh toán"} {!hasItems && <span className="text-rose-500">*</span>}
             </label>
             <div className="relative">
               <input
                 type="text"
                 inputMode="numeric"
-                required
+                required={!hasItems}
+                readOnly={hasItems}
                 value={amountVnd ? amountVnd.toLocaleString("vi-VN") : amount}
                 onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
                 placeholder="0"
-                className="w-full pl-3.5 pr-12 py-2.5 rounded-xl border-2 border-primary text-base font-extrabold text-gray-900 bg-purple-50/20 focus:outline-none"
+                className={`w-full pl-3.5 pr-12 py-2.5 rounded-xl border-2 border-primary text-base font-extrabold text-gray-900 focus:outline-none ${hasItems ? "bg-gray-50 cursor-default" : "bg-purple-50/20"}`}
               />
               <span className="absolute right-3.5 top-3 text-xs font-bold text-gray-500">VNĐ</span>
             </div>
@@ -172,6 +192,8 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
               </p>
             )}
           </div>
+
+          {!hasItems && <ExpenseItemsEditor items={items} onChange={onItemsChange} disabled={busy} />}
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">Phân loại danh mục</label>

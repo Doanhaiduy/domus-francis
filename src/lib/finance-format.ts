@@ -4,6 +4,9 @@ import { formatVND } from "./utils";
 /** 'YYYY-MM-DD' → 'DD/MM/YYYY' */
 export const dmy = (iso: string | null | undefined) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "");
 /** 'YYYY-MM-DD' → 'DD/MM' */
+/** Số lượng của một món: tối đa 3 chữ số thập phân, dấu phẩy kiểu Việt (1,5) */
+export const formatQuantity = (q: number) => q.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+
 export const dm = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
 /** 'YYYY-MM' → 'Tháng 10/2026' */
 export const monthTitle = (ym: string) => `Tháng ${ym.slice(5, 7)}/${ym.slice(0, 4)}`;

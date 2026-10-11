@@ -213,6 +213,17 @@ export interface ExpenseActions {
   purge: boolean;
 }
 
+/** Một món của phiếu chi (đi chợ nhiều món). Thành tiền = làm tròn(số lượng × đơn giá), do máy chủ tính. */
+export interface ExpenseItemDto {
+  id: string;
+  position: number;
+  name: string;
+  quantity: number;
+  unit: string | null;
+  unitPriceVnd: number;
+  amountVnd: number;
+}
+
 export interface ExpenseDto {
   id: string;
   voucherNo: string;
@@ -241,6 +252,8 @@ export interface ExpenseDto {
   cancelReason: string | null;
   createdAt: string;
   receipts: ReceiptDto[];
+  /** Chi tiết từng món (rỗng = phiếu chi một khoản). Có món thì amountVnd = tổng các món. */
+  items: ExpenseItemDto[];
   /** Thao tác người đang xem được phép (DB vẫn kiểm lại khi thực hiện). */
   can: ExpenseActions;
 }

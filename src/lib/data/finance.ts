@@ -154,9 +154,20 @@ export const bankLinesApi = {
 export const refreshFinance = (): Promise<void> =>
   inBackground(globalMutate((key) => typeof key === "string" && key.startsWith(FINANCE_KEY)));
 
+/** Một món gửi lên khi lập/sửa phiếu chi */
+export interface ExpenseItemInput {
+  name: string;
+  quantity: number;
+  unit?: string | null;
+  unitPriceVnd: number;
+}
+
 export interface ExpenseInput {
   title: string;
-  amountVnd: number;
+  /** Bỏ trống khi có `items` — số tiền phiếu = tổng các món (máy chủ tự tính) */
+  amountVnd?: number;
+  /** Chi tiết từng món; [] khi sửa = bỏ chi tiết, quay về một khoản */
+  items?: ExpenseItemInput[];
   categoryId: string;
   expenseDate: string;
   fundId: string;
