@@ -150,7 +150,7 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
           onClick={(e) => e.stopPropagation()}
           className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
         >
-          <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+          <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-purple-100 text-primary flex items-center justify-center font-bold">
                 {mode === "create" ? <FolderPlus className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
@@ -168,7 +168,7 @@ export function AlbumFormModal({ open, mode, album, categories, members, meId, o
           </div>
 
           <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 custom-scroll">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 custom-scroll">
               <CustomInput
                 label="Tiêu đề album kỷ niệm"
                 placeholder="VD: Dã ngoại Vũng Tàu – Tình Huynh Đệ 2026"

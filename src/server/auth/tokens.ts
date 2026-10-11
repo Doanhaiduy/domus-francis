@@ -69,3 +69,20 @@ export async function verifyMfaToken(token: string): Promise<string | null> {
     return null;
   }
 }
+
+// ---------------------------------------------------------------------
+// Khóa dùng chung cho các "vé" ngắn hạn khác (vd. vé tải video, src/server/video.ts): cùng cặp khóa Ed25519, audience riêng của từng loại vé.
+// ---------------------------------------------------------------------
+export async function getTicketKey(): Promise<{ key: CryptoKey | Uint8Array; kid: string }> {
+  const key = await getPrivateKey();
+  return { key, kid };
+}
+
+export async function getTicketPublicKey(): Promise<CryptoKey | Uint8Array> {
+  if (!mfaPublicKey) {
+    const raw = process.env.AUTH_JWT_PUBLIC_JWK;
+    if (!raw) throw new Error("Chưa cấu hình biến môi trường AUTH_JWT_PUBLIC_JWK.");
+    mfaPublicKey = await importJWK(JSON.parse(raw), "EdDSA");
+  }
+  return mfaPublicKey;
+}

@@ -49,6 +49,10 @@ export interface MomentAlbumDto {
   tags: string[]; // đã kèm dấu #
   participants: MomentParticipantDto[];
   photosCount: number;
+  /** Số video đang hiển thị trong album */
+  videosCount: number;
+  /** Album chung của cả nhà (Khoảnh khắc thường ngày): mọi thành viên tự thêm ảnh / video */
+  isShared: boolean;
   likesCount: number;
   isLiked: boolean;
   isFeatured: boolean;
@@ -87,13 +91,57 @@ export interface MomentPhotoDto {
   canDelete: boolean;
 }
 
+/** Video của album. mp4 luôn có; hls chỉ có với Cloudinary (phát thích ứng băng thông, trình phát tự lùi về mp4 nếu lỗi). */
+export interface MomentVideoDto {
+  id: string;
+  albumId: string;
+  provider: "cloudinary" | "supabase" | "local";
+  mp4Url: string;
+  hlsUrl: string | null;
+  /** Ảnh bìa (ảnh tự chụp khi tải lên, hoặc khung hình đầu do Cloudinary tạo) */
+  posterUrl: string | null;
+  caption: string;
+  uploadedBy: MomentPersonDto;
+  date: string; // DD/MM/YYYY
+  durationMs: number | null;
+  width: number | null;
+  height: number | null;
+  sizeBytes: number;
+  status: MomentContentStatus;
+  isMine: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
 export interface MomentAlbumDetailDto extends MomentAlbumDto {
   photos: MomentPhotoDto[];
+  videos: MomentVideoDto[];
+}
+
+/** Giới hạn tải video hiện hành (theo nơi lưu trữ đang dùng). */
+export interface VideoLimitsDto {
+  provider: "cloudinary" | "supabase" | "local";
+  maxBytes: number;
+  maxDurationS: number;
+  mimes: string[];
+}
+
+/** Kết quả bước 1 tải video: địa chỉ + tham số để trình duyệt tải thẳng lên nơi lưu trữ. */
+export interface VideoUploadInitDto {
+  provider: "cloudinary" | "supabase" | "local";
+  ticket: string;
+  maxBytes: number;
+  uploadUrl: string;
+  method: "POST" | "PUT";
+  fields: Record<string, string>;
+  headers: Record<string, string>;
+  fileField: string | null;
 }
 
 export interface MomentStatsDto {
   albums: number;
   photos: number;
+  videos: number;
   likes: number;
   years: number[]; // giảm dần
 }
@@ -105,6 +153,9 @@ export interface MomentListDto {
   stats: MomentStatsDto;
   categories: MomentCategoryDto[];
   canModerate: boolean;
+  /** Mã album chung "Khoảnh khắc thường ngày" (null nếu chưa ai mở lần nào — bấm vào thẻ sẽ tự tạo) */
+  dailyAlbumId: string | null;
+  videoLimits: VideoLimitsDto;
 }
 
 export interface MomentListFilter {

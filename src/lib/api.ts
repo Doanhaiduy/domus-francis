@@ -13,6 +13,9 @@ export class ApiClientError extends Error {
   }
 }
 
+/** Mã CSRF hiện hành (cho các lời gọi không đi qua apiFetch, vd. tải video bằng XHR). */
+export const getCsrfToken = (): string => csrfToken();
+
 function csrfToken(): string {
   if (typeof document === "undefined") return "";
   const names = ["__Host-luuxa_csrf", "luuxa_csrf"];

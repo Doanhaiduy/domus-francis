@@ -50,3 +50,39 @@ export const UpdatePhotoSchema = z.object({
 export const TagResponseSchema = z.object({
   status: z.enum(["accepted", "declined"]),
 });
+
+// ---- Video (db/app/1038) ----
+export const VideoInitSchema = z.object({
+  albumId: zUuid,
+  mime: z.string().trim().min(5).max(60),
+  sizeBytes: z.number().int().positive(),
+});
+
+export const RegisterVideoSchema = z.object({
+  ticket: z.string().min(20).max(4000),
+  caption,
+  durationMs: z.number().positive().max(3_600_000).nullable().optional(),
+  width: z.number().int().positive().max(20000).nullable().optional(),
+  height: z.number().int().positive().max(20000).nullable().optional(),
+  posterFileId: zUuid.nullable().optional(),
+  upload: z.object({
+    cloudinary: z
+      .object({
+        public_id: z.string().max(300),
+        version: z.union([z.number(), z.string()]),
+        signature: z.string().max(100),
+        bytes: z.number(),
+        duration: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        format: z.string().max(20).optional(),
+        resource_type: z.string().max(20).optional(),
+      })
+      .optional(),
+  }),
+});
+
+export const UpdateVideoSchema = z.object({
+  caption,
+  hidden: z.boolean().optional(),
+});

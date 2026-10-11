@@ -10,8 +10,20 @@ import type {
   MomentListFilter,
   MomentParticipantDto,
   MomentPhotoDto,
+  MomentVideoDto,
+  VideoUploadInitDto,
 } from "@/lib/types/moments";
 import type { CreateAlbumInput, UpdateAlbumInput } from "./moments-schema";
+import {
+  deleteVideoObject,
+  initVideoUpload,
+  verifyUploadTicket,
+  verifyUploadedAsset,
+  videoLimits,
+  videoSources,
+  type ClientUploadResult,
+  type VideoProvider,
+} from "../video";
 
 // ---------------------------------------------------------------------
 // Khoảnh khắc (album ảnh). Quyền do RLS + trigger của DB quyết định:
@@ -43,7 +55,8 @@ export function normalizeTags(tags: string[] | undefined): string[] {
 
 const ALBUM_SELECT = `
   SELECT a.id, a.title, a.description, a.taken_on, a.location_text, a.author_member_id, a.is_featured, a.is_public, a.tags,
-         a.visibility, a.status::text AS status, a.likes_count, a.photos_count, a.created_at,
+         a.visibility, a.status::text AS status, a.likes_count, a.photos_count, a.created_at, a.is_shared,
+         (SELECT count(*)::int FROM album_videos v WHERE v.album_id = a.id AND v.deleted_at IS NULL AND v.status = 'published') AS videos_count,
          c.id AS category_id, c.code AS category_code, c.name AS category_name, c.color AS category_color,
          am.display_name AS author_name, am.full_name AS author_full_name, am.avatar_file_id AS author_avatar,
          pos.position_name AS author_role,
@@ -92,6 +105,8 @@ function toAlbumDto(r: Row, canModerate: boolean): MomentAlbumDto {
     tags: (r.tags as string[]).map(hashTag),
     participants: r.participants as MomentParticipantDto[],
     photosCount: r.photos_count,
+    videosCount: r.videos_count ?? 0,
+    isShared: !!r.is_shared,
     likesCount: r.likes_count,
     isLiked: !!r.is_liked,
     isFeatured: !!r.is_featured,
@@ -99,9 +114,10 @@ function toAlbumDto(r: Row, canModerate: boolean): MomentAlbumDto {
     status: r.status,
     visibility: r.visibility,
     isMine,
-    canEdit: isMine || canModerate,
-    canDelete: isMine || canModerate,
-    canAddPhotos: isMine || canModerate,
+    // Album chung: chỉ người kiểm duyệt sửa thông tin / ẩn; không ai xóa được; mọi thành viên thêm được ảnh + video
+    canEdit: r.is_shared ? canModerate : isMine || canModerate,
+    canDelete: r.is_shared ? false : isMine || canModerate,
+    canAddPhotos: r.is_shared ? true : isMine || canModerate,
     createdAt: new Date(r.created_at).toISOString(),
   };
 }
@@ -157,8 +173,9 @@ export async function listAlbums(tx: Tx, f: MomentListFilter): Promise<MomentLis
   ).rows[0];
 
   const s = (
-    await tx.query<{ albums: number; photos: number; likes: number; years: number[] }>(
+    await tx.query<{ albums: number; photos: number; videos: number; likes: number; years: number[] }>(
       `SELECT count(*)::int AS albums, COALESCE(sum(photos_count), 0)::int AS photos, COALESCE(sum(likes_count), 0)::int AS likes,
+              (SELECT count(*)::int FROM album_videos v JOIN albums va ON va.id = v.album_id AND va.deleted_at IS NULL WHERE v.deleted_at IS NULL AND v.status = 'published') AS videos,
               COALESCE(array_agg(DISTINCT extract(year FROM taken_on)::int), '{}') AS years
          FROM albums WHERE deleted_at IS NULL`
     )
@@ -167,9 +184,11 @@ export async function listAlbums(tx: Tx, f: MomentListFilter): Promise<MomentLis
   return {
     albums,
     featured: featuredRow ? toAlbumDto(featuredRow, mod) : null,
-    stats: { albums: s.albums, photos: s.photos, likes: s.likes, years: [...s.years].sort((a, b) => b - a) },
+    stats: { albums: s.albums, photos: s.photos, videos: s.videos, likes: s.likes, years: [...s.years].sort((a, b) => b - a) },
     categories: await listCategories(tx),
     canModerate: mod,
+    dailyAlbumId: (await tx.query<{ id: string }>("SELECT id FROM albums WHERE shared_key = 'daily' AND deleted_at IS NULL")).rows[0]?.id ?? null,
+    videoLimits: videoLimits(),
   };
 }
 
@@ -225,7 +244,8 @@ export async function getAlbum(tx: Tx, id: string): Promise<MomentAlbumDetailDto
       canDelete: !!p.is_mine || mod,
     })
   );
-  return { ...album, photos };
+  const videos = await listVideos(tx, id, mod);
+  return { ...album, photos, videos };
 }
 
 // ---------------------------------------------------------------------
@@ -323,8 +343,8 @@ export async function createAlbum(tx: Tx, i: CreateAlbumInput): Promise<string> 
 /** Album còn hiển thị với người gọi? (404 nếu không) — trả về tác giả để phân biệt 403/404. */
 async function requireAlbum(tx: Tx, id: string) {
   const a = (
-    await tx.query<{ id: string; is_mine: boolean; cover_file_id: string | null }>(
-      "SELECT id, author_member_id = app.current_member_id() AS is_mine, cover_file_id FROM albums WHERE id = $1 AND deleted_at IS NULL",
+    await tx.query<{ id: string; is_mine: boolean; cover_file_id: string | null; is_shared: boolean }>(
+      "SELECT id, author_member_id = app.current_member_id() AS is_mine, cover_file_id, is_shared FROM albums WHERE id = $1 AND deleted_at IS NULL",
       [id]
     )
   ).rows[0];
@@ -335,6 +355,7 @@ async function requireAlbum(tx: Tx, id: string) {
 export async function updateAlbum(tx: Tx, id: string, i: UpdateAlbumInput) {
   const a = await requireAlbum(tx, id);
   const mod = await canModerate(tx);
+  if (a.is_shared && !mod) throw forbidden("Album chung của cả nhà chỉ người kiểm duyệt mới sửa được thông tin.");
   if (!a.is_mine && !mod) throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/người quản lý mới sửa được album này.");
   if ((i.isFeatured !== undefined || i.hidden !== undefined || i.isPublic !== undefined) && !mod) {
     throw forbidden("Chỉ người có quyền kiểm duyệt album mới đánh dấu tiêu biểu, ẩn/hiện hoặc công khai album.");
@@ -367,6 +388,7 @@ export async function updateAlbum(tx: Tx, id: string, i: UpdateAlbumInput) {
 
 export async function deleteAlbum(tx: Tx, id: string) {
   const a = await requireAlbum(tx, id);
+  if (a.is_shared) throw forbidden("Album chung của cả nhà không xóa được (có thể ẩn đi nếu cần).");
   if (!a.is_mine && !(await canModerate(tx))) {
     throw forbidden("Bạn chỉ xóa được album do mình tạo (hoặc cần quyền kiểm duyệt album).");
   }
@@ -376,7 +398,7 @@ export async function deleteAlbum(tx: Tx, id: string) {
 
 export async function addPhotos(tx: Tx, albumId: string, photos: { fileId: string; caption?: string | null }[]) {
   const a = await requireAlbum(tx, albumId);
-  if (!a.is_mine && !(await canModerate(tx))) {
+  if (!a.is_mine && !a.is_shared && !(await canModerate(tx))) {
     throw forbidden("Chỉ người tạo album hoặc Ban Truyền thông/người quản lý mới thêm ảnh vào album này.");
   }
   return insertPhotos(tx, albumId, photos);
@@ -482,4 +504,186 @@ export async function respondTag(tx: Tx, albumId: string, status: "accepted" | "
     [albumId, status]
   );
   if (!r.rowCount) throw notFound("Bạn không được gắn thẻ trong album này.");
+}
+
+// ---------------------------------------------------------------------
+// Album chung "Khoảnh khắc thường ngày" (db/app/1038)
+// ---------------------------------------------------------------------
+/** Mã album chung — tạo nếu chưa có. Chỉ thành viên có hồ sơ. */
+export async function ensureDailyAlbum(tx: Tx): Promise<string> {
+  const id = (await tx.query<{ id: string }>("SELECT app.fn_ensure_daily_album() AS id")).rows[0]?.id;
+  if (!id) throw new ApiError(500, "NO_DAILY", "Không mở được album Khoảnh khắc thường ngày.");
+  return id;
+}
+
+// ---------------------------------------------------------------------
+// Video (db/app/1038): tải thẳng từ trình duyệt lên nơi lưu trữ (src/server/video.ts); ở đây chỉ cấp vé, xác minh và ghi DB.
+// ---------------------------------------------------------------------
+const VIDEO_SELECT = `
+  SELECT v.id, v.album_id, v.provider, v.object_key, v.provider_meta, v.mime, v.size_bytes, v.duration_ms, v.width_px, v.height_px,
+         v.poster_file_id, v.caption, v.uploaded_by_member_id, v.sort_order, v.status::text AS status, v.created_at,
+         to_char(app.local_date(v.created_at), 'DD/MM/YYYY') AS shot_dmy,
+         m.display_name, m.full_name, pos.position_name,
+         (v.uploaded_by_member_id = app.current_member_id()) AS is_mine
+    FROM album_videos v
+    LEFT JOIN members m ON m.id = v.uploaded_by_member_id
+    LEFT JOIN v_member_current_position pos ON pos.member_id = v.uploaded_by_member_id`;
+
+function toVideoDto(r: Row, mod: boolean): MomentVideoDto {
+  const src = videoSources(r.id, { provider: r.provider as VideoProvider, object_key: r.object_key, provider_meta: r.provider_meta, mime: r.mime });
+  return {
+    id: r.id,
+    albumId: r.album_id,
+    provider: r.provider,
+    mp4Url: src.mp4,
+    hlsUrl: src.hls,
+    posterUrl: r.poster_file_id ? fileUrl(r.poster_file_id, "medium") : src.poster,
+    caption: r.caption ?? "",
+    uploadedBy: {
+      memberId: r.uploaded_by_member_id,
+      name: r.display_name ?? "Thành viên cũ",
+      fullName: r.full_name ?? r.display_name ?? "Thành viên cũ",
+      role: r.position_name ?? "Thành viên",
+    },
+    date: r.shot_dmy,
+    durationMs: r.duration_ms ?? null,
+    width: r.width_px ?? null,
+    height: r.height_px ?? null,
+    sizeBytes: Number(r.size_bytes),
+    status: r.status,
+    isMine: !!r.is_mine,
+    canEdit: !!r.is_mine || mod,
+    canDelete: !!r.is_mine || mod,
+  };
+}
+
+async function listVideos(tx: Tx, albumId: string, mod: boolean): Promise<MomentVideoDto[]> {
+  return (await tx.query(`${VIDEO_SELECT} WHERE v.album_id = $1 AND v.deleted_at IS NULL ORDER BY v.sort_order, v.created_at`, [albumId])).rows.map((r) => toVideoDto(r, mod));
+}
+
+/** Người này thêm ảnh / video vào album được không (tác giả, người kiểm duyệt, hoặc album chung). */
+async function assertCanAddMedia(tx: Tx, albumId: string) {
+  const a = (
+    await tx.query<{ is_mine: boolean; is_shared: boolean }>(
+      "SELECT author_member_id = app.current_member_id() AS is_mine, is_shared FROM albums WHERE id = $1 AND deleted_at IS NULL",
+      [albumId]
+    )
+  ).rows[0];
+  if (!a) throw notFound("Không tìm thấy album (có thể đã bị xóa).");
+  if (!a.is_mine && !a.is_shared && !(await canModerate(tx))) throw forbidden("Chỉ người tạo album hoặc người kiểm duyệt mới thêm video vào album này.");
+}
+
+/** Bước 1 — cấp địa chỉ + tham số để trình duyệt tải thẳng video lên nơi lưu trữ. */
+export async function startVideoUpload(tx: Tx, uid: string, i: { albumId: string; mime: string; sizeBytes: number }): Promise<VideoUploadInitDto> {
+  await assertCanAddMedia(tx, i.albumId);
+  const init = await initVideoUpload({ uid, albumId: i.albumId, mime: i.mime, sizeBytes: i.sizeBytes });
+  return init;
+}
+
+export interface RegisterVideoInput {
+  ticket: string;
+  caption?: string | null;
+  durationMs?: number | null;
+  width?: number | null;
+  height?: number | null;
+  posterFileId?: string | null;
+  upload: ClientUploadResult;
+}
+
+/** Bước 2 — sau khi tải xong: xác minh tệp thật sự có ở nơi lưu trữ rồi ghi video vào album. */
+export async function registerVideo(tx: Tx, uid: string, i: RegisterVideoInput, albumId: string): Promise<string> {
+  const t = await verifyUploadTicket(i.ticket, uid);
+  if (t.albumId !== albumId) throw new ApiError(400, "BAD_TICKET", "Vé tải video không dành cho album này.");
+  await assertCanAddMedia(tx, t.albumId);
+  const dup = (await tx.query("SELECT id FROM album_videos WHERE provider = $1 AND object_key = $2", [t.provider, t.key])).rows[0];
+  if (dup) return dup.id as string;
+  const asset = await verifyUploadedAsset(t, i.upload);
+  const duration = asset.durationMs ?? (i.durationMs && i.durationMs > 0 ? Math.round(i.durationMs) : null);
+  if (duration !== null && duration > 600_000) {
+    await deleteVideoObject({ provider: asset.provider, object_key: asset.objectKey });
+    throw new ApiError(413, "VIDEO_TOO_LONG", "Video dài quá 10 phút — hãy cắt ngắn rồi tải lại.");
+  }
+  const order = (await tx.query<{ n: number }>("SELECT COALESCE(max(sort_order) + 1, 0)::int AS n FROM album_videos WHERE album_id = $1 AND deleted_at IS NULL", [t.albumId])).rows[0].n;
+  try {
+    const r = await tx.query<{ id: string }>(
+      `INSERT INTO album_videos (album_id, provider, object_key, provider_meta, mime, size_bytes, duration_ms, width_px, height_px, poster_file_id, caption, uploaded_by_member_id, sort_order)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, app.current_member_id(), $12) RETURNING id`,
+      [
+        t.albumId,
+        asset.provider,
+        asset.objectKey,
+        JSON.stringify(asset.meta),
+        t.mime,
+        asset.sizeBytes,
+        duration,
+        asset.width ?? (i.width && i.width > 0 ? Math.round(i.width) : null),
+        asset.height ?? (i.height && i.height > 0 ? Math.round(i.height) : null),
+        i.posterFileId ?? null,
+        i.caption?.trim() || null,
+        order,
+      ]
+    );
+    return r.rows[0].id;
+  } catch (e) {
+    // không để lại tệp mồ côi khi ghi DB bị từ chối (RLS / ảnh bìa không hợp lệ…)
+    await deleteVideoObject({ provider: asset.provider, object_key: asset.objectKey });
+    throw e;
+  }
+}
+
+async function requireVideo(tx: Tx, videoId: string) {
+  const v = (
+    await tx.query<{ id: string; album_id: string; provider: VideoProvider; object_key: string; is_mine: boolean }>(
+      `SELECT v.id, v.album_id, v.provider, v.object_key, v.uploaded_by_member_id = app.current_member_id() AS is_mine
+         FROM album_videos v JOIN albums a ON a.id = v.album_id AND a.deleted_at IS NULL
+        WHERE v.id = $1 AND v.deleted_at IS NULL`,
+      [videoId]
+    )
+  ).rows[0];
+  if (!v) throw notFound("Không tìm thấy video (có thể đã bị xóa).");
+  return v;
+}
+
+export async function updateVideo(tx: Tx, videoId: string, i: { caption?: string | null; hidden?: boolean }): Promise<string> {
+  const v = await requireVideo(tx, videoId);
+  const mod = await canModerate(tx);
+  if (!v.is_mine && !mod) throw forbidden("Bạn chỉ sửa được video do mình tải lên.");
+  if (i.hidden !== undefined && !mod) throw forbidden("Chỉ người có quyền kiểm duyệt mới ẩn / hiện video.");
+  const sets: string[] = [];
+  const vals: unknown[] = [videoId];
+  if (i.caption !== undefined) {
+    vals.push(i.caption?.trim() || null);
+    sets.push(`caption = $${vals.length}`);
+  }
+  if (i.hidden !== undefined) {
+    vals.push(i.hidden ? "hidden" : "published");
+    sets.push(`status = $${vals.length}::content_status_t`);
+  }
+  if (sets.length) {
+    const r = await tx.query(`UPDATE album_videos SET ${sets.join(", ")} WHERE id = $1 AND deleted_at IS NULL`, vals);
+    if (!r.rowCount) throw forbidden("Bạn không có quyền sửa video này.");
+  }
+  return v.album_id;
+}
+
+/** Xóa mềm; tệp ở nơi lưu trữ được xóa luôn (không còn cách khôi phục). Trả mã album + thông tin tệp để gọi dọn dẹp sau khi giao dịch xong. */
+export async function removeVideo(tx: Tx, videoId: string): Promise<{ albumId: string; asset: { provider: VideoProvider; object_key: string } }> {
+  const v = await requireVideo(tx, videoId);
+  if (!v.is_mine && !(await canModerate(tx))) throw forbidden("Bạn chỉ xóa được video do mình tải lên (hoặc cần quyền kiểm duyệt album).");
+  const r = await tx.query("UPDATE album_videos SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL", [videoId]);
+  if (!r.rowCount) throw forbidden("Bạn không có quyền xóa video này.");
+  return { albumId: v.album_id, asset: { provider: v.provider, object_key: v.object_key } };
+}
+
+/** Thông tin để phát video (RLS quyết định có xem được không). */
+export async function getVideoForPlay(tx: Tx, videoId: string): Promise<{ provider: VideoProvider; object_key: string; mime: string }> {
+  const v = (
+    await tx.query<{ provider: VideoProvider; object_key: string; mime: string | null }>(
+      `SELECT v.provider, v.object_key, v.mime FROM album_videos v JOIN albums a ON a.id = v.album_id AND a.deleted_at IS NULL
+        WHERE v.id = $1 AND v.deleted_at IS NULL AND v.status = 'published'`,
+      [videoId]
+    )
+  ).rows[0];
+  if (!v) throw notFound("Không tìm thấy video.");
+  return { provider: v.provider, object_key: v.object_key, mime: v.mime ?? "video/mp4" };
 }

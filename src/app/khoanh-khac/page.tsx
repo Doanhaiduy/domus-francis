@@ -35,6 +35,7 @@ import {
   UserX,
   Loader2,
   RefreshCw,
+  Clapperboard,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -52,6 +53,9 @@ import { AlbumFormModal } from "./_components/AlbumFormModal";
 import { AddPhotosModal } from "./_components/AddPhotosModal";
 import { CaptionModal } from "./_components/CaptionModal";
 import { PhotoLightbox } from "./_components/PhotoLightbox";
+import { AddVideoModal } from "./_components/AddVideoModal";
+import { VideoSection } from "./_components/VideoSection";
+import { DailyAlbumCard } from "./_components/DailyAlbumCard";
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -154,6 +158,7 @@ export default function KhoanhKhacPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddPhotoModalOpen, setIsAddPhotoModalOpen] = useState(false);
+  const [isAddVideoModalOpen, setIsAddVideoModalOpen] = useState(false);
   const [captionPhoto, setCaptionPhoto] = useState<MomentPhotoDto | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -620,6 +625,16 @@ export default function KhoanhKhacPage() {
                     </button>
                   )}
 
+                  {activeAlbum.canAddPhotos && (
+                    <button
+                      onClick={() => setIsAddVideoModalOpen(true)}
+                      className={cn(actionBtn, "bg-purple-50 hover:bg-purple-100 text-primary border border-purple-200")}
+                    >
+                      <Clapperboard className="w-4 h-4" />
+                      <span>+ Thêm video</span>
+                    </button>
+                  )}
+
                   {canZaloSend && (
                     <button disabled={zaloSending} onClick={() => void handleCopyAlbumZalo(activeAlbum)} className={cn(actionBtn, "bg-surface-container-low hover:bg-purple-100 text-gray-700 disabled:opacity-60")}>
                       <Share2 className="w-4 h-4 text-purple-600" />
@@ -838,11 +853,30 @@ export default function KhoanhKhacPage() {
                 )}
               </div>
             )}
+
+            {/* Video của album */}
+            <VideoSection
+              videos={albumDetail?.videos ?? []}
+              count={activeAlbum.videosCount}
+              loading={!albumDetail}
+              canAdd={activeAlbum.canAddPhotos}
+              canModerate={canModerate}
+              onAdd={() => setIsAddVideoModalOpen(true)}
+              onChanged={applySavedAlbum}
+              showToast={showToast}
+            />
           </div>
         )
       ) : (
         /* ALL ALBUMS VIEW: STATS, FEATURED BANNER, FILTERS, LIST */
         <>
+          {/* ALBUM CHUNG: KHOẢNH KHẮC THƯỜNG NGÀY */}
+          <DailyAlbumCard
+            album={filteredMoments.find((a) => a.isShared) ?? (data.featured?.isShared ? data.featured : null)}
+            onOpen={openAlbum}
+            showToast={showToast}
+          />
+
           {/* STATS KPI CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
@@ -857,8 +891,8 @@ export default function KhoanhKhacPage() {
 
             <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Bức ảnh lưu giữ</span>
-                <div className="text-2xl font-black text-gray-900 mt-1">{stats.photos}</div>
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ảnh &amp; video lưu giữ</span>
+                <div className="text-2xl font-black text-gray-900 mt-1">{stats.photos}{stats.videos > 0 && <span className="text-sm font-bold text-gray-400"> · {stats.videos} video</span>}</div>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                 <ImageIcon className="w-5 h-5" />
@@ -1388,6 +1422,18 @@ export default function KhoanhKhacPage() {
         onClose={() => setIsAddPhotoModalOpen(false)}
         onSaved={(saved) => {
           setIsAddPhotoModalOpen(false);
+          applySavedAlbum(saved);
+        }}
+        showToast={showToast}
+      />
+
+      <AddVideoModal
+        album={activeAlbum}
+        open={isAddVideoModalOpen}
+        limits={data.videoLimits}
+        onClose={() => setIsAddVideoModalOpen(false)}
+        onSaved={(saved) => {
+          setIsAddVideoModalOpen(false);
           applySavedAlbum(saved);
         }}
         showToast={showToast}

@@ -2,7 +2,8 @@
 // Hook dữ liệu + thao tác phân hệ Khoảnh khắc (SWR — làm mới sau mỗi thao tác ghi)
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
-import type { MomentAlbumDetailDto, MomentLikeResult, MomentListDto, MomentListFilter } from "../types/moments";
+import type { MomentAlbumDetailDto, MomentLikeResult, MomentListDto, MomentListFilter, VideoUploadInitDto } from "../types/moments";
+import type { CloudinaryUploadResponse } from "../video-upload";
 
 export const MOMENTS_KEY = "/api/v1/moments";
 
@@ -71,5 +72,26 @@ export const momentsApi = {
   removePhoto: (photoId: string) => api.del<MomentAlbumDetailDto>(`${MOMENTS_KEY}/photos/${photoId}`),
   likePhoto: (photoId: string, liked: boolean) =>
     liked ? api.post<MomentLikeResult>(`${MOMENTS_KEY}/photos/${photoId}/like`) : api.del<MomentLikeResult>(`${MOMENTS_KEY}/photos/${photoId}/like`),
+  /** Mở album chung "Khoảnh khắc thường ngày" (tạo nếu chưa có) */
+  openDaily: () => api.post<{ id: string }>(`${MOMENTS_KEY}/daily`),
+  /** Video — bước 1: xin địa chỉ + tham số để tải thẳng lên nơi lưu trữ */
+  videoInit: (albumId: string, file: { type: string; size: number }) =>
+    api.post<VideoUploadInitDto>(`${MOMENTS_KEY}/videos/init`, { albumId, mime: file.type, sizeBytes: file.size }),
+  /** Video — bước 2: ghi video vào album sau khi đã tải xong */
+  addVideo: (
+    albumId: string,
+    body: {
+      ticket: string;
+      caption?: string | null;
+      durationMs?: number | null;
+      width?: number | null;
+      height?: number | null;
+      posterFileId?: string | null;
+      upload: { cloudinary?: CloudinaryUploadResponse };
+    }
+  ) => api.post<MomentAlbumDetailDto>(`${MOMENTS_KEY}/${albumId}/videos`, body),
+  updateVideo: (videoId: string, body: { caption?: string | null; hidden?: boolean }) =>
+    api.patch<MomentAlbumDetailDto>(`${MOMENTS_KEY}/videos/${videoId}`, body),
+  removeVideo: (videoId: string) => api.del<MomentAlbumDetailDto>(`${MOMENTS_KEY}/videos/${videoId}`),
   respondTag: (id: string, status: "accepted" | "declined") => api.post<MomentAlbumDetailDto>(`${MOMENTS_KEY}/${id}/tag`, { status }),
 };
