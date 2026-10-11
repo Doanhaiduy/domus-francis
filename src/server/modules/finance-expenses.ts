@@ -96,6 +96,8 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
       pay: c.pay && status === "approved",
       cancel: (mine && OWNER_EDITABLE.includes(status)) || (c.approve && (status === "pending_approval" || status === "approved")),
       reverse: c.reverse && status === "paid",
+      correct: c.correct && status !== "cancelled",
+      purge: c.purge && status === "cancelled",
     },
   };
 }
@@ -265,13 +267,13 @@ export async function updateExpense(tx: Tx, id: string, b: UpdateExpenseInput) {
   if (b.submit) await tx.query("SELECT app.fn_submit_expense($1)", [id]);
 }
 
-export type ExpenseAction = "submit" | "withdraw" | "decision" | "pay" | "cancel" | "reverse";
+export type ExpenseAction = "submit" | "withdraw" | "decision" | "pay" | "cancel" | "reverse" | "correct";
 
 export async function expenseAction(
   tx: Tx,
   id: string,
   action: ExpenseAction,
-  b: { decision?: "approved" | "rejected"; comment?: string | null; method?: string; paidOn?: string; reference?: string | null; proofFileId?: string | null; reason?: string }
+  b: { decision?: "approved" | "rejected"; comment?: string | null; method?: string; paidOn?: string; reference?: string | null; proofFileId?: string | null; reason?: string; changePaidBy?: boolean; paidByMemberId?: string | null }
 ) {
   const exists = (await tx.query("SELECT 1 FROM expense_vouchers WHERE id = $1", [id])).rowCount;
   if (!exists) throw notFound("Không tìm thấy phiếu chi (hoặc bạn không có quyền xem).");
@@ -296,6 +298,16 @@ export async function expenseAction(
       return;
     case "reverse":
       await tx.query("SELECT app.fn_reverse_expense($1, $2)", [id, b.reason]);
+      return;
+    case "correct":
+      // Admin sửa người ứng tiền / hình thức chi; sổ quỹ bất biến nên không đổi (kiểm quyền + ghi kiểm toán trong hàm DB)
+      await tx.query("SELECT app.fn_admin_fix_expense($1, $2, $3, $4, $5::payment_method_t)", [
+        id,
+        b.reason,
+        !!b.changePaidBy,
+        b.changePaidBy ? b.paidByMemberId ?? null : null,
+        b.method ?? null,
+      ]);
       return;
   }
 }

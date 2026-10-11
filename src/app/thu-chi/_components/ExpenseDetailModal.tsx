@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Receipt, FileText, Check, X, Pencil, Send, Undo2, Wallet, Ban, RotateCcw, ShieldCheck, Clock, ExternalLink, AlertCircle } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Receipt, FileText, Check, X, Pencil, Send, Undo2, Wallet, Ban, RotateCcw, ShieldCheck, Clock, ExternalLink, AlertCircle, UserCog } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
@@ -15,7 +15,8 @@ import {
   type ExpenseStatus,
   type PaymentMethod,
 } from "@/lib/types/finance";
-import { CustomDatePicker, CustomInput, CustomSelect, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
 import ReimburseQr from "@/components/finance/ReimburseQr";
 
@@ -55,6 +56,7 @@ export default function ExpenseDetailModal({
   const [err, setErr] = useState<string | null>(null);
   const [reasonFor, setReasonFor] = useState<Pending>(null);
   const [payOpen, setPayOpen] = useState(false);
+  const [correctOpen, setCorrectOpen] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [paidOn, setPaidOn] = useState("");
   const [reference, setReference] = useState("");
@@ -63,6 +65,7 @@ export default function ExpenseDetailModal({
   useEffect(() => {
     setErr(null);
     setPayOpen(false);
+    setCorrectOpen(false);
     setReference("");
     setProof("");
   }, [expenseId]);
@@ -147,6 +150,24 @@ export default function ExpenseDetailModal({
                   className="mr-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-purple-700 hover:bg-purple-50"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Đảo phiếu đã chi
+                </button>
+              )}
+              {e.can.purge && (
+                <PurgeButton
+                  url={`/api/v1/finance/expenses/${e.id}`}
+                  what={`phiếu chi đã hủy ${e.voucherNo} — ${e.title}`}
+                  refreshPrefixes={["/api/v1/finance"]}
+                  onDone={onClose}
+                  className="mr-auto"
+                />
+              )}
+              {e.can.correct && (
+                <button
+                  disabled={busy}
+                  onClick={() => setCorrectOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-primary hover:bg-purple-50"
+                >
+                  <UserCog className="w-3.5 h-3.5" /> Sửa người ứng / hình thức chi
                 </button>
               )}
               {e.can.withdraw && (
@@ -418,6 +439,7 @@ export default function ExpenseDetailModal({
         )}
       </DialogShell>
 
+      <CorrectDialog open={correctOpen} onClose={() => setCorrectOpen(false)} expense={e ?? null} />
       <ReasonDialog
         open={reasonFor === "reject"}
         onClose={() => setReasonFor(null)}
@@ -461,5 +483,99 @@ export default function ExpenseDetailModal({
         }}
       />
     </>
+  );
+}
+
+const NONE = "__none__";
+
+/** Admin sửa phiếu chi sai: người ứng tiền / hình thức chi. Sổ quỹ (bất biến) không đổi; mọi lần sửa được ghi nhật ký kiểm toán. */
+function CorrectDialog({ open, onClose, expense }: { open: boolean; onClose: () => void; expense: ExpenseDetailDto | null }) {
+  const { members, showToast } = useApp();
+  const [payer, setPayer] = useState<string>(NONE);
+  const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canMethod = !!expense && (expense.status === "paid" || expense.status === "reversed");
+  useEffect(() => {
+    if (!open || !expense) return;
+    setPayer(expense.paidBy?.memberId ?? NONE);
+    setMethod(expense.paymentMethod ?? "cash");
+    setReason("");
+    setError(null);
+  }, [open, expense?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const payerOptions = useMemo(
+    () => [
+      { value: NONE, label: "Quỹ chi trực tiếp (không ai ứng tiền)" },
+      ...members
+        .filter((m) => m.status === "active" || m.status === "on_leave" || m.id === expense?.paidBy?.memberId)
+        .map((m) => ({ value: m.id, label: m.fullName, subLabel: m.room })),
+    ],
+    [members, expense?.paidBy?.memberId]
+  );
+
+  if (!expense) return null;
+  const payerChanged = payer !== (expense.paidBy?.memberId ?? NONE);
+  const methodChanged = canMethod && method !== expense.paymentMethod;
+
+  const save = async () => {
+    setError(null);
+    if (!payerChanged && !methodChanged) return setError("Bạn chưa thay đổi gì.");
+    if (reason.trim().length < 5) return setError("Hãy ghi lý do sửa (tối thiểu 5 ký tự).");
+    setBusy(true);
+    try {
+      await financeApi.correctExpense(expense.id, {
+        reason: reason.trim(),
+        ...(payerChanged ? { changePaidBy: true, paidByMemberId: payer === NONE ? null : payer } : {}),
+        ...(methodChanged ? { method } : {}),
+      });
+      await refreshFinance();
+      showToast("success", `Đã sửa phiếu ${expense.voucherNo}.`);
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      z="z-[60]"
+      icon={<UserCog className="w-5 h-5" />}
+      title="Sửa phiếu chi (Admin)"
+      subtitle={`${expense.voucherNo} · ${formatVND(expense.amountVnd)}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={btnGhost}>
+            Quay lại
+          </button>
+          <button type="button" disabled={busy} onClick={save} className={btnPrimary}>
+            {busy ? "Đang lưu..." : "Lưu thay đổi"}
+          </button>
+        </>
+      }
+    >
+      <CustomSelect label="Người ứng tiền / trực tiếp chi" value={payer} onChange={setPayer} options={payerOptions} placeholder="Chọn người ứng tiền" />
+      {canMethod ? (
+        <CustomSelect<PaymentMethod>
+          label="Hình thức chi"
+          value={method}
+          onChange={setMethod}
+          options={(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((k) => ({ value: k, label: PAYMENT_METHOD_LABEL[k] }))}
+        />
+      ) : (
+        <p className="text-[11px] text-gray-500">Phiếu chưa ghi chi nên chưa có hình thức chi — Thủ quỹ sẽ chọn khi ghi nhận đã chi.</p>
+      )}
+      <CustomTextarea label="Lý do sửa *" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500} placeholder="Ví dụ: Nhập nhầm người ứng tiền, thực tế chuyển khoản…" />
+      <p className="text-[11px] text-gray-500 leading-relaxed">
+        Sổ quỹ là sổ cái bất biến nên bút toán đã ghi giữ nguyên số tiền và ngày; phiếu chi hiển thị giá trị mới. Mọi lần sửa được ghi vào nhật ký kiểm toán (giá trị cũ → mới).
+      </p>
+      <ErrorBox error={error} />
+    </DialogShell>
   );
 }

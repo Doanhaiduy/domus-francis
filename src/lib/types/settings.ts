@@ -248,7 +248,7 @@ export const ZALO_EVENT_LABEL: Record<ZaloEventKey, string> = {
   room_change: "Chuyển / xếp phòng",
   member_joined: "Thành viên mới vào nhà",
   birthday: "Chúc mừng sinh nhật thành viên",
-  leave_notice: "Đơn xin phép về muộn / ngủ ngoài",
+  leave_notice: "Đơn xin phép (báo cả nhà)",
   leave_extension: "Xin thêm giờ về muộn / ngủ ngoài",
 };
 /** Loại tin mặc định TẮT (liên quan chỗ ở của từng người) — Trưởng nhà tự bật nếu muốn. */

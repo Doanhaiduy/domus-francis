@@ -77,6 +77,16 @@ export const PaySchema = z
 
 export const ReasonSchema = z.object({ reason: zText(5, 500, "Lý do") });
 
+/** Admin sửa phiếu chi: người ứng tiền (null = quỹ chi trực tiếp) và/hoặc hình thức chi. */
+export const CorrectExpenseSchema = z
+  .object({
+    reason: zText(5, 500, "Lý do"),
+    changePaidBy: z.boolean().optional(),
+    paidByMemberId: zUuid.nullable().optional(),
+    method: zMethod.optional(),
+  })
+  .refine((v) => v.changePaidBy || v.method, { message: "Hãy chọn người ứng tiền hoặc hình thức chi cần sửa." });
+
 /** Lập kế hoạch thu: quỹ định kỳ (mức theo cấu hình) hoặc tiền điện nước tháng (tổng hóa đơn chia đều). */
 const PlanBase = z.discriminatedUnion(
   "kind",

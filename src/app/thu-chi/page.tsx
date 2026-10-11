@@ -33,6 +33,7 @@ import { Portal } from "@/components/ui/Portal";
 import { FinancialBarChart, ExpenseDonutChart, AreaTrendChart, DonutDataPoint } from "@/components/ui/Charts";
 import FinancialReportModal, { buildFinanceReport } from "@/components/FinancialReportModal";
 import { ExpenseFormCard } from "@/components/modals/AddExpenseModal";
+import { PurgeButton } from "@/components/ui/PurgeButton";
 import { useZaloSend } from "@/lib/zalo-client";
 import { dmy, formatFinanceReportForZalo, monthEndOf, shiftMonth, vnToday } from "@/lib/finance-format";
 import {
@@ -885,6 +886,10 @@ export default function ThuChiPage() {
                             </span>
                           )}
                         </button>
+
+                        {exp.can.purge && (
+                          <PurgeButton variant="icon" url={`/api/v1/finance/expenses/${exp.id}`} what={`phiếu chi đã hủy ${exp.voucherNo} — ${exp.title}`} refreshPrefixes={["/api/v1/finance"]} />
+                        )}
 
                         {(exp.can.approve || exp.can.reject) && (
                           <div className="flex items-center gap-1">

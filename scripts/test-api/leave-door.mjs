@@ -106,6 +106,32 @@ export async function run({ as, test, eq, ok, section }) {
       eq((await member.get("/api/v1/leave")).json.mine.find((x) => x.id === withDoor.json.id).doorMemberId, null, "đơn tạm vắng dài không lưu người để cửa");
     });
 
+    await test("Tích \"gửi thông báo\": đơn về quê báo vào nhóm Zalo + thông báo ứng dụng cho cả nhà (trừ người xin); tắt thì không báo", async () => {
+      const n0 = zalo.messages.length;
+      const homeNo = await member.post("/api/v1/leave", { kind: "home_visit", startsAt: iso(48 * hour), endsAt: iso(120 * hour), reason: `Về quê không báo ${suffix}`, destination: "Phú Yên" });
+      eq(homeNo.status, 201, JSON.stringify(homeNo.json));
+      created.push(homeNo.json.id);
+      eq(zalo.messages.length, n0, "mặc định không báo nhóm với đơn về quê");
+      const heard = async (c, marker) => (await c.get("/api/v1/notifications")).json.items.some((x) => x.type === "event.leave_notice" && (x.body ?? "").includes(marker));
+      eq(await heard(other, `Về quê không báo ${suffix}`), false, "đơn không tích thông báo thì cả nhà không nhận");
+      const home = await member.post("/api/v1/leave", { kind: "home_visit", startsAt: iso(48 * hour), endsAt: iso(120 * hour), reason: `Về quê có báo ${suffix}`, destination: "Phú Yên", notify: true });
+      eq(home.status, 201, JSON.stringify(home.json));
+      created.push(home.json.id);
+      const text = sent().find((t) => t.includes("VỀ QUÊ") && t.includes(suffix));
+      ok(text, "không có tin VỀ QUÊ trong nhóm Zalo: " + JSON.stringify(sent().slice(-3)));
+      ok(/Từ \d{2}\/\d{2} đến \d{2}\/\d{2} \(\d+ ngày\)/.test(text), "thiếu khoảng ngày nghỉ: " + text);
+      ok(text.includes("Phú Yên"), "thiếu nơi đến");
+      eq(await heard(other, `Về quê có báo ${suffix}`), true, "anh em khác nhận thông báo trong ứng dụng");
+      eq(await heard(other, `Về quê không báo ${suffix}`), false, "đơn không tích vẫn không có thông báo chung");
+      eq(await heard(member, `Về quê có báo ${suffix}`), false, "chính người xin không nhận thông báo cả nhà");
+      // đơn về muộn tắt thông báo: không lên nhóm
+      const n1 = zalo.messages.length;
+      const quiet = await member.post("/api/v1/leave", late({ reason: `Về muộn không báo ${suffix}`, notify: false }));
+      eq(quiet.status, 201, JSON.stringify(quiet.json));
+      created.push(quiet.json.id);
+      eq(zalo.messages.length, n1, "tắt thông báo ⇒ không lên nhóm Zalo");
+    });
+
     await test("Xin thêm giờ: giờ không muộn hơn → 400; người khác → 403/404; đơn tạm vắng dài → 400", async () => {
       const id = created[0];
       const cur = (await member.get("/api/v1/leave")).json.mine.find((x) => x.id === id);

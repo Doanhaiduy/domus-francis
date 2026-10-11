@@ -58,7 +58,7 @@ const EVENT_DESC: Record<ZaloEventKey, string> = {
   room_change: "Khi Trưởng nhà chuyển / xếp phòng cho một thành viên (mặc định tắt)",
   member_joined: "Khi đơn xin vào nhà được duyệt (mặc định tắt)",
   birthday: "7h sáng ngày sinh nhật của thành viên (theo ngày/tháng sinh trong hồ sơ, không nêu tuổi)",
-  leave_notice: "Khi thành viên gửi đơn xin phép về muộn hoặc ngủ ngoài, bot báo ngay vào nhóm (kèm người được nhờ để cửa)",
+  leave_notice: "Khi thành viên gửi đơn xin phép và tích “Gửi thông báo cho cả nhà” (mặc định bật với đơn về muộn / ngủ ngoài), bot báo ngay vào nhóm — kèm người được nhờ để cửa nếu có",
   leave_extension: "Khi thành viên đã xin phép về muộn / ngủ ngoài nhưng phát sinh việc nên xin thêm giờ, bot báo lại vào nhóm",
 };
 

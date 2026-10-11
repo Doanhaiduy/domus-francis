@@ -131,15 +131,15 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
   leave_notice: {
     placeholders: [
       HOUSE,
-      { name: "kind", desc: "Loại đơn: VỀ MUỘN hoặc NGỦ NGOÀI", sample: "VỀ MUỘN" },
+      { name: "kind", desc: "Loại đơn viết hoa: VỀ MUỘN, NGỦ NGOÀI, VỀ QUÊ, NGHỈ TẾT, NGHỈ HÈ…", sample: "VỀ MUỘN" },
       { name: "member", desc: "Người xin phép", sample: "Minh Tuấn" },
-      { name: "when", desc: "Thời gian", sample: "Dự kiến về lúc 23:30 tối nay" },
+      { name: "when", desc: "Thời gian (giờ về dự kiến, hoặc từ ngày … đến ngày … với đơn nghỉ dài)", sample: "Dự kiến về lúc 23:30 hôm nay" },
       { name: "destination", desc: "Nơi đang ở / nơi đến (có thể trống)", sample: "Thư viện trường" },
       { name: "reason", desc: "Lý do", sample: "Thi xong lúc 21h, về trễ" },
       { name: "door", desc: "Người được nhờ để cửa (có thể trống)", sample: "Văn Đức" },
     ],
     default: [
-      "🌙 {kind} — {member}",
+      "📣 {kind} — {member}",
       "🕒 {when}",
       "📍 {destination}",
       "📝 Lý do: {reason}",

@@ -181,6 +181,9 @@ export const financeApi = {
     api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/pay`, body),
   cancel: (id: string, reason: string) => api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/cancel`, { reason }),
   reverse: (id: string, reason: string) => api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/reverse`, { reason }),
+  /** Admin: sửa người ứng tiền (paidByMemberId null = quỹ chi trực tiếp) và/hoặc hình thức chi của phiếu */
+  correctExpense: (id: string, body: { reason: string; changePaidBy?: boolean; paidByMemberId?: string | null; method?: PaymentMethod }) =>
+    api.post<ExpenseDetailDto>(`${FINANCE_KEY}/expenses/${id}/correct`, body),
   createPlan: (
     body:
       | { kind: "periodic_dues"; startMonth?: string; dueDate?: string; fundId?: string }

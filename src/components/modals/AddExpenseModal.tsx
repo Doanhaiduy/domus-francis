@@ -32,7 +32,6 @@ interface FormCardProps {
 /** Thẻ form lập/sửa phiếu chi (dùng cho modal toàn cục "addExpense" và modal sửa phiếu ở trang Thu Chi). */
 export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   const { members, showToast } = useApp();
-  const { session } = useSession();
   const options = useFinanceOptions();
   const editing = !!expense;
 
@@ -41,7 +40,8 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   const [categoryId, setCategoryId] = useState(expense?.category.id ?? "");
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate ?? "");
   const [fundId, setFundId] = useState(expense?.fundId ?? "");
-  const [paidBy, setPaidBy] = useState<string>(expense ? expense.paidBy?.memberId ?? NONE : session?.member?.id ?? NONE);
+  // Mặc định "Quỹ chi trực tiếp"; chỉ chọn thành viên khác khi có người ứng tiền túi
+  const [paidBy, setPaidBy] = useState<string>(expense?.paidBy?.memberId ?? NONE);
   const [note, setNote] = useState(expense?.note ?? "");
   const [receipt, setReceipt] = useState(expense?.receipts[0]?.fileId ?? "");
   const [noReceiptReason, setNoReceiptReason] = useState(expense?.noReceiptReason ?? "");
@@ -57,10 +57,6 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
     if (!categoryId && options.categories.length) setCategoryId(options.categories[0].id);
   }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!editing && paidBy === NONE && session?.member?.id) setPaidBy(session.member.id);
-  }, [session?.member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const amountVnd = Number(amount.replace(/\D/g, "")) || 0;
   const receiptMin = options?.receiptRequiredMinVnd ?? null;
   const dualMin = options?.dualApprovalMinVnd ?? null;
@@ -68,10 +64,10 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
 
   const payerOptions = useMemo(
     () => [
+      { value: NONE, label: "Quỹ chi trực tiếp (không ai ứng tiền)" },
       ...members
         .filter((m) => m.status === "active" || m.status === "on_leave" || m.id === paidBy)
         .map((m) => ({ value: m.id, label: m.fullName, subLabel: m.room })),
-      { value: NONE, label: "Quỹ chi trực tiếp (không ai ứng tiền)" },
     ],
     [members, paidBy]
   );
@@ -115,8 +111,8 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] overflow-hidden">
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+    <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
+      <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center font-bold">
             {editing ? <Pencil className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -142,7 +138,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
         }}
         className="flex flex-col flex-1 min-h-0"
       >
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           <CustomInput
             label="Tên khoản chi *"
             required
@@ -185,7 +181,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
                   key={cat.id}
                   type="button"
                   onClick={() => setCategoryId(cat.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition text-left truncate ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition text-left leading-tight sm:truncate ${
                     categoryId === cat.id ? "bg-primary text-white shadow-xs" : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-100"
                   }`}
                   title={cat.name}
@@ -232,7 +228,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
           {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">{error}</div>}
         </div>
 
-        <div className="p-4 px-6 border-t border-gray-100 shrink-0 flex items-center justify-end gap-2 bg-gray-50/70">
+        <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 shrink-0 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
           <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
             Hủy bỏ
           </button>

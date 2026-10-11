@@ -1,4 +1,5 @@
 import { api, uuidParam } from "@/server/http";
+import { adminDelete } from "@/server/modules/admin-delete";
 import { getExpense, updateExpense } from "@/server/modules/finance-expenses";
 import { UpdateExpenseSchema } from "@/server/modules/finance-schema";
 
@@ -13,3 +14,6 @@ export const PATCH = api({}, async (ctx) => {
     return getExpense(tx, id);
   });
 });
+
+/** Admin dọn dữ liệu rác: xóa vĩnh viễn phiếu chi ĐÃ HỦY (quyền data.purge; phiếu đã chi không xóa được — dùng đảo). */
+export const DELETE = api({}, async (ctx) => ctx.db((tx) => adminDelete(tx, "expense", uuidParam(ctx, "id"))));

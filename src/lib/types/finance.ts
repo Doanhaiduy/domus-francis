@@ -207,6 +207,10 @@ export interface ExpenseActions {
   pay: boolean;
   cancel: boolean;
   reverse: boolean;
+  /** Admin: sửa người ứng tiền / hình thức chi (phiếu chưa hủy) */
+  correct: boolean;
+  /** Admin: xóa vĩnh viễn (chỉ phiếu đã hủy) */
+  purge: boolean;
 }
 
 export interface ExpenseDto {

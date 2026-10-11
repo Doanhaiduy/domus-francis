@@ -34,6 +34,10 @@ export interface FinanceCaller {
   approve: boolean;
   pay: boolean;
   reverse: boolean;
+  /** Admin: sửa người ứng tiền / hình thức chi của phiếu (finance.expense.correct) */
+  correct: boolean;
+  /** Admin: xóa vĩnh viễn phiếu chi đã hủy (data.purge) */
+  purge: boolean;
   contribAll: boolean;
   record: boolean;
   waive: boolean;
@@ -57,6 +61,8 @@ export const FINANCE_CALLER_SQL = `SELECT app.current_user_id() AS uid, app.curr
               app.has_permission('finance.expense.approve') AS approve,
               app.has_permission('finance.expense.pay') AS pay,
               app.has_permission('finance.expense.reverse') AS reverse,
+              app.has_permission('finance.expense.correct') AS correct,
+              app.has_permission('data.purge') AS purge,
               app.has_permission('finance.contribution.read_all') AS contrib_all,
               app.has_permission('finance.contribution.record') AS record,
               app.has_permission('finance.contribution.waive') AS waive,
@@ -79,6 +85,8 @@ export function financeCallerFrom(res: QueryResult): FinanceCaller {
     approve: r.approve,
     pay: r.pay,
     reverse: r.reverse,
+    correct: r.correct,
+    purge: r.purge,
     contribAll: r.contrib_all,
     record: r.record,
     waive: r.waive,
