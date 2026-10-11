@@ -68,16 +68,17 @@ export function ConfirmDialog({
     <Portal>
       <div
         onClick={onClose}
-        className="fixed inset-0 z-[999] overflow-y-auto bg-black/60 backdrop-blur-xs p-4 flex items-center justify-center animate-fadeIn"
+        className="fixed inset-0 z-[999] overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-fadeIn"
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 p-6 flex flex-col gap-4 relative animate-scaleUp"
+          className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 p-4 sm:p-6 flex flex-col gap-4 relative animate-scaleIn"
         >
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Đóng"
+            className="absolute top-3 right-3 p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -103,11 +104,11 @@ export function ConfirmDialog({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 mt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-3 border-t border-gray-100 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              className="px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors"
             >
               {cancelText}
             </button>
@@ -118,7 +119,7 @@ export function ConfirmDialog({
                 onClose();
               }}
               className={cn(
-                "px-5 py-2 rounded-xl text-xs font-bold transition-all",
+                "px-5 py-2.5 sm:py-2 rounded-xl text-xs font-bold transition-all",
                 variantStyles.confirmBtn
               )}
             >

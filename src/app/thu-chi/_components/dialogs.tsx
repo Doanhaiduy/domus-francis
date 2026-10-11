@@ -35,17 +35,17 @@ export function DialogShell({
   if (!open) return null;
   return (
     <Portal>
-      <div onClick={onClose} className={`fixed inset-0 bg-gray-900/50 backdrop-blur-sm ${z} overflow-y-auto p-3 sm:p-5 animate-in fade-in duration-150`}>
-        <div className="flex min-h-full items-center justify-center">
+      <div onClick={onClose} className={`fixed inset-0 bg-gray-900/50 backdrop-blur-sm ${z} overflow-y-auto p-0 sm:p-5 animate-in fade-in duration-150`}>
+        <div className="flex min-h-full items-end sm:items-center justify-center">
           <div
             onClick={(e) => e.stopPropagation()}
-            className={`w-full ${maxWidth} my-auto bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150`}
+            className={`w-full ${maxWidth} sm:my-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-sheetUp sm:animate-scaleIn`}
           >
-            <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-start justify-between gap-2 p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center font-bold shrink-0">{icon}</div>
                 <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-gray-900 truncate">{title}</h3>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{title}</h3>
                   {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
                 </div>
               </div>
@@ -53,8 +53,8 @@ export function DialogShell({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">{children}</div>
-            {footer && <div className="p-4 px-6 border-t border-gray-100 shrink-0 flex items-center justify-end gap-2 bg-gray-50/70">{footer}</div>}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">{children}</div>
+            {footer && <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 shrink-0 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">{footer}</div>}
           </div>
         </div>
       </div>

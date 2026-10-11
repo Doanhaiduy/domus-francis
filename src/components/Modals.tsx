@@ -57,10 +57,10 @@ export const Modals: React.FC = () => {
     <Portal>
       <div
         onClick={closeModal}
-        className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 overflow-y-auto p-3 sm:p-5 animate-in fade-in duration-150"
+        className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 overflow-y-auto p-0 sm:p-5 animate-in fade-in duration-150"
       >
-        <div className="flex min-h-full items-center justify-center">
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg my-auto">
+        <div className="flex min-h-full items-end sm:items-center justify-center">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg sm:my-auto [&>*]:rounded-b-none sm:[&>*]:rounded-b-3xl">
             <Body />
           </div>
         </div>

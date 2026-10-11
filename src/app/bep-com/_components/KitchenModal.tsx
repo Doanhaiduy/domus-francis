@@ -33,7 +33,7 @@ export default function KitchenModal({ open, onClose, title, subtitle, icon, ico
             onClick={(e) => e.stopPropagation()}
             className={`w-full ${maxWidth} bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col max-h-[90vh] overflow-hidden`}
           >
-            <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+            <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 {icon && <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>{icon}</div>}
                 <div className="min-w-0">

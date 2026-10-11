@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { Church, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
-import { CustomInput, CustomTextarea, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { CustomTextarea, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { ChurchPicker } from "@/components/ui/ChurchPicker";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { liturgyCalendarApi, refreshLiturgy } from "@/lib/data/liturgy-calendar";
@@ -85,7 +86,10 @@ export default function MassCheckinModal({ day, onClose }: Props) {
               placeholder="Chụp hoặc chọn ảnh nhà thờ / Thánh lễ bạn tham dự"
               helperText="Ảnh chụp tại nhà thờ trong ngày lễ (hoặc lễ vọng chiều hôm trước). Thông tin vị trí trong ảnh được xóa trước khi lưu."
             />
-            <CustomInput label="Nhà thờ / giáo xứ đã dự lễ" placeholder="VD: Nhà thờ Thái Hà" value={church} onChange={(e) => setChurch(e.target.value)} maxLength={160} />
+            <div>
+              <ChurchPicker label="Nhà thờ / giáo xứ đã dự lễ" value={church} onChange={setChurch} />
+              <p className="mt-1 text-[11px] text-gray-500">Chọn trong danh sách giáo xứ Nha Trang (gõ để lọc, không cần dấu) hoặc tự nhập nếu nhà thờ không có trong danh sách.</p>
+            </div>
             <CustomTextarea label="Ghi chú (tùy chọn)" placeholder="VD: dự lễ 17h30 chiều thứ Bảy (lễ vọng)" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} />
 
             <p className="text-[11px] text-gray-500">

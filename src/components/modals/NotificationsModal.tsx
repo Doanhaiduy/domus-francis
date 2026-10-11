@@ -72,9 +72,9 @@ export default function NotificationsModal() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+      <div className="flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center font-bold">
             <Bell className="w-5 h-5" />

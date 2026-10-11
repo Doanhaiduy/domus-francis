@@ -49,12 +49,27 @@ const config: Config = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(0)" },
         },
+        toastIn: {
+          "0%": { opacity: "0", transform: "translateY(-14px) scale(0.97)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        toastBar: {
+          "0%": { transform: "scaleX(1)" },
+          "100%": { transform: "scaleX(0)" },
+        },
+        sheetUp: {
+          "0%": { opacity: "0", transform: "translateY(28px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.2s ease-out forwards",
         fadeSlideUp: "fadeSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         scaleIn: "scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         slideInRight: "slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        toastIn: "toastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both",
+        toastBar: "toastBar linear forwards",
+        sheetUp: "sheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both",
       },
     },
   },

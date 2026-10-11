@@ -108,8 +108,8 @@ export default function CreateAnnouncementModal() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] overflow-hidden">
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+    <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
+      <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
         <div>
           <h3 className="text-lg font-bold text-gray-900">Đăng Thông Báo Mới</h3>
           <p className="text-xs text-gray-500">Thông báo sẽ được gửi tới bảng tin của đối tượng nhận</p>
@@ -120,7 +120,7 @@ export default function CreateAnnouncementModal() {
       </div>
 
       <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           <CustomInput
             label="Tiêu đề thông báo *"
             required
@@ -253,7 +253,7 @@ export default function CreateAnnouncementModal() {
           )}
         </div>
 
-        <div className="p-4 px-6 border-t border-gray-100 shrink-0 flex items-center justify-end gap-2 bg-gray-50/70">
+        <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 shrink-0 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
           <button
             type="button"
             onClick={closeModal}

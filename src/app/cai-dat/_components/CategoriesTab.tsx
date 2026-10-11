@@ -387,7 +387,7 @@ export default function CategoriesTab() {
                 onClick={(e) => e.stopPropagation()}
                 className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
               >
-                <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+                <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-purple-100 text-primary flex items-center justify-center font-bold">
                       <Tag className="w-4 h-4" />
@@ -403,7 +403,7 @@ export default function CategoriesTab() {
                 </div>
 
                 <form onSubmit={handleSaveCategory} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
                     {editingSystem && (
                       <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 flex gap-2">
                         <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />

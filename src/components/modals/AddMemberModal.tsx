@@ -79,7 +79,7 @@ export default function AddMemberModal() {
 
   if (created) {
     return (
-      <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 p-6 space-y-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn p-6 space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <CheckCircle2 className="w-5 h-5" />
@@ -122,8 +122,8 @@ export default function AddMemberModal() {
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] overflow-hidden">
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+    <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
+      <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center font-bold">
             <Users className="w-5 h-5" />
@@ -139,7 +139,7 @@ export default function AddMemberModal() {
       </div>
 
       <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           <CustomInput label="Họ và tên đầy đủ *" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ví dụ: Nguyễn Văn Hoàng" />
 
           <div className="grid grid-cols-2 gap-3">
@@ -186,7 +186,7 @@ export default function AddMemberModal() {
           {error && <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</p>}
         </div>
 
-        <div className="p-4 px-6 border-t border-gray-100 shrink-0 flex items-center justify-end gap-2 bg-gray-50/70">
+        <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 shrink-0 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
           <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
             Hủy bỏ
           </button>

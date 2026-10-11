@@ -32,8 +32,8 @@ export default function ChangeEmailModal() {
   };
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col overflow-hidden">
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100">
+    <form onSubmit={submit} className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col overflow-hidden">
+      <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center">
             <Mail className="w-5 h-5" />
@@ -47,7 +47,7 @@ export default function ChangeEmailModal() {
           <X className="w-5 h-5" />
         </button>
       </div>
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <CustomInput
           label="Email đăng nhập mới"
           type="email"
@@ -61,7 +61,7 @@ export default function ChangeEmailModal() {
         <CustomInput label="Mật khẩu hiện tại" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</p>}
       </div>
-      <div className="p-4 px-6 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50/70">
+      <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
         <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
           Hủy
         </button>

@@ -143,7 +143,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
       <div onClick={onClose} className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 overflow-y-auto p-3 sm:p-5">
         <div className="flex min-h-full items-center justify-center">
           <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100">
+            <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 text-primary flex items-center justify-center">
                   <UserCog className="w-5 h-5" />
@@ -276,7 +276,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
               </div>
             )}
 
-            <div className="p-4 px-6 border-t border-gray-100 flex items-center justify-end gap-2 bg-gray-50/70">
+            <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
               <button onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
                 Hủy
               </button>

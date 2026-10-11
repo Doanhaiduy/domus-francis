@@ -77,8 +77,8 @@ export default function ReportIssueModal() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl border border-purple-100 animate-in zoom-in-95 duration-150 flex flex-col max-h-[85vh] overflow-hidden">
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-100 shrink-0">
+    <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-purple-100 animate-sheetUp sm:animate-scaleIn flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden">
+      <div className="flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
             <AlertTriangle className="w-5 h-5" />
@@ -94,7 +94,7 @@ export default function ReportIssueModal() {
       </div>
 
       <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           {!allowed && (
             <p className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">Tài khoản của bạn chưa có quyền báo hỏng.</p>
           )}
@@ -188,7 +188,7 @@ export default function ReportIssueModal() {
           />
         </div>
 
-        <div className="p-4 px-6 border-t border-gray-100 shrink-0 flex items-center justify-end gap-2 bg-gray-50/70">
+        <div className="p-3 sm:p-4 px-4 sm:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-gray-100 shrink-0 flex flex-wrap items-center justify-end gap-2 bg-gray-50/70">
           <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-700">
             Hủy bỏ
           </button>

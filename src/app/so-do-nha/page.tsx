@@ -1032,7 +1032,7 @@ export default function SoDoNhaPage() {
               className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
             >
               {/* Modal Header */}
-              <div className="shrink-0 flex items-start justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="shrink-0 flex items-start justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-purple-100 text-primary flex items-center justify-center font-bold text-lg">
                     <Building2 className="w-6 h-6" />
@@ -1232,7 +1232,7 @@ export default function SoDoNhaPage() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
             >
-              <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-2.5">
                   <span className="p-2 rounded-xl bg-purple-100 text-primary">
                     <ArrowRightLeft className="w-5 h-5" />
@@ -1248,7 +1248,7 @@ export default function SoDoNhaPage() {
               </div>
 
               <form onSubmit={handleConfirmTransfer} className="flex flex-col flex-1 min-h-0">
-                <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
                   {/* Member Selection */}
                   <CustomSelect
                     label="1. Chọn thành viên cần chuyển:"
@@ -1315,7 +1315,7 @@ export default function SoDoNhaPage() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
             >
-              <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-2.5">
                   <span className="p-2 rounded-xl bg-purple-100 text-primary">
                     <UserPlus className="w-5 h-5" />
@@ -1333,7 +1333,7 @@ export default function SoDoNhaPage() {
               </div>
 
               <form onSubmit={handleConfirmAssign} className="flex flex-col flex-1 min-h-0">
-                <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
                   <CustomSelect
                     label="Chọn thành viên muốn gán vào phòng này:"
                     value={assignMemberId}
@@ -1383,7 +1383,7 @@ export default function SoDoNhaPage() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
             >
-              <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-2.5">
                   <span className="p-2 rounded-xl bg-purple-100 text-primary">
                     {isEditRoomModalOpen ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
@@ -1408,7 +1408,7 @@ export default function SoDoNhaPage() {
                 onSubmit={isEditRoomModalOpen ? handleSaveEditRoom : handleSaveAddRoom}
                 className="flex flex-col flex-1 min-h-0"
               >
-                <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 custom-scroll">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 custom-scroll">
               <div className="grid grid-cols-2 gap-3">
                 {/* Floor select */}
                 <CustomSelect
@@ -1558,7 +1558,7 @@ export default function SoDoNhaPage() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-purple-50 flex flex-col max-h-[88vh] overflow-hidden my-auto"
             >
-              <div className="shrink-0 flex items-center justify-between p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="shrink-0 flex items-center justify-between p-4 sm:p-6 sm:pb-4 border-b border-gray-100 bg-white">
                 <div className="flex items-center gap-2.5">
                   <span className="p-2 rounded-xl bg-purple-100 text-primary">
                     <Layers className="w-5 h-5" />
@@ -1574,7 +1574,7 @@ export default function SoDoNhaPage() {
               </div>
 
               <form onSubmit={handleSaveAddFloor} className="flex flex-col flex-1 min-h-0">
-                <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <CustomInput
                       label="Số tầng"

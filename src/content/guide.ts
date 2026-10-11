@@ -267,11 +267,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         t: "steps",
         title: "Gửi đơn xin phép",
         items: [
-          { title: "Bấm “Gửi đơn xin phép”", text: "Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · tạm vắng nhiều ngày." },
-          { title: "Điền thông tin", text: "Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ), ghi **lý do**; ngủ ngoài / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc." },
+          { title: "Bấm “Gửi đơn xin phép”", text: "Chọn **loại đơn**: vắng một sự kiện · về muộn quá giờ giới nghiêm · ngủ ngoài · **về quê** · **nghỉ Tết** · **nghỉ hè** · **nghỉ lễ** · tạm vắng nhiều ngày · lý do khác." },
+          { title: "Điền thông tin", text: "Vắng sự kiện: chọn sự kiện (giờ lấy theo sự kiện). Các loại khác: chọn **từ — đến** (ngày + giờ; với đơn nghỉ dài là *ngày đi* và *ngày dự kiến quay lại*), ghi **lý do**; ngủ ngoài / về quê / nghỉ Tết / nghỉ hè / nghỉ lễ / tạm vắng cần cho biết **nơi đến** và nên để số liên lạc." },
           { title: "Nhờ người để cửa (về muộn / ngủ ngoài)", text: "Ở ô **“Nhờ ai để cửa giúp bạn?”** chọn một anh em trong nhà (tùy chọn). Người đó thấy việc của mình ở mục **“Anh em nhờ bạn để cửa”** ngay trên trang Xin phép (chỉ thấy giờ về, không thấy lý do riêng của bạn) và được nêu tên trong tin báo ở nhóm Zalo." },
-          { title: "Gửi — báo thẳng vào nhóm Zalo", text: "Đơn **về muộn** và **ngủ ngoài** khi gửi sẽ được báo ngay vào **nhóm Zalo của nhà** (tên bạn, nơi đến, lý do, giờ dự kiến về, người để cửa) để mọi người nắm. Đơn vắng sự kiện và tạm vắng nhiều ngày không báo nhóm." },
-          { title: "Chờ duyệt", text: "Trưởng nhà/người quản lý nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **hủy đơn** được." },
+          { title: "Tích “Gửi thông báo cho cả nhà” (tùy chọn)", text: "Khi tích, đơn được báo ngay vào **nhóm Zalo của nhà** (tên bạn, nơi đến, lý do, thời gian, người để cửa) **và** thông báo trong ứng dụng cho mọi anh em. Công tắc **mặc định bật** với đơn **về muộn / ngủ ngoài** và **tắt** với các loại khác — bạn đổi được trước khi gửi. Người quản lý luôn nhận được đơn dù không tích." },
+          { title: "Chờ duyệt", text: "Trưởng nhà/người quản lý nhận thông báo và duyệt hoặc từ chối (kèm lý do). Bạn nhận thông báo kết quả; còn đang chờ thì bạn **sửa** (nút bút chì) hoặc **hủy đơn** được. **Admin** còn có tab **“Tất cả đơn”** xem toàn bộ đơn của cả nhà (lọc theo trạng thái, loại đơn, từ khóa) và sửa được mọi đơn." },
         ],
       },
       {
@@ -502,7 +502,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { icon: "users", title: "Diễn đàn", text: "Tạo chủ đề, bình luận, thích; nội dung vi phạm có thể **báo cáo**." },
           { icon: "school", title: "Học tập", text: "Nhập bảng điểm từng học kỳ kèm ảnh minh chứng; người quản lý xác minh." },
-          { icon: "home", title: "Khoảnh khắc", text: "Xem/tải album ảnh sinh hoạt của nhà." },
+          { icon: "home", title: "Khoảnh khắc", text: "Xem/tải album ảnh và **video** sinh hoạt của nhà; album chung **“Khoảnh khắc thường ngày”** ai cũng đăng ảnh / video được (thêm video: nút **“+ Thêm video”** trong album, MP4/MOV/WebM, tối đa 100 MB khi dùng Cloudinary, 50 MB khi dùng kho Supabase miễn phí)." },
         ],
       },
       { t: "heading", text: "AI nhận xét học tập" },
@@ -572,7 +572,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Phiếu chi & duyệt",
             blocks: [
-              { t: "md", text: "**Lập phiếu chi**: số tiền, hạng mục, người ứng/chi, ảnh hóa đơn (bắt buộc từ ngưỡng cấu hình)." },
+              { t: "md", text: "**Lập phiếu chi**: số tiền, hạng mục, người ứng/chi (mặc định **“Quỹ chi trực tiếp”**; chỉ chọn một anh em khi người đó ứng tiền túi để được hoàn ứng), ảnh hóa đơn (bắt buộc từ ngưỡng cấu hình)." },
+              { t: "callout", tone: "tip", title: "Phiếu bị nhập sai? (Admin)", text: "Admin mở phiếu → **“Sửa người ứng / hình thức chi”** để đổi người ứng tiền và hình thức chi (tiền mặt / chuyển khoản / ví) kể cả khi phiếu **đã chi**, kèm lý do; mọi lần sửa được ghi nhật ký kiểm toán, sổ quỹ giữ nguyên. Phiếu **đã hủy** thì Admin có nút **Xóa** (thùng rác) để dọn; phiếu đã chi chỉ đảo bút toán, không xóa." },
               { t: "demo", name: "approval-flow", caption: "Luồng duyệt phiếu chi" },
               { t: "callout", tone: "warn", title: "Người lập không tự duyệt", text: "Người lập/người ứng tiền không bao giờ tự duyệt phiếu của mình. Nếu một trong hai người duyệt là người lập hoặc người ứng tiền thì **người còn lại ký một mình** (cấu hình “Nhà chỉ có Trưởng nhà + Thủ quỹ duyệt chi”)." },
               { t: "demo", name: "expense-states", caption: "Trạng thái phiếu chi" },
@@ -930,7 +931,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Dọn dữ liệu rác (xóa vĩnh viễn)",
             blocks: [
-              { t: "md", text: "Admin có thêm nút **Xóa** (biểu tượng thùng rác) để dọn các bản ghi không cần thiết — ví dụ dữ liệu thử:\n- **Đơn xin phép** (Lịch & Xin phép → Xin phép): xóa được ở mọi trạng thái.\n- **Báo hỏng / sự cố** (Hậu Cần & Trực → Báo hỏng): nút thùng rác cạnh ngày ở phần chi tiết.\n- **Ý cầu nguyện** (Phụng Vụ): nút **Xóa** ở mỗi ý.\n- **Đăng ký tìm hiểu** (Bài viết công khai → Đăng ký tìm hiểu).\n- **Đơn xin vào nhà đã xử lý** (Thành Viên → tab Đơn chờ duyệt, tích “Hiện cả đơn đã xử lý”); đơn đang chờ phải duyệt hoặc từ chối trước.\nXóa là **vĩnh viễn**, luôn hỏi xác nhận và vẫn để lại dấu vết ở nhật ký hoạt động. Dữ liệu **tài chính** (phiếu chi, khoản thu, sổ quỹ) **không xóa được** — dùng Hủy/Hoàn tác để sổ quỹ luôn khớp. Quyền này tên là **data.purge**, chỉ Admin có." },
+              { t: "md", text: "Admin có thêm nút **Xóa** (biểu tượng thùng rác) để dọn các bản ghi không cần thiết — ví dụ dữ liệu thử:\n- **Đơn xin phép** (Lịch & Xin phép → Xin phép): xóa được ở mọi trạng thái.\n- **Phiếu chi đã hủy** (Thu Chi & Báo cáo → Phiếu chi): nút thùng rác ở dòng phiếu hoặc trong chi tiết phiếu (phiếu đã chi không xóa được — dùng “Đảo phiếu”).\n- **Báo hỏng / sự cố** (Hậu Cần & Trực → Báo hỏng): nút thùng rác cạnh ngày ở phần chi tiết.\n- **Ý cầu nguyện** (Phụng Vụ): nút **Xóa** ở mỗi ý.\n- **Đăng ký tìm hiểu** (Bài viết công khai → Đăng ký tìm hiểu).\n- **Đơn xin vào nhà đã xử lý** (Thành Viên → tab Đơn chờ duyệt, tích “Hiện cả đơn đã xử lý”); đơn đang chờ phải duyệt hoặc từ chối trước.\nXóa là **vĩnh viễn**, luôn hỏi xác nhận và vẫn để lại dấu vết ở nhật ký hoạt động. Dữ liệu **tài chính đã ghi sổ** (phiếu chi đã chi, khoản thu, sổ quỹ) **không xóa được** — dùng Hủy/Đảo/Hoàn tác để sổ quỹ luôn khớp. Quyền này tên là **data.purge**, chỉ Admin có." },
             ],
           },
           {

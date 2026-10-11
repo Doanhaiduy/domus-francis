@@ -150,3 +150,47 @@
   }
 }
 
+
+/* =====================================================================
+   DI ĐỘNG — chạm mượt, hộp thoại không bị thanh địa chỉ che, không bị trình duyệt tự phóng to
+   ===================================================================== */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Bấm nhanh không bị trễ 300ms / không phóng to khi chạm đúp vào nút */
+button, a, [role="button"], summary, label, select { touch-action: manipulation; }
+
+/* Chiều cao theo khung nhìn THẬT (dvh): trên điện thoại 100vh gồm cả vùng thanh địa chỉ nên đáy hộp thoại bị cắt mất */
+@supports (height: 100dvh) {
+  .min-h-screen { min-height: 100dvh; }
+  .max-h-\[92vh\] { max-height: 92dvh; }
+  .max-h-\[90vh\] { max-height: 90dvh; }
+  .max-h-\[88vh\] { max-height: 88dvh; }
+  .max-h-\[85vh\] { max-height: 85dvh; }
+  .max-h-\[80vh\] { max-height: 80dvh; }
+  .max-h-\[75vh\] { max-height: 75dvh; }
+  .max-h-\[66vh\] { max-height: 66dvh; }
+  .max-h-\[60vh\] { max-height: 60dvh; }
+}
+
+/* Lớp phủ hộp thoại cuộn riêng, không "kéo" trang nền phía sau */
+.fixed.inset-0.overflow-y-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+@media screen and (max-width: 1023px) {
+  /* Đang mở hộp thoại / menu trượt ⇒ khóa cuộn trang nền (trên điện thoại, kéo hộp thoại hay làm trang nền cuộn theo) */
+  body:has(.fixed.inset-0[class*="backdrop-blur"]) { overflow: hidden; }
+}
+
+/* iOS Safari tự phóng to cả trang khi chạm vào ô nhập có chữ < 16px (làm vỡ bố cục, phải chụm lại để thu nhỏ) ⇒ ép 16px trên màn hình cảm ứng nhỏ */
+@media screen and (pointer: coarse) and (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Vùng an toàn (tai thỏ / thanh vuốt Home) cho phần tử dính đáy */
+.pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }

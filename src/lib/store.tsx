@@ -13,6 +13,8 @@ export interface ToastMessage {
   id: string;
   type: "success" | "error" | "warning" | "info";
   message: string;
+  /** Thời gian hiển thị (ms); bỏ trống ⇒ tự tính theo loại và độ dài tin */
+  duration?: number;
 }
 
 interface AppContextType {
@@ -51,7 +53,7 @@ interface AppContextType {
   simulateLoading: (durationMs?: number) => void;
 
   toasts: ToastMessage[];
-  showToast: (type: ToastMessage["type"], message: string) => void;
+  showToast: (type: ToastMessage["type"], message: string, duration?: number) => void;
   removeToast: (id: string) => void;
 }
 
@@ -81,10 +83,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
-  const showToast = (type: ToastMessage["type"], message: string) => {
+  // Tự tắt do ToastContainer đếm giờ (tạm dừng khi rê chuột); ở đây chỉ chống trùng tin đang hiện và giữ tối đa 4 tin cùng lúc
+  const showToast = (type: ToastMessage["type"], message: string, duration?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => removeToast(id), 4000);
+    setToasts((prev) => [...prev.filter((t) => !(t.type === type && t.message === message)), { id, type, message, duration }].slice(-4));
   };
 
   const { members, isLoading: membersLoading } = useMembers({ enabled: dataReady });
