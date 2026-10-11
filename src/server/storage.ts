@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp, { type Metadata } from "sharp";
@@ -161,11 +161,59 @@ export interface StoredFile {
   url: string;
 }
 
+/** Thời gian từng bước (ms) — gửi về trình duyệt qua Server-Timing để biết chậm ở đâu. */
+export type UploadTimings = Record<string, number>;
+
+/** UUID v7 (48 bit thời gian + ngẫu nhiên) — cùng kiểu app.uuid_v7() của CSDL, tạo ngay ở máy chủ để không phải hỏi CSDL. */
+function uuidV7(): string {
+  const b = randomBytes(16);
+  b.writeUIntBE(Date.now(), 0, 6);
+  b[6] = (b[6] & 0x0f) | 0x70;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = b.toString("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+/** Ngày chụp do trình duyệt đọc từ EXIF gốc ("YYYY:MM:DD HH:MM:SS", giờ máy ảnh — hiểu như UTC giống exif-reader). */
+function clientExifDate(v: string | null | undefined): Date | null {
+  const m = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(v ?? "");
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  return !isNaN(d.getTime()) && d.getUTCFullYear() > 2000 && d.getTime() < Date.now() + 36 * 3600e3 ? d : null;
+}
+
+interface ProcessedImage {
+  body: Buffer;
+  width: number;
+  height: number;
+  phash: string;
+  variants: [string, Buffer][];
+}
+
+async function processImage(input: Buffer, kind: Kind): Promise<ProcessedImage> {
+  const pipeline = sharp(input).rotate().resize({ width: IMAGE_MAX_SIDE, height: IMAGE_MAX_SIDE, fit: "inside", withoutEnlargement: true });
+  // sharp mặc định KHÔNG ghi lại metadata ⇒ EXIF (kể cả GPS) bị loại bỏ. JPEG dùng libjpeg-turbo (mozjpeg chậm gấp ~6 lần, chỉ nhỉnh ~5% dung lượng)
+  const out = kind.mime === "image/png" ? pipeline.png({ compressionLevel: 9 }) : kind.mime === "image/webp" ? pipeline.webp({ quality: 85 }) : pipeline.jpeg({ quality: 85 });
+  const { data, info } = await out.toBuffer({ resolveWithObject: true });
+  const [phash, thumb, medium] = await Promise.all([
+    dHash(data),
+    sharp(data).resize({ width: 360, height: 360, fit: "inside", withoutEnlargement: true }).webp({ quality: 80 }).toBuffer(),
+    sharp(data).resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true }).webp({ quality: 80 }).toBuffer(),
+  ]);
+  return { body: data, width: info.width, height: info.height, phash, variants: [["thumb", thumb], ["medium", medium]] };
+}
+
 /**
  * Nhận một tệp từ multipart/form-data: kiểm magic bytes, xoay đúng chiều + bỏ toàn bộ metadata (EXIF/GPS),
  * thu nhỏ ảnh quá lớn, tạo biến thể WebP, tính SHA-256 + pHash, ghi lên Supabase Storage (hoặc đĩa local) rồi đánh dấu ready.
+ * Trình duyệt đã thu nhỏ + nén ảnh trước khi gửi (src/lib/image-optimize.ts) nên bước xử lý ở đây nhẹ; các việc độc lập chạy SONG SONG.
  */
-export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket): Promise<StoredFile> {
+export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket, extra: { exifDate?: string | null } = {}): Promise<StoredFile & { timings: UploadTimings }> {
+  const timings: UploadTimings = {};
+  const lap = (name: string, since: number) => {
+    timings[name] = Math.round(performance.now() - since);
+  };
+  const t0 = performance.now();
   if (!BUCKETS.includes(bucket)) throw new ApiError(400, "BAD_BUCKET", "Loại tệp không hợp lệ.");
   if (file.size <= 0) throw new ApiError(400, "EMPTY_FILE", "Tệp rỗng.");
   if (file.size > MAX_BYTES) throw new ApiError(413, "FILE_TOO_LARGE", "Tệp vượt quá 20 MB.");
@@ -175,98 +223,96 @@ export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket): Promise
   if (kind.mime === "application/pdf" && !["attachments", "documents", "receipts", "academic-evidence"].includes(bucket)) {
     throw new ApiError(415, "UNSUPPORTED_TYPE", "Mục này chỉ nhận ảnh.");
   }
+  lap("read", t0);
+
+  const id = uuidV7();
+  const now = new Date(Date.now() + 7 * 3600e3); // thư mục theo tháng giờ Việt Nam
+  const prefix = `${bucket}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const key = `${prefix}/${id}.${kind.ext}`;
+
+  // (1) luuxa_app: bản ghi pending_upload (RLS: uploaded_by = mình, cần quyền storage.upload) — chạy SONG SONG với xử lý ảnh
+  const tIns = performance.now();
+  const insertP = ctx
+    .db((tx) =>
+      tx.query(
+        `INSERT INTO storage_files (id, bucket, object_key, original_name, declared_mime, size_bytes, uploaded_by, status, upload_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, app.current_user_id(), 'pending_upload', now() + interval '10 minutes')`,
+        [id, bucket, key, file.name?.slice(0, 200) || null, file.type || null, input.length]
+      )
+    )
+    .then(() => lap("db_insert", tIns));
 
   let body = input;
   let width: number | null = null;
   let height: number | null = null;
   let takenAt: Date | null = null;
   let phash: string | null = null;
-  const variants: Record<string, string> = {};
-  const variantBufs: [string, Buffer][] = [];
-
-  if (kind.mime !== "application/pdf") {
-    let meta: Metadata;
-    try {
-      meta = await sharp(input).metadata();
-    } catch {
-      throw new ApiError(415, "CORRUPT_IMAGE", "Ảnh bị hỏng hoặc không đọc được.");
-    }
-    takenAt = exifTakenAt(meta.exif);
-    const pipeline = sharp(input).rotate().resize({ width: IMAGE_MAX_SIDE, height: IMAGE_MAX_SIDE, fit: "inside", withoutEnlargement: true });
-    // sharp mặc định KHÔNG ghi lại metadata ⇒ EXIF (kể cả GPS) bị loại bỏ
-    const out =
-      kind.mime === "image/png" ? pipeline.png({ compressionLevel: 9 }) : kind.mime === "image/webp" ? pipeline.webp({ quality: 85 }) : pipeline.jpeg({ quality: 85, mozjpeg: true });
-    const { data, info } = await out.toBuffer({ resolveWithObject: true });
-    body = data;
-    width = info.width;
-    height = info.height;
-    phash = await dHash(body);
-    for (const [name, size] of [["thumb", 360], ["medium", 1280]] as const) {
-      variantBufs.push([name, await sharp(body).resize({ width: size, height: size, fit: "inside", withoutEnlargement: true }).webp({ quality: 80 }).toBuffer()]);
-    }
-  }
+  let variantBufs: [string, Buffer][] = [];
+  const tProc = performance.now();
+  const processP: Promise<void> =
+    kind.mime === "application/pdf"
+      ? Promise.resolve()
+      : (async () => {
+          let meta: Metadata;
+          try {
+            meta = await sharp(input).metadata();
+          } catch {
+            throw new ApiError(415, "CORRUPT_IMAGE", "Ảnh bị hỏng hoặc không đọc được.");
+          }
+          takenAt = exifTakenAt(meta.exif) ?? clientExifDate(extra.exifDate);
+          const p = await processImage(input, kind).catch((e) => {
+            throw e instanceof ApiError ? e : new ApiError(415, "CORRUPT_IMAGE", "Ảnh bị hỏng hoặc không đọc được.");
+          });
+          body = p.body;
+          width = p.width;
+          height = p.height;
+          phash = p.phash;
+          variantBufs = p.variants;
+        })().then(() => lap("process", tProc));
+  await Promise.all([insertP, processP]);
 
   const sha256 = createHash("sha256").update(body).digest("hex");
-  const now = new Date(Date.now() + 7 * 3600e3); // thư mục theo tháng giờ Việt Nam
-  const prefix = `${bucket}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const variants: Record<string, string> = {};
+  for (const [name] of variantBufs) variants[name] = `${prefix}/${id}.${name}.webp`;
 
-  // (1) luuxa_app: tạo bản ghi pending_upload (RLS: uploaded_by = mình, cần quyền storage.upload)
-  const id = await ctx.db(async (tx) => {
-    const fid = (await tx.query<{ id: string }>("SELECT app.uuid_v7() AS id")).rows[0].id;
-    await tx.query(
-      `INSERT INTO storage_files (id, bucket, object_key, original_name, declared_mime, size_bytes, uploaded_by, status, upload_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, app.current_user_id(), 'pending_upload', now() + interval '10 minutes')`,
-      [fid, bucket, `${prefix}/${fid}.${kind.ext}`, file.name?.slice(0, 200) || null, file.type || null, body.length]
-    );
-    return fid;
-  });
-
-  // (2) Lưu trữ tệp (Supabase Storage hoặc Local Disk)
-  const key = `${prefix}/${id}.${kind.ext}`;
+  // (2) Lưu trữ tệp (Supabase Storage hoặc Local Disk) — tệp chính + biến thể tải LÊN SONG SONG
   const writtenLocal: string[] = [];
   const writtenSupabase: { bucket: Bucket; path: string }[] = [];
   const supaCfg = getSupabaseStorageConfig();
+  const cacheLocal = !process.env.VERCEL; // Vercel: hệ thống tệp chỉ đọc ⇒ không ghi đệm đĩa (trước đây thử rồi lỗi mỗi lần)
 
   try {
+    const tStore = performance.now();
+    const objects: { key: string; buf: Buffer; mime: string }[] = [
+      { key, buf: body, mime: kind.mime },
+      ...variantBufs.map(([name, buf]) => ({ key: variants[name], buf, mime: "image/webp" })),
+    ];
     if (supaCfg) {
-      const { bucket: b, path: p } = splitBucketAndPath(bucket, key);
-      await uploadToSupabase(supaCfg, b, p, body, kind.mime);
-      writtenSupabase.push({ bucket: b, path: p });
-
-      for (const [name, buf] of variantBufs) {
-        const vkey = `${prefix}/${id}.${name}.webp`;
-        const { bucket: vb, path: vp } = splitBucketAndPath(bucket, vkey);
-        await uploadToSupabase(supaCfg, vb, vp, buf, "image/webp");
-        writtenSupabase.push({ bucket: vb, path: vp });
-        variants[name] = vkey;
-      }
-
-      // Lưu bản copy vào đĩa cục bộ để đọc ngay lập tức (không cần tải từ xa)
+      await Promise.all(
+        objects.map(async (o) => {
+          const { bucket: b, path: p } = splitBucketAndPath(bucket, o.key);
+          await uploadToSupabase(supaCfg, b, p, o.buf, o.mime);
+          writtenSupabase.push({ bucket: b, path: p });
+        })
+      );
+    }
+    if (!supaCfg || cacheLocal) {
       try {
         await mkdir(path.dirname(abs(key)), { recursive: true });
-        await writeFile(abs(key), body);
-        writtenLocal.push(abs(key));
-        for (const [name, buf] of variantBufs) {
-          const vkey = variants[name];
-          await writeFile(abs(vkey), buf);
-          writtenLocal.push(abs(vkey));
-        }
-      } catch {
-        // lỗi lưu đệm cục bộ không ảnh hưởng kết quả upload
-      }
-    } else {
-      await mkdir(path.dirname(abs(key)), { recursive: true });
-      await writeFile(abs(key), body);
-      writtenLocal.push(abs(key));
-      for (const [name, buf] of variantBufs) {
-        const vkey = `${prefix}/${id}.${name}.webp`;
-        await writeFile(abs(vkey), buf);
-        writtenLocal.push(abs(vkey));
-        variants[name] = vkey;
+        await Promise.all(
+          objects.map(async (o) => {
+            await writeFile(abs(o.key), o.buf);
+            writtenLocal.push(abs(o.key));
+          })
+        );
+      } catch (e) {
+        if (!supaCfg) throw e; // lưu local là nơi lưu chính thức; còn khi có Supabase thì đây chỉ là bộ đệm
       }
     }
+    lap("storage", tStore);
 
     // (3) bước xử lý tin cậy (vai trò worker) xác lập thuộc tính kiểm chứng — BR-STO-04
+    const tFin = performance.now();
     await ctx.dbAs("luuxa_worker", (tx) =>
       tx.query(
         `UPDATE storage_files
@@ -276,6 +322,7 @@ export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket): Promise
         [id, kind.mime, sha256, phash, width, height, takenAt, kind.mime !== "application/pdf", JSON.stringify(variants), body.length]
       )
     );
+    lap("db_finalize", tFin);
   } catch (e) {
     if (supaCfg && writtenSupabase.length > 0) {
       const byBucket = new Map<Bucket, string[]>();
@@ -291,7 +338,8 @@ export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket): Promise
     await Promise.all(writtenLocal.map((p) => rm(p, { force: true })));
     throw e;
   }
-  return { id, bucket, mime: kind.mime, width, height, sizeBytes: body.length, url: `/api/v1/files/${id}` };
+  lap("total", t0);
+  return { id, bucket, mime: kind.mime, width, height, sizeBytes: body.length, url: `/api/v1/files/${id}`, timings };
 }
 
 /** Đọc nội dung đối tượng: đĩa cục bộ trước (rất nhanh), không có thì tải từ Supabase Storage rồi đệm lại vào đĩa. */

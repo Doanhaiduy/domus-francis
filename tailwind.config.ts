@@ -61,6 +61,10 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(28px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        indeterminate: {
+          "0%": { transform: "translateX(-110%)" },
+          "100%": { transform: "translateX(320%)" },
+        },
       },
       animation: {
         fadeIn: "fadeIn 0.2s ease-out forwards",
@@ -70,6 +74,7 @@ const config: Config = {
         toastIn: "toastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both",
         toastBar: "toastBar linear forwards",
         sheetUp: "sheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both",
+        indeterminate: "indeterminate 1.1s ease-in-out infinite",
       },
     },
   },

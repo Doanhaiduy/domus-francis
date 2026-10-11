@@ -27,6 +27,9 @@ function csrfToken(): string {
 }
 
 let refreshing: Promise<boolean> | null = null;
+/** Làm mới phiên (dùng chung cho các lời gọi không đi qua apiFetch, vd. tải tệp bằng XHR). */
+export const refreshSession = (): Promise<boolean> => refreshOnce();
+
 async function refreshOnce(): Promise<boolean> {
   refreshing ??= fetch("/api/v1/auth/refresh", { method: "POST", credentials: "same-origin" })
     .then((r) => r.ok)

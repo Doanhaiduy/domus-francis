@@ -20,6 +20,7 @@ import { THEME_INIT_SCRIPT, ThemeProvider } from "@/lib/theme";
 import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
 import { SheetEnhancer } from "@/components/SheetEnhancer";
+import { ModalGuard } from "@/components/ModalGuard";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -60,6 +61,8 @@ export default function RootLayout({
           <SessionProvider>
             <AppProvider>
               <AppShell>{children}</AppShell>
+              {/* Chặn đóng hộp thoại khi đang tải/lưu, hỏi khi thoát mà chưa lưu */}
+              <ModalGuard />
             </AppProvider>
           </SessionProvider>
         </ThemeProvider>

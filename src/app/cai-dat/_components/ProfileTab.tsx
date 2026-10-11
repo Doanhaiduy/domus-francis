@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
-import { CustomInput, CustomSelect, CustomToggle, uploadFile } from "@/components/ui/FormControls";
+import { CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
+import { uploadErrorMessage, useUploader } from "@/lib/use-uploader";
 import { ProfileSkeleton } from "./TabSkeletons";
 import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
 import { AppearanceCard } from "./AppearanceCard";
@@ -37,7 +38,9 @@ export default function ProfileTab() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarUpload = useUploader();
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const avatarBusy = avatarUpload.uploading || avatarSaving;
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   const canManageMembers = can("member.update");
@@ -195,22 +198,23 @@ export default function ProfileTab() {
       showToast("warning", "Chỉ chọn ảnh JPG, PNG hoặc WEBP.");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      showToast("warning", "Ảnh quá lớn (tối đa 10MB).");
+    if (file.size > 40 * 1024 * 1024) {
+      showToast("warning", "Ảnh quá lớn (tối đa 40MB).");
       return;
     }
-    setAvatarBusy(true);
     try {
-      const up = await uploadFile(file, "avatars");
+      const up = await avatarUpload.run(file, "avatars");
+      setAvatarSaving(true);
       await membersApi.update(member.id, { avatarFileId: up.id });
       setF((p) => ({ ...p, avatarFileId: up.id }));
       await mutate();
       await refreshPeople();
       showToast("success", "Đã cập nhật ảnh đại diện.");
     } catch (err) {
-      showToast("error", errorMessage(err));
+      const msg = uploadErrorMessage(err);
+      if (msg) showToast("error", msg);
     } finally {
-      setAvatarBusy(false);
+      setAvatarSaving(false);
     }
   };
 
@@ -222,6 +226,7 @@ export default function ProfileTab() {
         <div className="relative shrink-0">
           <button
             type="button"
+            data-uploading={avatarUpload.uploading ? "1" : undefined}
             onClick={() => avatarInputRef.current?.click()}
             disabled={avatarBusy}
             title="Đổi ảnh đại diện"
@@ -241,9 +246,20 @@ export default function ProfileTab() {
                 avatarBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
               }`}
             >
-              {avatarBusy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
+              {avatarUpload.uploading ? (
+                <span className="text-sm font-extrabold tabular-nums">{avatarUpload.state?.phase === "uploading" ? `${Math.round((avatarUpload.state?.ratio ?? 0) * 100)}%` : <Loader2 className="w-6 h-6 animate-spin" />}</span>
+              ) : avatarBusy ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6" />
+              )}
             </span>
           </button>
+          {avatarUpload.uploading && (
+            <button type="button" onClick={avatarUpload.cancel} className="mt-1.5 w-full text-center text-[11px] font-bold text-rose-600 hover:underline">
+              Hủy tải lên
+            </button>
+          )}
           <span className="absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-primary pointer-events-none">
             <Camera className="w-4 h-4" />
           </span>

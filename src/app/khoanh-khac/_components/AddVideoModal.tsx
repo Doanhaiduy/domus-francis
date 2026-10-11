@@ -133,7 +133,7 @@ export function AddVideoModal({ album, open, limits, onClose, onSaved, showToast
   return createPortal(
     <div onClick={() => !busy && onClose()} className="fixed inset-0 z-[999] overflow-y-auto bg-black/60 backdrop-blur-xs p-0 sm:p-5 animate-fadeIn">
       <div className="flex min-h-full items-end sm:items-center justify-center">
-        <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-purple-50 flex flex-col max-h-[92dvh] overflow-hidden">
+        <div data-no-veil onClick={(e) => e.stopPropagation()} className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-purple-50 flex flex-col max-h-[92dvh] overflow-hidden">
           <div className="shrink-0 flex items-center justify-between p-5 border-b border-gray-100">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-purple-100 text-primary flex items-center justify-center shrink-0">
@@ -193,7 +193,7 @@ export function AddVideoModal({ album, open, limits, onClose, onSaved, showToast
               )}
 
               {(phase === "uploading" || phase === "saving") && (
-                <div className="space-y-1.5" role="status" aria-live="polite">
+                <div className="space-y-1.5" role="status" aria-live="polite" data-uploading={phase === "uploading" ? "1" : undefined}>
                   <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
                     <div className="h-full bg-primary transition-[width] duration-200" style={{ width: `${Math.round((phase === "saving" ? 1 : progress) * 100)}%` }} />
                   </div>

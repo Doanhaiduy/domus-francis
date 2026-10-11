@@ -1,22 +1,17 @@
 "use client";
 
-// Ô tải ảnh/tệp lên máy chủ LOCAL (/api/v1/files): server kiểm tra định dạng thật, xóa EXIF/GPS, tạo ảnh thu nhỏ.
-// Giá trị (value) là mã tệp storage_files.id — xem trước qua /api/v1/files/:id (kiểm quyền theo RLS).
-import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
-import { UploadCloud, X, FileCheck, RefreshCw, Loader2, FileText } from "lucide-react";
-import { api, errorMessage as apiError } from "@/lib/api";
+// Ô tải ảnh/tệp lên máy chủ (/api/v1/files): ảnh được thu nhỏ + nén ngay trên trình duyệt (nhanh hơn nhiều trên mạng di động), có THANH TIẾN ĐỘ và nút
+// HỦY; máy chủ kiểm định dạng thật, xóa EXIF/GPS, tạo ảnh thu nhỏ. Giá trị (value) là mã tệp storage_files.id — xem trước qua /api/v1/files/:id.
+// Đang tải thì phần tử gốc có data-uploading="1" (ModalGuard dùng để chặn đóng hộp thoại / bấm Lưu), tải xong có data-upload-fresh="1" (đã có thay đổi chưa lưu).
+import React, { useState, useRef, useCallback, useEffect, ChangeEvent, DragEvent } from "react";
+import { UploadCloud, X, FileCheck, RefreshCw, FileText } from "lucide-react";
+import { errorMessage as apiError } from "@/lib/api";
+import { isAbort, uploadFile, type UploadBucket, type UploadedFile, type UploadPhase } from "@/lib/uploader";
+import { uploadErrorMessage, useUploader, type UploadState } from "@/lib/use-uploader";
+import { UploadProgress } from "./UploadProgress";
 
-export type UploadBucket = "avatars" | "receipts" | "cleaning-evidence" | "academic-evidence" | "maintenance" | "moments" | "attachments" | "documents";
-
-export interface UploadedFile {
-  id: string;
-  bucket: UploadBucket;
-  mime: string;
-  width: number | null;
-  height: number | null;
-  sizeBytes: number;
-  url: string;
-}
+export { uploadFile };
+export type { UploadBucket, UploadedFile };
 
 /** URL xem trước của một giá trị: mã tệp → /api/v1/files/:id; giá trị cũ (đường dẫn/data URL) giữ nguyên. */
 export function previewUrl(value: string | null | undefined, variant: "thumb" | "medium" = "medium"): string {
@@ -25,14 +20,9 @@ export function previewUrl(value: string | null | undefined, variant: "thumb" | 
   return value;
 }
 
-export async function uploadFile(file: File, bucket: UploadBucket): Promise<UploadedFile> {
-  const form = new FormData();
-  form.append("bucket", bucket);
-  form.append("file", file);
-  return api.upload<UploadedFile>("/api/v1/files", form);
-}
-
 const ACCEPT_IMAGES = "image/jpeg,image/png,image/webp";
+/** Ảnh gốc được nhận tới mức này (sẽ được nén ở trình duyệt trước khi gửi); PDF theo maxSizeMB. */
+const RAW_IMAGE_MAX_MB = 60;
 const fmtSize = (n: number) => (n > 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(2)} MB` : `${(n / 1024).toFixed(1)} KB`);
 
 export interface ImageUploadDropzoneProps {
@@ -47,6 +37,7 @@ export interface ImageUploadDropzoneProps {
   allowPdf?: boolean;
   placeholder?: string;
   helperText?: string;
+  /** Giới hạn tệp PDF (ảnh được nén nên nhận rộng hơn) */
   maxSizeMB?: number;
   onUploaded?: (file: UploadedFile) => void;
   className?: string;
@@ -66,7 +57,8 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
   className = "",
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const { state, uploading, run, cancel } = useUploader();
+  const [fresh, setFresh] = useState(false);
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
   const [mime, setMime] = useState<string>("");
@@ -74,32 +66,34 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
   // Giá trị có sẵn (sửa bản ghi) có thể là PDF: ảnh xem trước lỗi ⇒ hiện biểu tượng tệp
   const [previewBroken, setPreviewBroken] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const help = helperText ?? `Hỗ trợ JPG, PNG, WEBP${allowPdf ? ", PDF" : ""} (tối đa ${maxSizeMB}MB) — ảnh được xóa thông tin vị trí trước khi lưu`;
+  const help = helperText ?? `Hỗ trợ JPG, PNG, WEBP${allowPdf ? ", PDF" : ""} — ảnh được tự thu nhỏ để tải nhanh và xóa thông tin vị trí trước khi lưu`;
 
   const handleProcessFile = async (file: File) => {
     setErrorMessage("");
-    const okType = ACCEPT_IMAGES.split(",").includes(file.type) || (allowPdf && file.type === "application/pdf");
+    const isPdfFile = file.type === "application/pdf";
+    const okType = ACCEPT_IMAGES.split(",").includes(file.type) || (allowPdf && isPdfFile);
     if (!okType) {
       setErrorMessage(`Chỉ chọn ảnh JPG, PNG, WEBP${allowPdf ? " hoặc PDF" : ""}.`);
       return;
     }
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      setErrorMessage(`Kích thước tệp vượt quá ${maxSizeMB}MB.`);
+    const limit = isPdfFile ? maxSizeMB : RAW_IMAGE_MAX_MB;
+    if (file.size > limit * 1024 * 1024) {
+      setErrorMessage(`Kích thước tệp vượt quá ${limit}MB.`);
       return;
     }
-    setUploading(true);
     try {
-      const up = await uploadFile(file, bucket);
+      const up = await run(file, bucket);
       setFileName(file.name);
       setFileSize(fmtSize(up.sizeBytes));
       setMime(up.mime);
       setPreviewBroken(false);
+      setFresh(true);
       onChange(up.id);
       onUploaded?.(up);
     } catch (e) {
-      setErrorMessage(apiError(e));
+      const msg = uploadErrorMessage(e);
+      if (msg) setErrorMessage(msg);
     } finally {
-      setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -113,6 +107,7 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    if (uploading) return;
     const files = e.dataTransfer.files;
     if (files && files.length > 0) void handleProcessFile(files[0]);
   };
@@ -124,12 +119,13 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
     setFileSize("");
     setMime("");
     setErrorMessage("");
+    setFresh(false);
   };
 
   const isPdf = mime === "application/pdf" || previewBroken;
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} data-upload-zone data-uploading={uploading ? "1" : undefined} data-upload-fresh={fresh && value ? "1" : undefined}>
       {label && (
         <div className="flex items-center justify-between mb-1.5">
           <label className="block text-xs font-bold text-gray-700">
@@ -146,9 +142,11 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
         className="hidden"
       />
 
-      {!value ? (
+      {uploading ? (
+        <UploadProgress state={state} onCancel={cancel} />
+      ) : !value ? (
         <div
-          onClick={() => !uploading && fileInputRef.current?.click()}
+          onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -165,18 +163,16 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
           }`}
         >
           <div className="w-11 h-11 rounded-2xl bg-purple-100 text-primary flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-            {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <UploadCloud className="w-6 h-6" />}
+            <UploadCloud className="w-6 h-6" />
           </div>
-          <p className="text-xs font-bold text-gray-800 text-center mb-0.5">{uploading ? "Đang tải lên và xử lý ảnh…" : placeholder}</p>
+          <p className="text-xs font-bold text-gray-800 text-center mb-0.5">{placeholder}</p>
           <p className="text-[11px] text-gray-400 text-center">{help}</p>
-          {!uploading && (
-            <button
-              type="button"
-              className="mt-2.5 px-3 py-1 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs group-hover:border-primary group-hover:text-primary transition"
-            >
-              Chọn tệp từ máy
-            </button>
-          )}
+          <button
+            type="button"
+            className="mt-2.5 px-3 py-1 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs group-hover:border-primary group-hover:text-primary transition"
+          >
+            Chọn tệp từ máy
+          </button>
         </div>
       ) : (
         <div className="relative p-3 rounded-2xl border border-purple-200 bg-purple-50/30 flex items-center gap-3.5">
@@ -205,13 +201,8 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
               )}
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <button
-                type="button"
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary-container"
-              >
-                {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary-container">
+                <RefreshCw className="w-3 h-3" />
                 <span>Đổi tệp</span>
               </button>
               <span className="text-gray-300">|</span>
@@ -241,6 +232,9 @@ export interface MultiImageUploadDropzoneProps {
   className?: string;
 }
 
+/** Số ảnh tải song song (đủ nhanh mà không làm nghẽn mạng điện thoại). */
+const CONCURRENCY = 3;
+
 export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> = ({
   label,
   required = false,
@@ -248,13 +242,19 @@ export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> =
   onChange,
   bucket,
   maxFiles = 20,
-  maxSizeMB = 20,
+  maxSizeMB = RAW_IMAGE_MAX_MB,
   className = "",
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [batch, setBatch] = useState<{ names: string[]; ratios: number[]; phases: UploadPhase[]; done: number; total: number } | null>(null);
+  const [fresh, setFresh] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ctl = useRef<AbortController | null>(null);
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+
+  useEffect(() => () => ctl.current?.abort(), []);
 
   const handleProcessFiles = async (files: FileList | File[]) => {
     setErrorMessage("");
@@ -263,26 +263,76 @@ export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> =
     const accepted = list.filter((f) => ACCEPT_IMAGES.split(",").includes(f.type) && f.size <= maxSizeMB * 1024 * 1024);
     if (accepted.length < list.length) setErrorMessage(`Một số tệp không phải ảnh JPG/PNG/WEBP hoặc vượt ${maxSizeMB}MB nên bị bỏ qua.`);
     if (!accepted.length) return;
-    // Tải tuần tự và cộng dồn kết quả (tránh lỗi chỉ giữ ảnh cuối cùng khi chọn nhiều ảnh)
-    const uploaded: string[] = [];
-    setProgress({ done: 0, total: accepted.length });
-    for (const f of accepted) {
-      try {
-        uploaded.push((await uploadFile(f, bucket)).id);
-      } catch (e) {
-        setErrorMessage(`${f.name}: ${apiError(e)}`);
+
+    ctl.current = new AbortController();
+    const signal = ctl.current.signal;
+    const total = accepted.length;
+    const results: (string | null)[] = new Array(total).fill(null);
+    const ratios: number[] = new Array(total).fill(0);
+    const phases: UploadPhase[] = new Array(total).fill("optimizing");
+    const active = new Set<number>();
+    let done = 0;
+    let next = 0;
+    const errors: string[] = [];
+    const publish = () => setBatch({ names: [...active].map((i) => accepted[i].name), ratios: [...ratios], phases: [...phases], done, total });
+    publish();
+
+    const worker = async () => {
+      while (!signal.aborted) {
+        const i = next++;
+        if (i >= total) return;
+        active.add(i);
+        publish();
+        try {
+          const up = await uploadFile(accepted[i], bucket, {
+            signal,
+            onPhase: (p) => {
+              phases[i] = p;
+              publish();
+            },
+            onProgress: (r) => {
+              ratios[i] = r;
+              publish();
+            },
+          });
+          results[i] = up.id;
+        } catch (e) {
+          if (!isAbort(e)) errors.push(`${accepted[i].name}: ${apiError(e)}`);
+        }
+        active.delete(i);
+        done++;
+        ratios[i] = 1;
+        publish();
       }
-      setProgress({ done: uploaded.length, total: accepted.length });
-    }
-    setProgress(null);
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
+    setBatch(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (uploaded.length) onChange([...values, ...uploaded]);
+    if (errors.length) setErrorMessage(errors.slice(0, 2).join(" · "));
+    // giữ đúng thứ tự chọn ảnh; ảnh đã tải xong vẫn được giữ lại kể cả khi hủy giữa chừng
+    const uploaded = results.filter((x): x is string => !!x);
+    if (uploaded.length) {
+      setFresh(true);
+      onChange([...valuesRef.current, ...uploaded]);
+    }
   };
 
+  const cancel = useCallback(() => ctl.current?.abort(), []);
   const handleRemove = (index: number) => onChange(values.filter((_, i) => i !== index));
 
+  const uploading = batch !== null;
+  const overall: UploadState | null = batch
+    ? {
+        name: batch.names.length ? batch.names.join(", ") : "Đang hoàn tất…",
+        phase: batch.phases.some((p) => p === "uploading") ? "uploading" : batch.phases.every((p) => p === "optimizing") ? "optimizing" : "processing",
+        ratio: Math.min(1, (batch.done + batch.ratios.reduce((a, r, i) => a + (i < batch.total && r < 1 ? r : 0), 0)) / batch.total),
+        index: Math.min(batch.total, batch.done + 1),
+        total: batch.total,
+      }
+    : null;
+
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} data-upload-zone data-uploading={uploading ? "1" : undefined} data-upload-fresh={fresh ? "1" : undefined}>
       {label && (
         <div className="flex items-center justify-between mb-1.5">
           <label className="block text-xs font-bold text-gray-700">
@@ -305,34 +355,36 @@ export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> =
         className="hidden"
       />
 
-      <div
-        onClick={() => !progress && fileInputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setIsDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsDragging(false);
-          if (e.dataTransfer.files) void handleProcessFiles(e.dataTransfer.files);
-        }}
-        className={`cursor-pointer group flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl transition-all ${
-          isDragging ? "border-primary bg-purple-50/70" : "border-gray-200 bg-gray-50/50 hover:bg-purple-50/30 hover:border-purple-300"
-        }`}
-      >
-        <div className="w-9 h-9 rounded-xl bg-purple-100 text-primary flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-          {progress ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+      {uploading ? (
+        <UploadProgress state={overall} onCancel={cancel} />
+      ) : (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            if (e.dataTransfer.files) void handleProcessFiles(e.dataTransfer.files);
+          }}
+          className={`cursor-pointer group flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl transition-all ${
+            isDragging ? "border-primary bg-purple-50/70" : "border-gray-200 bg-gray-50/50 hover:bg-purple-50/30 hover:border-purple-300"
+          }`}
+        >
+          <div className="w-9 h-9 rounded-xl bg-purple-100 text-primary flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+            <UploadCloud className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-bold text-gray-800 text-center">Nhấp để chọn nhiều ảnh từ máy hoặc kéo thả vào đây</p>
+          <p className="text-[10px] text-gray-400 text-center mt-0.5">Chọn nhiều ảnh cùng lúc (PNG, JPG, WEBP) — ảnh được tự thu nhỏ để tải nhanh</p>
         </div>
-        <p className="text-xs font-bold text-gray-800 text-center">
-          {progress ? `Đang tải ${progress.done}/${progress.total} ảnh…` : "Nhấp để chọn nhiều ảnh từ máy hoặc kéo thả vào đây"}
-        </p>
-        <p className="text-[10px] text-gray-400 text-center mt-0.5">Hỗ trợ chọn nhiều ảnh cùng lúc (PNG, JPG, WEBP)</p>
-      </div>
+      )}
 
       {errorMessage && <p className="mt-1 text-[11px] text-rose-600 font-semibold">{errorMessage}</p>}
 
@@ -344,11 +396,12 @@ export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> =
               <img src={previewUrl(id, "thumb")} alt={`Ảnh ${i + 1}`} className="w-full h-full object-cover" />
               <button
                 type="button"
+                aria-label={`Bỏ ảnh ${i + 1}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRemove(i);
                 }}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition shadow-xs"
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition shadow-xs"
               >
                 <X className="w-3 h-3" />
               </button>

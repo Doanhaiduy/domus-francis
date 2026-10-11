@@ -37,7 +37,9 @@ import { articlesApi, useArticle, useArticles, type ArticleFormPayload } from "@
 import { isValidSlug, slugify } from "@/lib/articles-format";
 import { ARTICLE_CATEGORIES, isScheduled, type ArticleDetail } from "@/lib/types/articles";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { CustomInput, CustomSelect, CustomTextarea, CustomToggle, ImageUploadDropzone, uploadFile } from "@/components/ui/FormControls";
+import { CustomInput, CustomSelect, CustomTextarea, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { UploadProgress } from "@/components/ui/UploadProgress";
+import { uploadErrorMessage, useUploader } from "@/lib/use-uploader";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
 import { TagsInput } from "../_components/TagsInput";
 import { SchedulePicker } from "../_components/SchedulePicker";
@@ -86,7 +88,9 @@ export default function ArticleEditorPage() {
   const [saved, setSaved] = useState<ArticleFormPayload>(EMPTY);
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState<null | "draft" | "publish">(null);
-  const [uploading, setUploading] = useState(false);
+  // Ảnh chèn vào nội dung bài: có tiến độ + nút hủy (data-uploading để ModalGuard cảnh báo khi rời trang)
+  const imageUpload = useUploader();
+  const uploading = imageUpload.uploading;
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [draftSeed, setDraftSeed] = useState<DraftSeed | null>(null);
   const [ideasOpen, setIdeasOpen] = useState(false);
@@ -166,15 +170,14 @@ export default function ArticleEditorPage() {
 
   const onPickImage = async (file: File | undefined) => {
     if (!file) return;
-    setUploading(true);
     try {
-      const up = await uploadFile(file, "attachments");
+      const up = await imageUpload.run(file, "attachments");
       insertBlock(`![Chú thích ảnh](/api/v1/public/files/${up.id})`);
       showToast("success", "Đã chèn ảnh — sửa phần “Chú thích ảnh” trong ngoặc vuông nếu muốn.");
     } catch (e) {
-      showToast("error", errorMessage(e));
+      const msg = uploadErrorMessage(e);
+      if (msg) showToast("error", msg);
     } finally {
-      setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -434,6 +437,11 @@ export default function ArticleEditorPage() {
               </div>
             </div>
 
+            {uploading && (
+              <div data-uploading="1" className="px-3 pt-3">
+                <UploadProgress state={imageUpload.state} onCancel={imageUpload.cancel} />
+              </div>
+            )}
             <div className="grid lg:grid-cols-2 lg:divide-x divide-purple-50">
               <div className={cn("p-3", tab === "preview" && "hidden lg:block")}>
                 <CustomTextarea
