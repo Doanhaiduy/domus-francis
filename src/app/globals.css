@@ -194,3 +194,52 @@ button, a, [role="button"], summary, label, select { touch-action: manipulation;
 
 /* Vùng an toàn (tai thỏ / thanh vuốt Home) cho phần tử dính đáy */
 .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+
+/* =====================================================================
+   TỜ TRƯỢT (BOTTOM SHEET) — hộp thoại trên điện thoại bo tròn hai góc trên, áp sát đáy màn hình, có thanh nắm, kéo xuống để đóng.
+   Thuộc tính data-sheet-* do src/components/SheetEnhancer.tsx gắn cho mọi lớp phủ hộp thoại (nền mờ + thẻ trắng bo góc).
+   ===================================================================== */
+@keyframes sheetSlideUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media screen and (max-width: 639px) {
+  [data-sheet-overlay] {
+    padding: 0 !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+  }
+  /* lớp trung gian (khung căn giữa, khung chứa thẻ): bỏ căn giữa + lề tự động để thẻ rơi xuống đáy */
+  [data-sheet-path] {
+    align-items: flex-end !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  [data-sheet-card] {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    border-bottom-width: 0 !important;
+    max-height: 92dvh !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+    will-change: transform;
+  }
+  /* thanh nắm ở đỉnh thẻ (là phần tử đầu tiên của thẻ nên không cần thêm DOM) */
+  [data-sheet-card]::before {
+    content: "";
+    display: block;
+    flex: none;
+    width: 2.5rem;
+    height: 0.3125rem;
+    margin: 0.5rem auto 0;
+    border-radius: 9999px;
+    background: rgb(var(--c-gray-300));
+  }
+  /* thẻ có vùng cuộn riêng (thân hộp thoại) thì thẻ không tự cuộn */
+  [data-sheet-card].overflow-hidden { overflow: hidden; }
+}

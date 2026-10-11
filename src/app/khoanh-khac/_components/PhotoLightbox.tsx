@@ -35,7 +35,7 @@ export function PhotoLightbox({ album, index, onIndex, onClose, onToggleAlbumLik
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between select-none animate-in fade-in duration-200">
+    <div data-no-sheet className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between select-none animate-in fade-in duration-200">
       {/* Top Toolbar */}
       <div className="p-4 flex items-center justify-between text-white border-b border-white/10 z-10">
         <div className="flex items-center gap-3 min-w-0">

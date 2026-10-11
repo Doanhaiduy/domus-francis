@@ -30,14 +30,10 @@ export function MobileDetailSheet({
       {/* Mobile view: bottom sheet / slide-over dialog */}
       {open && (
         <Portal>
-          <div className="fixed inset-0 z-50 flex lg:hidden">
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-              onClick={onClose}
-            />
+          {/* Lớp phủ = nền mờ bấm để đóng; SheetEnhancer thêm thanh nắm + kéo xuống để đóng */}
+          <div className="fixed inset-0 z-50 flex items-end lg:hidden bg-black/50 backdrop-blur-xs" onClick={onClose}>
             {/* Sheet modal */}
-            <div className="relative mt-auto w-full max-h-[85vh] flex flex-col bg-surface rounded-t-3xl shadow-2xl border-t border-outline-variant/30 overflow-hidden animate-in slide-in-from-bottom duration-200">
+            <div onClick={(e) => e.stopPropagation()} className="relative w-full max-h-[92dvh] flex flex-col bg-surface rounded-t-3xl shadow-2xl border-t border-outline-variant/30 overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/20 bg-surface-container-low shrink-0">
                 <h3 className="font-bold text-sm text-on-surface truncate pr-2">
@@ -52,7 +48,7 @@ export function MobileDetailSheet({
                 </button>
               </div>
               {/* Body */}
-              <div className="flex-1 overflow-y-auto p-4 overscroll-contain">
+              <div className="flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] overscroll-contain">
                 {children}
               </div>
             </div>

@@ -19,6 +19,7 @@ import { SessionProvider } from "@/lib/session";
 import { THEME_INIT_SCRIPT, ThemeProvider } from "@/lib/theme";
 import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
+import { SheetEnhancer } from "@/components/SheetEnhancer";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -30,6 +31,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Chrome Android: bàn phím ảo làm co khung nhìn (dvh) ⇒ hộp thoại dạng tờ trượt co lại phía trên bàn phím thay vì bị che
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#5f3add" },
     { media: "(prefers-color-scheme: dark)", color: "#12111a" },
@@ -61,6 +64,8 @@ export default function RootLayout({
           </SessionProvider>
         </ThemeProvider>
         <PwaRegister />
+        {/* Hộp thoại trên điện thoại: tờ trượt từ đáy, kéo xuống để đóng */}
+        <SheetEnhancer />
         {/* Số liệu truy cập + tốc độ thật (chỉ hoạt động trên Vercel khi đã bật Web Analytics / Speed Insights trong dự án) */}
         {process.env.VERCEL ? (
           <>

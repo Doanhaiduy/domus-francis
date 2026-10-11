@@ -147,6 +147,8 @@ async function startServer() {
       LUUXA_DISABLE_JOBS: "true",
       // Storage: LUÔN dùng ổ đĩa local (.local/storage). Next tự nạp .env.local (trỏ Supabase staging) ⇒ nếu không ép, ảnh/tệp của test sẽ bị đẩy lên Storage thật.
       STORAGE_DRIVER: "local",
+      // Video: Next cũng nạp CLOUDINARY_* từ .env.local ⇒ ép nơi lưu local, trừ khi cố ý thử Cloudinary thật (TEST_CLOUDINARY=1)
+      VIDEO_PROVIDER: process.env.TEST_CLOUDINARY ? "cloudinary" : "local",
       PORT: String(PORT),
       // AI: khóa giả + máy chủ giả loopback (scripts/test-api/ai.mjs) ⇒ không bao giờ có lưu lượng ra Groq/Gemini khi kiểm thử,
       // và khóa thật trong .env.local không được dùng (biến môi trường rõ ràng ưu tiên hơn file .env).

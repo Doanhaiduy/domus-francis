@@ -19,7 +19,8 @@ const normPage = (p) => "/" + p.replace(/^[A-Za-z]:\/.*?\/Git\/?/, "").replace(/
 const PAGES = get("--pages", "/,/thu-chi,/xin-phep,/lich-su-kien,/khoanh-khac,/thanh-vien,/bep-com,/hau-can,/hoc-tap,/so-do-nha,/dien-dan,/ky-luat,/phung-vu,/bai-viet,/cai-dat,/gop-y")
   .split(",")
   .map(normPage);
-const BUTTON_RE = /^\s*(\+|Thêm|Tạo|Lập|Gửi|Báo|Sửa|Check|Đăng|Ghi|Nhập|Soạn|Xin|Mới|Chỉnh)/i;
+const EXTRA = get("--include", "");
+const BUTTON_RE = new RegExp("^\\s*(\\+|Thêm|Tạo|Lập|Gửi|Báo|Sửa|Check|Đăng|Ghi|Nhập|Soạn|Xin|Mới|Chỉnh)" + (EXTRA ? "|" + EXTRA : ""), "i");
 const MAX_PER_PAGE = Number(get("--max", "8"));
 
 const exe = ["C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Microsoft/Edge/Application/msedge.exe", "C:/Program Files/Google/Chrome/Application/chrome.exe"].find((p) =>
@@ -49,6 +50,26 @@ const MEASURE = () => {
   const panel = cands.sort((a, b) => b.getBoundingClientRect().width * b.getBoundingClientRect().height - a.getBoundingClientRect().width * a.getBoundingClientRect().height)[0] ?? ov;
   const r = panel.getBoundingClientRect();
   const problems = [];
+  // Tờ trượt: SheetEnhancer đã gắn data-sheet-*; thẻ áp sát đáy màn hình, bo tròn hai góc trên, vuông hai góc dưới, có thanh nắm (::before)
+  const cardEl = ov.querySelector("[data-sheet-card]");
+  const sheet = { marked: !!cardEl && ov.hasAttribute("data-sheet-overlay") };
+  if (!sheet.marked) problems.push("KHÔNG phải tờ trượt (thiếu data-sheet-card) — SheetEnhancer không nhận ra thẻ");
+  else {
+    const cb = cardEl.getBoundingClientRect();
+    const cs2 = getComputedStyle(cardEl);
+    const before = getComputedStyle(cardEl, "::before");
+    sheet.bottomGap = Math.round(vh - cb.bottom);
+    sheet.radiusTop = parseFloat(cs2.borderTopLeftRadius);
+    sheet.radiusBottom = parseFloat(cs2.borderBottomLeftRadius);
+    sheet.handle = before.content !== "none" && parseFloat(before.height) > 0;
+    sheet.cardTop = Math.round(cb.top);
+    sheet.cardW = Math.round(cb.width);
+    if (Math.abs(sheet.bottomGap) > 1) problems.push(`thẻ không áp sát đáy (cách ${sheet.bottomGap}px)`);
+    if (sheet.radiusTop < 16) problems.push(`góc trên chưa bo tròn (${sheet.radiusTop}px)`);
+    if (sheet.radiusBottom > 0) problems.push(`góc dưới còn bo (${sheet.radiusBottom}px)`);
+    if (!sheet.handle) problems.push("thiếu thanh nắm");
+    if (Math.abs(cb.width - vw) > 1) problems.push(`thẻ không rộng hết màn hình (${Math.round(cb.width)}/${vw})`);
+  }
   if (r.right > vw + 1 || r.left < -1) problems.push(`panel tràn ngang (${Math.round(r.left)}→${Math.round(r.right)} / ${vw})`);
   // panel cao hơn màn hình mà lớp phủ không cuộn được ⇒ bị cắt
   const ovCs = getComputedStyle(ov);
@@ -82,7 +103,7 @@ const MEASURE = () => {
     const bb = b.getBoundingClientRect();
     return bb.width > 0 && (bb.width < 28 || bb.height < 28) && (b.innerText || "").trim() === "" && !b.disabled;
   }).length;
-  return { vw, vh, panel: { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) }, scrollable, docWidth: document.documentElement.scrollWidth, problems, tinyButtons: small };
+  return { vw, vh, sheet, panel: { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) }, scrollable, docWidth: document.documentElement.scrollWidth, problems, tinyButtons: small };
 };
 
 const browser = await chromium.launch({ executablePath: exe, headless: true });
@@ -163,6 +184,24 @@ try {
       console.log(`   ${fail ? "✗" : "✓"} “${label.slice(0, 34)}” ${m.panel.w}×${m.panel.h}px${m.scrollable ? " (cuộn)" : ""}${m.tinyButtons ? ` · ${m.tinyButtons} nút nhỏ <28px` : ""}`);
       for (const pr of m.problems) console.log(`        → ${pr}`);
       if (m.docWidth > m.vw + 1) console.log(`        → trang tràn ngang (${m.docWidth}/${m.vw})`);
+      // KÉO XUỐNG để đóng: vuốt bằng cảm ứng thật (CDP) từ thanh nắm xuống ~260px
+      if (m.sheet?.marked) {
+        const x = Math.round(m.vw / 2);
+        const y0 = m.sheet.cardTop + 22;
+        const cdp = await context.newCDPSession(page);
+        const touch = (type, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+        await touch("touchStart", y0);
+        for (let k = 1; k <= 8; k++) {
+          await touch("touchMove", y0 + k * 32);
+          await page.waitForTimeout(16);
+        }
+        await touch("touchEnd", y0 + 256);
+        await page.waitForTimeout(900);
+        const closed = !(await page.evaluate(() => !!document.querySelector("[data-sheet-overlay]")));
+        console.log(`        ${closed ? "✓" : "✗"} kéo xuống để đóng${closed ? "" : " — KHÔNG đóng được"}`);
+        if (!closed) bad++;
+        await cdp.detach().catch(() => {});
+      }
       await page.keyboard.press("Escape");
       await page.waitForTimeout(250);
       // Escape không đóng được ⇒ tải lại trang

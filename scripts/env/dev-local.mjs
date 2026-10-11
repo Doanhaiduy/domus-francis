@@ -35,6 +35,8 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: "",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
   STORAGE_DRIVER: "local",
+  // Video lưu ổ đĩa local (không đẩy lên Cloudinary staging khi dev trên DB local)
+  VIDEO_PROVIDER: "local",
   COOKIE_SECURE: "false",
 };
 console.log(`▶ next dev với DB LOCAL 127.0.0.1:${port}/luuxa (không đụng staging/production)`);

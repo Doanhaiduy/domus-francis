@@ -168,7 +168,7 @@ export const CommandPalette: React.FC = () => {
     <Portal>
       <div
         onClick={() => setCommandPaletteOpen(false)}
-        className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-24 px-4 animate-in fade-in duration-150"
+        data-no-sheet className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-24 px-4 animate-in fade-in duration-150"
       >
         <div
           onClick={(e) => e.stopPropagation()}

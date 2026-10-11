@@ -150,7 +150,7 @@ function VideoModal({ video, onClose }: { video: MomentVideoDto; onClose: () => 
     };
   }, [onClose]);
   return createPortal(
-    <div onClick={onClose} className="fixed inset-0 z-[999] bg-black/85 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 animate-fadeIn" role="dialog" aria-modal="true" aria-label="Xem video">
+    <div data-no-sheet onClick={onClose} className="fixed inset-0 z-[999] bg-black/85 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 animate-fadeIn" role="dialog" aria-modal="true" aria-label="Xem video">
       <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-4xl flex flex-col gap-3">
         <button type="button" onClick={onClose} aria-label="Đóng video" className="self-end mr-3 mt-3 sm:mr-0 sm:mt-0 p-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition">
           <X className="w-5 h-5" />

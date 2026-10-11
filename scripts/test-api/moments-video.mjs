@@ -6,6 +6,7 @@
 import sharp from "sharp";
 
 export async function run({ as, test, eq, ok, section, BASE }) {
+  if (process.env.TEST_CLOUDINARY) return; // chạy riêng bằng moments-video-cloudinary khi thử Cloudinary thật
   section("Khoảnh khắc: album chung + video");
 
   const admin = await as("viet.vu@luuxa.local");
