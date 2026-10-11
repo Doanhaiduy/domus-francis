@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
-import { CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
 import { uploadErrorMessage, useUploader } from "@/lib/use-uploader";
 import { ProfileSkeleton } from "./TabSkeletons";
 import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
@@ -471,7 +471,7 @@ export default function ProfileTab() {
 
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <CustomInput label="Ngày sinh" type="date" value={f.birthDate ?? ""} onChange={set("birthDate")} />
+              <CustomDatePicker label="Ngày sinh" format="YYYY-MM-DD" value={f.birthDate ?? ""} onChange={set("birthDate")} />
               <CustomInput
                 label={`Số CCCD / CMND ${member.identityCard ? `(${member.identityCard})` : ""}`}
                 value={f.nationalId ?? ""}

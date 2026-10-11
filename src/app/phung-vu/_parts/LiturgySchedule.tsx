@@ -6,7 +6,7 @@ import { errorMessage } from "@/lib/api";
 import type { LiturgyAssignmentDto, LiturgyDayDto, LiturgySessionDto, LiturgyWeekDto } from "@/lib/types/community";
 import { liturgyApi, refreshLiturgy } from "@/lib/data/community";
 import { addDays } from "@/lib/community-format";
-import { CustomDatePicker, CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect, CustomTimeInput } from "@/components/ui/FormControls";
 import { ReasonDialog } from "@/app/dien-dan/_parts/ReasonDialog";
 
 interface MemberOption {
@@ -289,7 +289,7 @@ export default function LiturgySchedule({ week, canManage, members, onNavigate, 
             <CustomInput label="Tên buổi phụng vụ" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required minLength={3} maxLength={200} />
           </div>
           <CustomDatePicker label="Ngày" value={newDate} onChange={setNewDate} format="YYYY-MM-DD" />
-          <CustomInput label="Giờ bắt đầu" type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} required />
+          <CustomTimeInput label="Giờ bắt đầu" value={newTime} onChange={setNewTime} required />
           <div className="sm:col-span-2">
             <CustomInput label="Địa điểm" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} maxLength={200} />
           </div>

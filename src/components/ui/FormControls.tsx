@@ -356,6 +356,13 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     }
   }, [value]);
 
+  // Chọn nhanh tháng / năm: "days" (lịch ngày) → bấm tiêu đề → "months" → bấm năm → "years" (12 năm một trang)
+  const [view, setView] = useState<"days" | "months" | "years">("days");
+  const [yearPage, setYearPage] = useState(() => Math.floor((selectedDate ? selectedDate.getFullYear() : todayDate.getFullYear()) / 12) * 12);
+  useEffect(() => {
+    if (!isOpen) setView("days"); // mở lại luôn bắt đầu ở lịch ngày
+  }, [isOpen]);
+
   // Format date helper
   const formatDateOutput = (d: Date): string => {
     const day = String(d.getDate()).padStart(2, "0");
@@ -373,6 +380,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   const handlePrevMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (view === "years") return setYearPage((y) => y - 12);
+    if (view === "months") return setNavYear((y) => y - 1);
     if (navMonth === 0) {
       setNavMonth(11);
       setNavYear((y) => y - 1);
@@ -383,6 +392,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   const handleNextMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (view === "years") return setYearPage((y) => y + 12);
+    if (view === "months") return setNavYear((y) => y + 1);
     if (navMonth === 11) {
       setNavMonth(0);
       setNavYear((y) => y + 1);
@@ -485,71 +496,149 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
             <button
               type="button"
               onClick={handlePrevMonth}
+              aria-label={view === "years" ? "12 năm trước" : view === "months" ? "Năm trước" : "Tháng trước"}
               className="p-1 rounded-lg text-gray-500 hover:text-primary hover:bg-purple-50 transition"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <div className="text-xs font-bold text-gray-900 flex items-center gap-1">
-              <span>{monthNames[navMonth]}</span>
-              <span className="text-primary font-black">{navYear}</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (view === "days") setView("months");
+                else if (view === "months") {
+                  setYearPage(Math.floor(navYear / 12) * 12);
+                  setView("years");
+                } else setView("days");
+              }}
+              aria-label="Chọn nhanh tháng / năm"
+              title="Bấm để chọn nhanh tháng / năm"
+              className="text-xs font-bold text-gray-900 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-50 transition"
+            >
+              {view === "days" && (
+                <>
+                  <span>{monthNames[navMonth]}</span>
+                  <span className="text-primary font-black">{navYear}</span>
+                </>
+              )}
+              {view === "months" && <span className="text-primary font-black">{navYear}</span>}
+              {view === "years" && (
+                <span className="text-primary font-black">
+                  {yearPage} – {yearPage + 11}
+                </span>
+              )}
+              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${view !== "days" ? "rotate-180" : ""}`} />
+            </button>
 
             <button
               type="button"
               onClick={handleNextMonth}
+              aria-label={view === "years" ? "12 năm sau" : view === "months" ? "Năm sau" : "Tháng sau"}
               className="p-1 rounded-lg text-gray-500 hover:text-primary hover:bg-purple-50 transition"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Day of Week Header */}
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 mb-1.5">
-            <span>T2</span>
-            <span>T3</span>
-            <span>T4</span>
-            <span>T5</span>
-            <span>T6</span>
-            <span>T7</span>
-            <span className="text-rose-500">CN</span>
-          </div>
+          {view === "years" && (
+            <div className="grid grid-cols-3 gap-1.5 py-1">
+              {Array.from({ length: 12 }).map((_, i) => {
+                const y = yearPage + i;
+                const isSel = y === navYear;
+                const isNow = y === todayDate.getFullYear();
+                return (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => {
+                      setNavYear(y);
+                      setView("months");
+                    }}
+                    className={`py-2 rounded-lg text-xs font-semibold transition ${
+                      isSel ? "bg-primary text-white font-bold" : isNow ? "bg-purple-50 text-primary font-bold border border-purple-200" : "text-gray-700 hover:bg-purple-50 hover:text-primary"
+                    }`}
+                  >
+                    {y}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: startOffset }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-7 w-7" />
-            ))}
+          {view === "months" && (
+            <div className="grid grid-cols-3 gap-1.5 py-1">
+              {monthNames.map((name, m) => {
+                const isSel = selectedDate && selectedDate.getFullYear() === navYear && selectedDate.getMonth() === m;
+                const isNow = todayDate.getFullYear() === navYear && todayDate.getMonth() === m;
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      setNavMonth(m);
+                      setView("days");
+                    }}
+                    className={`py-2 rounded-lg text-xs font-semibold transition ${
+                      isSel ? "bg-primary text-white font-bold" : isNow ? "bg-purple-50 text-primary font-bold border border-purple-200" : "text-gray-700 hover:bg-purple-50 hover:text-primary"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const isSelected =
-                selectedDate &&
-                selectedDate.getDate() === day &&
-                selectedDate.getMonth() === navMonth &&
-                selectedDate.getFullYear() === navYear;
+          {view === "days" && (
+            <>
+              {/* Day of Week Header */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400 mb-1.5">
+                <span>T2</span>
+                <span>T3</span>
+                <span>T4</span>
+                <span>T5</span>
+                <span>T6</span>
+                <span>T7</span>
+                <span className="text-rose-500">CN</span>
+              </div>
 
-              const isToday =
-                navYear === todayDate.getFullYear() && navMonth === todayDate.getMonth() && day === todayDate.getDate();
+              {/* Days Grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: startOffset }).map((_, i) => (
+                  <div key={`empty-${i}`} className="h-7 w-7" />
+                ))}
 
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => handleSelectDay(day)}
-                  className={`h-7 w-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all ${
-                    isSelected
-                      ? "bg-primary text-white font-bold shadow-xs scale-105"
-                      : isToday
-                      ? "bg-purple-50 text-primary font-bold border border-purple-200 hover:bg-purple-100"
-                      : "text-gray-700 hover:bg-purple-50 hover:text-primary"
-                  }`}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const isSelected =
+                    selectedDate &&
+                    selectedDate.getDate() === day &&
+                    selectedDate.getMonth() === navMonth &&
+                    selectedDate.getFullYear() === navYear;
+
+                  const isToday =
+                    navYear === todayDate.getFullYear() && navMonth === todayDate.getMonth() && day === todayDate.getDate();
+
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => handleSelectDay(day)}
+                      className={`h-7 w-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all ${
+                        isSelected
+                          ? "bg-primary text-white font-bold shadow-xs scale-105"
+                          : isToday
+                          ? "bg-purple-50 text-primary font-bold border border-purple-200 hover:bg-purple-100"
+                          : "text-gray-700 hover:bg-purple-50 hover:text-primary"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {/* Quick Actions Footer */}
           <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
@@ -740,5 +829,157 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
   );
 };
 
+/* ========================================================================= */
+/* CUSTOM TIME INPUT — giờ 24h "HH:MM" (thay <input type="time"> gốc)         */
+/* ========================================================================= */
+
+interface CustomTimeInputProps {
+  /** "HH:MM" (24 giờ) hoặc rỗng */
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+  placeholder?: string;
+  className?: string;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+  /** Bước phút trong bảng chọn nhanh (mặc định 5); gõ tay vẫn nhập được phút bất kỳ */
+  minuteStep?: number;
+}
+
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+export const CustomTimeInput: React.FC<CustomTimeInputProps> = ({ value, onChange, label, placeholder = "Chọn giờ...", className = "", error, required = false, disabled = false, minuteStep = 5 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const closePanel = useCallback(() => setIsOpen(false), []);
+  const m = TIME_RE.exec(value.trim());
+  const hour = m ? Number(m[1]) : null;
+  const minute = m ? Number(m[2]) : null;
+  const [typed, setTyped] = useState(value);
+  useEffect(() => {
+    if (isOpen) setTyped(value);
+  }, [isOpen, value]);
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: Math.ceil(60 / minuteStep) }, (_, i) => i * minuteStep);
+  const cell = (on: boolean) =>
+    `py-1.5 rounded-lg text-xs font-semibold tabular-nums transition ${on ? "bg-primary text-white font-bold" : "text-gray-700 hover:bg-purple-50 hover:text-primary"}`;
+
+  const commitTyped = () => {
+    const t = TIME_RE.exec(typed.trim());
+    if (t) {
+      onChange(`${pad2(Number(t[1]))}:${t[2]}`);
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className={`w-full relative ${className}`}>
+      {label && (
+        <label className="block text-xs font-bold text-gray-700 mb-1.5">
+          {label} {required && <span className="text-rose-500">*</span>}
+        </label>
+      )}
+      <div
+        ref={triggerRef}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-label={label ?? "Chọn giờ"}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+            e.preventDefault();
+            setIsOpen(true);
+          }
+        }}
+        className={`w-full flex items-center justify-between rounded-xl border bg-white py-2.5 px-3 text-xs text-gray-900 cursor-pointer shadow-2xs hover:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary transition-all ${
+          disabled ? "opacity-50 cursor-not-allowed" : ""
+        } ${error ? "border-rose-400" : isOpen ? "border-primary ring-2 ring-purple-200" : "border-gray-200"}`}
+      >
+        <div className="flex items-center gap-2 truncate">
+          <Clock className="w-4 h-4 text-primary shrink-0" />
+          <span className={`tabular-nums ${value ? "font-semibold text-gray-900" : "text-gray-400"}`}>{value || placeholder}</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180 text-primary" : ""}`} />
+      </div>
+      {error && <p className="mt-1 text-[11px] text-rose-500">{error}</p>}
+
+      <FloatingPanel open={isOpen} onClose={closePanel} anchorRef={triggerRef} width={288} maxHeight={420}>
+        <div className="p-3">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 px-0.5">Giờ</div>
+          <div className="grid grid-cols-6 gap-1">
+            {hours.map((h) => (
+              <button
+                key={h}
+                type="button"
+                onClick={() => onChange(`${pad2(h)}:${pad2(minute ?? 0)}`)}
+                className={cell(h === hour)}
+              >
+                {pad2(h)}
+              </button>
+            ))}
+          </div>
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1.5 px-0.5">Phút</div>
+          <div className="grid grid-cols-6 gap-1">
+            {minutes.map((mi) => (
+              <button
+                key={mi}
+                type="button"
+                onClick={() => {
+                  onChange(`${pad2(hour ?? 7)}:${pad2(mi)}`);
+                  setIsOpen(false);
+                }}
+                className={cell(mi === minute)}
+              >
+                {pad2(mi)}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              aria-label="Nhập giờ dạng HH:MM"
+              placeholder="HH:MM"
+              maxLength={5}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value.replace(/[^\d:]/g, ""))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitTyped();
+                }
+              }}
+              className={`flex-1 min-w-0 px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:border-primary tabular-nums ${typed && !TIME_RE.test(typed.trim()) ? "border-rose-300" : "border-gray-200"}`}
+            />
+            <button type="button" onClick={commitTyped} disabled={!TIME_RE.test(typed.trim())} className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary text-white disabled:opacity-40">
+              Xong
+            </button>
+            {value && !required && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  setIsOpen(false);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+              >
+                Xóa
+              </button>
+            )}
+          </div>
+        </div>
+      </FloatingPanel>
+    </div>
+  );
+};
+
+export { CustomCombobox } from "./CustomCombobox";
+export type { ComboOption, CustomComboboxProps } from "./CustomCombobox";
 export { ImageUploadDropzone, MultiImageUploadDropzone, previewUrl, uploadFile } from "./ImageUploadDropzone";
 export type { ImageUploadDropzoneProps, MultiImageUploadDropzoneProps, UploadBucket, UploadedFile } from "./ImageUploadDropzone";

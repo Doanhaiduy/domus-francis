@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { X, UserCog, Lock, Church, GraduationCap } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
-import { CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";
 import { SaintNamePicker } from "@/components/ui/SaintNamePicker";
 import { useApp } from "@/lib/store";
@@ -221,7 +221,7 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                   <>
                     {section(<Lock className="w-4 h-4" />, "Thông tin riêng tư", "(chỉ chính chủ và người quản lý xem được)")}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <CustomInput label="Ngày sinh" type="date" value={f.birthDate ?? ""} onChange={set("birthDate")} />
+                      <CustomDatePicker label="Ngày sinh" format="YYYY-MM-DD" value={f.birthDate ?? ""} onChange={set("birthDate")} />
                       <CustomInput
                         label={`Số CCCD ${member.identityCard ? `(hiện: ${member.identityCard})` : ""}`}
                         value={f.nationalId ?? ""}

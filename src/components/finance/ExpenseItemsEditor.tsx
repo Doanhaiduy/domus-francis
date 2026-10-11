@@ -5,7 +5,7 @@
 // Enter ở ô đơn giá của dòng cuối thêm món mới (không gửi biểu mẫu).
 import React, { useEffect, useRef } from "react";
 import { Plus, ShoppingBasket, Trash2 } from "lucide-react";
-import { CustomInput } from "@/components/ui/FormControls";
+import { CustomCombobox, CustomInput } from "@/components/ui/FormControls";
 import { formatVND } from "@/lib/utils";
 import type { ExpenseItemDto } from "@/lib/types/finance";
 
@@ -138,12 +138,6 @@ export function ExpenseItemsEditor({ items, onChange, disabled }: Props) {
 
   return (
     <div ref={root} className="space-y-2" aria-label="Chi tiết các món">
-      <datalist id="expense-units">
-        {UNITS.map((u) => (
-          <option key={u} value={u} />
-        ))}
-      </datalist>
-
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-extrabold text-gray-800 inline-flex items-center gap-1.5">
           <ShoppingBasket className="w-4 h-4 text-primary" /> Chi tiết các món
@@ -187,11 +181,12 @@ export function ExpenseItemsEditor({ items, onChange, disabled }: Props) {
             </div>
             <div className="col-span-2">
               <span className={label}>Đơn vị</span>
-              <CustomInput
+              <CustomCombobox
                 value={d.unit}
-                onChange={(e) => set(d.key, { unit: e.target.value })}
+                onChange={(v) => set(d.key, { unit: v })}
                 onKeyDown={(e) => onEnter(e, d.key, "unit")}
-                list="expense-units"
+                options={UNITS}
+                panelMinWidth={150}
                 placeholder="kg, bó…"
                 maxLength={30}
                 aria-label={`Đơn vị món ${i + 1}`}

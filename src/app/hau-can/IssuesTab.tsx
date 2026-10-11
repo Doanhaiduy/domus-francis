@@ -192,17 +192,14 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
             <div className="flex justify-between items-center">
               <span className="text-gray-400">Mức khẩn:</span>
               {canTriage && isOpenIssue(selected.status) ? (
-                <select
-                  value={selected.urgency}
-                  onChange={(e) => run("urgency", () => issuesApi.update(selected.id, { urgency: e.target.value as IssueUrgency }), "Đã cập nhật mức khẩn & hạn xử lý.")}
-                  className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1"
-                >
-                  {(["low", "medium", "high", "critical"] as IssueUrgency[]).map((u) => (
-                    <option key={u} value={u}>
-                      {URGENCY_LABEL[u]}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-40">
+                  <CustomSelect<IssueUrgency>
+                    aria-label="Mức khẩn"
+                    value={selected.urgency}
+                    onChange={(u) => run("urgency", () => issuesApi.update(selected.id, { urgency: u }), "Đã cập nhật mức khẩn & hạn xử lý.")}
+                    options={(["low", "medium", "high", "critical"] as IssueUrgency[]).map((u) => ({ value: u, label: URGENCY_LABEL[u] }))}
+                  />
+                </div>
               ) : (
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${URGENCY_CLASS[selected.urgency]}`}>{URGENCY_LABEL[selected.urgency]}</span>
               )}

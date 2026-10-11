@@ -2,6 +2,7 @@
 
 // Soạn tin nhắc đóng quỹ bằng AI: chỉ gửi số tiền + hạn nộp + kỳ — KHÔNG gửi tên người nợ (thiết kế 8.1.2). Người soạn sửa lại rồi tự gửi.
 import React, { useState } from "react";
+import { CustomSelect } from "@/components/ui/FormControls";
 import { Sparkles, Copy, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useAiTask } from "@/lib/data/ai";
@@ -47,10 +48,17 @@ export default function AiDuesMessage({ plan }: { plan: ContributionPlanDto | un
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select value={tone} onChange={(e) => setTone(e.target.value as "friendly" | "formal")} className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold">
-              <option value="friendly">Giọng thân thiện</option>
-              <option value="formal">Giọng trang trọng</option>
-            </select>
+            <div className="w-48">
+              <CustomSelect<"friendly" | "formal">
+                aria-label="Giọng điệu tin nhắc"
+                value={tone}
+                onChange={setTone}
+                options={[
+                  { value: "friendly", label: "Giọng thân thiện" },
+                  { value: "formal", label: "Giọng trang trọng" },
+                ]}
+              />
+            </div>
             <AiSuggestButton
               task="finance.dues_message"
               label={result ? "Soạn lại" : "Soạn tin nhắc"}

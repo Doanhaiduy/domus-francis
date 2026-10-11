@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Library } from "lucide-react";
 import { ApiClientError, errorMessage } from "@/lib/api";
-import { CustomInput, CustomTextarea, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
+import { CustomCombobox, CustomInput, CustomTextarea, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { DialogShell, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
 import { liturgyDocsApi } from "@/lib/data/liturgy-documents";
 import {
@@ -191,22 +191,15 @@ export default function LiturgyDocumentDialog({ open, onClose, initial, categori
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <CustomInput
-              label="Chuyên mục"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="VD: Kinh hằng ngày, Mùa Vọng…"
-              maxLength={DOC_LIMITS.categoryMax}
-              list="liturgy-doc-categories"
-              error={errors.category}
-            />
-            <datalist id="liturgy-doc-categories">
-              {categoryChips.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
+          <CustomCombobox
+            label="Chuyên mục"
+            value={category}
+            onChange={setCategory}
+            options={categoryChips}
+            placeholder="VD: Kinh hằng ngày, Mùa Vọng…"
+            maxLength={DOC_LIMITS.categoryMax}
+            error={errors.category}
+          />
           <CustomInput
             label="Thẻ (cách nhau bằng dấu phẩy)"
             value={tagsText}
