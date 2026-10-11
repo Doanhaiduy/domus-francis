@@ -25,6 +25,7 @@ function setup() {
 
 /** Trang mở khi bấm thông báo, suy từ bảng nguồn của thông báo. */
 export function urlForNotification(entityTable: string | null, typeCode: string): string {
+  if (typeCode === "system.storage_alert") return "/cai-dat?tab=storage";
   const t = entityTable ?? "";
   if (/announcement/.test(t)) return "/thong-bao";
   if (/leave/.test(t)) return "/xin-phep";

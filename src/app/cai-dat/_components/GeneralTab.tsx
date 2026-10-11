@@ -66,7 +66,7 @@ const EVENTS_KEY = "integration.zalo.group_events";
 
 /** Khóa thuộc tab Cấu hình chung (mọi khóa trừ nhóm tích hợp Zalo/Telegram và lịch giặt đã bỏ). */
 // qr.* (mã QR điểm danh cũ) không còn dùng — điểm danh sự kiện nay bằng ảnh — nên không hiện ra
-export const isGeneralKey = (k: string) => !k.startsWith(INTEGRATION_PREFIX) && !k.startsWith("laundry.") && !k.startsWith("duty.") && !k.startsWith("qr.");
+export const isGeneralKey = (k: string) => !k.startsWith(INTEGRATION_PREFIX) && !k.startsWith("laundry.") && !k.startsWith("duty.") && !k.startsWith("qr.") && !k.startsWith("monitor.");
 
 const GROUP_LABEL: Record<string, string> = {
   duty: "Trực nhật & Vệ sinh",

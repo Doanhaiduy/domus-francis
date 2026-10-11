@@ -955,6 +955,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "md", text: "Lọc theo **người dùng**, khoảng thời gian, phân hệ, kết quả hoặc tìm theo từ khóa. Nhật ký giữ **180 ngày**. Hồ sơ cá nhân nhạy cảm và điểm học tập chỉ Trưởng nhà xem được nên không hiện ở đây." },
+      { t: "heading", text: "Theo dõi dung lượng (chỉ Admin)" },
+      { t: "path", items: ["Cài Đặt", "Dung lượng"] },
+      {
+        t: "md",
+        text: "Xem **% đã dùng** của gói miễn phí để biết trước khi đầy: **CSDL** (Supabase Database), **Supabase Storage** (ảnh, PDF, video nhỏ — đếm thật qua Storage API, gồm cả bản thu nhỏ) và **Cloudinary** (credits của video). Mỗi thẻ có dự báo ngày đầy (cần vài ngày dữ liệu) và gợi ý việc cần làm khi chạm ngưỡng. Bên dưới là thống kê **tệp tải lên**: bao nhiêu ảnh / video / PDF, theo ngày (7–90 ngày) và theo tháng, theo mục dùng, người tải nhiều nhất, tệp lớn nhất, tệp kẹt có thể dọn, và các bảng CSDL lớn nhất.\n\nHệ thống tự ghi số liệu mỗi sáng và **báo cho Admin** khi một chỉ số chạm ngưỡng cảnh báo (mặc định 70%) hoặc nguy hiểm (90%) — mỗi chỉ số tối đa một lần mỗi tuần. **Hạn mức gói** (mặc định CSDL 500 MB, Storage 1 GB) và hai ngưỡng sửa ngay ở cuối tab; nâng gói thì nhớ đổi hạn mức. Chưa theo dõi được băng thông (egress) của Supabase và mức dùng Vercel — xem ở trang Usage của họ.",
+      },
       { t: "callout", tone: "info", title: "Admin có toàn quyền", text: "Admin có **mọi quyền** của hệ thống — và quyền thêm về sau cũng tự được cấp. Admin cũng được tính là Trưởng nhà + Thủ quỹ khi duyệt chi. Những điều vẫn giữ nguyên cho MỌI người, kể cả Admin: **không tự duyệt phiếu chi / đơn xin phép do chính mình lập** (cần người khác duyệt), và dữ liệu cần sự **đồng ý của thành viên** (hồ sơ Công giáo, chia sẻ bảng điểm…) chỉ xem được khi họ đã đồng ý. Mỗi lần xem CCCD đầy đủ đều phải nhập lý do và được ghi vào nhật ký." },
       {
         t: "accordion",

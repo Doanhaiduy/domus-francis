@@ -2,6 +2,7 @@ import "server-only";
 import { withTx, type DbRole, type Tx } from "../db";
 import { dutyJobs, housekeeping, lectionaryJob } from "../jobs";
 import { runLiturgyNotices } from "../liturgy/notices";
+import { runStorageMonitor } from "./storage-monitor";
 import { postToZaloGroup, renderZaloEvent } from "../integrations/zalo";
 import type { ZaloEventKey } from "@/lib/types/settings";
 import { buildGroupReminderVars } from "../modules/finance-ops";
@@ -95,6 +96,10 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean } = {}
     await step("housekeeping", () => housekeeping());
     await step("duty", () => dutyJobs());
     await step("lectionary", () => lectionaryJob());
+    // Đo dung lượng (Supabase Storage + Cloudinary), ghi ảnh chụp hằng ngày, báo Admin khi chạm ngưỡng
+    await step("storage-monitor", async () => {
+      for (const n of await runStorageMonitor(today)) notes.push(n);
+    });
   }
 
   // 2. Nhắc lễ trọng / Bổn mạng / ngày đặc biệt (+ nhắc check-in đi lễ buổi tối). Có nhật ký riêng chống gửi trùng.

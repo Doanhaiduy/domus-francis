@@ -171,6 +171,12 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   },
   "finance.utility_due_day": { label: "Hạn nộp tiền điện nước", help: "Ngày trong tháng sau tháng hóa đơn phải nộp (1–28)." },
 
+  // --- Theo dõi dung lượng (chỉ Admin; chỉnh ở Cài đặt → Dung lượng) ---
+  "monitor.supabase.db_limit_mb": { label: "Hạn mức CSDL Supabase (MB)", help: "Gói miễn phí là 500 MB. Đổi khi nâng gói để % đã dùng đúng." },
+  "monitor.supabase.storage_limit_mb": { label: "Hạn mức Supabase Storage (MB)", help: "Gói miễn phí là 1 GB (1024 MB). Đổi khi nâng gói để % đã dùng đúng." },
+  "monitor.warn_percent": { label: "Ngưỡng cảnh báo dung lượng (%)", help: "Chạm mức này thì chuyển vàng và Admin nhận thông báo." },
+  "monitor.critical_percent": { label: "Ngưỡng nguy hiểm dung lượng (%)", help: "Chạm mức này thì chuyển đỏ và Admin nhận thông báo khẩn." },
+
   // --- Zalo ---
   "integration.zalo.group_chat_id": {
     label: "Mã nhóm Zalo (chat_id)",

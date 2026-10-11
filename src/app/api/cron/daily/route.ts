@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runDailyJobs, type DailySlot } from "@/server/cron/daily";
 import { dispatchPendingPush } from "@/server/push";
+import { runStorageMonitor } from "@/server/cron/storage-monitor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,6 +16,13 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const slot: DailySlot = req.nextUrl.searchParams.get("slot") === "evening" ? "evening" : "morning";
   try {
+    // ?only=storage: chỉ chạy bước đo dung lượng (ghi ảnh chụp hằng ngày + báo Admin khi chạm ngưỡng) — dùng khi kiểm thử / chạy tay
+    if (req.nextUrl.searchParams.get("only") === "storage") {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+      const notes = await runStorageMonitor(today);
+      await dispatchPendingPush();
+      return NextResponse.json({ ok: true, only: "storage", date: today, notes });
+    }
     const r = await runDailyJobs(slot);
     // Thông báo phát sinh trong lượt chạy (và thông báo đang chờ hết giờ yên tĩnh) được gửi đẩy luôn
     await dispatchPendingPush();

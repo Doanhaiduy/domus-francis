@@ -20,6 +20,8 @@ const MAX_BYTES = 20 * 1024 * 1024; // ck_storage_files__size
 const IMAGE_MAX_SIDE = 2560;
 
 const root = () => path.resolve(process.cwd(), process.env.STORAGE_DIR || ".local/storage");
+/** Thư mục lưu tệp khi chạy bằng ổ đĩa local (theo dõi dung lượng đo thư mục này). */
+export const localStorageRoot = root;
 const abs = (key: string) => {
   const p = path.resolve(root(), key);
   if (!p.startsWith(root() + path.sep)) throw new ApiError(400, "BAD_KEY", "Khóa tệp không hợp lệ.");

@@ -164,6 +164,9 @@ async function startServer() {
       // Lời Chúa (lịch phụng vụ): máy chủ giả loopback (scripts/test-api/liturgy-calendar.mjs) thay GitHub
       LITURGY_DATA_BASE_URL: "http://127.0.0.1:3197",
       LITURGY_AUTO_IMPORT: "0",
+      // Theo dõi dung lượng (scripts/test-api/storage-monitor.mjs): Cloudinary Admin API giả ở loopback + khóa cron để gọi /api/cron/daily?only=storage
+      CLOUDINARY_API_BASE_URL: "http://127.0.0.1:3195",
+      CRON_SECRET: "test-cron-secret-0001",
       // Webhook ngân hàng (scripts/test-api/bank-webhook.mjs dùng đúng khóa này)
       BANK_WEBHOOK_SECRET: "test-bank-webhook-secret-0001",
     },
