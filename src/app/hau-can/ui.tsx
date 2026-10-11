@@ -1,5 +1,5 @@
 "use client";
-// Thành phần giao diện dùng chung trong trang Hậu cần (khung modal, xem ảnh lớn, chọn nhiều thành viên).
+// Thành phần giao diện dùng chung trong trang Hậu cần (khung modal, chọn nhiều thành viên).
 import React, { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
@@ -50,29 +50,6 @@ export function ModalShell({
             </button>
           </div>
           <div className="overflow-y-auto custom-scroll flex-1">{children}</div>
-        </div>
-      </div>
-    </Portal>
-  );
-}
-
-export function Lightbox({ photo, onClose }: { photo: { url: string; title: string } | null; onClose: () => void }) {
-  if (!photo) return null;
-  return (
-    <Portal>
-      <div
-        onClick={onClose}
-        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
-      >
-        <div onClick={(e) => e.stopPropagation()} className="relative max-w-3xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-          <div className="p-4 bg-gray-900 text-white flex items-center justify-between">
-            <span className="text-sm font-bold truncate">{photo.title}</span>
-            <button onClick={onClose} className="p-1 rounded-xl hover:bg-white/20 text-gray-300 hover:text-white transition" aria-label="Đóng">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt={photo.title} className="w-full max-h-[75vh] object-contain bg-black" />
         </div>
       </div>
     </Portal>

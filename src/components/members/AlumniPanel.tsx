@@ -9,6 +9,8 @@ import { errorMessage } from "@/lib/api";
 import { alumniApi, useAlumni } from "@/lib/data/alumni";
 import type { AlumniDto } from "@/lib/types/alumni";
 import { cn } from "@/lib/utils";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { viewerImageFromSrc } from "@/lib/image-viewer";
 
 type Filter = "alumni" | "left" | "all";
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase();
@@ -110,8 +112,7 @@ export default function AlumniPanel() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   {a.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+                    <ZoomableImage src={a.avatarUrl} viewer={viewerImageFromSrc(a.avatarUrl, a.fullName)} alt={`Ảnh đại diện của ${a.fullName}`} className="w-11 h-11 rounded-full object-cover shrink-0" />
                   ) : (
                     <span className="w-11 h-11 rounded-full bg-purple-100 text-primary font-extrabold flex items-center justify-center shrink-0">{a.name.split(" ").slice(-1)[0].slice(0, 2).toUpperCase()}</span>
                   )}

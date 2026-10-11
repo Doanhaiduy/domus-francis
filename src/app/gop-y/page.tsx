@@ -19,6 +19,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomSelect, CustomTextarea, CustomToggle, ImageUploadDropzone } from "@/components/ui/FormControls";
 import { previewUrl } from "@/components/ui/ImageUploadDropzone";
 import { cn } from "@/lib/utils";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { fileViewerImage } from "@/lib/image-viewer";
 
 const STATUS_STYLE: Record<FeedbackStatus, string> = {
   new: "bg-amber-100 text-amber-800",
@@ -246,10 +248,12 @@ function FeedbackItem({ item: f, manage, onDelete }: { item: FeedbackDto; manage
       <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-line">{f.content}</p>
 
       {f.evidenceFileId && (
-        <a href={`/api/v1/files/${f.evidenceFileId}`} target="_blank" rel="noreferrer" className="block w-fit">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={previewUrl(f.evidenceFileId, "thumb")} alt="Ảnh chụp màn hình đính kèm" className="max-h-36 rounded-xl border border-purple-100 object-cover" />
-        </a>
+        <ZoomableImage
+          src={previewUrl(f.evidenceFileId, "thumb")}
+          viewer={fileViewerImage(f.evidenceFileId, "Ảnh chụp màn hình đính kèm")}
+          alt="Ảnh chụp màn hình đính kèm"
+          className="block w-fit max-h-36 rounded-xl border border-purple-100 object-cover"
+        />
       )}
 
       {manage ? (

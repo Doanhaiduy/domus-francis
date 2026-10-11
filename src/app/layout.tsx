@@ -21,6 +21,7 @@ import { AppShell } from "@/components/AppShell";
 import { PwaRegister } from "@/components/PwaRegister";
 import { SheetEnhancer } from "@/components/SheetEnhancer";
 import { ModalGuard } from "@/components/ModalGuard";
+import { ImageViewerHost } from "@/components/ImageViewerHost";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -69,6 +70,8 @@ export default function RootLayout({
         <PwaRegister />
         {/* Hộp thoại trên điện thoại: tờ trượt từ đáy, kéo xuống để đóng */}
         <SheetEnhancer />
+        {/* Trình xem ảnh dùng chung: openImageViewer(...) mở từ bất kỳ đâu (phóng to, kéo, xoay, tải về) */}
+        <ImageViewerHost />
         {/* Số liệu truy cập + tốc độ thật (chỉ hoạt động trên Vercel khi đã bật Web Analytics / Speed Insights trong dự án) */}
         {process.env.VERCEL ? (
           <>

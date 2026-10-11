@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { fileUrl } from "@/lib/api";
 import { STATUS_META, VISIBILITY_LABEL, fmtDateTime, fmtGpa, fmtScore, rankBadge, semesterLabel } from "@/lib/academic-format";
 import type { AcademicAction, AcademicRecordDto } from "@/lib/types/academic";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { fileViewerImage } from "@/lib/image-viewer";
 
 export default function RecordDetailModal({
   record,
@@ -104,18 +106,17 @@ export default function RecordDetailModal({
                     <span className="text-xs font-bold text-gray-800">Mở bản PDF bảng điểm minh chứng</span>
                   </a>
                 ) : (
-                  <a
-                    href={fileUrl(r.evidence.fileId) ?? "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block rounded-2xl overflow-hidden border border-purple-100 shadow-sm relative group bg-gray-950"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={fileUrl(r.evidence.fileId, "medium") ?? ""} alt="EVD Minh Chứng" className="w-full max-h-72 object-contain mx-auto" />
-                    <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold">
+                  <div className="rounded-2xl overflow-hidden border border-purple-100 shadow-sm relative group bg-gray-950">
+                    <ZoomableImage
+                      src={fileUrl(r.evidence.fileId, "medium") ?? ""}
+                      viewer={fileViewerImage(r.evidence.fileId, "Minh chứng bảng điểm")}
+                      alt="EVD Minh Chứng"
+                      className="w-full max-h-72 object-contain mx-auto"
+                    />
+                    <span className="pointer-events-none absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold">
                       Ảnh chụp cổng thông tin sinh viên • bấm để xem cỡ lớn
                     </span>
-                  </a>
+                  </div>
                 )
               ) : (
                 <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 text-xs">

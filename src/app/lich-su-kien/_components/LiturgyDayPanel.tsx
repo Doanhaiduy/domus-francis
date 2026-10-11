@@ -24,6 +24,8 @@ import { liturgyCalendarApi, refreshLiturgy, useLiturgyDay } from "@/lib/data/li
 import type { CalendarDayDetailDto, MassCheckinRowDto, ReadingSetDto, ReadingSlotDto } from "@/lib/types/liturgy";
 import { CHECKIN_STATUS_CLASS, CHECKIN_STATUS_LABEL, LIT_COLOR, SPECIAL_COLOR, dm, dmy } from "./liturgy-style";
 import MassCheckinModal from "./MassCheckinModal";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { fileViewerImage } from "@/lib/image-viewer";
 
 const WEEKDAY = ["Chúa Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 
@@ -252,10 +254,12 @@ function CheckinBox({ d, onOpen }: { d: CalendarDayDetailDto; onOpen: () => void
       {mine && (
         <div className="flex items-center gap-3 text-[11px] text-gray-700">
           {mine.evidenceFileId && (
-            <a href={fileUrl(mine.evidenceFileId) ?? "#"} target="_blank" rel="noreferrer" className="shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fileUrl(mine.evidenceFileId, "thumb") ?? ""} alt="Ảnh minh chứng" className="w-14 h-14 rounded-xl object-cover border border-amber-200" />
-            </a>
+            <ZoomableImage
+              src={fileUrl(mine.evidenceFileId, "thumb") ?? ""}
+              viewer={fileViewerImage(mine.evidenceFileId, "Ảnh check-in đi lễ của bạn", mine.church ?? undefined)}
+              alt="Ảnh minh chứng"
+              className="shrink-0 w-14 h-14 rounded-xl object-cover border border-amber-200"
+            />
           )}
           <div className="min-w-0">
             <p>
@@ -332,10 +336,13 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
             <li key={r.memberId} className="p-2 rounded-xl bg-white border border-gray-100 flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 {r.checkin?.evidenceFileId ? (
-                  <a href={fileUrl(r.checkin.evidenceFileId) ?? "#"} target="_blank" rel="noreferrer" className="shrink-0" title="Xem ảnh minh chứng">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={fileUrl(r.checkin.evidenceFileId, "thumb") ?? ""} alt="" className="w-9 h-9 rounded-lg object-cover border border-gray-200" />
-                  </a>
+                  <ZoomableImage
+                    src={fileUrl(r.checkin.evidenceFileId, "thumb") ?? ""}
+                    viewer={fileViewerImage(r.checkin.evidenceFileId, `Check-in đi lễ — ${r.name}`, r.checkin.church ?? undefined)}
+                    alt={`Ảnh check-in của ${r.name}`}
+                    title="Xem ảnh minh chứng"
+                    className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-200"
+                  />
                 ) : (
                   <span className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300 shrink-0">
                     <ImageIcon className="w-4 h-4" />

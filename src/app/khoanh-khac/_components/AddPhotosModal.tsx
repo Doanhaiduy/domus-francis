@@ -7,6 +7,8 @@ import { CustomInput, MultiImageUploadDropzone, previewUrl } from "@/components/
 import { errorMessage } from "@/lib/api";
 import { momentsApi } from "@/lib/data/moments";
 import type { MomentAlbumDetailDto, MomentAlbumDto } from "@/lib/types/moments";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { viewerImageFromSrc } from "@/lib/image-viewer";
 
 export interface AddPhotosModalProps {
   album: MomentAlbumDto | null;
@@ -94,7 +96,7 @@ export function AddPhotosModal({ album, open, onClose, onSaved, showToast }: Add
                   {fileIds.map((id, i) => (
                     <div key={id} className="flex items-center gap-2.5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={previewUrl(id, "thumb")} alt={`Ảnh ${i + 1}`} className="w-11 h-11 rounded-xl object-cover border border-purple-100 shrink-0" />
+                      <ZoomableImage src={previewUrl(id, "thumb")} viewer={viewerImageFromSrc(previewUrl(id, "medium"), `Ảnh ${i + 1}`)} alt={`Ảnh ${i + 1}`} className="w-11 h-11 rounded-xl object-cover border border-purple-100 shrink-0" />
                       <div className="flex-1">
                         <CustomInput
                           placeholder={i === 0 ? "VD: Anh em cùng nhau tạ ơn sau giờ kinh tối..." : `Chú thích ảnh #${i + 1}`}

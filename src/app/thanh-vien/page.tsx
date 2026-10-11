@@ -36,6 +36,8 @@ import ThanhVienLoading from "./loading";
 import MemberCVModal from "@/components/MemberCVModal";
 import { formatMemberCVForZalo } from "@/lib/zaloShare";
 import { useZaloSend } from "@/lib/zalo-client";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { viewerImageFromSrc } from "@/lib/image-viewer";
 
 export default function ThanhVienPage() {
   const { members: activeMembers, rooms, floors, showToast, openModal, isLoadingSkeleton } = useApp();
@@ -503,8 +505,7 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
     <div className="bg-white rounded-3xl p-4 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
       <div className="flex flex-col items-center text-center pb-4 border-b border-gray-100">
         {m.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={m.avatarUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shadow-md mb-3" />
+          <ZoomableImage src={m.avatarUrl} viewer={viewerImageFromSrc(m.avatarUrl, m.fullName)} alt={`Ảnh đại diện của ${m.fullName}`} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-3" />
         ) : (
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white font-extrabold text-xl flex items-center justify-center shadow-md shadow-purple-200 mb-3">
             {m.avatarText}

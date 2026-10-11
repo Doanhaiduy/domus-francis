@@ -25,6 +25,8 @@ import { downloadMemberCvPdf } from "@/lib/pdf/member-cv";
 import useSWR from "swr";
 import { swrFetcher } from "@/lib/api";
 import type { MemberContributionRow } from "@/lib/types/finance";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { fileViewerImage } from "@/lib/image-viewer";
 
 interface MemberCVModalProps {
   member: Member | null;
@@ -210,8 +212,12 @@ export default function MemberCVModal({
             {/* 3x4 PHOTO BOX */}
             <div className="w-24 h-32 border-2 border-dashed border-gray-400 rounded-md flex flex-col items-center justify-center bg-gray-50 shrink-0 text-center p-1">
               {member.avatarFileId ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/v1/files/${member.avatarFileId}?v=medium`} alt="" className="w-full h-full object-cover rounded" />
+                <ZoomableImage
+                  src={`/api/v1/files/${member.avatarFileId}?v=medium`}
+                  viewer={fileViewerImage(member.avatarFileId, member.fullName)}
+                  alt={`Ảnh 3×4 của ${member.fullName}`}
+                  className="w-full h-full object-cover rounded"
+                />
               ) : (
                 <>
                   <div className="w-12 h-12 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center mb-1">

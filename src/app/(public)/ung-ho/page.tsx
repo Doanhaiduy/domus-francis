@@ -11,6 +11,7 @@ import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { CopyField } from "@/components/public/CopyField";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +48,7 @@ export default async function DonatePage() {
         <section className="rounded-3xl bg-white border border-purple-100 shadow-sm p-6 sm:p-8 grid gap-8 md:grid-cols-[auto_1fr] items-center" aria-labelledby="bank">
           {qr && (
             <div className="mx-auto text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qr} alt={`Mã QR chuyển khoản tới ${a.accountName || a.accountNo}`} width={240} height={240} className="rounded-2xl border border-purple-100 bg-white p-2" />
+              <ZoomableImage src={qr} alt={`Mã QR chuyển khoản tới ${a.accountName || a.accountNo}`} width={240} height={240} className="rounded-2xl border border-purple-100 bg-white p-2" />
               <p className="mt-2 text-xs text-gray-500">Quét bằng ứng dụng ngân hàng bất kỳ</p>
             </div>
           )}

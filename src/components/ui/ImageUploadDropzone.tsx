@@ -9,6 +9,8 @@ import { errorMessage as apiError } from "@/lib/api";
 import { isAbort, uploadFile, type UploadBucket, type UploadedFile, type UploadPhase } from "@/lib/uploader";
 import { uploadErrorMessage, useUploader, type UploadState } from "@/lib/use-uploader";
 import { UploadProgress } from "./UploadProgress";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { openImageViewer, viewerImageFromSrc } from "@/lib/image-viewer";
 
 export { uploadFile };
 export type { UploadBucket, UploadedFile };
@@ -180,8 +182,13 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
             {isPdf ? (
               <FileText className="w-7 h-7 text-rose-500" />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl(value, "thumb")} alt="Xem trước" className="w-full h-full object-cover" onError={() => setPreviewBroken(true)} />
+              <ZoomableImage
+                src={previewUrl(value, "thumb")}
+                viewer={viewerImageFromSrc(previewUrl(value, "medium"), fileName || "Ảnh đã tải lên")}
+                alt="Xem trước"
+                className="w-full h-full object-cover"
+                onError={() => setPreviewBroken(true)}
+              />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -194,11 +201,15 @@ export const ImageUploadDropzone: React.FC<ImageUploadDropzoneProps> = ({
             </div>
             <p className="text-xs font-bold text-gray-800 truncate mt-0.5">
               {fileName || "Tệp đính kèm"}
-              {value && (
+              {value && (isPdf ? (
                 <a href={`/api/v1/files/${value}`} target="_blank" rel="noreferrer" className="ml-2 text-[11px] font-semibold text-primary hover:underline">
                   Mở
                 </a>
-              )}
+              ) : (
+                <button type="button" onClick={() => openImageViewer(viewerImageFromSrc(previewUrl(value, "medium"), fileName || "Ảnh đã tải lên"))} className="ml-2 text-[11px] font-semibold text-primary hover:underline">
+                  Xem
+                </button>
+              ))}
             </p>
             <div className="flex items-center gap-2 mt-1">
               <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary-container">
@@ -392,8 +403,13 @@ export const MultiImageUploadDropzone: React.FC<MultiImageUploadDropzoneProps> =
         <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2">
           {values.map((id, i) => (
             <div key={id + i} className="relative aspect-square rounded-xl overflow-hidden border border-purple-100 group shadow-2xs">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl(id, "thumb")} alt={`Ảnh ${i + 1}`} className="w-full h-full object-cover" />
+              <ZoomableImage
+                src={previewUrl(id, "thumb")}
+                viewer={values.map((v, k) => viewerImageFromSrc(previewUrl(v, "medium"), `Ảnh ${k + 1}/${values.length}`))}
+                index={i}
+                alt={`Ảnh ${i + 1}`}
+                className="w-full h-full object-cover"
+              />
               <button
                 type="button"
                 aria-label={`Bỏ ảnh ${i + 1}`}

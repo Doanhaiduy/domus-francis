@@ -1,4 +1,5 @@
 import React from "react";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
 
 // Trình hiển thị Markdown cho BÀI VIẾT CÔNG KHAI (cỡ chữ đọc báo, có ảnh). Không dùng hook ⇒ chạy được ở Server Component và
 // cả trong bản xem trước của trình soạn. Chỉ hỗ trợ một tập nhỏ, đủ cho bài đăng:
@@ -80,8 +81,7 @@ export function ArticleMarkdown({ source, className = "", compact: compactProp =
       if (SAFE_IMG.test(src)) {
         blocks.push(
           <figure key={k} className="my-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={m[1]} loading="lazy" className="w-full rounded-2xl border border-purple-100 shadow-sm" />
+            <ZoomableImage src={src} alt={m[1]} loading="lazy" className="w-full rounded-2xl border border-purple-100 shadow-sm" />
             {m[1] && <figcaption className="mt-2.5 text-center text-sm text-gray-500 italic">{m[1]}</figcaption>}
           </figure>
         );

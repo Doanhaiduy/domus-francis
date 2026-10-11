@@ -171,6 +171,8 @@ export function ModalGuard() {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // Trình xem ảnh đang mở (nằm trên hộp thoại): Esc chỉ để đóng trình xem
+      if (document.querySelector("[data-image-viewer]")) return;
       // Esc đang để đóng danh sách thả xuống / lịch chọn ngày ⇒ không phải thoát hộp thoại
       if (document.querySelector('[aria-expanded="true"]')) return;
       if (askRef.current) {

@@ -8,11 +8,12 @@ import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import { CustomInput, CustomSelect, CustomTextarea, ImageUploadDropzone, previewUrl } from "@/components/ui/FormControls";
+import { fileViewerImage, openImageViewer } from "@/lib/image-viewer";
 import { issuesApi, refreshIssues } from "@/lib/data/duty";
 import { ISSUE_STATUS_CLASS, ISSUE_STATUS_LABEL, URGENCY_CLASS, URGENCY_LABEL, isOpenIssue, vnStamp, vnToday } from "@/lib/duty-format";
 import type { IssueDto, IssueStatus, IssueUrgency } from "@/lib/types/duty";
 import { PurgeButton } from "@/components/ui/PurgeButton";
-import { Lightbox, ModalShell } from "./ui";
+import { ModalShell } from "./ui";
 
 export default function IssuesTab({ issues, loadedAt, loading }: { issues: IssueDto[]; loadedAt: string | null; loading: boolean }) {
   const { members, showToast } = useApp();
@@ -32,7 +33,6 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
   const [assignOpen, setAssignOpen] = useState(false);
   const [costOpen, setCostOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
-  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
 
   const run = async (key: string, fn: () => Promise<unknown>, ok: string): Promise<boolean> => {
     setBusy(key);
@@ -149,11 +149,18 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
 
           {selected.photos.length > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {selected.photos.map((p) => (
+              {selected.photos.map((p, i) => (
                 <button
                   key={p.fileId}
-                  onClick={() => setLightbox({ url: previewUrl(p.fileId, "medium"), title: `${selected.code} · ${p.purpose === "after_photo" ? "Sau sửa" : "Hiện trạng"}` })}
-                  className="relative"
+                  type="button"
+                  onClick={() =>
+                    openImageViewer(
+                      selected.photos.map((q) => fileViewerImage(q.fileId, `${selected.code} · ${q.purpose === "after_photo" ? "Sau sửa" : "Hiện trạng"}`)),
+                      i
+                    )
+                  }
+                  className="relative cursor-zoom-in"
+                  title="Bấm để xem ảnh lớn"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={previewUrl(p.fileId, "thumb")} alt="Ảnh sự cố" className="w-16 h-16 rounded-xl object-cover border border-purple-200 hover:opacity-80" />
@@ -429,7 +436,6 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
         }
         busy={busy === "done"}
       />
-      <Lightbox photo={lightbox} onClose={() => setLightbox(null)} />
     </div>
   );
 }

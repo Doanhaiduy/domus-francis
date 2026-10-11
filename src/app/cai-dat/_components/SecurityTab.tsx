@@ -9,6 +9,7 @@ import { api, errorMessage, swrFetcher } from "@/lib/api";
 import { CustomInput, CustomToggle } from "@/components/ui/FormControls";
 import { CONSENT_INFO, SELF_CONSENT_PURPOSES, consentsApi, useMyConsents, type SelfConsentPurpose } from "@/lib/data/consents";
 import { cn } from "@/lib/utils";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
 
 interface MfaStatus {
   enabled: boolean;
@@ -143,8 +144,15 @@ export default function SecurityTab() {
         {/* ĐANG THIẾT LẬP */}
         {!enabled && setup && (
           <div className="grid sm:grid-cols-[auto_1fr] gap-5 items-start rounded-2xl border border-purple-100 bg-surface/50 p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={setup.qrDataUrl} alt="Mã QR xác thực 2 bước" width={176} height={176} className="rounded-xl border border-purple-100 bg-white p-2" data-keep-bright />
+            <ZoomableImage
+              src={setup.qrDataUrl}
+              viewer={{ src: setup.qrDataUrl, alt: "Mã QR xác thực 2 bước", downloadName: "qr-xac-thuc-2-buoc.png" }}
+              alt="Mã QR xác thực 2 bước"
+              width={176}
+              height={176}
+              className="rounded-xl border border-purple-100 bg-white p-2"
+              data-keep-bright
+            />
             <div className="space-y-3 min-w-0">
               <ol className="text-xs text-gray-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
                 <li>Mở ứng dụng Authenticator trên điện thoại → thêm tài khoản → <b>quét mã QR</b>.</li>

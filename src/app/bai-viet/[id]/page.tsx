@@ -168,18 +168,61 @@ export default function ArticleEditorPage() {
       return { value: v.slice(0, s) + md + v.slice(e), start: urlStart, end: urlStart + url.length };
     });
 
-  const onPickImage = async (file: File | undefined) => {
-    if (!file) return;
+  /** Tải ảnh lên (thu nhỏ + nén ngay trên trình duyệt) rồi chèn Markdown tại con trỏ. Trả về true nếu chèn được. */
+  const uploadAndInsert = async (file: File): Promise<boolean> => {
     try {
       const up = await imageUpload.run(file, "attachments");
       insertBlock(`![Chú thích ảnh](/api/v1/public/files/${up.id})`);
-      showToast("success", "Đã chèn ảnh — sửa phần “Chú thích ảnh” trong ngoặc vuông nếu muốn.");
+      return true;
     } catch (e) {
       const msg = uploadErrorMessage(e);
       if (msg) showToast("error", msg);
+      return false;
+    }
+  };
+
+  const onPickImage = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      if (await uploadAndInsert(file)) showToast("success", "Đã chèn ảnh — sửa phần “Chú thích ảnh” trong ngoặc vuông nếu muốn.");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
+  };
+
+  /** Nhiều ảnh cùng lúc (dán/kéo thả): tải lần lượt để ảnh nằm đúng thứ tự. */
+  const insertImages = async (files: File[]) => {
+    if (imageUpload.uploading) {
+      showToast("info", "Đang tải một ảnh — đợi xong rồi dán tiếp nhé.");
+      return;
+    }
+    let ok = 0;
+    for (const f of files) {
+      if (await uploadAndInsert(f)) ok++;
+      else break; // lỗi hoặc người dùng bấm Hủy ⇒ dừng, không tải tiếp các ảnh còn lại
+    }
+    if (ok) showToast("success", ok > 1 ? `Đã chèn ${ok} ảnh — sửa phần “Chú thích ảnh” trong ngoặc vuông nếu muốn.` : "Đã chèn ảnh — sửa phần “Chú thích ảnh” trong ngoặc vuông nếu muốn.");
+  };
+
+  const imageFiles = (list: FileList | null | undefined) => Array.from(list ?? []).filter((f) => f.type.startsWith("image/"));
+
+  /** Ctrl+V: có ảnh trong bộ nhớ tạm (chụp màn hình, "Sao chép ảnh") mà không có chữ kèm theo ⇒ chèn ảnh. Có cả chữ (vd. sao chép từ Word/Excel) ⇒ dán chữ như bình thường. */
+  const onPasteEditor = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imgs = imageFiles(e.clipboardData?.files);
+    if (!imgs.length) return;
+    if (e.clipboardData.getData("text/plain").trim()) return;
+    e.preventDefault();
+    void insertImages(imgs);
+  };
+
+  const onDragOverEditor = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    if (Array.from(e.dataTransfer?.types ?? []).includes("Files")) e.preventDefault();
+  };
+  const onDropEditor = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const imgs = imageFiles(e.dataTransfer?.files);
+    if (!imgs.length) return;
+    e.preventDefault();
+    void insertImages(imgs);
   };
 
   // ---- Trợ lý AI ----
@@ -423,7 +466,7 @@ export default function ArticleEditorPage() {
                 <button type="button" className={toolBtn} title="Trích dẫn" onClick={() => prefixLines(() => "> ", "Câu trích dẫn")}><Quote className="w-4 h-4" /></button>
                 <button type="button" className={toolBtn} title="Đường kẻ ngang" onClick={() => insertBlock("---")}><Minus className="w-4 h-4" /></button>
                 <span className="w-px h-5 bg-gray-200 mx-1" />
-                <button type="button" className={toolBtn} title="Chèn ảnh vào bài" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                <button type="button" className={toolBtn} title="Chèn ảnh vào bài (hoặc dán ảnh bằng Ctrl+V ngay trong khung soạn)" disabled={uploading} onClick={() => fileRef.current?.click()}>
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
                 </button>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
@@ -449,10 +492,13 @@ export default function ArticleEditorPage() {
                   value={form.content}
                   onChange={(e) => set("content", e.target.value)}
                   rows={22}
-                  placeholder={"Viết nội dung bài ở đây…\n\n## Tiêu đề mục\nĐoạn văn. Dùng thanh công cụ phía trên để in đậm, chèn ảnh, tạo danh sách — hoặc nhờ Trợ lý AI viết nháp giúp bạn."}
+                  placeholder={"Viết nội dung bài ở đây…\n\n## Tiêu đề mục\nĐoạn văn. Dùng thanh công cụ phía trên để in đậm, chèn ảnh (hoặc dán ảnh bằng Ctrl+V), tạo danh sách — hoặc nhờ Trợ lý AI viết nháp giúp bạn."}
                   className="!text-sm !leading-7 min-h-[420px] lg:min-h-[540px] resize-y"
                   spellCheck
                   aria-label="Nội dung bài viết"
+                  onPaste={onPasteEditor}
+                  onDragOver={onDragOverEditor}
+                  onDrop={onDropEditor}
                 />
               </div>
               <div className={cn("p-5 min-h-[420px] lg:min-h-[540px] overflow-auto bg-surface/40", tab === "write" && "hidden lg:block")} aria-label="Xem trước">

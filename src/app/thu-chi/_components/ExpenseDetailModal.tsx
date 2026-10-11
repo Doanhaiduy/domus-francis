@@ -19,6 +19,8 @@ import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea, ImageUploa
 import { PurgeButton } from "@/components/ui/PurgeButton";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
 import ReimburseQr from "@/components/finance/ReimburseQr";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
+import { viewerImageFromSrc } from "@/lib/image-viewer";
 
 export const STATUS_BADGE: Record<ExpenseStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -276,15 +278,14 @@ export default function ExpenseDetailModal({
             <div>
               <h5 className="text-xs font-extrabold text-gray-800 uppercase tracking-wide mb-2">Chứng từ / hóa đơn</h5>
               {image && (
-                <a
-                  href={image.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-2xl overflow-hidden border border-purple-100 bg-gray-50 hover:opacity-90"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`${image.url}?v=medium`} alt={`Hóa đơn phiếu ${e.voucherNo}`} className="w-full max-h-80 object-contain" />
-                </a>
+                <div className="rounded-2xl overflow-hidden border border-purple-100 bg-gray-50 hover:opacity-90">
+                  <ZoomableImage
+                    src={`${image.url}?v=medium`}
+                    viewer={viewerImageFromSrc(image.url, `Hóa đơn phiếu ${e.voucherNo}`)}
+                    alt={`Hóa đơn phiếu ${e.voucherNo}`}
+                    className="w-full max-h-80 object-contain"
+                  />
+                </div>
               )}
               {files.map((f) => (
                 <a

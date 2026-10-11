@@ -11,6 +11,7 @@ import { eventsApi, refreshEvents, useAttendanceRoster } from "@/lib/data/events
 import type { AttendanceRowDto, EventDto } from "@/lib/types/events";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { catStyle } from "./styles";
+import { fileViewerImage, openImageViewer } from "@/lib/image-viewer";
 
 interface Props {
   event: EventDto;
@@ -200,15 +201,14 @@ export default function AttendanceCard({ event: evt, canReadAll, onCheckIn }: Pr
                   )}
                   {rec.method && <span className="ml-1.5 text-[10px] text-gray-400">{METHOD_LABEL[rec.method]}</span>}
                   {rec.evidenceFileId && (
-                    <a
-                      href={`/api/v1/files/${rec.evidenceFileId}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => openImageViewer(fileViewerImage(rec.evidenceFileId!, "Ảnh điểm danh"))}
                       className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
                       title="Xem ảnh điểm danh"
                     >
                       <ImageIcon className="w-3 h-3" /> Xem ảnh
-                    </a>
+                    </button>
                   )}
                 </td>
                 <td className="py-2 px-3 text-gray-500 italic">

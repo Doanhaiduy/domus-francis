@@ -14,6 +14,7 @@ import { Portal } from "@/components/ui/Portal";
 import { useReceivingAccount } from "@/lib/data/finance";
 import { bankByBin, buildVietQrPayload, canBuildVietQr, qrDataUrl, transferContent } from "@/lib/vietqr";
 import type { BankAccountDto } from "@/lib/types/finance";
+import { ZoomableImage } from "@/components/ui/ZoomableImage";
 
 /** Ảnh QR (data URL) của một chuỗi — null khi chưa vẽ xong / không có chuỗi. */
 export function useQrDataUrl(payload: string | null, size = 320): string | null {
@@ -76,8 +77,7 @@ export function QrImage({
     <div className="flex flex-col items-center gap-1.5 max-w-full" style={{ width: size + 16 }}>
       <div style={{ width: size, height: size }} className="rounded-2xl bg-white border border-purple-100 p-2 shadow-2xs flex items-center justify-center overflow-hidden">
         {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt} className="w-full h-full object-contain" />
+          <ZoomableImage src={src} viewer={{ src, alt, downloadName: downloadName ? `${downloadName}.png` : undefined }} alt={alt} className="w-full h-full object-contain" />
         ) : (
           <span className="w-6 h-6 border-2 border-purple-200 border-t-primary rounded-full animate-spin" />
         )}

@@ -2,11 +2,11 @@
 
 // Thẻ tệp đính kèm dùng chung: nhận diện loại tệp rồi xem trước đúng kiểu —
 // ảnh hiện thẳng (bấm để phóng to), PDF/tài liệu hiện thẻ có biểu tượng + nút Xem/Tải về.
-import React, { useEffect, useState } from "react";
-import { Download, ExternalLink, File as FileIcon, FileArchive, FileAudio, FileSpreadsheet, FileText, FileVideo, Presentation, X, ZoomIn } from "lucide-react";
+import React, { useState } from "react";
+import { Download, ExternalLink, File as FileIcon, FileArchive, FileAudio, FileSpreadsheet, FileText, FileVideo, Presentation, ZoomIn } from "lucide-react";
 import { FILE_KIND_LABEL, fileKind, type FileKind } from "@/lib/file-kind";
 import { formatFileSize } from "@/lib/community-format";
-import { Portal } from "@/components/ui/Portal";
+import { openImageViewer, viewerImageFromSrc } from "@/lib/image-viewer";
 import { cn } from "@/lib/utils";
 
 export interface AttachmentLike {
@@ -35,34 +35,8 @@ const KIND_STYLE: Record<FileKind, { icon: React.ComponentType<{ className?: str
 
 const withQuery = (url: string, q: string) => `${url}${url.includes("?") ? "&" : "?"}${q}`;
 
-function Lightbox({ src, name, downloadUrl, onClose }: { src: string; name: string; downloadUrl: string; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <Portal>
-      <div className="fixed inset-0 z-[70] bg-black/85 flex flex-col" onClick={onClose} role="dialog" aria-label={`Xem ảnh ${name}`}>
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
-          <p className="text-sm font-semibold truncate">{name}</p>
-          <div className="flex items-center gap-2 shrink-0">
-            <a href={downloadUrl} download={name} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold"><Download className="w-3.5 h-3.5" /> Tải về</a>
-            <button type="button" onClick={onClose} className="p-1.5 rounded-xl bg-white/15 hover:bg-white/25" aria-label="Đóng"><X className="w-4 h-4" /></button>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0 flex items-center justify-center p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={name} className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
-        </div>
-      </div>
-    </Portal>
-  );
-}
-
 export function AttachmentCard({ file, className, onDownload }: { file: AttachmentLike; className?: string; onDownload?: () => void }) {
   const kind = fileKind(file.mime, file.name);
-  const [zoom, setZoom] = useState(false);
   const [broken, setBroken] = useState(false);
   const downloadUrl = file.downloadUrl ?? withQuery(file.url, "download=1");
   const size = formatFileSize(file.sizeBytes ?? 0);
@@ -71,7 +45,7 @@ export function AttachmentCard({ file, className, onDownload }: { file: Attachme
   if (kind === "image" && !broken) {
     return (
       <figure className={cn("rounded-2xl border border-purple-100 bg-purple-50/40 overflow-hidden", className)}>
-        <button type="button" onClick={() => setZoom(true)} className="group relative block w-full bg-gray-50" title="Bấm để xem ảnh lớn">
+        <button type="button" onClick={() => openImageViewer({ ...viewerImageFromSrc(file.url, file.name), downloadUrl })} className="group relative block w-full bg-gray-50" title="Bấm để xem ảnh lớn">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={withQuery(file.url, "v=medium")} alt={file.name} loading="lazy" onError={() => setBroken(true)} className="w-full max-h-96 object-contain mx-auto" />
           <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-black/55 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition">
@@ -87,7 +61,6 @@ export function AttachmentCard({ file, className, onDownload }: { file: Attachme
             <Download className="w-3.5 h-3.5" /> Tải về
           </a>
         </figcaption>
-        {zoom && <Lightbox src={file.url} name={file.name} downloadUrl={downloadUrl} onClose={() => setZoom(false)} />}
       </figure>
     );
   }

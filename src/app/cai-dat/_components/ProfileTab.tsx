@@ -16,6 +16,7 @@ import { errorMessage, fileUrl } from "@/lib/api";
 import { cohortLabel } from "@/lib/types/members";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
 import { consentsApi, useMyConsents } from "@/lib/data/consents";
+import { fileViewerImage, openImageViewer } from "@/lib/image-viewer";
 
 const SACRAMENTS = ["Rửa tội", "Thánh thể", "Thêm sức", "Hòa giải"];
 const splitParent = (s?: string) => {
@@ -258,6 +259,15 @@ export default function ProfileTab() {
           {avatarUpload.uploading && (
             <button type="button" onClick={avatarUpload.cancel} className="mt-1.5 w-full text-center text-[11px] font-bold text-rose-600 hover:underline">
               Hủy tải lên
+            </button>
+          )}
+          {avatar && !avatarUpload.uploading && (
+            <button
+              type="button"
+              onClick={() => openImageViewer(fileViewerImage((f.avatarFileId || member.avatarFileId)!, f.fullName || member.fullName))}
+              className="mt-1.5 w-full text-center text-[11px] font-bold text-primary hover:underline"
+            >
+              Xem ảnh
             </button>
           )}
           <span className="absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center text-primary pointer-events-none">
