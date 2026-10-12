@@ -39,6 +39,27 @@ export const CHECKIN_STATUS_CLASS = {
   rejected: "bg-rose-50 text-rose-700 border-rose-200",
 } as const;
 
+/** Nhãn trạng thái check-in, phân biệt bản được hệ thống tự xác nhận (ngày không cần ảnh). */
+export const checkinStatusText = (c: { status: keyof typeof CHECKIN_STATUS_LABEL; autoApproved?: boolean }) =>
+  c.status === "approved" && c.autoApproved ? "Đã xác nhận (tự động)" : CHECKIN_STATUS_LABEL[c.status];
+
+/** Nhớ nhà thờ đã dự lễ lần trước (chỉ trên trình duyệt này) — MassCheckinModal điền sẵn. */
+export const LAST_CHURCH_KEY = "luuxa-last-church";
+export function readLastChurch(): string {
+  try {
+    return window.localStorage.getItem(LAST_CHURCH_KEY)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+export function rememberChurch(church: string) {
+  try {
+    if (church.trim()) window.localStorage.setItem(LAST_CHURCH_KEY, church.trim().slice(0, 160));
+  } catch {
+    /* trình duyệt chặn bộ nhớ cục bộ — bỏ qua */
+  }
+}
+
 /** "2026-10-05" → "05/10/2026" */
 export const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 /** "2026-10-05" → "5/10" */

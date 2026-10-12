@@ -81,7 +81,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client }) {
   await test("Đơn vào nhà: đang chờ duyệt thì KHÔNG xóa được (422); đã từ chối thì Admin xóa được", async () => {
     const email = `rac.${stamp}@luuxa.local`;
     const applicant = await new Client("rac").init();
-    eq((await applicant.post("/api/v1/auth/register", { fullName: "Người Đăng Ký Rác", email, password: "MatKhau2026", universityName: "ĐH Thử" })).status, 201);
+    eq((await applicant.post("/api/v1/auth/register", { fullName: "Người Đăng Ký Rác", email, password: "MatKhau2026", universityName: "ĐH Thử", acceptTerms: true })).status, 201);
     const appId = (await head.get("/api/v1/applications")).json.find((a) => a.email === email)?.id;
     ok(appId, "thấy đơn mới");
     eq((await head.del(`/api/v1/applications/${appId}`)).status, 403);

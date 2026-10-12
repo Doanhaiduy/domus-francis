@@ -15,8 +15,12 @@ import { isPublicSitePath } from "@/lib/public-site";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useAiStatus } from "@/lib/data/ai";
-import { Sparkles, ShieldAlert } from "lucide-react";
-import Link from "next/link";
+import { Sparkles } from "lucide-react";
+import { SecurityGate, useSecurityGate } from "./security/SecurityGate";
+import { OpsBanner } from "./OpsBanner";
+import { ConsentGate } from "./ConsentGate";
+import { InstallPrompt } from "./InstallPrompt";
+import { NotificationDeepLink } from "./NotificationDeepLink";
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -25,7 +29,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const isPublicSite = isPublicSitePath(pathname);
   const { activeModal, openModal } = useApp();
   const { session } = useSession();
-  const { status: aiStatus } = useAiStatus(!isAuthPage && !isPublicSite && !!session?.member);
+  // Mật khẩu tạm / vai trò bắt buộc 2FA chưa bật ⇒ chỉ hiện màn hình chặn (API cũng chặn mọi thứ trừ /api/v1/auth/*)
+  const gate = useSecurityGate();
+  const { status: aiStatus } = useAiStatus(!isAuthPage && !isPublicSite && !!session?.member && !gate);
   const showAssistant = !!aiStatus?.available.includes("community.policy_rag");
 
   // Mật khẩu tạm (do người quản lý cấp/đặt lại) ⇒ bắt buộc đổi trước khi dùng tiếp
@@ -51,6 +57,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
+  if (gate) {
+    return (
+      <>
+        <SecurityGate kind={gate} />
+        <Modals />
+        <ToastContainer />
+      </>
+    );
+  }
+
   return (
     // Nội dung tràn hết chiều rộng (trước đây bọc trong khung bg-surface có lề 12–24px + bo góc; khung overflow-hidden
     // đó còn làm thanh tiêu đề sticky không bám được đầu màn hình khi cuộn).
@@ -61,17 +77,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* MAIN APPLICATION AREA */}
       <div className="md:pl-64 flex flex-col min-h-screen">
         <Header />
-        {/* Vai trò bắt buộc xác thực 2 bước mà chưa bật: nhắc trên mọi trang (trừ chính trang Cài đặt) */}
-        {session?.mfa.required && !session.mfa.enabled && !pathname.startsWith("/cai-dat") && (
-          <div role="alert">
-            <Link
-              href="/cai-dat?tab=security"
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition"
-            >
-              <ShieldAlert className="w-4 h-4 shrink-0" aria-hidden /> Vai trò của bạn cần bật xác thực 2 bước để bảo vệ tài khoản — bấm để thiết lập (2 phút)
-            </Link>
-          </div>
-        )}
+        {/* Cảnh báo vận hành cho Admin (cron ngừng/lỗi, sao lưu quá hạn…) */}
+        <OpsBanner />
         <main id="main-content" tabIndex={-1} className="w-full flex-1 p-3.5 sm:p-5 lg:p-6 pb-6 focus:outline-none">
           <SectionTabs />
           <ModuleGate>{children}</ModuleGate>
@@ -86,6 +93,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* GLOBAL MODALS AND TOASTS */}
       <Modals />
       <CommandPalette />
+      {/* Xác nhận Điều khoản + Chính sách bảo mật (lần đầu / khi văn bản đổi phiên bản) */}
+      <ConsentGate />
+      {/* Gợi ý cài ứng dụng + bật thông báo; cảnh báo khi mở trong trình duyệt của Zalo/Facebook */}
+      <InstallPrompt />
+      {/* Mở từ thông báo đẩy (?n=<id>) ⇒ đánh dấu đã đọc */}
+      <NotificationDeepLink />
       {/* Trợ lý AI hỏi đáp nội quy: chỉ hiện khi tính năng đã bật và có khóa API */}
       {showAssistant && !activeModal && (
         <button

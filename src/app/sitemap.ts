@@ -15,12 +15,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const at = (p: string) => `${origin}${p}`;
   const pages: MetadataRoute.Sitemap = [
-    { url: at("/tin-tuc"), changeFrequency: "daily", priority: 1 },
-    { url: at("/gioi-thieu"), changeFrequency: "monthly", priority: 0.8 },
+    { url: at("/gioi-thieu"), changeFrequency: "monthly", priority: 1 },
+    { url: at("/vao-o"), changeFrequency: "weekly", priority: 0.9 },
+    { url: at("/tin-tuc"), changeFrequency: "daily", priority: 0.9 },
     { url: at("/lien-he"), changeFrequency: "monthly", priority: 0.8 },
     { url: at("/hoi-dap"), changeFrequency: "monthly", priority: 0.7 },
     { url: at("/thu-vien"), changeFrequency: "weekly", priority: 0.6 },
-    ...(donation.enabled ? [{ url: at("/ung-ho"), changeFrequency: "yearly" as const, priority: 0.4 }] : []),
+    ...(donation.enabled ? [{ url: at("/ung-ho"), changeFrequency: "monthly" as const, priority: 0.4 }] : []),
     { url: at("/chinh-sach-bao-mat"), changeFrequency: "yearly", priority: 0.3 },
     { url: at("/dieu-khoan-su-dung"), changeFrequency: "yearly", priority: 0.3 },
   ];

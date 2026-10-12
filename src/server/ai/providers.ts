@@ -1,4 +1,5 @@
 import "server-only";
+import { withTx } from "../db";
 import { AI_LIMITS, providerOrder, testBaseUrl, usdToVnd, type ProviderConfig, type ProviderId } from "./config";
 
 // ---------------------------------------------------------------------
@@ -46,20 +47,25 @@ export class ProviderError extends Error {
 
 export class NoProviderError extends Error {}
 
-// --- Ngắt mạch theo tiến trình --------------------------------------------------
+// --- Ngắt mạch ------------------------------------------------------------------
+// Sau AI_LIMITS.breakerThreshold lỗi LIÊN TIẾP, nhà cung cấp bị tạm dừng breakerPauseMs. Trạng thái lưu ở CSDL (ai_provider_state,
+// db/app/1043) để mọi instance serverless cùng biết (trước đây chỉ nằm trong bộ nhớ từng instance: instance mới lại gọi vào nhà cung
+// cấp đang hỏng, người dùng chờ lâu). Bộ nhớ là bản đệm, đồng bộ từ CSDL tối đa 15 giây một lần; CSDL lỗi ⇒ chạy theo bộ nhớ như cũ.
 interface Breaker {
   failures: number;
   openUntil: number;
 }
-const g = globalThis as unknown as { __luuxaAiBreaker?: Map<ProviderId, Breaker> };
+const g = globalThis as unknown as { __luuxaAiBreaker?: Map<ProviderId, Breaker>; __luuxaAiBreakerSyncAt?: number };
 const breakers = (g.__luuxaAiBreaker ??= new Map<ProviderId, Breaker>());
+const BREAKER_SYNC_MS = 15_000;
 
 export function breakerState(id: ProviderId): { open: boolean; retryAt: number | null } {
   const b = breakers.get(id);
   const open = !!b && b.openUntil > Date.now();
   return { open, retryAt: open ? b!.openUntil : null };
 }
-const noteFailure = (id: ProviderId) => {
+
+const noteFailureInMemory = (id: ProviderId) => {
   const b = breakers.get(id) ?? { failures: 0, openUntil: 0 };
   b.failures += 1;
   if (b.failures >= AI_LIMITS.breakerThreshold) {
@@ -68,7 +74,64 @@ const noteFailure = (id: ProviderId) => {
   }
   breakers.set(id, b);
 };
-const noteSuccess = (id: ProviderId) => breakers.delete(id);
+
+type BreakerRow = { provider: string; failures: number; open_ms: number | null };
+
+/** Nạp trạng thái ngắt mạch từ CSDL vào bộ nhớ (tối đa 15 giây một lần mỗi instance). */
+async function syncBreakers(): Promise<void> {
+  const now = Date.now();
+  if (now - (g.__luuxaAiBreakerSyncAt ?? 0) < BREAKER_SYNC_MS) return;
+  g.__luuxaAiBreakerSyncAt = now;
+  try {
+    const rows = await withTx({}, "luuxa_worker", async (tx) =>
+      (await tx.query<BreakerRow>("SELECT provider, failures, (extract(epoch FROM open_until) * 1000)::float8 AS open_ms FROM ai_provider_state")).rows,
+    );
+    for (const id of ["groq", "gemini"] as ProviderId[]) {
+      const r = rows.find((x) => x.provider === id);
+      if (r && (r.failures > 0 || (r.open_ms ?? 0) > now)) breakers.set(id, { failures: r.failures, openUntil: r.open_ms ?? 0 });
+      else breakers.delete(id);
+    }
+  } catch (e) {
+    console.error("[ai] không đọc được trạng thái ngắt mạch:", (e as Error).message);
+  }
+}
+
+/** Ghi một lỗi (tăng nguyên tử trong CSDL — nhiều instance cùng đếm); đủ ngưỡng ⇒ tạm dừng. CSDL lỗi ⇒ đếm trong bộ nhớ. */
+async function noteFailure(id: ProviderId, err: ProviderError | null): Promise<void> {
+  try {
+    const r = await withTx({}, "luuxa_worker", (tx) =>
+      tx.query<BreakerRow>(
+        `INSERT INTO ai_provider_state AS s (provider, failures, open_until, last_error, last_failure_at, updated_at)
+         VALUES ($1, CASE WHEN 1 >= $2 THEN 0 ELSE 1 END, CASE WHEN 1 >= $2 THEN now() + make_interval(secs => $3) END, $4, now(), now())
+         ON CONFLICT (provider) DO UPDATE
+            SET failures   = CASE WHEN s.failures + 1 >= $2 THEN 0 ELSE s.failures + 1 END,
+                open_until = CASE WHEN s.failures + 1 >= $2 THEN now() + make_interval(secs => $3) ELSE s.open_until END,
+                last_error = EXCLUDED.last_error, last_failure_at = now(), updated_at = now()
+         RETURNING provider, failures, (extract(epoch FROM open_until) * 1000)::float8 AS open_ms`,
+        [id, AI_LIMITS.breakerThreshold, Math.round(AI_LIMITS.breakerPauseMs / 1000), (err?.message ?? "lỗi không xác định").slice(0, 300)],
+      ),
+    );
+    const row = r.rows[0];
+    breakers.set(id, { failures: row.failures, openUntil: row.open_ms ?? 0 });
+  } catch (e) {
+    console.error("[ai] không ghi được trạng thái ngắt mạch:", (e as Error).message);
+    noteFailureInMemory(id);
+  }
+}
+
+/** Thành công ⇒ xóa đếm lỗi (chỉ ghi CSDL khi trước đó có lỗi / đang tạm dừng). */
+async function noteSuccess(id: ProviderId): Promise<void> {
+  const had = breakers.get(id);
+  breakers.delete(id);
+  if (!had) return;
+  try {
+    await withTx({}, "luuxa_worker", (tx) =>
+      tx.query("UPDATE ai_provider_state SET failures = 0, open_until = NULL, updated_at = now() WHERE provider = $1 AND (failures > 0 OR open_until IS NOT NULL)", [id]),
+    );
+  } catch (e) {
+    console.error("[ai] không xóa được trạng thái ngắt mạch:", (e as Error).message);
+  }
+}
 
 // --- Gọi HTTP -------------------------------------------------------------------
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -177,6 +240,7 @@ export async function generate<T>(req: LlmRequest, parse: (text: string) => T): 
   if (process.env.AI_OFFLINE === "1") throw new NoProviderError("AI_OFFLINE=1: đã chặn cuộc gọi ra dịch vụ AI bên ngoài.");
   const order = providerOrder();
   if (!order.length) throw new NoProviderError("Chưa cấu hình khóa API (GROQ_API_KEY hoặc GEMINI_API_KEY).");
+  await syncBreakers();
   const failed: ProviderId[] = [];
   let last: ProviderError | null = null;
   for (const p of order) {
@@ -193,7 +257,7 @@ export async function generate<T>(req: LlmRequest, parse: (text: string) => T): 
       } catch {
         throw new ProviderError(`${p.id} trả về nội dung không đúng lược đồ`, p.id, false);
       }
-      noteSuccess(p.id);
+      await noteSuccess(p.id);
       return {
         ...out,
         value,
@@ -205,7 +269,7 @@ export async function generate<T>(req: LlmRequest, parse: (text: string) => T): 
       };
     } catch (e) {
       last = e instanceof ProviderError ? e : new ProviderError("lỗi không xác định", p.id, false);
-      noteFailure(p.id);
+      await noteFailure(p.id, last);
       failed.push(p.id);
     }
   }

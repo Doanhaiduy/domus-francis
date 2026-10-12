@@ -3,20 +3,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { listFaqs } from "@/server/modules/public-site";
-import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
-import { getSiteInfo, publicDb, siteOrigin } from "@/server/public";
+import { OG_DEFAULT_IMAGES, SITE_KIND } from "@/lib/public-site";
+import { getSiteInfo, publicDb } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { JoinCta } from "@/components/public/JoinCta";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
+import { JsonLd } from "@/components/public/JsonLd";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { org } = await getSiteInfo();
-  const title = `Hỏi đáp — ${org.houseName}`;
-  const description = `Những câu hỏi thường gặp về việc vào ở, chi phí, sinh hoạt và nội quy tại ${org.houseName}.`;
-  return { metadataBase: new URL(siteOrigin()), title, description, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
+  const description = `Những câu hỏi thường gặp về việc vào ở, chi phí, giờ giấc, sinh hoạt và nội quy tại ${org.houseName} — ${SITE_KIND}.`;
+  return {
+    title: `Hỏi đáp về ${SITE_KIND}`,
+    description,
+    alternates: { canonical: "/hoi-dap" },
+    openGraph: { title: `Hỏi đáp — ${org.houseName}`, description, url: "/hoi-dap", type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES },
+  };
 }
 
 export default async function FaqPage() {
@@ -30,7 +35,7 @@ export default async function FaqPage() {
     <>
       <PublicHeader org={site.org} section="hoi-dap" donationEnabled={site.donationEnabled} />
       <PageHero eyebrow="Hỏi đáp" title="Câu hỏi thường gặp" subtitle="Giải đáp nhanh những điều các bạn sinh viên và phụ huynh thường quan tâm." />
-      {faqs.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />}
+      {faqs.length > 0 && <JsonLd data={jsonLd} />}
 
       <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-10 space-y-10">
         {faqs.length ? (

@@ -608,7 +608,8 @@ export function DuesCycleModal({ open, onClose }: { open: boolean; onClose: () =
       )}
       <p className="flex items-start gap-1.5 text-[11px] text-gray-500">
         <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        Miễn/giảm cho từng người do Trưởng nhà duyệt sau khi lập. Thành viên vào ở sau hạn nộp không bị tính khoản kỳ này.
+        Miễn/giảm cho từng người do Trưởng nhà duyệt sau khi lập. Người vào ở sau khi lập kỳ: duyệt đơn vào nhà thì hệ thống tự thêm khoản kỳ này; người thêm tay thì bấm
+        “Cập nhật người phải đóng” ở khoản thu.
       </p>
       <ErrorBox error={error ?? (previewError ? errorMessage(previewError) : null)} />
     </DialogShell>

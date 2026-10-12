@@ -9,9 +9,13 @@ import {
   type CalendarDayDetailDto,
   type CalendarDayDto,
   type CalendarMonthDto,
+  type MassBulkReviewResultDto,
   type MassCheckinDto,
   type MassCheckinRowDto,
   type MassOccasion,
+  type MassPendingDto,
+  type MassPendingItemDto,
+  type MassReportCell,
   type MassReportDto,
   type MassRequirementDto,
   type SpecialDayColor,
@@ -38,6 +42,8 @@ interface Conf {
   checkinSunday: boolean;
   checkinSolemnity: boolean;
   graceDays: number;
+  /** liturgy.auto_approve_no_photo — check-in ngày không cần ảnh được tự xác nhận (trigger app.tg_mass_checkins_rules) */
+  autoApproveNoPhoto: boolean;
   canManage: boolean;
   me: string | null;
   specials: SpecialDayDto[];
@@ -69,6 +75,7 @@ async function loadConf(tx: Tx): Promise<Conf> {
               app.setting_json('liturgy.checkin_sunday') AS c_sun,
               app.setting_json('liturgy.checkin_solemnity') AS c_sol,
               app.setting_json('liturgy.checkin_grace_days') AS grace,
+              (SELECT s.value FROM settings s WHERE s.key = 'liturgy.auto_approve_no_photo') AS auto_ok,
               app.has_permission('liturgy.calendar.manage') AS manage,
               app.current_member_id() AS me`
     ),
@@ -86,6 +93,8 @@ async function loadConf(tx: Tx): Promise<Conf> {
     checkinSunday: b.c_sun !== false,
     checkinSolemnity: b.c_sol !== false,
     graceDays: typeof b.grace === "number" ? b.grace : 2,
+    // Khóa chưa có (CSDL chưa áp 1048) ⇒ coi như tắt, giống trigger
+    autoApproveNoPhoto: b.auto_ok === true,
     canManage: !!b.manage,
     me: b.me ?? null,
     specials: specials.rows.map(toSpecial),
@@ -145,7 +154,7 @@ function compactDay(c: Conf, d: LitDay, extra: { gospelRef: string | null; hasIn
     gospelRef: extra.gospelRef,
     hasIntention: extra.hasIntention,
     requirement: requirementFor(c, d),
-    myCheckin: extra.mine ? { status: extra.mine.status, hasEvidence: !!extra.mine.evidence_file_id } : null,
+    myCheckin: extra.mine ? { status: extra.mine.status, hasEvidence: !!extra.mine.evidence_file_id, autoApproved: !!extra.mine.auto_approved } : null,
   };
 }
 
@@ -163,7 +172,7 @@ export async function getCalendar(tx: Tx, q: { from: string | null; to: string |
     loadGospelRefs(tx, days.map((d) => d.lectionary[0]).filter(Boolean)),
     tx.query<{ d: string }>("SELECT day_date::text AS d FROM liturgy_day_notes WHERE day_date BETWEEN $1 AND $2 AND intention IS NOT NULL", [from, to]),
     c.me
-      ? tx.query("SELECT day_date::text AS d, status, evidence_file_id FROM mass_checkins WHERE member_id = $1 AND day_date BETWEEN $2 AND $3", [c.me, from, to])
+      ? tx.query("SELECT day_date::text AS d, status, evidence_file_id, auto_approved FROM mass_checkins WHERE member_id = $1 AND day_date BETWEEN $2 AND $3", [c.me, from, to])
       : Promise.resolve({ rows: [] as Row[] }),
     tx.query<{ n: string }>("SELECT count(*) AS n FROM liturgy_lectionary"),
   ]);
@@ -198,6 +207,7 @@ const toCheckin = (r: Row): MassCheckinDto => ({
   reviewNote: r.review_note ?? null,
   reviewedByName: r.reviewer_name ?? null,
   reviewedAt: r.reviewed_at ? iso(r.reviewed_at) : null,
+  autoApproved: !!r.auto_approved,
   version: r.version,
 });
 
@@ -212,15 +222,50 @@ function hamming(a: string, b: string): number {
   return n;
 }
 
-async function attendanceFor(tx: Tx, date: string, req: MassRequirementDto): Promise<CalendarDayDetailDto["attendance"]> {
+/** Ngưỡng pHash coi hai ảnh là "gần giống" — cùng ngưỡng với app.fn_mass_checkin_photo_flag (db/app/1048). */
+const PHASH_MAX_DISTANCE = 6;
+
+/**
+ * Cảnh báo cho người duyệt trên các check-in CỦA CÙNG MỘT NGÀY lễ: ảnh gần giống ảnh của người khác (pHash), ảnh chụp không đúng dịp
+ * (EXIF ngoài [hôm trước … hạn check-in]), thiếu ảnh khi ngày đó bắt buộc ảnh. `flagged` ⇒ "Duyệt tất cả" bỏ qua.
+ * Luật trùng/sai ngày GIỮ ĐỒNG BỘ với app.fn_mass_checkin_photo_flag (tự xác nhận ở trigger).
+ */
+function photoFlags(
+  rows: { member_id: string; name: string; phash: string | null; taken_at: Date | string | null; evidence_file_id: string | null }[],
+  date: string,
+  req: MassRequirementDto | null
+): { duplicateOf: string | null; warning: string | null; flagged: boolean }[] {
+  const out = rows.map(() => ({ duplicateOf: null as string | null, warning: null as string | null, flagged: false }));
+  const withHash = rows.map((r, i) => ({ i, h: r.phash, name: r.name, m: r.member_id })).filter((x) => x.h);
+  for (const a of withHash)
+    for (const b of withHash)
+      if (a.i !== b.i && a.m !== b.m && hamming(a.h!, b.h!) <= PHASH_MAX_DISTANCE) {
+        out[a.i].duplicateOf = b.name;
+        break;
+      }
+  const deadline = req?.deadline ?? date;
+  rows.forEach((r, i) => {
+    if (r.taken_at && r.evidence_file_id) {
+      const taken = new Date(new Date(r.taken_at).getTime() + 7 * 3600e3).toISOString().slice(0, 10);
+      if (taken < addDaysIso(date, -1) || taken > deadline) out[i].warning = `Ảnh chụp ngày ${+taken.slice(8)}/${+taken.slice(5, 7)}/${taken.slice(0, 4)}, không trùng dịp lễ.`;
+    }
+    if (req?.evidenceRequired && !r.evidence_file_id) out[i].warning = "Thiếu ảnh minh chứng (ngày này bắt buộc ảnh).";
+    out[i].flagged = !!(out[i].duplicateOf || out[i].warning);
+  });
+  return out;
+}
+
+const ROOM_ON = (dateParam: string) => `(SELECT r.code FROM room_assignments ra JOIN rooms r ON r.id = ra.room_id
+                WHERE ra.member_id = m.id AND ra.starts_on <= ${dateParam} AND (ra.ends_on IS NULL OR ra.ends_on > ${dateParam})
+                ORDER BY ra.starts_on DESC LIMIT 1)`;
+
+async function attendanceFor(tx: Tx, c: Conf, date: string, req: MassRequirementDto): Promise<CalendarDayDetailDto["attendance"]> {
   const rows = (
     await tx.query(
       `SELECT m.id AS member_id, m.status AS mstatus, COALESCE(m.display_name, m.full_name) AS name, m.avatar_file_id,
-              (SELECT r.code FROM room_assignments ra JOIN rooms r ON r.id = ra.room_id
-                WHERE ra.member_id = m.id AND ra.starts_on <= $1::date AND (ra.ends_on IS NULL OR ra.ends_on > $1::date)
-                ORDER BY ra.starts_on DESC LIMIT 1) AS room,
+              ${ROOM_ON("$1::date")} AS room,
               c.id, c.day_date::text AS d, c.occasion, c.church, c.note, c.evidence_file_id, c.checked_in_at, c.status, c.review_note,
-              c.reviewed_at, c.version, rv.display_name AS reviewer_name, f.phash::text AS phash, f.taken_at
+              c.reviewed_at, c.auto_approved, c.version, rv.display_name AS reviewer_name, f.phash::text AS phash, f.taken_at
          FROM members m
          LEFT JOIN mass_checkins c ON c.member_id = m.id AND c.day_date = $1::date
          LEFT JOIN members rv ON rv.user_id = c.reviewed_by AND rv.deleted_at IS NULL
@@ -230,33 +275,25 @@ async function attendanceFor(tx: Tx, date: string, req: MassRequirementDto): Pro
       [date]
     )
   ).rows;
-  const out: MassCheckinRowDto[] = rows.map((r) => ({
+  // Cờ chỉ có nghĩa với dòng đã check-in (người chưa check-in không có ảnh để so)
+  const flags = photoFlags(rows as Parameters<typeof photoFlags>[0], date, req);
+  const out: MassCheckinRowDto[] = rows.map((r, i) => ({
     memberId: r.member_id,
     name: r.name,
     room: r.room ?? null,
     avatarFileId: r.avatar_file_id ?? null,
     checkin: r.id ? toCheckin(r) : null,
-    duplicateOf: null,
-    warning: null,
+    duplicateOf: r.id ? flags[i].duplicateOf : null,
+    warning: r.id ? flags[i].warning : null,
+    flagged: r.id ? flags[i].flagged : false,
+    isMe: !!c.me && r.member_id === c.me,
   }));
-  // Ảnh trùng/gần giống ảnh của người khác (pHash) và ảnh chụp không đúng ngày (EXIF) ⇒ cảnh báo cho người duyệt
-  const withHash = rows.map((r, i) => ({ i, h: r.phash as string | null, name: r.name as string })).filter((x) => x.h);
-  for (const a of withHash)
-    for (const b of withHash)
-      if (a.i !== b.i && hamming(a.h!, b.h!) <= 6) {
-        out[a.i].duplicateOf = b.name;
-        break;
-      }
-  rows.forEach((r, i) => {
-    if (!r.taken_at || !r.evidence_file_id) return;
-    const taken = new Date(new Date(r.taken_at).getTime() + 7 * 3600e3).toISOString().slice(0, 10);
-    if (taken < addDaysIso(date, -1) || taken > req.deadline) out[i].warning = `Ảnh chụp ngày ${+taken.slice(8)}/${+taken.slice(5, 7)}/${taken.slice(0, 4)}, không trùng dịp lễ.`;
-  });
   const expected = rows.filter((r) => r.mstatus === "active").length;
   return {
     expected,
     checkedIn: out.filter((r) => r.checkin && r.checkin.status !== "rejected").length,
     rejected: out.filter((r) => r.checkin?.status === "rejected").length,
+    pending: out.filter((r) => r.checkin?.status === "submitted").length,
     rows: out,
   };
 }
@@ -287,6 +324,7 @@ export async function getDay(tx: Tx, date: string): Promise<CalendarDayDetailDto
   const m = (mine.rows as Row[])[0];
   const req = requirementFor(c, d);
   const blocked = checkinWindow(c, req, date);
+  const withinDeadline = !!req && c.today <= req.deadline;
   const compact = compactDay(c, d, { gospelRef: readings[0]?.slots.find((s) => s.kind === "gospel")?.ref ?? null, hasIntention: !!n?.intention, mine: m });
   return {
     ...compact,
@@ -306,9 +344,11 @@ export async function getDay(tx: Tx, date: string): Promise<CalendarDayDetailDto
     officialReadingsUrl: `https://kpv.vn/liturgy/mass-readings?date=${date}`,
     myCheckin: m ? { ...toCheckin(m), hasEvidence: !!m.evidence_file_id } : null,
     canCheckin: !blocked && !(m && m.status === "approved"),
+    canCancelCheckin: !!m && (m.status === "submitted" || (m.status === "approved" && !!m.auto_approved && withinDeadline)),
+    autoApprove: !!req && c.autoApproveNoPhoto && !req.evidenceRequired,
     checkinBlockedReason: m?.status === "approved" ? null : blocked,
     canManage: c.canManage,
-    attendance: c.canManage && req ? await attendanceFor(tx, date, req) : null,
+    attendance: c.canManage && req ? await attendanceFor(tx, c, date, req) : null,
     specialDetails: specialsOn(c, date),
   };
 }
@@ -448,9 +488,28 @@ export async function submitCheckin(tx: Tx, b: z.infer<typeof CheckinSchema>): P
   }
 }
 
+/** Hủy check-in của chính mình: bản đang chờ duyệt, hoặc bản hệ thống tự xác nhận (bấm nhầm) khi còn trong hạn check-in. */
 export async function deleteCheckin(tx: Tx, id: string) {
-  const r = await tx.query("DELETE FROM mass_checkins WHERE id = $1 AND member_id = app.current_member_id() AND status = 'submitted'", [id]);
-  if (!r.rowCount) throw new ApiError(409, "CANNOT_DELETE", "Chỉ hủy được check-in của chính mình khi chưa được duyệt.");
+  const cur = (
+    await tx.query<{ d: string; status: string; auto_approved: boolean; mine: boolean }>(
+      "SELECT c.day_date::text AS d, c.status, c.auto_approved, c.member_id = app.current_member_id() AS mine FROM mass_checkins c WHERE c.id = $1",
+      [id]
+    )
+  ).rows[0];
+  const cannot = () => new ApiError(409, "CANNOT_DELETE", "Chỉ hủy được check-in của chính mình khi chưa được duyệt.");
+  if (!cur || !cur.mine) throw cannot();
+  if (cur.status === "approved" && cur.auto_approved) {
+    const c = await loadConf(tx);
+    const req = requirementFor(c, liturgicalDay(cur.d));
+    if (!req || c.today > req.deadline) throw new ApiError(409, "CANNOT_DELETE", "Đã quá hạn check-in ngày này — không hủy được nữa.");
+  } else if (cur.status !== "submitted") {
+    throw cannot();
+  }
+  const r = await tx.query(
+    "DELETE FROM mass_checkins WHERE id = $1 AND member_id = app.current_member_id() AND (status = 'submitted' OR (status = 'approved' AND auto_approved))",
+    [id]
+  );
+  if (!r.rowCount) throw cannot();
 }
 
 export const ReviewSchema = z.object({
@@ -458,12 +517,25 @@ export const ReviewSchema = z.object({
   note: z.string().trim().max(500).nullable().optional(),
 });
 
+/** Kết quả duyệt của một check-in — dữ liệu để gửi thông báo cho người check-in. */
+export interface ReviewedCheckin {
+  id: string;
+  memberId: string;
+  date: string;
+  status: string;
+  note: string | null;
+  label: string;
+}
+
+/** Tên dịp hiện trong thông báo: ngày đặc biệt / Bổn mạng ⇒ tên dịp, còn lại ⇒ tên lễ của ngày. */
+function occasionTitle(c: Conf, date: string): string {
+  const d = liturgicalDay(date);
+  const req = requirementFor(c, d);
+  return req && (req.occasion === "patron" || req.occasion.startsWith("special:")) ? req.label : d.title;
+}
+
 /** Người duyệt đánh dấu hợp lệ / không hợp lệ; trả về thông tin để gửi thông báo cho người check-in (bước tin cậy). */
-export async function reviewCheckin(
-  tx: Tx,
-  id: string,
-  b: z.infer<typeof ReviewSchema>
-): Promise<{ memberId: string; date: string; status: string; note: string | null; label: string }> {
+export async function reviewCheckin(tx: Tx, id: string, b: z.infer<typeof ReviewSchema>): Promise<ReviewedCheckin> {
   await assertManage(tx, "Chỉ Trưởng nhà, Ban Phụng vụ hoặc Admin được duyệt check-in đi lễ.");
   if (b.status === "rejected" && (b.note?.trim().length ?? 0) < 3) throw badRequest("Nêu lý do không hợp lệ (tối thiểu 3 ký tự) để anh em biết bổ sung.");
   const me = (await tx.query<{ id: string | null }>("SELECT app.current_member_id() AS id")).rows[0]?.id;
@@ -471,27 +543,152 @@ export async function reviewCheckin(
   if (!cur) throw notFound("Không tìm thấy check-in.");
   if (cur.member_id === me) throw forbidden("Không tự duyệt check-in của chính mình.");
   const r = (
-    await tx.query("UPDATE mass_checkins SET status = $2, review_note = $3 WHERE id = $1 RETURNING member_id, day_date::text AS d, status, review_note", [
+    await tx.query("UPDATE mass_checkins SET status = $2, review_note = $3 WHERE id = $1 RETURNING id, member_id, day_date::text AS d, status, review_note", [
       id,
       b.status,
       b.status === "submitted" ? null : b.note?.trim() || null,
     ])
   ).rows[0];
-  const req = requirementFor(await loadConf(tx), liturgicalDay(r.d));
-  const label = req && (req.occasion === "patron" || req.occasion.startsWith("special:")) ? req.label : liturgicalDay(r.d).title;
-  return { memberId: r.member_id, date: r.d, status: r.status, note: r.review_note ?? null, label };
+  return { id: r.id, memberId: r.member_id, date: r.d, status: r.status, note: r.review_note ?? null, label: occasionTitle(await loadConf(tx), r.d) };
 }
 
-/** Thông báo kết quả duyệt (chạy với vai trò luuxa_worker — luuxa_app không gọi được app.fn_notify). */
-export async function notifyReviewed(tx: Tx, r: { memberId: string; date: string; status: string; note: string | null; label: string }) {
+/** Thông báo kết quả duyệt (chạy với vai trò luuxa_worker — luuxa_app không gọi được app.fn_notify). Liên kết mở thẳng ngày lễ trên Lịch. */
+export async function notifyReviewed(tx: Tx, r: ReviewedCheckin) {
   if (r.status === "submitted") return;
   const when = `${+r.date.slice(8)}/${+r.date.slice(5, 7)}`;
-  await tx.query("SELECT app.fn_notify($1, 'liturgy.checkin_reviewed', $2, $3, $4::jsonb)", [
+  await tx.query("SELECT app.fn_notify($1, 'liturgy.checkin_reviewed', $2, $3, $4::jsonb, 'mass_checkins', $5::uuid)", [
     r.memberId,
     r.status === "approved" ? `Check-in đi lễ ngày ${when} đã được xác nhận` : `Check-in đi lễ ngày ${when} chưa hợp lệ`,
     r.status === "approved" ? r.label : `${r.label}. Lý do: ${r.note ?? "—"}. Bạn có thể gửi lại ảnh minh chứng.`,
-    JSON.stringify({ href: `/lich-su-kien?date=${r.date}`, date: r.date }),
+    JSON.stringify({ link: `/lich-su-kien?date=${r.date}`, date: r.date }),
+    r.id,
   ]);
+}
+
+// ---------------------------------------------------------------------
+// Hàng đợi chờ duyệt nhiều ngày + duyệt hàng loạt (người duyệt: liturgy.calendar.manage)
+// ---------------------------------------------------------------------
+/** Tối đa số ngày lễ (mới → cũ) có bản chờ duyệt được nạp vào hàng đợi, và số dòng trả về. */
+const PENDING_MAX_DAYS = 60;
+const PENDING_MAX_ITEMS = 300;
+
+export async function listPendingCheckins(tx: Tx): Promise<MassPendingDto> {
+  await assertManage(tx, "Chỉ Trưởng nhà, Ban Phụng vụ hoặc Admin xem được check-in chờ duyệt.");
+  const c = await loadConf(tx);
+  const [rows, total] = await Promise.all([
+    // Mọi check-in của các ngày đang có bản chờ duyệt (kể cả bản đã duyệt) — để so ảnh trùng giữa người với người trong cùng ngày
+    tx.query(
+      `WITH pend AS (SELECT DISTINCT day_date FROM mass_checkins WHERE status = 'submitted' ORDER BY day_date DESC LIMIT ${PENDING_MAX_DAYS})
+       SELECT c.*, c.day_date::text AS d, COALESCE(m.display_name, m.full_name) AS name, m.avatar_file_id, ${ROOM_ON("c.day_date")} AS room,
+              f.phash::text AS phash, f.taken_at
+         FROM mass_checkins c
+         JOIN members m ON m.id = c.member_id
+         LEFT JOIN storage_files f ON f.id = c.evidence_file_id
+        WHERE c.day_date IN (SELECT day_date FROM pend)
+        ORDER BY c.day_date DESC, c.checked_in_at`
+    ),
+    tx.query<{ n: number }>("SELECT count(*)::int AS n FROM mass_checkins WHERE status = 'submitted'"),
+  ]);
+  const byDay = new Map<string, Row[]>();
+  for (const r of rows.rows) byDay.set(r.d, [...(byDay.get(r.d) ?? []), r]);
+  const items: MassPendingItemDto[] = [];
+  for (const [date, list] of byDay) {
+    const d = liturgicalDay(date);
+    const req = requirementFor(c, d);
+    const flags = photoFlags(list as Parameters<typeof photoFlags>[0], date, req);
+    list.forEach((r, i) => {
+      if (r.status !== "submitted" || items.length >= PENDING_MAX_ITEMS) return;
+      items.push({
+        checkin: toCheckin(r),
+        memberId: r.member_id,
+        name: r.name,
+        room: r.room ?? null,
+        avatarFileId: r.avatar_file_id ?? null,
+        dayTitle: d.title,
+        label: req?.label ?? "Ngày không còn bắt buộc",
+        evidenceRequired: !!req?.evidenceRequired,
+        duplicateOf: flags[i].duplicateOf,
+        warning: flags[i].warning,
+        flagged: flags[i].flagged,
+        isMe: !!c.me && r.member_id === c.me,
+      });
+    });
+  }
+  return { items, total: total.rows[0].n, approvable: items.filter((x) => !x.flagged && !x.isMe).length, autoApproveNoPhoto: c.autoApproveNoPhoto };
+}
+
+export const BulkReviewSchema = z
+  .object({
+    ids: z.array(z.string().uuid("Mã check-in không hợp lệ.")).min(1, "Chưa chọn check-in nào.").max(PENDING_MAX_ITEMS, `Mỗi lần duyệt tối đa ${PENDING_MAX_ITEMS} check-in.`).optional(),
+    date: zDate.optional(),
+    status: z.enum(["approved", "rejected"]),
+    note: z.string().trim().max(500, "Lý do tối đa 500 ký tự.").nullable().optional(),
+  })
+  .refine((v) => !!v.ids !== !!v.date, { message: "Chọn các check-in cần duyệt hoặc một ngày lễ." })
+  .refine((v) => !v.date || v.status === "approved", { message: "“Duyệt tất cả” của một ngày chỉ dùng để xác nhận hợp lệ." });
+
+/**
+ * Duyệt nhiều check-in một lượt (một giao dịch):
+ *   • `date`: "Duyệt tất cả" bản chờ duyệt của một ngày — BỎ QUA bản có cảnh báo (ảnh trùng / sai ngày / thiếu ảnh bắt buộc) và bản của chính mình;
+ *   • `ids`: các bản người duyệt đã chọn trong hàng đợi (hợp lệ hoặc không hợp lệ kèm lý do) — bỏ qua bản đã xử lý và bản của chính mình.
+ * Trả về kết quả + danh sách để gửi thông báo (bước tin cậy, luuxa_worker).
+ */
+export async function reviewBulk(tx: Tx, b: z.infer<typeof BulkReviewSchema>): Promise<{ result: MassBulkReviewResultDto; reviewed: ReviewedCheckin[] }> {
+  await assertManage(tx, "Chỉ Trưởng nhà, Ban Phụng vụ hoặc Admin được duyệt check-in đi lễ.");
+  const note = b.note?.trim() || null;
+  if (b.status === "rejected" && (note?.length ?? 0) < 3) throw badRequest("Nêu lý do không hợp lệ (tối thiểu 3 ký tự) để anh em biết bổ sung.");
+  const c = await loadConf(tx);
+  const skipped: MassBulkReviewResultDto["skipped"] = [];
+  const ids: string[] = [];
+  const SELF = "Check-in của chính bạn — để người khác duyệt.";
+  if (b.date) {
+    const req = requirementFor(c, liturgicalDay(b.date));
+    const rows = (
+      await tx.query(
+        `SELECT c.id, c.member_id, c.status, c.evidence_file_id, COALESCE(m.display_name, m.full_name) AS name, f.phash::text AS phash, f.taken_at
+           FROM mass_checkins c JOIN members m ON m.id = c.member_id LEFT JOIN storage_files f ON f.id = c.evidence_file_id
+          WHERE c.day_date = $1::date`,
+        [b.date]
+      )
+    ).rows;
+    const flags = photoFlags(rows as Parameters<typeof photoFlags>[0], b.date, req);
+    rows.forEach((r, i) => {
+      if (r.status !== "submitted") return;
+      if (r.member_id === c.me) skipped.push({ id: r.id, name: r.name, reason: SELF });
+      else if (flags[i].flagged) skipped.push({ id: r.id, name: r.name, reason: flags[i].duplicateOf ? `Ảnh giống ảnh của ${flags[i].duplicateOf}.` : flags[i].warning ?? "Có cảnh báo." });
+      else ids.push(r.id);
+    });
+  } else {
+    const want = [...new Set(b.ids ?? [])];
+    const rows = (
+      await tx.query(
+        "SELECT c.id, c.member_id, c.status, COALESCE(m.display_name, m.full_name) AS name FROM mass_checkins c JOIN members m ON m.id = c.member_id WHERE c.id = ANY($1::uuid[])",
+        [want]
+      )
+    ).rows;
+    const found = new Map(rows.map((r) => [r.id as string, r]));
+    for (const id of want) {
+      const r = found.get(id);
+      if (!r) skipped.push({ id, name: "—", reason: "Không tìm thấy check-in." });
+      else if (r.status !== "submitted") skipped.push({ id, name: r.name, reason: "Đã được xử lý trước đó." });
+      else if (r.member_id === c.me) skipped.push({ id, name: r.name, reason: SELF });
+      else ids.push(id);
+    }
+  }
+  const updated = ids.length
+    ? (
+        await tx.query(
+          "UPDATE mass_checkins SET status = $2, review_note = $3 WHERE id = ANY($1::uuid[]) AND status = 'submitted' RETURNING id, member_id, day_date::text AS d, status, review_note",
+          [ids, b.status, note]
+        )
+      ).rows
+    : [];
+  const titles = new Map<string, string>();
+  const title = (d: string) => titles.get(d) ?? (titles.set(d, occasionTitle(c, d)), titles.get(d)!);
+  return {
+    result: { reviewed: updated.length, skipped },
+    reviewed: updated.map((r) => ({ id: r.id, memberId: r.member_id, date: r.d, status: r.status, note: r.review_note ?? null, label: title(r.d) })),
+  };
 }
 
 // ---------------------------------------------------------------------
@@ -518,43 +715,120 @@ export function upcomingFrom(c: Conf, horizon: number): UpcomingFeastDto[] {
   return out;
 }
 
+/** Các ngày bắt buộc check-in trong [from, to] đã đến (≤ hôm nay) theo cấu hình HIỆN TẠI (lịch phụng vụ + ngày đặc biệt). */
+export function requiredMassDays(c: Conf, from: string, to: string): { d: LitDay; req: MassRequirementDto }[] {
+  const end = to < c.today ? to : c.today;
+  if (end < from) return [];
+  return liturgicalRange(from, end)
+    .map((d) => ({ d, req: requirementFor(c, d) }))
+    .filter((x): x is { d: LitDay; req: MassRequirementDto } => !!x.req);
+}
+
+export interface MassTally {
+  cells: MassReportCell[];
+  /** Số lễ phải tính: đã check-in (xác nhận / chờ) + vắng. Ngày còn hạn mà chưa check-in KHÔNG tính. */
+  required: number;
+  attended: number;
+  approved: number;
+  pending: number;
+  missed: number;
+  missing: string[];
+}
+
+/**
+ * Đếm đi lễ của MỘT thành viên trên các ngày bắt buộc: ngoài thời gian ở nhà [joined, left] ⇒ "na" (không tính); chưa check-in mà còn hạn
+ * ⇒ "open" (chưa tính); quá hạn chưa check-in hoặc bị đánh dấu chưa hợp lệ ⇒ vắng.
+ */
+export function tallyMass(
+  today: string,
+  days: { d: LitDay; req: MassRequirementDto }[],
+  win: { from: string | null; to: string | null },
+  statusOf: (date: string) => string | undefined
+): MassTally {
+  const t: MassTally = { cells: [], required: 0, attended: 0, approved: 0, pending: 0, missed: 0, missing: [] };
+  for (const { d, req } of days) {
+    let cell: MassReportCell;
+    if ((win.from && d.date < win.from) || (win.to && d.date > win.to)) cell = "na";
+    else {
+      const s = statusOf(d.date);
+      cell = s === "approved" || s === "submitted" || s === "rejected" ? s : today <= req.deadline ? "open" : "none";
+    }
+    if (cell === "approved") t.approved++;
+    else if (cell === "submitted") t.pending++;
+    else if (cell === "rejected" || cell === "none") {
+      t.missed++;
+      t.missing.push(d.date);
+    }
+    t.cells.push(cell);
+  }
+  t.attended = t.approved + t.pending;
+  t.required = t.attended + t.missed;
+  return t;
+}
+
+/** Số ngày giữa hai mốc YYYY-MM-DD (tính cả hai đầu). */
+const spanDays = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+const MAX_REPORT_DAYS = 366;
+
+/**
+ * Báo cáo đi lễ của cả nhà trong một khoảng ngày (≤ 366 ngày): các ngày bắt buộc đã đến + từng thành viên × từng ngày.
+ * Thành viên: đang ở (kể cả tạm vắng) hoặc đã rời nhà trong khoảng; chỉ tính các ngày trong thời gian ở nhà.
+ */
 export async function massReport(tx: Tx, q: { from: string | null; to: string | null }): Promise<MassReportDto> {
   await assertManage(tx, "Chỉ Trưởng nhà, Ban Phụng vụ hoặc Admin xem được báo cáo đi lễ của cả nhà.");
   const p = RangeQuery.safeParse(q);
   if (!p.success) throw badRequest("Cần from và to dạng YYYY-MM-DD.");
   const { from, to } = p.data;
-  if (to < from || liturgicalRange(from, to).length > 93) throw badRequest("Khoảng ngày tối đa 93 ngày.");
+  if (to < from || spanDays(from, to) > MAX_REPORT_DAYS) throw badRequest(`Khoảng ngày tối đa ${MAX_REPORT_DAYS} ngày.`);
   const c = await loadConf(tx);
-  const reqDays = liturgicalRange(from, to)
-    .filter((d) => d.date <= c.today)
-    .map((d) => ({ d, req: requirementFor(c, d) }))
-    .filter((x): x is { d: LitDay; req: MassRequirementDto } => !!x.req);
+  const reqDays = requiredMassDays(c, from, to);
   const [members, checks] = await Promise.all([
     tx.query(
-      `SELECT m.id, COALESCE(m.display_name, m.full_name) AS name,
-              (SELECT r.code FROM room_assignments ra JOIN rooms r ON r.id = ra.room_id
-                WHERE ra.member_id = m.id AND ra.starts_on <= app.local_today() AND (ra.ends_on IS NULL OR ra.ends_on > app.local_today())
-                ORDER BY ra.starts_on DESC LIMIT 1) AS room
-         FROM members m WHERE m.deleted_at IS NULL AND m.status = 'active' ORDER BY COALESCE(m.display_name, m.full_name)`
+      `SELECT m.id, COALESCE(m.display_name, m.full_name) AS name, m.full_name, m.joined_on::text AS joined, m.left_on::text AS left_on,
+              ${ROOM_ON("app.local_today()")} AS room
+         FROM members m
+        WHERE m.deleted_at IS NULL AND m.joined_on <= $2::date
+          AND (m.status IN ('active', 'on_leave') OR (m.left_on IS NOT NULL AND m.left_on >= $1::date))
+        ORDER BY COALESCE(m.display_name, m.full_name)`,
+      [from, to]
     ),
     tx.query("SELECT member_id, day_date::text AS d, status FROM mass_checkins WHERE day_date BETWEEN $1 AND $2", [from, to]),
   ]);
-  const ok = new Set(checks.rows.filter((r) => r.status !== "rejected").map((r) => `${r.member_id}|${r.d}`));
+  const st = new Map(checks.rows.map((r) => [`${r.member_id}|${r.d}`, r.status as string]));
+  const rows = members.rows.map((m) => ({
+    m,
+    t: tallyMass(c.today, reqDays, { from: m.joined, to: m.left_on ?? null }, (date) => st.get(`${m.id}|${date}`)),
+  }));
   return {
     from,
     to,
-    days: reqDays.map(({ d, req }) => ({
-      date: d.date,
-      title: req.occasion.startsWith("special:") || req.occasion === "patron" ? req.label : d.title,
-      label: req.label,
-      evidenceRequired: req.evidenceRequired,
-      expected: members.rows.length,
-      checkedIn: members.rows.filter((m) => ok.has(`${m.id}|${d.date}`)).length,
-    })),
-    members: members.rows.map((m) => {
-      const missing = reqDays.filter(({ d }) => !ok.has(`${m.id}|${d.date}`)).map(({ d }) => d.date);
-      return { memberId: m.id, name: m.name, room: m.room ?? null, required: reqDays.length, attended: reqDays.length - missing.length, missing };
+    today: c.today,
+    days: reqDays.map(({ d, req }, i) => {
+      const cells = rows.map((r) => r.t.cells[i]);
+      return {
+        date: d.date,
+        title: req.occasion.startsWith("special:") || req.occasion === "patron" ? req.label : d.title,
+        label: req.label,
+        evidenceRequired: req.evidenceRequired,
+        deadline: req.deadline,
+        expected: cells.filter((x) => x !== "na").length,
+        checkedIn: cells.filter((x) => x === "approved" || x === "submitted").length,
+        pending: cells.filter((x) => x === "submitted").length,
+      };
     }),
+    members: rows.map(({ m, t }) => ({
+      memberId: m.id,
+      name: m.name,
+      fullName: m.full_name,
+      room: m.room ?? null,
+      required: t.required,
+      attended: t.attended,
+      approved: t.approved,
+      pending: t.pending,
+      missed: t.missed,
+      missing: t.missing,
+      cells: t.cells,
+    })),
   };
 }
 

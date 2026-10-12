@@ -147,7 +147,16 @@ export default function DonationsPanel() {
             <li key={d.id} className={cn("bg-white border rounded-2xl p-4 space-y-2", d.status === "pending" ? "border-amber-200" : "border-purple-100", busy === d.id && "opacity-60 pointer-events-none")}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-extrabold text-gray-900">{d.donorName}{d.isMember ? <span className="ml-2 text-[10px] font-bold text-primary bg-purple-50 px-1.5 py-0.5 rounded">Thành viên</span> : <span className="ml-2 text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Người ngoài</span>}</p>
+                  <p className="font-extrabold text-gray-900">
+                    {d.donorName}
+                    {d.isMember ? (
+                      <span className="ml-2 text-[10px] font-bold text-primary bg-purple-50 px-1.5 py-0.5 rounded">Thành viên</span>
+                    ) : d.selfReported ? (
+                      <span className="ml-2 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded" title="Người ngoài tự báo qua trang Ủng hộ công khai">Báo từ trang công khai</span>
+                    ) : (
+                      <span className="ml-2 text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Người ngoài</span>
+                    )}
+                  </p>
                   <p className="text-xs text-gray-500">{dmy(d.donatedOn)} · {DONATION_METHOD_LABEL[d.method]}{d.referenceCode ? ` · mã ${d.referenceCode}` : ""}{d.fundName ? ` · vào ${d.fundName}` : ""}</p>
                 </div>
                 <div className="text-right shrink-0">
@@ -157,7 +166,13 @@ export default function DonationsPanel() {
               </div>
               {d.note && <p className="text-sm text-gray-700">{d.note}</p>}
               {d.decisionNote && d.status !== "confirmed" && <p className="text-xs text-gray-500">Ghi chú xử lý: {d.decisionNote}</p>}
-              {d.selfReported && d.status === "pending" && <p className="text-[11px] text-amber-700">Thành viên tự báo — cần đối chiếu tiền về trước khi xác nhận.</p>}
+              {d.selfReported && d.status === "pending" && (
+                <p className="text-[11px] text-amber-700">
+                  {d.isMember
+                    ? "Thành viên tự báo — cần đối chiếu tiền về trước khi xác nhận."
+                    : "Báo từ trang công khai — đối chiếu sao kê (số tiền, ngày, nội dung chuyển khoản) trước khi xác nhận; không thấy tiền về thì bấm “Chưa nhận được”."}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 pt-0.5">
                 {canRecord && (d.status === "pending" || d.status === "pledged") && (
                   <button type="button" onClick={() => setConfirming(d)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition active:scale-95"><Check className="w-3.5 h-3.5" /> Đã nhận tiền</button>

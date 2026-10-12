@@ -12,8 +12,12 @@ import { loadLiturgyConf, requirementFor, upcomingFrom } from "../modules/liturg
 const vnNow = () => new Date(Date.now() + 7 * 3600e3);
 const dm = (iso: string) => `${+iso.slice(8)}/${+iso.slice(5, 7)}`;
 
-/** Trả về số thông báo đã tạo và các tin MỚI gửi (báo trước / hôm trước) để đăng thêm vào nhóm Zalo. */
-export async function runLiturgyNotices(): Promise<{ sent: number; posts: { title: string; body: string }[] }> {
+/**
+ * Trả về số thông báo đã tạo và các tin MỚI gửi (báo trước / hôm trước) để đăng thêm vào nhóm Zalo.
+ * `eveningSlot`: gọi từ lượt cron buổi tối (Vercel chỉ chạy cron 2 lần/ngày, lượt tối rơi vào 19:00–19:59) ⇒ nhắc check-in luôn được gửi
+ * trong lượt này dù giờ nhắc cấu hình muộn hơn (trước đây đặt 20:30 thì KHÔNG BAO GIỜ gửi vì không còn lượt nào sau đó).
+ */
+export async function runLiturgyNotices(opts: { eveningSlot?: boolean } = {}): Promise<{ sent: number; posts: { title: string; body: string }[] }> {
   const now = vnNow();
   const hm = now.toISOString().slice(11, 16);
   if (hm < "07:00") return { sent: 0, posts: [] };
@@ -38,7 +42,7 @@ export async function runLiturgyNotices(): Promise<{ sent: number; posts: { titl
           kind,
           title.slice(0, 200),
           body,
-          JSON.stringify({ href: `/lich-su-kien?date=${day}`, date: day }),
+          JSON.stringify({ link: `/lich-su-kien?date=${day}`, date: day }),
           onlyMissing,
         ])
       ).rows[0].n;
@@ -61,7 +65,7 @@ export async function runLiturgyNotices(): Promise<{ sent: number; posts: { titl
     // Nhắc check-in tối ngày lễ bắt buộc
     const today = conf.today;
     const req = requirementFor(conf, liturgicalDay(today));
-    if (req && hm >= remindAt) {
+    if (req && (hm >= remindAt || opts.eveningSlot)) {
       const d = liturgicalDay(today);
       await send(
         today,

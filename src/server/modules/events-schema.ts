@@ -71,3 +71,76 @@ export const CheckInSchema = z.object({
 export const VoteSchema = z.object({
   optionIds: z.array(zId).max(20),
 });
+
+// ---------------------------------------------------------------------
+// Sự kiện định kỳ (lặp hằng tuần)
+// ---------------------------------------------------------------------
+const zDay = z.string().trim().max(20);
+const zWeekdays = z
+  .array(z.number().int().min(1, "Thứ không hợp lệ.").max(7, "Thứ không hợp lệ."))
+  .min(1, "Chọn ít nhất một thứ trong tuần.")
+  .max(7);
+
+const SeriesFields = {
+  title: z.string().trim().min(3, "Tên sự kiện tối thiểu 3 ký tự.").max(200, "Tên sự kiện tối đa 200 ký tự."),
+  /** Giờ bắt đầu dạng chữ như form sự kiện ("21:00", "9h tối") */
+  time: z.string().trim().min(1, "Nhập giờ bắt đầu.").max(30),
+  endTime: optText(30),
+  categoryCode: z.string().trim().regex(/^[A-Z][A-Z0-9_]*$/, "Mã danh mục không hợp lệ.").max(40).optional(),
+  categoryId: zId.optional(),
+  location: optText(200),
+  organizerText: optText(200),
+  organizerIds: z.array(zId).max(20).optional(),
+  description: optText(2000),
+  hasCheckIn: z.boolean().optional(),
+  weekdays: zWeekdays,
+  intervalWeeks: z.number().int().min(1, "Chu kỳ tối thiểu 1 tuần.").max(4, "Chu kỳ tối đa 4 tuần.").optional(),
+  /** Ngày kết thúc (DD/MM/YYYY hoặc YYYY-MM-DD) — hoặc count — hoặc để trống (không kết thúc) */
+  untilDate: zDay.nullable().optional(),
+  count: z.number().int().min(1, "Số buổi tối thiểu 1.").max(200, "Tối đa 200 buổi.").nullable().optional(),
+};
+
+export const SeriesCreateSchema = z.object({
+  ...SeriesFields,
+  /** Ngày bắt đầu chuỗi */
+  startsOn: zDay,
+  notifyApp: z.boolean().optional(),
+  notifyZalo: z.boolean().optional(),
+});
+export type SeriesCreateInput = z.infer<typeof SeriesCreateSchema>;
+
+export const SeriesPatchSchema = z
+  .object(SeriesFields)
+  .partial()
+  .extend({
+    /** Áp dụng cho các buổi từ ngày này (mặc định hôm nay); buổi đã diễn ra không đổi */
+    fromDate: zDay.optional(),
+    /** Tiếp tục chuỗi đã dừng */
+    isActive: z.literal(true).optional(),
+    /** true = bỏ ngày kết thúc (lặp không kết thúc) */
+    noEnd: z.boolean().optional(),
+  });
+export type SeriesPatchInput = z.infer<typeof SeriesPatchSchema>;
+
+export const SeriesSkipSchema = z.object({
+  date: zDay,
+  reason: optText(300),
+  /** Báo cả nhà (thông báo trong ứng dụng) */
+  notify: z.boolean().optional(),
+});
+
+export const SeriesRestoreSchema = z.object({ date: zDay });
+
+export const SeriesStopSchema = z.object({
+  /** Dừng từ ngày (mặc định hôm nay): các buổi chưa diễn ra từ ngày này bị gỡ khỏi lịch */
+  fromDate: zDay.optional(),
+  reason: optText(300),
+  notify: z.boolean().optional(),
+});
+
+// ---------------------------------------------------------------------
+// Đồng bộ lịch (đường dẫn .ics cá nhân)
+// ---------------------------------------------------------------------
+export const FeedTokenCreateSchema = z.object({
+  label: z.string().trim().max(60, "Tên gợi nhớ tối đa 60 ký tự.").nullable().optional(),
+});

@@ -2,40 +2,12 @@ import "server-only";
 import type { Tx } from "../db";
 import { notFound } from "../errors";
 import type { NotificationDto, NotificationsDto } from "@/lib/types/community";
+import { notificationLink } from "@/lib/notification-link";
 import { listAnnouncements, markAllRead as markAllAnnouncementsRead, unreadCounts } from "./announcements";
 import { currentMemberId, iso } from "./community-shared";
 
-// Đường dẫn mở khi bấm một thông báo (payload.link do hàm gửi đặt; còn lại suy theo bảng thực thể)
-const LINK_BY_TABLE: Record<string, string> = {
-  announcements: "/thong-bao",
-  forum_posts: "/dien-dan",
-  prayer_intentions: "/phung-vu",
-  liturgy_assignments: "/phung-vu",
-  events: "/lich-su-kien",
-  expense_vouchers: "/thu-chi",
-  contributions: "/thu-chi",
-  duty_assignments: "/hau-can",
-  duty_swap_requests: "/hau-can",
-  duty_checkins: "/hau-can",
-  maintenance_issues: "/hau-can",
-  academic_records: "/hoc-tap",
-  albums: "/khoanh-khac",
-  leave_requests: "/xin-phep",
-  admission_inquiries: "/bai-viet",
-};
-const LINK_BY_CATEGORY: Record<string, string> = {
-  announcement: "/thong-bao",
-  finance: "/thu-chi",
-  duty: "/hau-can",
-  event: "/lich-su-kien",
-  academic: "/hoc-tap",
-  facility: "/hau-can",
-  laundry: "/hau-can",
-  meal: "/bep-com",
-  social: "/dien-dan",
-  security: "/cai-dat",
-  system: "/cai-dat",
-};
+// Đường dẫn mở khi bấm một thông báo: payload.link do hàm gửi đặt; thiếu thì suy theo LOẠI thông báo, rồi bảng thực thể, rồi nhóm
+// (quy tắc chung với thông báo đẩy — src/lib/notification-link.ts).
 
 export async function listNotifications(tx: Tx): Promise<NotificationsDto> {
   await currentMemberId(tx);
@@ -59,11 +31,7 @@ export async function listNotifications(tx: Tx): Promise<NotificationsDto> {
     priority: r.priority,
     createdAt: iso(r.created_at),
     isRead: !!r.read_at,
-    link:
-      (typeof r.payload?.link === "string" && r.payload.link.startsWith("/") && !r.payload.link.startsWith("//") ? r.payload.link : null) ??
-      LINK_BY_TABLE[r.entity_table] ??
-      LINK_BY_CATEGORY[r.category] ??
-      null,
+    link: notificationLink({ typeCode: r.type_code, entityTable: r.entity_table, category: r.category, payload: r.payload }),
   }));
   const [announcements, unread] = [await listAnnouncements(tx, { limit: 30 }), await unreadCounts(tx)];
   return { items, announcements, unread };

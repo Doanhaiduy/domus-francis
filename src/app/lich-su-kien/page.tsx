@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -15,15 +15,18 @@ import {
   Church,
   Settings2,
   Star,
+  Repeat,
+  CalendarSync,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { eventPhase, vnParts } from "@/lib/events-format";
-import { eventsApi, refreshEvents, useDayDuties, useMonthEvents, usePolls } from "@/lib/data/events";
-import type { EventDto } from "@/lib/types/events";
+import { eventsApi, refreshEvents, useMonthEvents, usePolls } from "@/lib/data/events";
+import type { EventDto, EventSeriesDto } from "@/lib/types/events";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CustomTextarea } from "@/components/ui/FormControls";
 import LichSuKienLoading from "./loading";
 import EventDayCard from "./_components/EventDayCard";
 import EventFormModal from "./_components/EventFormModal";
@@ -31,6 +34,10 @@ import PollFormModal from "./_components/PollFormModal";
 import PollCard from "./_components/PollCard";
 import CheckInModal from "./_components/CheckInModal";
 import AttendanceCard from "./_components/AttendanceCard";
+import AttendanceExportCard from "./_components/AttendanceExportCard";
+import DayDutyPanel from "./_components/DayDutyPanel";
+import SeriesModal from "./_components/SeriesModal";
+import CalendarSyncModal from "./_components/CalendarSyncModal";
 import { catStyle } from "./_components/styles";
 import { useLiturgyMonth, useUpcomingFeasts } from "@/lib/data/liturgy-calendar";
 import type { CalendarDayDto } from "@/lib/types/liturgy";
@@ -68,7 +75,14 @@ export default function LichSuKienPage() {
   const { events, categories, isLoading } = useMonthEvents(currentYear, currentMonth);
   const { polls } = usePolls();
   const selectedIso = `${currentYear}-${pad(currentMonth + 1)}-${pad(selectedDay)}`;
-  const duties = useDayDuties(selectedIso);
+  const dayPanelRef = useRef<HTMLDivElement>(null);
+  /** Chọn một ngày trên lưới; điện thoại/màn hẹp (panel ngày nằm dưới lưới) ⇒ tự cuộn xuống panel ngày */
+  const pickDay = (d: number) => {
+    setSelectedDay(d);
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+      requestAnimationFrame(() => dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  };
   // Lịch phụng vụ của tháng (tên lễ, màu áo lễ, âm lịch, Bổn mạng, ngày đặc biệt, ngày phải check-in đi lễ)
   const { month: liturgy } = useLiturgyMonth(currentYear, currentMonth);
   const upcomingFeasts = useUpcomingFeasts(30);
@@ -93,7 +107,17 @@ export default function LichSuKienPage() {
   }, []);
 
   // Modal
-  const [eventForm, setEventForm] = useState<{ open: boolean; event: EventDto | null; date: string | null }>({ open: false, event: null, date: null });
+  const [eventForm, setEventForm] = useState<{
+    open: boolean;
+    event: EventDto | null;
+    date: string | null;
+    seriesEdit?: { series: EventSeriesDto; fromDate: string | null } | null;
+    repeat?: boolean;
+    /** Mở lại danh sách "Sự kiện định kỳ" sau khi đóng form */
+    backToSeries?: boolean;
+  }>({ open: false, event: null, date: null });
+  const [seriesPanel, setSeriesPanel] = useState<{ open: boolean; focusId: string | null }>({ open: false, focusId: null });
+  const [syncOpen, setSyncOpen] = useState(false);
   const [pollForm, setPollForm] = useState<{ open: boolean; eventId: string | null }>({ open: false, eventId: null });
   const [checkInEvent, setCheckInEvent] = useState<EventDto | null>(null);
   const [cancelTarget, setCancelTarget] = useState<EventDto | null>(null);
@@ -216,6 +240,12 @@ export default function LichSuKienPage() {
     },
     onDelete: (e: EventDto) => setDeleteTarget(e),
     onCheckIn: (e: EventDto) => setCheckInEvent(e),
+    onOpenSeries: (id: string) => setSeriesPanel({ open: true, focusId: id }),
+  };
+  const closeEventForm = () => {
+    const back = eventForm.backToSeries;
+    setEventForm({ open: false, event: null, date: null });
+    if (back) setSeriesPanel((s) => ({ ...s, open: true }));
   };
 
   return (
@@ -234,6 +264,22 @@ export default function LichSuKienPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSyncOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold border border-sky-200 transition active:scale-95"
+            title="Thêm lịch sinh hoạt của nhà vào Google Calendar / Lịch iPhone"
+          >
+            <CalendarSync className="w-4 h-4" />
+            <span>Đồng bộ lịch</span>
+          </button>
+          <button
+            onClick={() => setSeriesPanel({ open: true, focusId: null })}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition active:scale-95"
+            title="Sinh hoạt lặp lại hằng tuần: xem, bỏ một ngày, sửa, dừng"
+          >
+            <Repeat className="w-4 h-4" />
+            <span>Định kỳ</span>
+          </button>
           {canManageLiturgy && (
             <button
               onClick={() => setLiturgySettingsOpen(true)}
@@ -399,7 +445,7 @@ export default function LichSuKienPage() {
                   return (
                     <div
                       key={d}
-                      onClick={() => setSelectedDay(d)}
+                      onClick={() => pickDay(d)}
                       title={lit ? `${lit.title}${lit.isPatron ? " · Lễ Bổn mạng của nhà" : ""}${special ? ` · ${special.title}` : ""} · Âm lịch ${lit.lunarLabel}` : undefined}
                       className={cn(
                         "h-[4.5rem] sm:h-24 p-1.5 pb-2 rounded-xl cursor-pointer transition flex flex-col justify-between text-left border relative select-none group overflow-hidden",
@@ -513,7 +559,7 @@ export default function LichSuKienPage() {
             </div>
 
             {/* RIGHT: DAY DETAILS */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
+            <div ref={dayPanelRef} className="lg:col-span-5 flex flex-col gap-4 scroll-mt-24">
               <LiturgyDayPanel date={selectedIso} onOpenSettings={canManageLiturgy ? () => setLiturgySettingsOpen(true) : undefined} />
               <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -569,29 +615,8 @@ export default function LichSuKienPage() {
                   </div>
                 )}
 
-                {/* DAILY DUTIES (lịch trực đã công bố) */}
-                <div className="p-4 rounded-2xl bg-surface-container-low/60 border border-purple-50">
-                  <div className="flex items-center justify-between text-xs font-bold text-gray-800 mb-2">
-                    <span>
-                      🧹 Phân công trực nhật ngày {selectedDay}/{currentMonth + 1}
-                    </span>
-                    <span className={cn("font-bold", duties.length ? "text-emerald-700" : "text-gray-400")}>{duties.length} Ca</span>
-                  </div>
-                  {duties.length > 0 ? (
-                    <div className="space-y-2 text-xs">
-                      {duties.map((dt) => (
-                        <div key={dt.id} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-gray-100">
-                          <span className="text-gray-500">
-                            {dt.area} <span className="text-gray-400">({dt.shift})</span>:
-                          </span>
-                          <span className="font-bold text-gray-900 text-right">{dt.members.join(", ") || "—"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-gray-400">Chưa có lịch trực nhật được công bố cho ngày này.</p>
-                  )}
-                </div>
+                {/* TRỰC VỆ SINH SÂN NHÀ của tuần chứa ngày đang xem (duty_weeks) */}
+                <DayDutyPanel date={selectedIso} />
               </div>
             </div>
           </div>
@@ -641,6 +666,10 @@ export default function LichSuKienPage() {
               </div>
             </div>
           </div>
+
+          {(canReadAllAttendance || can("event.attendance.record") || eventsWithCheckIn.some((e) => e.canRecord)) && (
+            <AttendanceExportCard year={currentYear} month={currentMonth} readAll={canReadAllAttendance} />
+          )}
 
           <div className="space-y-6">
             {eventsWithCheckIn.length === 0 && (
@@ -696,10 +725,12 @@ export default function LichSuKienPage() {
       {/* MODALS */}
       <EventFormModal
         open={eventForm.open}
-        onClose={() => setEventForm({ open: false, event: null, date: null })}
+        onClose={closeEventForm}
         categories={categories}
         event={eventForm.event}
         presetDate={eventForm.date}
+        seriesEdit={eventForm.seriesEdit ?? null}
+        presetRepeat={eventForm.repeat}
         onSaved={(e) => {
           const [y, m, d] = e.dateIso.split("-").map(Number);
           setCurrentYear(y);
@@ -707,6 +738,24 @@ export default function LichSuKienPage() {
           setSelectedDay(d);
         }}
       />
+      <SeriesModal
+        open={seriesPanel.open}
+        focusId={seriesPanel.focusId}
+        onClose={() => setSeriesPanel({ open: false, focusId: null })}
+        onCreate={() => {
+          setSeriesPanel((s) => ({ ...s, open: false }));
+          setEventForm({ open: true, event: null, date: selectedIso, repeat: true, backToSeries: true });
+        }}
+        onEdit={(s, fromDate) => {
+          setSeriesPanel({ open: false, focusId: s.id });
+          setEventForm({ open: true, event: null, date: null, seriesEdit: { series: s, fromDate }, backToSeries: true });
+        }}
+        onPickDate={(iso) => {
+          setSeriesPanel({ open: false, focusId: null });
+          goToDate(iso);
+        }}
+      />
+      <CalendarSyncModal open={syncOpen} onClose={() => setSyncOpen(false)} />
       <PollFormModal
         open={pollForm.open}
         onClose={() => setPollForm({ open: false, eventId: null })}
@@ -724,12 +773,12 @@ export default function LichSuKienPage() {
         message={
           <div className="space-y-2">
             <p>Sự kiện vẫn hiển thị trên lịch với nhãn ĐÃ HỦY; biểu quyết đang mở của sự kiện sẽ được đóng.</p>
-            <textarea
+            <CustomTextarea
+              aria-label="Lý do hủy"
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               rows={2}
               placeholder="Lý do hủy (bắt buộc)..."
-              className="w-full p-2 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none"
             />
           </div>
         }
@@ -742,7 +791,11 @@ export default function LichSuKienPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title={`Xóa sự kiện "${deleteTarget?.title ?? ""}"?`}
-        message="Sự kiện bị gỡ khỏi lịch (dữ liệu điểm danh vẫn được lưu để đối chiếu). Biểu quyết chưa có phiếu bị xóa, đã có phiếu thì được đóng."
+        message={
+          deleteTarget?.series
+            ? "Buổi này bị gỡ khỏi lịch và được ghi là ngày nghỉ của chuỗi định kỳ (khôi phục được ở mục Định kỳ khi ngày chưa qua). Các buổi khác của chuỗi không đổi."
+            : "Sự kiện bị gỡ khỏi lịch (dữ liệu điểm danh vẫn được lưu để đối chiếu). Biểu quyết chưa có phiếu bị xóa, đã có phiếu thì được đóng."
+        }
         confirmText="Xóa sự kiện"
         variant="danger"
       />

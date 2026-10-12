@@ -79,6 +79,7 @@ export function RulesView() {
                   <span className={cn("mr-2", r.isRed ? "text-red-600" : "text-primary")}>{r.code}</span>
                   {r.title}
                   {r.isRed && <RedBadge className="ml-2 align-[1px]" />}
+                  {r.repeatBecomesRed && <span className="ml-2 align-[1px] text-[10px] font-extrabold uppercase text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">Tái phạm ⇒ Lỗi đỏ</span>}
                   {!r.isActive && <span className="ml-2 text-[10px] font-extrabold uppercase text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">Đã ẩn</span>}
                 </p>
                 {r.description && <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>}
@@ -122,6 +123,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
   const [sortOrder, setSortOrder] = useState(String(rule?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState(rule?.isActive ?? true);
   const [isRed, setIsRed] = useState(rule?.isRed ?? false);
+  const [repeatRed, setRepeatRed] = useState(rule?.repeatBecomesRed ?? false);
   const [busy, setBusy] = useState(false);
   const needsQty = kind === "rosary" || kind === "mass" || kind === "duty";
 
@@ -143,6 +145,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
       defaultPenaltyQty: needsQty ? Number(qty) : null,
       defaultPenaltyNote: kind === "none" ? null : note.trim() || null,
       isRed,
+      repeatBecomesRed: isRed ? false : repeatRed,
       sortOrder: Number(sortOrder) || 0,
       isActive,
     };
@@ -174,6 +177,7 @@ function RuleForm({ rule, nextCode, onClose }: { rule?: DisciplineRuleDto; nextC
             </div>
             <CustomTextarea label="Mô tả (tùy chọn)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={1000} />
             <CustomToggle checked={isRed} onChange={setIsRed} label="Lỗi đỏ" description="Vi phạm nghiêm trọng — hiện nhãn LỖI ĐỎ và tô nền đỏ ở danh sách." />
+            {!isRed && <CustomToggle checked={repeatRed} onChange={setRepeatRed} label="Tái phạm ⇒ Lỗi đỏ" description="Từ lần thứ hai trong 12 tháng, form ghi vi phạm cảnh báo đỏ để người ghi xử lý như Lỗi đỏ (luật nhà L04–L09)." />}
             <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 space-y-3">
               <p className="text-xs font-extrabold text-gray-700">Hình phạt gợi ý khi vi phạm</p>
               <CustomSelect<PenaltyKind> label="Loại" value={kind} onChange={setKind} options={KIND_OPTIONS} />

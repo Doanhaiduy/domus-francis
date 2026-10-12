@@ -60,9 +60,10 @@ export const mealsApi = {
   register: (b: { date: string; meal: MealType; willEat: boolean; memberId?: string; guests?: number; note?: string | null }) =>
     api.put<{ menuId: string }>(`${MEALS_KEY}/registrations`, b),
   registerWeek: (date: string) =>
-    api.post<{ registered: number; skipped: number; message: string }>(`${MEALS_KEY}/registrations/bulk`, { scope: "self-week", date }),
+    api.post<{ registered: number; skipped: number; absent: number; message: string }>(`${MEALS_KEY}/registrations/bulk`, { scope: "self-week", date }),
   registerAll: (date: string, meals?: MealType[]) =>
-    api.post<{ registered: number; skipped: number; message: string }>(`${MEALS_KEY}/registrations/bulk`, { scope: "all-members", date, meals }),
+    api.post<{ registered: number; skipped: number; absent: number; message: string }>(`${MEALS_KEY}/registrations/bulk`, { scope: "all-members", date, meals }),
+  setAutoEat: (enabled: boolean) => api.put<{ autoEat: boolean; registered: number }>(`${MEALS_KEY}/auto-eat`, { enabled }),
   saveMenuDay: (b: { date: string; lunch?: MenuMealInput; dinner?: MenuMealInput; cooks?: { memberId: string; role: CookRole }[] }) =>
     api.put(`${MEALS_KEY}/menus`, b),
   putFeedback: (menuId: string, rating: number, comment: string | null) =>
@@ -75,7 +76,7 @@ export const mealsApi = {
   deleteSurvey: (id: string) => api.del<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}`),
   vote: (id: string, optionIds: string[]) => api.put<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}/votes`, { optionIds }),
   suggest: (id: string, label: string) => api.post<MealSurveyDto[]>(`${SURVEYS_KEY}/${id}/options`, { label }),
-  updateSettings: (b: { enabled?: boolean; lunchCutoff?: string; dinnerCutoff?: string }) =>
+  updateSettings: (b: { lunchCutoff?: string; dinnerCutoff?: string }) =>
     api.patch<MealSettingsDto>(`${MEALS_KEY}/settings`, b),
 };
 

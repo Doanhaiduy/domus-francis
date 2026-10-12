@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Camera, ImageIcon, MapPin } from "lucide-react";
 import { listPublicAlbums } from "@/server/modules/public-site";
-import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
-import { getSiteInfo, publicDb, siteOrigin } from "@/server/public";
+import { OG_DEFAULT_IMAGES, SITE_KIND } from "@/lib/public-site";
+import { getSiteInfo, publicDb } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { JoinCta } from "@/components/public/JoinCta";
@@ -14,9 +14,13 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { org } = await getSiteInfo();
-  const title = `Thư viện ảnh — ${org.houseName}`;
-  const description = `Khoảnh khắc đời sống, sinh hoạt và lễ hội của ${org.houseName}.`;
-  return { metadataBase: new URL(siteOrigin()), title, description, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
+  const description = `Khoảnh khắc đời sống, sinh hoạt và lễ hội của ${org.houseName} — ${SITE_KIND}.`;
+  return {
+    title: "Thư viện ảnh",
+    description,
+    alternates: { canonical: "/thu-vien" },
+    openGraph: { title: `Thư viện ảnh — ${org.houseName}`, description, url: "/thu-vien", type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES },
+  };
 }
 
 const fmt = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });

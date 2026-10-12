@@ -1,9 +1,8 @@
 import { api, uuidParam } from "@/server/http";
 import { adminDelete } from "@/server/modules/admin-delete";
 import { notFound } from "@/server/errors";
-import { listIssues, updateIssue } from "@/server/modules/facilities";
+import { listIssues, notifyIssue, updateIssue } from "@/server/modules/facilities";
 import { IssueUpdateSchema } from "@/server/modules/duty-schema";
-import { notifyMembers } from "@/server/modules/duty";
 import { ISSUE_STATUS_LABEL } from "@/lib/duty-format";
 
 export const GET = api({}, async (ctx) => {
@@ -24,10 +23,8 @@ export const PATCH = api({}, async (ctx) => {
     return { u, issue: (await listIssues(tx, { id })).issues[0] };
   });
   if (b.status) {
-    await notifyMembers(ctx, [out.u.reporterId], "facility.issue_updated", `${out.u.code}: ${ISSUE_STATUS_LABEL[out.u.status]}`, out.u.title, {
-      table: "maintenance_issues",
-      id,
-    });
+    // Báo người báo hỏng (trừ khi chính họ đổi), mở thẳng sự cố
+    await notifyIssue(ctx, { members: [out.u.reporterId] }, "facility.issue_updated", `${out.u.code}: ${ISSUE_STATUS_LABEL[out.u.status]}`, out.u.title, id);
   }
   return out.issue;
 });

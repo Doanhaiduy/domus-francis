@@ -3,6 +3,7 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
 import type { ApplicationDto, HouseDto, LookupDto, Member, MemberDetailDto, RoomDto } from "../types/members";
+import type { DepartureChecklistDto, DepartureResultDto, ReactivateResultDto, ResidenceExportDto } from "../types/members-lifecycle";
 
 export const MEMBERS_KEY = "/api/v1/members";
 export const HOUSE_KEY = "/api/v1/house";
@@ -58,6 +59,10 @@ export const membersApi = {
   update: (id: string, body: Record<string, unknown>) => api.patch<MemberDetailDto>(`${MEMBERS_KEY}/${id}`, body),
   changeStatus: (id: string, status: string, leftOn?: string | null, reason?: string | null) =>
     api.post(`${MEMBERS_KEY}/${id}/status`, { status, leftOn: leftOn ?? null, reason: reason ?? null }),
+  departureChecklist: (id: string) => api.get<DepartureChecklistDto>(`${MEMBERS_KEY}/${id}/departure`),
+  depart: (id: string, body: Record<string, unknown>) => api.post<DepartureResultDto>(`${MEMBERS_KEY}/${id}/departure`, body),
+  reactivate: (id: string, roomCode?: string | null) => api.post<ReactivateResultDto>(`${MEMBERS_KEY}/${id}/reactivate`, { roomCode: roomCode ?? null }),
+  residenceExport: (reason: string) => api.post<ResidenceExportDto>(`${MEMBERS_KEY}/export/residence`, { reason }),
   createAccount: (id: string, email: string) => api.post<{ email: string; temporaryPassword: string }>(`${MEMBERS_KEY}/${id}/account`, { email }),
   resetPassword: (id: string) => api.post<{ temporaryPassword: string }>(`${MEMBERS_KEY}/${id}/password-reset`),
   roles: (id: string) => api.get<{ hasAccount: boolean; roles: string[] }>(`${MEMBERS_KEY}/${id}/roles`),

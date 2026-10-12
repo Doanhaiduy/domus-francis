@@ -1,8 +1,18 @@
 import "server-only";
 import type { Tx } from "../db";
-import { badRequest, notFound } from "../errors";
+import { badRequest, forbidden, notFound } from "../errors";
 import { addDays, mondayOf } from "@/lib/duty-format";
-import type { DutyBoardDto, DutyCandidateDto, DutyWeekBriefDto, DutyWeekEntryDto, DutyWeekMemberDto } from "@/lib/types/duty";
+import type {
+  DutyBoardDto,
+  DutyBulkResultDto,
+  DutyCandidateDto,
+  DutyHistoryDto,
+  DutyPlanAction,
+  DutyPlanDto,
+  DutyWeekBriefDto,
+  DutyWeekEntryDto,
+  DutyWeekMemberDto,
+} from "@/lib/types/duty";
 import { DUTY_WEEK_MAX_MEMBERS } from "@/lib/types/duty";
 
 // =====================================================================
@@ -122,6 +132,154 @@ export async function dutyWeekEntryById(tx: Tx, id: string): Promise<DutyWeekEnt
   const r = (await tx.query(`${WEEK_SELECT} WHERE w.id = $1`, [id])).rows[0] ?? null;
   if (!r) throw notFound("Không tìm thấy tuần trực.");
   return toEntry(r, r.week_start, me);
+}
+
+// ---------------------------------------------------------------------
+// Xếp lịch trực tự động nhiều tuần — CÙNG thứ tự công bằng với danh sách gợi ý của bảng trực (getDutyBoard → candidates):
+//   số tuần đã trực tính từ 26 tuần trước tuần này (gồm cả các tuần sắp tới đã xếp) tăng dần → lần trực gần nhất cũ nhất (chưa từng trực
+//   xếp trước) → số thứ tự thành viên. Mỗi tuần được xếp thì những người vừa chọn được cộng 1 lượt + đổi "lần gần nhất" rồi xếp lại thứ tự
+//   cho tuần sau ⇒ trong N tuần không ai trực lần hai khi còn người cùng mức chưa trực.
+// ---------------------------------------------------------------------
+const FAIR_WINDOW_DAYS = 182;
+
+async function requireDutyManager(tx: Tx): Promise<{ me: string | null; today: string; thisWeekStart: string }> {
+  const v = (await tx.query("SELECT app.current_member_id() AS me, app.local_today()::text AS today, app.has_permission('duty.manage') AS manage")).rows[0];
+  if (!v.manage) throw forbidden("Chỉ Trưởng nhà hoặc Admin mới được xếp lịch trực vệ sinh.");
+  return { me: v.me, today: v.today, thisWeekStart: mondayOf(v.today) };
+}
+
+export async function planDutyWeeks(tx: Tx, q: { from?: string; weeks: number; overwrite: boolean }): Promise<DutyPlanDto> {
+  const v = await requireDutyManager(tx);
+  const from = q.from ? mondayOf(q.from) : v.thisWeekStart;
+  if (from < v.thisWeekStart) throw badRequest("Chỉ xếp lịch từ tuần này trở đi.");
+  const starts = Array.from({ length: q.weeks }, (_, i) => addDays(from, 7 * i));
+  const last = starts[starts.length - 1];
+  const cutoff = addDays(v.thisWeekStart, -FAIR_WINDOW_DAYS);
+
+  const [weekRows, hist, cands] = await Promise.all([
+    tx.query(`${WEEK_SELECT} WHERE w.week_start BETWEEN $1::date AND $2::date`, [from, last]),
+    tx.query<{ ws: string; member_id: string }>("SELECT w.week_start::text AS ws, wm.member_id FROM duty_week_members wm JOIN duty_weeks w ON w.id = wm.week_id"),
+    tx.query(
+      `SELECT m.id, m.display_name, m.full_name, m.member_no, m.avatar_file_id, r.code AS room
+         FROM members m ${ROOM_JOIN}
+        WHERE m.deleted_at IS NULL AND m.status = 'active'`,
+    ),
+  ]);
+  const existing = new Map<string, Row>(weekRows.rows.map((r) => [r.week_start, r]));
+  const hasPeople = (r: Row | undefined) => !!r && Array.isArray(r.members) && r.members.length > 0;
+  // Tuần sẽ bị thay người (ghi đè) ⇒ người đang xếp ở tuần đó không bị tính lượt
+  const replaced = new Set(starts.filter((ws) => q.overwrite && hasPeople(existing.get(ws)) && !existing.get(ws)!.reviewed_at));
+
+  const stats = new Map<string, { count: number; last: string | null }>(cands.rows.map((c) => [c.id as string, { count: 0, last: null }]));
+  for (const h of hist.rows) {
+    if (replaced.has(h.ws)) continue;
+    const st = stats.get(h.member_id);
+    if (!st) continue;
+    if (h.ws >= cutoff) st.count++;
+    if (!st.last || h.ws > st.last) st.last = h.ws;
+  }
+  const memberNo = new Map(cands.rows.map((c) => [c.id as string, Number(c.member_no)]));
+  const fairOrder = () =>
+    [...cands.rows].sort((a, b) => {
+      const x = stats.get(a.id)!;
+      const y = stats.get(b.id)!;
+      if (x.count !== y.count) return x.count - y.count;
+      if (x.last !== y.last) return x.last === null ? -1 : y.last === null ? 1 : x.last < y.last ? -1 : 1;
+      return memberNo.get(a.id)! - memberNo.get(b.id)!;
+    });
+  const asMember = (c: Row): DutyWeekMemberDto => ({ id: c.id, name: c.display_name, fullName: c.full_name, room: c.room ?? null, avatarFileId: c.avatar_file_id ?? null });
+
+  // Danh sách để sửa tay: thứ tự công bằng TRƯỚC khi xếp
+  const candidates: DutyCandidateDto[] = fairOrder().map((c) => ({
+    id: c.id,
+    name: c.display_name,
+    fullName: c.full_name,
+    room: c.room ?? null,
+    recentCount: stats.get(c.id)!.count,
+    lastWeek: stats.get(c.id)!.last,
+  }));
+
+  const weeks = starts.map((ws) => {
+    const e = existing.get(ws);
+    const entry = toEntry(e ?? null, ws, v.me);
+    const reviewed = !!e?.reviewed_at;
+    const action: DutyPlanAction = reviewed ? "locked" : entry.members.length && !q.overwrite ? "keep" : entry.members.length ? "overwrite" : "fill";
+    let proposed: DutyWeekMemberDto[] = [];
+    if (action === "fill" || action === "overwrite") {
+      const picked = fairOrder().slice(0, DUTY_WEEK_MAX_MEMBERS);
+      for (const p of picked) {
+        const st = stats.get(p.id)!;
+        st.count++;
+        if (!st.last || ws > st.last) st.last = ws;
+      }
+      proposed = picked.map(asMember);
+    }
+    return { weekStart: ws, weekEnd: entry.weekEnd, existing: entry.members, note: entry.note, reviewed, action, proposed };
+  });
+  return { thisWeekStart: v.thisWeekStart, from, overwrite: q.overwrite, peoplePerWeek: DUTY_WEEK_MAX_MEMBERS, weeks, candidates };
+}
+
+/**
+ * Lưu nhiều tuần trong MỘT giao dịch bằng đường lưu tuần sẵn có (app.fn_duty_week_save — kiểm 1–2 người đang ở, gửi thông báo người được xếp /
+ * bị gỡ). Tuần đã có người bị BỎ QUA trừ khi `overwrite`; tuần đã đánh giá không bao giờ đổi. Lỗi ở một tuần (vd. người đã rời nhà) ⇒ không
+ * lưu tuần nào.
+ */
+export async function saveDutyWeeksBulk(
+  tx: Tx,
+  b: { weeks: { weekStart: string; memberIds: string[]; note?: string | null }[]; overwrite: boolean },
+): Promise<DutyBulkResultDto> {
+  const v = await requireDutyManager(tx);
+  const seen = new Set<string>();
+  const list = [...b.weeks].sort((x, y) => x.weekStart.localeCompare(y.weekStart));
+  for (const w of list) {
+    if (mondayOf(w.weekStart) !== w.weekStart) throw badRequest(`Tuần ${w.weekStart} không bắt đầu từ Thứ Hai.`);
+    if (w.weekStart < v.thisWeekStart) throw badRequest("Không xếp lại lịch trực của các tuần đã qua.");
+    if (seen.has(w.weekStart)) throw badRequest(`Tuần ${w.weekStart} bị lặp.`);
+    seen.add(w.weekStart);
+  }
+  const saved: string[] = [];
+  const skipped: DutyBulkResultDto["skipped"] = [];
+  for (const w of list) {
+    const cur = (
+      await tx.query<{ id: string; note: string | null; reviewed_at: Date | null; n: number }>(
+        `SELECT w.id, w.note, w.reviewed_at, (SELECT count(*) FROM duty_week_members wm WHERE wm.week_id = w.id)::int AS n
+           FROM duty_weeks w WHERE w.week_start = $1::date`,
+        [w.weekStart],
+      )
+    ).rows[0];
+    if (cur?.reviewed_at) {
+      skipped.push({ weekStart: w.weekStart, reason: "Tuần đã được đánh giá — không đổi người trực." });
+      continue;
+    }
+    if (cur && cur.n > 0 && !b.overwrite) {
+      skipped.push({ weekStart: w.weekStart, reason: "Tuần đã có người trực (chưa chọn ghi đè)." });
+      continue;
+    }
+    const note = w.note === undefined ? cur?.note ?? null : w.note?.trim() || null;
+    await saveDutyWeek(tx, w.weekStart, [...new Set(w.memberIds)], note);
+    saved.push(w.weekStart);
+  }
+  return { saved, skipped };
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Lịch trực + kết quả đánh giá của các tuần có Thứ Hai trong [from, to] (≤ 2 năm) — xuất Excel. Mọi thành viên xem được (như bảng trực). */
+export async function dutyWeekHistory(tx: Tx, q: { from: string | null; to: string | null }): Promise<DutyHistoryDto> {
+  if (!q.from || !q.to || !ISO_DATE.test(q.from) || !ISO_DATE.test(q.to)) throw badRequest("Cần from và to dạng YYYY-MM-DD.");
+  if (q.to < q.from || Date.parse(q.to) - Date.parse(q.from) > 731 * 86_400_000) throw badRequest("Khoảng ngày tối đa 2 năm.");
+  const v = (await tx.query("SELECT app.current_member_id() AS me, app.local_today()::text AS today")).rows[0];
+  const [rows, house] = await Promise.all([
+    tx.query(`${WEEK_SELECT} WHERE w.week_start BETWEEN $1::date AND $2::date ORDER BY w.week_start`, [mondayOf(q.from), q.to]),
+    tx.query<{ v: string | null }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'org.house_name'"),
+  ]);
+  return {
+    from: q.from,
+    to: q.to,
+    today: v.today,
+    houseName: house.rows[0]?.v ?? null,
+    weeks: rows.rows.map((r) => toEntry(r, r.week_start, v.me)),
+  };
 }
 
 /**

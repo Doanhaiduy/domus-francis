@@ -2,7 +2,7 @@
 // Hook dữ liệu + thao tác đơn xin phép (SWR)
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
-import type { LeaveAllDto, LeaveKind, LeaveListDto, LeaveStatus } from "../types/leave";
+import type { LeaveAllDto, LeaveKind, LeaveListDto, LeaveStatus, LeaveTonightDto } from "../types/leave";
 
 export const LEAVE_KEY = "/api/v1/leave";
 const COUNT_KEY = `${LEAVE_KEY}/count`;
@@ -32,6 +32,12 @@ export function useLeaveAll(query: LeaveAllQuery, enabled = true) {
   p.set("limit", String(query.limit ?? 30));
   const { data, error, isLoading } = useSWR<LeaveAllDto>(enabled ? `${LEAVE_KEY}/all?${p}` : null, swrFetcher, { keepPreviousData: true });
   return { data, error, isLoading: isLoading && !data };
+}
+
+/** "Tối nay ai vắng / về muộn" (người quản lý duyệt đơn + người được nhờ giữ cửa tối nay; người khác nhận danh sách rỗng). */
+export function useLeaveTonight(enabled = true) {
+  const { data } = useSWR<LeaveTonightDto>(enabled ? `${LEAVE_KEY}/tonight` : null, swrFetcher, { refreshInterval: 300_000 });
+  return data;
 }
 
 /** Số đơn chờ duyệt cho huy hiệu thanh bên (0 nếu không có quyền duyệt). */

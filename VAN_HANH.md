@@ -9,14 +9,15 @@ Sổ tay cho người trực hệ thống (Admin / người kỹ thuật). Quy t
 | staging | https://domus-francis.vercel.app | `mxwlphjyxnrwrnfgiinr` | `staging` |
 | production | https://domus-francis-production.vercel.app | `hpevzmhdfmzczhgqjmnj` | `master` |
 
-Thành phần: Vercel (Next.js, cron), Supabase (PostgreSQL + Storage), Groq/Gemini (AI, tùy chọn), Resend (email), Web Push (VAPID), SePay/Casso (báo biến động số dư, tùy chọn), Cloudflare Turnstile (CAPTCHA, tùy chọn).
+Thành phần: Vercel (Next.js ở vùng `icn1` Seoul — cùng vùng Supabase, Vercel Cron 2 lượt/ngày), Supabase (PostgreSQL + Storage), Zalo Bot (tin nhóm, tùy chọn), Groq/Gemini (AI, tùy chọn), Cloudinary (video khoảnh khắc, tùy chọn), Resend (email, cần tên miền riêng), Web Push (VAPID), SePay/Casso (báo biến động số dư, tùy chọn), Cloudflare Turnstile (CAPTCHA, tùy chọn), GitHub Actions (CI + repo sao lưu riêng tư).
 
 ## 2. Giám sát
 
-- **Sống/sẵn sàng**: `GET /api/health` → 200 `{status:"ok"}` khi DB trả lời, 503 khi DB lỗi. Cho vào UptimeRobot / Better Stack (chu kỳ 5 phút, báo email).
-- **Lỗi trong ứng dụng**: lỗi máy chủ ghi vào log Vercel (`vercel logs <url>` hoặc Dashboard → Logs, lọc `error`). Lỗi giao diện của người dùng gửi về `POST /api/v1/public/client-error` (cũng thấy trong log).
-- **Tốc độ & lượt truy cập**: bật *Web Analytics* và *Speed Insights* trong Vercel Dashboard → dự án (mã đã nhúng sẵn).
-- **Tác vụ hằng ngày** (`/api/cron/daily`, 2 lần/ngày): nhắc sự kiện/đóng quỹ, dọn dữ liệu hết hạn, gửi thông báo đẩy còn tồn. Thiếu `CRON_SECRET` thì bị từ chối — xem log nếu thông báo không đến.
+- **Sống/sẵn sàng**: `GET /api/health` → 200 khi DB trả lời, 503 khi DB lỗi. **Sâu**: `GET /api/health?deep=1` → thêm 503 khi cron sáng/tối quá 30 giờ chưa chạy xong không lỗi, hoặc nhịp tim sao lưu quá 36 giờ (nếu đã từng có). Đặt HAI monitor UptimeRobot / Better Stack miễn phí (chu kỳ 5–15 phút, báo email): một cho `/api/health`, một cho `/api/health?deep=1`.
+- **Trong ứng dụng (Admin)**: Cài đặt → **Hệ thống** — lượt chạy tác vụ nền (`job_runs`, từng bước), nhật ký lỗi đã gộp (`error_events`: lỗi API 5xx, lỗi giao diện, lỗi cron, vi phạm CSP), kênh gửi (thông báo đẩy/email/Zalo), giao dịch ngân hàng chưa khớp, biến môi trường thiếu; dải cảnh báo đỏ dưới thanh tiêu đề khi cron/sao lưu có vấn đề. Mỗi sáng Admin nhận tóm tắt lỗi mới; cron lỗi ⇒ thông báo ngay (`system.ops_alert`).
+- **Mã lỗi**: người dùng thấy "(mã lỗi: xxxxxxxx)" trong thông báo lỗi — đó là 8 ký tự đầu `request_id`, tra ở nhật ký lỗi (Cài đặt → Hệ thống) hoặc log Vercel (Hobby chỉ giữ log ~1 giờ).
+- **Tốc độ**: header `Server-Timing` của mọi API (DevTools → Network → Timing: số vòng DB, thời gian DB); bật *Web Analytics* và *Speed Insights* trong Vercel Dashboard → dự án (mã đã nhúng sẵn).
+- **Tác vụ hằng ngày** (`/api/cron/daily`, 2 lần/ngày — sáng 07:00–07:59, tối 19:00–19:59 giờ VN): nhắc lễ/sự kiện/quỹ/sinh nhật/lịch trực/cơm, tin cho người quản lý, tóm tắt lỗi; lượt tối: dọn dẹp, đo dung lượng, kiểm toàn vẹn sổ cái, ẩn danh hồ sơ quá hạn lưu… Bước nào lỗi ⇒ trả 500 (Vercel → Cron Jobs hiện đỏ) + ghi `job_runs` + báo Admin. Thiếu `CRON_SECRET` ⇒ bị từ chối (503). Chạy tay/xem trước: Cài đặt → Tích hợp Zalo → Chạy thử.
 - **CI**: `.github/workflows/ci.yml` chạy typecheck + build + dựng DB từ đầu cho mỗi lần push.
 
 ## 3. Sao lưu & khôi phục
@@ -51,6 +52,10 @@ pnpm db:backup -- --env production --with-storage   # ra thư mục backup/ (đ�
 | `BANK_WEBHOOK_SECRET` | xác thực webhook SePay/Casso | đổi đồng thời ở SePay/Casso |
 | `RESEND_API_KEY`, `EMAIL_FROM` | gửi email (quên mật khẩu) | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | Storage từ máy chủ | tạo lại ở Supabase rồi cập nhật Vercel |
+| `ZALO_BOT_TOKEN` | bot đăng tin nhóm Zalo | tạo lại ở bot.zaloplatforms.com |
+| `CLOUDINARY_*` | video khoảnh khắc | tạo lại ở Cloudinary (mỗi môi trường một bộ) |
+| `OPS_HEARTBEAT_SECRET` | repo sao lưu báo "đã sao lưu" về ứng dụng | đổi đồng thời secret cùng tên ở repo sao lưu |
+| `DB_SSL_CA` | kiểm chứng chỉ máy chủ DB (tùy chọn) | tải lại CA ở Supabase khi họ đổi |
 
 - Sinh bộ khóa mới: `pnpm env:keys` (chỉ in màn hình). Mỗi môi trường một bộ riêng. File `.env.staging` / `.env.production` KHÔNG commit.
 - **Xoay vòng định kỳ** (6–12 tháng/lần, hoặc ngay khi nghi lộ): `CRON_SECRET`, `BANK_WEBHOOK_SECRET`, `AUTH_JWT_*` (chọn giờ ít người dùng), khóa API Groq/Gemini/Resend. Sau khi đổi trên Vercel phải **deploy lại** để có hiệu lực.
@@ -61,7 +66,7 @@ pnpm db:backup -- --env production --with-storage   # ra thư mục backup/ (đ�
 1. Đặt `BANK_WEBHOOK_SECRET` (≥ 16 ký tự) trên Vercel, deploy lại.
 2. SePay: Webhooks → thêm `https://<tên miền>/api/v1/public/bank-webhook`, kiểu xác thực **API Key** (SePay gửi `Authorization: Apikey <khóa>`). Casso: Webhook → cùng URL, “secure token” = chuỗi bí mật (header `secure-token`).
 3. Có tiền vào → Thủ quỹ nhận thông báo → Thu chi → Tổng quan → thẻ “Giao dịch ngân hàng” → xem gợi ý → **Ghi thu** (hoặc Bỏ qua + lý do).
-4. Webhook chỉ LƯU giao dịch (idempotent theo mã tham chiếu); không bao giờ tự ghi sổ. Cần túi quỹ loại “ngân hàng” đang hoạt động.
+4. Webhook chỉ LƯU giao dịch (idempotent theo mã tham chiếu); không bao giờ tự ghi sổ. Ghi vào túi quỹ "ngân hàng" đang hoạt động, không có thì vào túi quỹ duy nhất đang dùng (quỹ chung).
 5. Kiểm thử nhanh: gửi một giao dịch mẫu từ trang cấu hình của SePay/Casso; xem dòng mới ở thẻ trên.
 
 ## 6. Sự cố thường gặp

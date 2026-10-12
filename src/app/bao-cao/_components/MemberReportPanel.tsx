@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, FileSpreadsheet, FileText, HandHeart, Loader2, Search, Users, Wallet, Wrench } from "lucide-react";
+import { AlertTriangle, CalendarDays, Church, FileSpreadsheet, FileText, HandHeart, Loader2, Search, Users, Wallet, Wrench } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { useMemberReport } from "@/lib/data/member-report";
 import type { MemberReportDto, MemberReportKind, MemberReportRow, MemberReportScope } from "@/lib/types/member-report";
-import { CustomSelect } from "@/components/ui/FormControls";
+import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { formatVND, cn } from "@/lib/utils";
 import { vnToday } from "@/lib/vn-time";
 
@@ -19,10 +19,11 @@ const KINDS: { value: MemberReportKind; label: string }[] = [
   { value: "year", label: "Theo năm" },
 ];
 
-type SortKey = "name" | "absent" | "leave" | "discipline" | "owed" | "merit";
+type SortKey = "name" | "absent" | "mass" | "leave" | "discipline" | "owed" | "merit";
 const SORTS: { value: SortKey; label: string }[] = [
   { value: "name", label: "Tên A → Z" },
   { value: "absent", label: "Vắng nhiều nhất" },
+  { value: "mass", label: "Vắng lễ nhiều nhất" },
   { value: "leave", label: "Xin phép nhiều nhất" },
   { value: "discipline", label: "Vi phạm nhiều nhất" },
   { value: "owed", label: "Nợ quỹ nhiều nhất" },
@@ -30,6 +31,7 @@ const SORTS: { value: SortKey; label: string }[] = [
 ];
 const sortVal: Record<Exclude<SortKey, "name">, (m: MemberReportRow) => number> = {
   absent: (m) => (m.attendance?.absent ?? 0) * 1000 + (m.attendance?.excused ?? 0),
+  mass: (m) => m.mass?.missed ?? 0,
   leave: (m) => m.leave?.total ?? 0,
   discipline: (m) => m.discipline?.count ?? 0,
   owed: (m) => m.finance?.owedVnd ?? 0,
@@ -123,8 +125,10 @@ const Line = ({ k, v }: { k: string; v: React.ReactNode }) => (
 
 function HouseSummary({ r }: { r: MemberReportDto }) {
   const t = r.house_totals;
+  // 4 thẻ ⇒ lưới 4 cột; thêm thẻ Đi lễ (5 thẻ) ⇒ lưới 3 cột, dải "Sự kiện theo loại" lấp ô còn trống của hàng cuối
+  const five = !!t.mass;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={cn("grid gap-4 sm:grid-cols-2", five ? "xl:grid-cols-3" : "xl:grid-cols-4")}>
       <Tile icon={CalendarDays} title="Sự kiện & chuyên cần" tone="bg-sky-50 text-sky-700">
         <Line k="Số sự kiện" v={`${t.events.total} (${t.events.completed} đã diễn ra)`} />
         <Line k="Hành hương" v={t.events.pilgrimages} />
@@ -142,6 +146,15 @@ function HouseSummary({ r }: { r: MemberReportDto }) {
         {t.duty && <Line k="Lượt trực vệ sinh" v={`${t.duty.weeks} · TB ${dash(t.duty.avgScore)}/10`} />}
         {t.merit && <Line k="Điểm thi đua (tổng)" v={t.merit.points > 0 ? `+${t.merit.points}` : t.merit.points} />}
       </Tile>
+      {t.mass && (
+        <Tile icon={Church} title="Đi lễ (check-in)" tone="bg-violet-50 text-violet-700">
+          <Line k="Ngày lễ bắt buộc đã qua" v={t.mass.days} />
+          <Line k="Đã đi / phải tính" v={`${t.mass.approved + t.mass.pending} / ${t.mass.required}`} />
+          {t.mass.pending > 0 && <Line k="Trong đó chờ duyệt" v={t.mass.pending} />}
+          <Line k="Lượt vắng" v={<span className={t.mass.missed ? "text-rose-600" : undefined}>{t.mass.missed}</span>} />
+          <Line k="Tỉ lệ đi lễ" v={pct(t.mass.ratePct)} />
+        </Tile>
+      )}
       <Tile icon={AlertTriangle} title="Vi phạm & kỷ luật" tone="bg-rose-50 text-rose-700">
         {t.discipline ? (
           <>
@@ -162,7 +175,7 @@ function HouseSummary({ r }: { r: MemberReportDto }) {
         {t.donations && t.donations.pendingCount > 0 && <Line k="Ủng hộ chờ xác nhận" v={t.donations.pendingCount} />}
       </Tile>
       {t.events.byCategory.length > 0 && (
-        <div className="sm:col-span-2 xl:col-span-4 bg-white rounded-2xl p-4 border border-purple-50 shadow-xs">
+        <div className={cn("bg-white rounded-2xl p-4 border border-purple-50 shadow-xs", five ? "sm:col-span-1 xl:col-span-1" : "sm:col-span-2 xl:col-span-4")}>
           <p className="text-[11px] font-bold text-gray-500 mb-2">Sự kiện theo loại</p>
           <div className="flex flex-wrap gap-2">
             {t.events.byCategory.map((c) => <span key={c.code} className="px-3 py-1 rounded-full bg-surface-container-low text-xs font-semibold text-gray-700">{c.name} <b className="text-primary">{c.count}</b></span>)}
@@ -179,12 +192,10 @@ function MembersTable({ r, members, q, setQ, sort, setSort }: { r: MemberReportD
     <div className="bg-white rounded-3xl border border-purple-50 shadow-xs overflow-hidden">
       <div className="flex flex-wrap items-end gap-3 p-4 border-b border-gray-100">
         <h3 className="text-sm font-extrabold text-gray-900 mr-auto flex items-center gap-2"><Users className="w-4 h-4 text-primary" /> Từng thành viên ({members.length})</h3>
-        <label className="relative w-56">
-          <span className="sr-only">Tìm thành viên</span>
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm tên, phòng…" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-xs font-medium focus:outline-none focus:border-primary" />
-        </label>
-        <div className="w-52"><CustomSelect<SortKey> value={sort} onChange={setSort} options={SORTS} /></div>
+        <div className="w-full sm:w-56">
+          <CustomInput aria-label="Tìm thành viên" leftIcon={<Search className="w-4 h-4" />} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm tên, phòng…" />
+        </div>
+        <div className="w-full sm:w-52"><CustomSelect<SortKey> value={sort} onChange={setSort} options={SORTS} /></div>
       </div>
       <div className="overflow-x-auto custom-scroll">
         <table className="w-full text-left text-xs min-w-[900px]">
@@ -194,6 +205,7 @@ function MembersTable({ r, members, q, setQ, sort, setSort }: { r: MemberReportD
               {s.attendance && <th className="py-2.5 px-3">Điểm danh<br /><span className="normal-case font-medium">có mặt · trễ · vắng · phép</span></th>}
               {s.leave && <th className="py-2.5 px-3">Xin phép<br /><span className="normal-case font-medium">tổng · về muộn · ngủ ngoài</span></th>}
               {s.duty && <th className="py-2.5 px-3">Trực nhật<br /><span className="normal-case font-medium">tuần · điểm TB</span></th>}
+              {s.mass && <th className="py-2.5 px-3">Đi lễ<br /><span className="normal-case font-medium">đã đi/phải tính · vắng</span></th>}
               {s.merit && <th className="py-2.5 px-3 text-right">Thi đua</th>}
               {s.discipline && <th className="py-2.5 px-3">Vi phạm<br /><span className="normal-case font-medium">số · hình phạt</span></th>}
               {s.finance && <th className="py-2.5 px-3 text-right">Còn nợ quỹ</th>}
@@ -208,6 +220,18 @@ function MembersTable({ r, members, q, setQ, sort, setSort }: { r: MemberReportD
                 {s.attendance && <td className="py-2.5 px-3 whitespace-nowrap">{m.attendance ? <>{m.attendance.present} · {m.attendance.late} · <b className={m.attendance.absent ? "text-rose-600" : undefined}>{m.attendance.absent}</b> · {m.attendance.excused} <span className="text-gray-400">({pct(m.attendance.ratePct)})</span></> : "—"}</td>}
                 {s.leave && <td className="py-2.5 px-3 whitespace-nowrap">{m.leave ? <><b>{m.leave.total}</b> · {m.leave.lateReturn} · {m.leave.overnightOut}</> : "—"}</td>}
                 {s.duty && <td className="py-2.5 px-3 whitespace-nowrap">{m.duty ? <>{m.duty.weeks} · {dash(m.duty.avgScore)}</> : "—"}</td>}
+                {s.mass && (
+                  <td className="py-2.5 px-3 whitespace-nowrap">
+                    {m.mass ? (
+                      <>
+                        <b>{m.mass.approved + m.mass.pending}</b>/{m.mass.required} · <b className={m.mass.missed ? "text-rose-600" : undefined}>{m.mass.missed}</b>
+                        {m.mass.pending ? <span className="text-gray-400"> ({m.mass.pending} chờ)</span> : null}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                )}
                 {s.merit && <td className="py-2.5 px-3 text-right font-semibold">{m.merit ? (m.merit.points > 0 ? `+${m.merit.points}` : m.merit.points) : "—"}</td>}
                 {s.discipline && <td className="py-2.5 px-3">{m.discipline ? (m.discipline.count ? <span className={m.discipline.overdue ? "text-rose-700 font-semibold" : undefined}><b>{m.discipline.count}</b>{m.discipline.rosary ? ` · ${m.discipline.rosary} chuỗi` : ""}{m.discipline.mass ? ` · ${m.discipline.mass} ngày lễ` : ""}{m.discipline.duty ? ` · ${m.discipline.duty} ca trực` : ""}{m.discipline.other ? ` · ${m.discipline.other} khác` : ""}</span> : "0") : "—"}</td>}
                 {s.finance && <td className="py-2.5 px-3 text-right whitespace-nowrap">{m.finance && m.finance.owedVnd ? <b className={m.finance.overdueVnd ? "text-rose-700" : "text-amber-700"}>{formatVND(m.finance.owedVnd)}</b> : "—"}</td>}
@@ -215,12 +239,12 @@ function MembersTable({ r, members, q, setQ, sort, setSort }: { r: MemberReportD
                 {s.academic && <td className="py-2.5 px-3 text-center">{m.academic?.gpa4 != null ? m.academic.gpa4.toFixed(2) : "—"}</td>}
               </tr>
             ))}
-            {!members.length && <tr><td colSpan={9} className="py-10 text-center text-gray-400">Không có thành viên nào khớp.</td></tr>}
+            {!members.length && <tr><td colSpan={10} className="py-10 text-center text-gray-400">Không có thành viên nào khớp.</td></tr>}
           </tbody>
         </table>
       </div>
       <p className="px-4 py-3 text-[11px] text-gray-400 border-t border-gray-100">
-        Cột nào không hiện nghĩa là bạn chưa có quyền xem mục đó. Điểm học tập (GPA) chỉ có với thành viên đã đồng ý chia sẻ bảng điểm cho người quản lý. Tải Excel để có thêm trang chi tiết vi phạm và ủng hộ.
+        Cột nào không hiện nghĩa là bạn chưa có quyền xem mục đó. Đi lễ: đã check-in (được xác nhận hoặc chờ duyệt) / số lễ bắt buộc phải tính — ngày còn trong hạn check-in chưa tính là vắng. Điểm học tập (GPA) chỉ có với thành viên đã đồng ý chia sẻ bảng điểm cho người quản lý. Tải Excel để có thêm trang chi tiết vi phạm và ủng hộ.
       </p>
     </div>
   );
@@ -244,6 +268,15 @@ function PersonalView({ r }: { r: MemberReportDto }) {
         {m.leave && (
           <Tile icon={Users} title="Xin phép" tone="bg-amber-50 text-amber-700">
             <Line k="Tổng đơn" v={m.leave.total} /><Line k="Đã duyệt" v={m.leave.approved} /><Line k="Về muộn" v={m.leave.lateReturn} /><Line k="Ngủ ngoài" v={m.leave.overnightOut} /><Line k="Tạm vắng nhiều ngày" v={m.leave.longLeave} />
+          </Tile>
+        )}
+        {m.mass && (
+          <Tile icon={Church} title="Đi lễ (check-in)" tone="bg-violet-50 text-violet-700">
+            <Line k="Lễ bắt buộc phải tính" v={m.mass.required} />
+            <Line k="Đã xác nhận" v={m.mass.approved} />
+            {m.mass.pending > 0 && <Line k="Đang chờ duyệt" v={m.mass.pending} />}
+            <Line k="Vắng" v={<span className={m.mass.missed ? "text-rose-600" : undefined}>{m.mass.missed}</span>} />
+            <Line k="Tỉ lệ đi lễ" v={pct(m.mass.ratePct)} />
           </Tile>
         )}
         {m.duty && (

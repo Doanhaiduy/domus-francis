@@ -1,9 +1,12 @@
 "use client";
 
-// Thẻ "Các khoản thu" (trang Thu chi → Tổng quan): chọn kế hoạch thu (mặc định kỳ quỹ hiện tại; chip tiền điện nước các tháng gần nhất),
-// tiến độ đã thu / phải thu, danh sách thành viên (thẻ trên điện thoại, bảng trên máy tính) với Thu tiền / Nộp qua QR / Chi tiết.
+// Thẻ "Các khoản thu" (trang Thu chi → Tổng quan): chọn kế hoạch thu (mặc định kỳ quỹ hiện tại; chip tiền điện nước các tháng gần nhất,
+// khoản thu một lần), tiến độ đã thu / phải thu, danh sách thành viên (thẻ trên điện thoại, bảng trên máy tính) với Thu tiền / Nộp qua QR / Chi tiết.
+// Gói F: "Khoản thu một lần", "Cập nhật người phải đóng" (kỳ quỹ định kỳ) / "Thêm người" (khoản một lần), xuất Excel bảng đóng quỹ của khoản.
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban, BellRing, Undo2, Check, X as XIcon, Hourglass, ListChecks } from "lucide-react";
+import { Search, CalendarPlus, Zap, QrCode, MoreHorizontal, Ban, BellRing, Undo2, Check, X as XIcon, Hourglass, ListChecks, Sparkles, Users, UserPlus, FileSpreadsheet } from "lucide-react";
+import { useApp } from "@/lib/store";
+import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import { dm, dmy } from "@/lib/finance-format";
 import { FEE_TYPE_LABEL, type ContributionCellDto, type ContributionClaimDto, type ContributionPlanDto, type ContributionRowDto } from "@/lib/types/finance";
@@ -23,6 +26,13 @@ export function defaultPlanOf(plans: ContributionPlanDto[] | undefined, currentM
     [...started].reverse()[0] ??
     plans[0]
   );
+}
+
+/** Kế hoạch có thể thêm người phải đóng: kỳ quỹ định kỳ / quỹ tháng chưa kết thúc, hoặc khoản thu một lần (không áp cho tiền điện nước). */
+export function canSyncMembers(p: ContributionPlanDto, currentMonth: string): boolean {
+  if (p.status === "cancelled" || p.status === "closed") return false;
+  if (p.feeType === "periodic_dues" || p.feeType === "monthly_dues") return (p.endMonth ?? p.month) >= currentMonth;
+  return p.feeType === "event_fee" || p.feeType === "deposit" || p.feeType === "other";
 }
 
 /** Chip: kỳ quỹ (mới → cũ) trước, rồi tiền điện nước (mới → cũ), rồi khoản khác. */
@@ -48,8 +58,11 @@ export default function CollectionsCard({
   onPayQr,
   onCreateDues,
   onCreateUtility,
+  onCreateOneTime,
+  onSyncMembers,
   onCancelPlan,
   claims,
+  claimCounts,
   canRemind,
   onQuickPay,
   onClaim,
@@ -76,9 +89,15 @@ export default function CollectionsCard({
   onPayQr: (row: ContributionRowDto, cell: ContributionCellDto) => void;
   onCreateDues: () => void;
   onCreateUtility: () => void;
+  /** Khoản thu một lần cho những người được chọn */
+  onCreateOneTime: () => void;
+  /** "Cập nhật người phải đóng" (kỳ quỹ) / "Thêm người" (khoản một lần) */
+  onSyncMembers: (plan: ContributionPlanDto) => void;
   onCancelPlan: (plan: ContributionPlanDto) => void;
   /** Yêu cầu "đã đóng" đang chờ xác nhận của kế hoạch đang xem */
   claims: ContributionClaimDto[];
+  /** Số yêu cầu "đã đóng" đang chờ xác nhận theo từng kế hoạch (người ghi thu) — hiện số trên chip để không sót khoản khác */
+  claimCounts?: Record<string, number>;
   canRemind: boolean;
   /** Người có quyền ghi thu xác nhận thay thành viên đã đóng */
   onQuickPay: (row: ContributionRowDto, cell: ContributionCellDto) => void;
@@ -93,8 +112,10 @@ export default function CollectionsCard({
   onDecideClaim: (claim: ContributionClaimDto, approve: boolean) => void;
   onCancelClaim: (claim: ContributionClaimDto) => void;
 }) {
+  const { showToast } = useApp();
   const [filter, setFilter] = useState<Filter>("unpaid");
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
   // Thành viên chỉ thấy khoản của mình ⇒ mặc định "Tất cả" thay vì danh sách người chưa đóng
   useEffect(() => {
     if (!canReadAll) setFilter("all");
@@ -132,6 +153,21 @@ export default function CollectionsCard({
           ? "🎉 Tất cả anh em đã hoàn tất khoản này."
           : "Bạn đã đóng đủ khoản này."
         : "Không có thành viên phù hợp.";
+
+  const exportExcel = async () => {
+    if (!plan || exporting) return;
+    setExporting(true);
+    try {
+      const { downloadDuesXlsx } = await import("@/lib/export/finance-dues-xlsx");
+      await downloadDuesXlsx({ title: plan.name, plans: [plan], rows: planRows });
+      showToast("success", `Đã tải bảng đóng quỹ “${plan.name}” (Excel).`);
+    } catch (e) {
+      showToast("error", `Không xuất được Excel: ${errorMessage(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+  const oneTime = !!plan && plan.feeType !== "periodic_dues" && plan.feeType !== "utility" && plan.feeType !== "monthly_dues";
 
   const actionsFor = (r: ContributionRowDto, c: ContributionCellDto, compact: boolean) => {
     const owing = owingOf(c);
@@ -223,7 +259,7 @@ export default function CollectionsCard({
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-gray-900">Các khoản thu</h2>
-          <p className="text-xs text-gray-500">Quỹ định kỳ và tiền điện nước hằng tháng của cả nhà</p>
+          <p className="text-xs text-gray-500">Quỹ định kỳ, tiền điện nước hằng tháng và các khoản thu một lần</p>
         </div>
         {canPlan && (
           <div className="flex flex-wrap items-center gap-2">
@@ -235,6 +271,13 @@ export default function CollectionsCard({
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold active:scale-95 transition"
             >
               <Zap className="w-3.5 h-3.5" /> Nhập tiền điện nước
+            </button>
+            <button
+              onClick={onCreateOneTime}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold active:scale-95 transition"
+              title="Thu cho những người được chọn: phí sự kiện / hành hương, tiền cọc, khoản khác"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Khoản thu một lần
             </button>
           </div>
         )}
@@ -268,6 +311,15 @@ export default function CollectionsCard({
                 {p.shortLabel}
                 {year}
                 {pp !== null && <span className={`ml-1 text-[10px] font-semibold ${on ? "text-white/80" : "text-gray-400"}`}>{pp}%</span>}
+                {!!claimCounts?.[p.id] && (
+                  <span
+                    className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-extrabold align-middle"
+                    title={`${claimCounts[p.id]} người báo đã đóng — chờ xác nhận`}
+                    aria-label={`${claimCounts[p.id]} báo đã đóng chờ xác nhận`}
+                  >
+                    {claimCounts[p.id]}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -293,7 +345,7 @@ export default function CollectionsCard({
                     </>
                   ) : (
                     <>
-                      {FEE_TYPE_LABEL[plan.feeType]} · <b className="text-gray-800">{formatVND(plan.amountVnd)}</b> / người
+                      {FEE_TYPE_LABEL[plan.feeType]} · <b className="text-gray-800">{formatVND(plan.amountVnd)}</b> / người{oneTime ? " (mức chung)" : ""}
                     </>
                   )}{" "}
                   · Hạn {dmy(plan.dueDate)}
@@ -324,7 +376,26 @@ export default function CollectionsCard({
                   <BellRing className="w-3.5 h-3.5" /> Nhắc người chưa đóng ({owingList.length})
                 </button>
               )}
-              {canPlan && plan.stats.collectedVnd === 0 && (plan.feeType === "utility" || plan.feeType === "periodic_dues") && (
+              {canPlan && canSyncMembers(plan, currentMonth) && (
+                <button
+                  onClick={() => onSyncMembers(plan)}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-[11px] font-bold text-primary"
+                  title={oneTime ? "Thêm người phải đóng khoản này" : "Thêm khoản phải thu cho người mới vào ở (chưa có khoản kỳ này)"}
+                >
+                  {oneTime ? <UserPlus className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />} {oneTime ? "Thêm người" : "Cập nhật người phải đóng"}
+                </button>
+              )}
+              {canReadAll && planRows.length > 0 && (
+                <button
+                  onClick={exportExcel}
+                  disabled={exporting}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[11px] font-bold text-emerald-800 disabled:opacity-60"
+                  title="Tải bảng đóng quỹ theo người của khoản này (Excel)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> {exporting ? "Đang xuất…" : "Excel"}
+                </button>
+              )}
+              {canPlan && plan.stats.collectedVnd === 0 && plan.feeType !== "monthly_dues" && (
                 <button
                   onClick={() => onCancelPlan(plan)}
                   className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50"

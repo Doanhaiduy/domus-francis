@@ -19,6 +19,8 @@ import {
   HeartHandshake,
   Search,
   FileSpreadsheet,
+  Download,
+  BedDouble,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { MobileDetailSheet } from "@/components/ui/MobileDetailSheet";
@@ -30,6 +32,10 @@ import ApplicationsPanel from "@/components/members/ApplicationsPanel";
 import MemberAdminPanel from "@/components/members/MemberAdminPanel";
 import ImportMembersModal from "@/components/members/ImportMembersModal";
 import AlumniPanel from "@/components/members/AlumniPanel";
+import ResidenceExportDialog from "@/components/members/ResidenceExportDialog";
+import { exportMemberDirectory } from "@/lib/export/members-xlsx";
+import DataRequestsPanel from "@/components/members/DataRequestsPanel";
+import { useDataRequests } from "@/lib/data/data-requests";
 import EditMemberModal from "@/components/members/EditMemberModal";
 import MemberContributionHistory from "@/components/members/MemberContributionHistory";
 import ThanhVienLoading from "./loading";
@@ -44,11 +50,20 @@ export default function ThanhVienPage() {
   const { canSend: canZaloSend, send: zaloSend } = useZaloSend();
   const { can } = useSession();
   const [importOpen, setImportOpen] = useState(false);
-  const [tab, setTab] = useState<"directory" | "applications" | "former">("directory");
+  const [residenceOpen, setResidenceOpen] = useState(false);
+  const [tab, setTab] = useState<"directory" | "applications" | "former" | "data-requests">("directory");
   const { members: allMembers } = useMembers({ includeFormer: tab === "former" });
   const members = tab === "former" ? allMembers.filter((m) => m.status === "alumni" || m.status === "left") : activeMembers;
   const canReview = can("application.review");
   const { applications } = useApplications(canReview);
+  // Yêu cầu về dữ liệu cá nhân (người quản lý có privacy.manage): số đang mở / quá hạn trên nhãn tab
+  const canPrivacy = can(["privacy.manage", "dsr.manage"]);
+  const { data: dsr } = useDataRequests(canPrivacy);
+  // Mở thẳng một tab: /thanh-vien?tab=applications | former | data-requests (liên kết từ thông báo / hộp "Việc cần xử lý")
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "applications" || t === "former" || t === "data-requests" || t === "directory") setTab(t);
+  }, []);
   const [editId, setEditId] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -121,6 +136,7 @@ export default function ThanhVienPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {importOpen && <ImportMembersModal onClose={() => setImportOpen(false)} showToast={showToast} />}
+      {residenceOpen && <ResidenceExportDialog onClose={() => setResidenceOpen(false)} />}
       <ConfirmDialog
         isOpen={!!zaloTarget}
         onClose={() => setZaloTarget(null)}
@@ -174,6 +190,24 @@ export default function ThanhVienPage() {
             </button>
           </div>
 
+          <button
+            onClick={() => void exportMemberDirectory(activeMembers).catch((e) => showToast("error", e instanceof Error ? e.message : "Không xuất được danh bạ."))}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 text-primary font-bold text-xs transition active:scale-95"
+            title="Tải danh bạ thành viên đang ở (Excel) — chỉ gồm thông tin bạn được phép xem"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Xuất danh bạ</span>
+          </button>
+          {can("member.national_id.read") && (
+            <button
+              onClick={() => setResidenceOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs transition active:scale-95"
+              title="Danh sách tạm trú kèm CCCD đầy đủ (cần nhập lý do, ghi nhật ký kiểm toán)"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Danh sách tạm trú</span>
+            </button>
+          )}
           {can("member.create") && (
             <button
               onClick={() => setImportOpen(true)}
@@ -267,18 +301,20 @@ export default function ThanhVienPage() {
       </div>
 
       {/* TABS */}
-      <div className="flex items-center gap-2 border-b border-gray-100">
+      <div className="flex items-center gap-2 border-b border-gray-100 overflow-x-auto overflow-y-hidden">
         {[
           { k: "directory" as const, label: "Danh bạ" },
           ...(canReview ? [{ k: "applications" as const, label: `Đơn chờ duyệt${applications.length ? ` (${applications.length})` : ""}` }] : []),
           { k: "former" as const, label: "Cựu thành viên" },
+          ...(canPrivacy ? [{ k: "data-requests" as const, label: `Yêu cầu dữ liệu${dsr?.openCount ? ` (${dsr.openCount})` : ""}`, urgent: !!dsr?.overdueCount }] : []),
         ].map((t) => (
           <button
             key={t.k}
             onClick={() => setTab(t.k)}
-            className={`px-4 py-2 text-xs font-bold border-b-2 -mb-px transition ${tab === t.k ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+            className={`relative shrink-0 whitespace-nowrap px-4 py-2 text-xs font-bold border-b-2 -mb-px transition ${tab === t.k ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-800"}`}
           >
             {t.label}
+            {"urgent" in t && t.urgent && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" aria-label="Có yêu cầu quá hạn" />}
           </button>
         ))}
       </div>
@@ -287,6 +323,8 @@ export default function ThanhVienPage() {
         <ApplicationsPanel />
       ) : tab === "former" ? (
         <AlumniPanel />
+      ) : tab === "data-requests" && canPrivacy ? (
+        <DataRequestsPanel />
       ) : (
       <>
       {/* FILTER CONTROLS & SEARCH */}
@@ -567,6 +605,20 @@ function SelectedDetail({ member, onOpenCV, onCopyZalo, onEdit }: { member: Memb
           </div>
         )}
       </div>
+
+      {m.roomHistory && m.roomHistory.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5"><BedDouble className="w-3.5 h-3.5" /> Lịch sử phòng ở</span>
+          <ul className="space-y-1 text-xs">
+            {m.roomHistory.map((h, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 rounded-xl bg-surface-container-low/70 px-2.5 py-1.5">
+                <span className="font-bold text-gray-900">{h.roomName || h.roomCode}</span>
+                <span className="text-gray-500 text-right">{h.startsOn.slice(8, 10)}/{h.startsOn.slice(5, 7)}/{h.startsOn.slice(0, 4)} → {h.endsOn ? `${h.endsOn.slice(8, 10)}/${h.endsOn.slice(5, 7)}/${h.endsOn.slice(0, 4)}` : "nay"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {(session?.member?.id === m.id || can("finance.contribution.read_all")) && <MemberContributionHistory memberId={m.id} />}
 

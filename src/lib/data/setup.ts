@@ -4,7 +4,7 @@ import { swrFetcher } from "../api";
 
 export interface SetupItem {
   key: string;
-  group: "basic" | "people" | "operation" | "security" | "public";
+  group: "basic" | "people" | "operation" | "security" | "public" | "system";
   title: string;
   description: string;
   href: string;
@@ -33,4 +33,5 @@ export const SETUP_GROUPS: Record<SetupItem["group"], string> = {
   operation: "Vận hành",
   security: "Bảo mật & AI",
   public: "Trang công khai",
+  system: "Vận hành hệ thống (chỉ Admin)",
 };

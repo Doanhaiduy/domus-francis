@@ -155,3 +155,21 @@ export interface LeaveAllDto {
   counts: Record<LeaveStatus, number>;
   hasMore: boolean;
 }
+
+/** Một dòng "tối nay ai vắng / về muộn" — CHỈ tên, loại đơn, giờ (không lý do / nơi đến / số điện thoại). */
+export interface LeaveTonightItemDto {
+  leaveId: string;
+  memberName: string;
+  kind: LeaveKind;
+  startsAt: string;
+  endsAt: string;
+  /** Giờ về hiệu lực (gồm các lần xin thêm giờ) */
+  effectiveEndsAt: string;
+  /** Tôi là người được nhờ để cửa cho đơn này */
+  doorForMe: boolean;
+}
+
+/** Đơn đã duyệt có hiệu lực tối nay (18:00 → 06:00 giờ VN) cho người quản lý (leave.review) và người được nhờ giữ cửa tối nay. */
+export interface LeaveTonightDto {
+  items: LeaveTonightItemDto[];
+}

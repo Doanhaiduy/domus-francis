@@ -43,10 +43,6 @@ export interface FinanceCaller {
   waive: boolean;
   planManage: boolean;
   fundOptions: boolean;
-  /** Vai trò duyệt chi đang hiệu lực của người gọi (house_head / treasurer) */
-  approverRoles: string[];
-  /** Hạn mức Thủ quỹ tự duyệt một chữ ký (null nếu không đọc được cấu hình) */
-  treasurerSoloMaxVnd: number | null;
 }
 
 /** Một câu SQL trong batch(): [sql, tham số?] */
@@ -68,9 +64,8 @@ export const FINANCE_CALLER_SQL = `SELECT app.current_user_id() AS uid, app.curr
               app.has_permission('finance.contribution.waive') AS waive,
               app.has_permission('finance.contribution.plan.manage') AS plan_manage,
               app.has_any_permission(ARRAY['finance.expense.create', 'finance.expense.read_all', 'finance.expense.pay',
-                'finance.contribution.record', 'finance.ledger.read', 'finance.fund.manage', 'finance.reconcile']) AS fund_options,
-              ARRAY(SELECT r FROM unnest(ARRAY['house_head', 'treasurer']) r WHERE app.has_role(r)) AS approver_roles,
-              (SELECT (value #>> '{}')::bigint FROM settings WHERE key = 'finance.expense.treasurer_solo_approve_max_vnd') AS solo_max`;
+                'finance.contribution.record', 'finance.ledger.read', 'finance.fund.manage', 'finance.reconcile']) AS fund_options`;
+// (Ai ký duyệt được phiếu chi nào: hàm CSDL app.fn_expense_can_sign — db/app/1044 — trong câu đọc phiếu chi, không tự tính ở đây.)
 
 export function financeCallerFrom(res: QueryResult): FinanceCaller {
   const r = res.rows[0];
@@ -92,8 +87,6 @@ export function financeCallerFrom(res: QueryResult): FinanceCaller {
     waive: r.waive,
     planManage: r.plan_manage,
     fundOptions: r.fund_options,
-    approverRoles: r.approver_roles ?? [],
-    treasurerSoloMaxVnd: r.solo_max === null || r.solo_max === undefined ? null : Number(r.solo_max),
   };
 }
 

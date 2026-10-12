@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Camera, Check, ImageIcon, Lock, ClipboardCheck } from "lucide-react";
+import { Camera, Check, ImageIcon, Lock, ClipboardCheck, FileSpreadsheet } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -39,7 +39,22 @@ export default function AttendanceCard({ event: evt, canReadAll, onCheckIn }: Pr
   const { roster, mutate } = useAttendanceRoster(evt.id, showRoster);
   const [busyMember, setBusyMember] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const style = catStyle(evt.categoryCode);
+
+  /** Xuất Excel danh sách điểm danh của sự kiện này (tải danh sách nếu chưa mở) */
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const data = roster ?? (await eventsApi.roster(evt.id));
+      const { downloadEventAttendanceXlsx } = await import("./attendance-xlsx");
+      await downloadEventAttendanceXlsx(evt, data);
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const present = evt.stats.present;
   const late = evt.stats.late;
@@ -150,12 +165,24 @@ export default function AttendanceCard({ event: evt, canReadAll, onCheckIn }: Pr
       </div>
 
       {canSeeRoster && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="self-start text-[11px] font-bold text-primary hover:underline"
-        >
-          {expanded ? "Thu gọn danh sách điểm danh" : `Xem danh sách điểm danh (${expected} anh em)`}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[11px] font-bold text-primary hover:underline"
+          >
+            {expanded ? "Thu gọn danh sách điểm danh" : `Xem danh sách điểm danh (${expected} anh em)`}
+          </button>
+          <button
+            type="button"
+            onClick={exportExcel}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-100 transition disabled:opacity-60"
+            title="Tải danh sách điểm danh của sự kiện này (.xlsx)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            {exporting ? "Đang xuất…" : "Xuất Excel"}
+          </button>
+        </div>
       )}
 
       {(expanded || !canSeeRoster) && (
@@ -250,9 +277,10 @@ export default function AttendanceCard({ event: evt, canReadAll, onCheckIn }: Pr
       )}
 
       {roster?.canRecord && roster.ended && evt.status !== "completed" && evt.status !== "cancelled" && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-amber-50/70 border border-amber-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-amber-50/70 border border-amber-100">
           <p className="text-[11px] text-amber-800">
-            Sự kiện đã kết thúc. Chốt điểm danh để ghi vắng cho người chưa điểm danh (có phép nếu có đơn được duyệt) và cộng/trừ điểm chuyên cần.
+            Sự kiện đã kết thúc. Chốt điểm danh để ghi vắng cho người chưa điểm danh (có phép nếu có đơn được duyệt) và cộng/trừ điểm chuyên cần —
+            hệ thống cũng tự chốt sau 12 giờ.
           </p>
           <button
             onClick={() => setConfirmClose(true)}

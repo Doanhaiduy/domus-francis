@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { Ctx } from "../http";
 import { batch, type Tx } from "../db";
 import { ApiError, forbidden } from "../errors";
+import { inBackground, notifyAdminsOnce } from "../ops";
 import type { AiOutputMap, AiResultDto, AiTaskCode } from "@/lib/types/ai";
 import { AI_LIMITS, providerOrder } from "./config";
 import { NoProviderError, ProviderError, generate } from "./providers";
@@ -36,6 +37,43 @@ export async function ensureBudgetRow(ctx: Pick<Ctx, "dbAs">) {
     );
   });
   budgetMonth = month;
+}
+
+interface BudgetRow {
+  month: string;
+  limit_vnd: number;
+  used_vnd: number;
+  alert_threshold_pct: number;
+  hard_stop: boolean;
+}
+
+const BUDGET_SQL =
+  "SELECT month::text AS month, limit_vnd, used_vnd, alert_threshold_pct, hard_stop FROM ai_budgets WHERE month = date_trunc('month', app.local_today())::date";
+
+/**
+ * Chi phí tháng (sau khi cộng job vừa xong) chạm ngưỡng cảnh báo alert_threshold_pct hoặc hết ngân sách ⇒ báo Admin MỘT lần cho mỗi mức
+ * mỗi tháng (khóa "ai-budget:<YYYY-MM>:<mức %>" ở system_post_log — đúng cả khi nhiều instance). Không bao giờ ném lỗi.
+ */
+async function budgetAlert(b: BudgetRow | undefined) {
+  if (!b) return;
+  const limit = Number(b.limit_vnd);
+  const used = Number(b.used_vnd);
+  if (!(limit > 0)) return;
+  const pct = (used * 100) / limit;
+  const level = pct >= 100 ? 100 : pct >= b.alert_threshold_pct ? b.alert_threshold_pct : null;
+  if (level === null) return;
+  const ym = b.month.slice(0, 7);
+  const mmYyyy = `${ym.slice(5, 7)}/${ym.slice(0, 4)}`;
+  const money = (n: number) => `${n.toLocaleString("vi-VN")}đ`;
+  const after = b.hard_stop ? "tác vụ AI mới sẽ bị chặn tới tháng sau" : "AI vẫn chạy tiếp (không dừng cứng) nhưng chi phí vượt hạn mức";
+  await notifyAdminsOnce(
+    `ai-budget:${ym}:${level}`,
+    level === 100 ? `Đã dùng hết ngân sách AI tháng ${mmYyyy}` : `Chi phí AI tháng ${mmYyyy} đã đạt ${Math.floor(pct)}% ngân sách`,
+    level === 100
+      ? `Đã dùng ${money(used)} / ${money(limit)}: ${after}. Người dùng vẫn làm thủ công được. Tăng hạn mức ở Cài đặt → Trợ lý AI nếu cần.`
+      : `Đã dùng ${money(used)} / ${money(limit)} (ngưỡng cảnh báo ${b.alert_threshold_pct}%). Khi hết ngân sách, ${after}. Xem chi phí / tăng hạn mức ở Cài đặt → Trợ lý AI.`,
+    { link: "/cai-dat?tab=ai" },
+  );
 }
 
 /** Lý do chặn từ trigger cổng AI (có mã quy tắc, tên cấu hình) ⇒ câu tiếng Việt cho người dùng; mã quy tắc trả riêng ở errors[].rule. */
@@ -185,15 +223,21 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
         [job.id, code, entity?.table ?? "ai_jobs", entity?.id ?? job.id, def.suggestionType, JSON.stringify(output)],
       )
     ).rows[0];
-    await tx.query(
-      `UPDATE ai_jobs
-          SET status = 'succeeded', provider = $2, model = $3, tokens_in = $4, tokens_out = $5, cost_vnd = $6, latency_ms = $7,
-              input_ref = input_ref || $8::jsonb, finished_at = now()
-        WHERE id = $1`,
-      [job.id, llm.provider, llm.model, llm.tokensIn, llm.tokensOut, llm.costVnd, llm.latencyMs, JSON.stringify(llm.failedBefore.length ? { fallbackFrom: llm.failedBefore } : {})],
-    );
-    return s;
+    // Hoàn tất job + đọc ngân sách tháng SAU KHI trigger cộng chi phí (cùng giao dịch, một vòng mạng)
+    const [, budgetR] = await batch(tx, [
+      [
+        `UPDATE ai_jobs
+            SET status = 'succeeded', provider = $2, model = $3, tokens_in = $4, tokens_out = $5, cost_vnd = $6, latency_ms = $7,
+                input_ref = input_ref || $8::jsonb, finished_at = now()
+          WHERE id = $1`,
+        [job.id, llm.provider, llm.model, llm.tokensIn, llm.tokensOut, llm.costVnd, llm.latencyMs, JSON.stringify(llm.failedBefore.length ? { fallbackFrom: llm.failedBefore } : {})],
+      ],
+      [BUDGET_SQL],
+    ]);
+    return { ...s, budget: budgetR.rows[0] as BudgetRow | undefined };
   });
+  // Chạm ngưỡng cảnh báo / hết ngân sách ⇒ báo Admin (nền, không làm chậm phản hồi)
+  if (llm.costVnd > 0) void inBackground(budgetAlert(saved.budget));
 
   return { suggestionId: saved.id, jobId: job.id, taskCode: code, output, provider: llm.provider, model: llm.model, cached: false, createdAt: saved.created_at.toISOString() };
 }

@@ -6,7 +6,9 @@ import type {
   CalendarDayDetailDto,
   CalendarMonthDto,
   LectionaryStatusDto,
+  MassBulkReviewResultDto,
   MassCheckinDto,
+  MassPendingDto,
   MassReportDto,
   SpecialDayDto,
   SpecialDayInput,
@@ -59,6 +61,21 @@ export function useMassReport(from: string, to: string, enabled: boolean) {
   return { report: data, error, isLoading: isLoading && !data };
 }
 
+/** Lịch phụng vụ gọn của một khoảng ngày (≤ 62 ngày) — thẻ "Check-in đi lễ hôm nay" ở trang Phụng vụ. */
+export function useLiturgyRange(from: string, to: string, enabled = true) {
+  const { data, error, isLoading } = useSWR<CalendarMonthDto>(enabled ? `${LITURGY_CAL_KEY}?from=${from}&to=${to}` : null, swrFetcher, {
+    keepPreviousData: true,
+    revalidateOnFocus: false,
+  });
+  return { range: data, error, isLoading: isLoading && !data };
+}
+
+/** Hàng đợi check-in đi lễ chờ duyệt của mọi ngày (người duyệt). */
+export function usePendingCheckins(enabled: boolean) {
+  const { data, error, isLoading, mutate } = useSWR<MassPendingDto>(enabled ? `${BASE}/checkins/pending` : null, swrFetcher, { keepPreviousData: true });
+  return { pending: data, error, isLoading: isLoading && !data, mutate };
+}
+
 /** Làm mới mọi dữ liệu lịch phụng vụ (lịch tháng, chi tiết ngày, sắp tới, ngày đặc biệt, báo cáo). */
 export const refreshLiturgy = () => globalMutate((key) => typeof key === "string" && key.startsWith(BASE) && !key.startsWith(`${BASE}/documents`));
 
@@ -73,5 +90,12 @@ export const liturgyCalendarApi = {
   cancelCheckin: (id: string) => api.del<{ ok: true }>(`${BASE}/checkins/${id}`),
   review: (id: string, status: "approved" | "rejected" | "submitted", note?: string | null) =>
     api.post<{ ok: true }>(`${BASE}/checkins/${id}/review`, { status, note: note ?? null }),
+  /** "Duyệt tất cả" bản chờ duyệt của một ngày (bỏ qua bản có cảnh báo) */
+  approveDay: (date: string) => api.post<MassBulkReviewResultDto>(`${BASE}/checkins/review-bulk`, { date, status: "approved" }),
+  /** Duyệt / từ chối các bản đã chọn trong hàng đợi */
+  reviewMany: (ids: string[], status: "approved" | "rejected", note?: string | null) =>
+    api.post<MassBulkReviewResultDto>(`${BASE}/checkins/review-bulk`, { ids, status, note: note ?? null }),
+  /** Báo cáo đi lễ (thành viên × ngày lễ) — dùng để xuất Excel */
+  report: (from: string, to: string) => api.get<MassReportDto>(`${BASE}/report?from=${from}&to=${to}`),
   importLectionary: () => api.post<{ ok: true; entries: number; withText: number }>(`${BASE}/lectionary`),
 };

@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
 import { withTx } from "./db";
+import { notificationLink } from "@/lib/notification-link";
 
 // Thông báo đẩy (Web Push / VAPID) qua hàng đợi notification_outbox của thiết kế:
 //   app.fn_notify() → notifications (trong ứng dụng) + một dòng outbox cho mỗi kênh còn lại theo notification_types.default_channels,
@@ -23,28 +24,22 @@ function setup() {
   return true;
 }
 
-/** Trang mở khi bấm thông báo, suy từ bảng nguồn của thông báo. */
-export function urlForNotification(entityTable: string | null, typeCode: string): string {
-  if (typeCode === "system.storage_alert") return "/cai-dat?tab=storage";
-  const t = entityTable ?? "";
-  if (/announcement/.test(t)) return "/thong-bao";
-  if (/leave/.test(t)) return "/xin-phep";
-  if (/admission_inquir/.test(t)) return "/bai-viet";
-  if (/event|poll|attendance/.test(t)) return "/lich-su-kien";
-  if (/duty/.test(t)) return "/hau-can";
-  if (/expense|contribution|ledger|fund|due/.test(t)) return "/thu-chi";
-  if (/forum/.test(t)) return "/dien-dan";
-  if (/maintenance|issue/.test(t)) return "/hau-can";
-  if (/academic|grade/.test(t)) return "/hoc-tap";
-  if (/meal|menu/.test(t)) return "/bep-com";
-  if (/liturgy|prayer/.test(t)) return "/phung-vu";
-  if (/application/.test(t)) return "/thanh-vien";
-  if (typeCode.startsWith("finance.")) return "/thu-chi";
-  return "/";
+/** Liên kết trong ứng dụng (payload.link) nếu hợp lệ: đường dẫn tương đối, không trỏ ra ngoài. */
+export { safeLink } from "@/lib/notification-link";
+
+/**
+ * Trang mở khi bấm thông báo: liên kết lưu kèm thông báo (payload.link) nếu có, không thì suy theo LOẠI rồi theo bảng nguồn / nhóm
+ * (cùng một quy tắc với hộp thư trong ứng dụng — src/lib/notification-link.ts).
+ */
+export function urlForNotification(entityTable: string | null, typeCode: string, payload?: Record<string, unknown> | null, category?: string | null): string {
+  return notificationLink({ typeCode, entityTable, category, payload }) ?? "/";
 }
 
 interface Row {
   id: string;
+  /** notifications.id — gửi kèm (nid) để bấm thông báo đánh dấu đúng thông báo đã đọc */
+  nid: string;
+  category: string | null;
   attempts: number;
   type_code: string;
   title: string;
@@ -52,24 +47,29 @@ interface Row {
   entity_table: string | null;
   priority: string;
   user_id: string | null;
+  payload: Record<string, unknown> | null;
 }
 
 let running = false;
 let lastRun = 0;
 
-/** Gửi các thông báo đẩy đang chờ. An toàn khi gọi dồn dập (throttle 3 giây, một lượt chạy tại một thời điểm). Trả số thông báo đã xử lý. */
-export async function dispatchPendingPush(): Promise<number> {
-  if (running || Date.now() - lastRun < 3000 || !setup()) return 0;
+/**
+ * Gửi MỘT lượt (tối đa 40) thông báo đẩy đang chờ. An toàn khi gọi dồn dập (throttle 3 giây, một lượt chạy tại một thời điểm);
+ * `force` bỏ throttle (dùng khi gọi lặp để xả hết hàng đợi — xem dispatchOutbox ở outbox.ts). Trả số thông báo đã xử lý.
+ */
+export async function dispatchPendingPush(opts: { force?: boolean } = {}): Promise<number> {
+  if (running || (!opts.force && Date.now() - lastRun < 3000) || !setup()) return 0;
   running = true;
   lastRun = Date.now();
   try {
     return await withTx({}, "luuxa_worker", async (tx) => {
       const rows = (
         await tx.query<Row>(
-          `SELECT o.id, o.attempts, n.type_code, n.title, n.body, n.entity_table, n.priority::text AS priority, m.user_id
+          `SELECT o.id, n.id AS nid, t.category, o.attempts, n.type_code, n.title, n.body, n.entity_table, n.priority::text AS priority, m.user_id, n.payload
              FROM notification_outbox o
              JOIN notifications n ON n.id = o.notification_id
              JOIN members m ON m.id = n.member_id
+             LEFT JOIN notification_types t ON t.code = n.type_code
             WHERE o.channel = 'web_push' AND o.status = 'queued' AND o.next_attempt_at <= now()
               AND (n.expires_at IS NULL OR n.expires_at > now())
             ORDER BY o.created_at
@@ -85,7 +85,15 @@ export async function dispatchPendingPush(): Promise<number> {
           await tx.query("UPDATE notification_outbox SET status = 'skipped', last_error = 'Không có thiết bị đăng ký' WHERE id = $1", [r.id]);
           continue;
         }
-        const payload = JSON.stringify({ title: r.title.slice(0, 120), body: (r.body ?? "").slice(0, 200), url: urlForNotification(r.entity_table, r.type_code), tag: r.id, urgent: r.priority === "urgent" });
+        // url: trang mở khi bấm (đường dẫn tương đối); nid: id thông báo — service worker gắn ?n=<nid> để trang đánh dấu đã đọc (NotificationDeepLink)
+        const payload = JSON.stringify({
+          title: r.title.slice(0, 120),
+          body: (r.body ?? "").slice(0, 200),
+          url: urlForNotification(r.entity_table, r.type_code, r.payload, r.category),
+          nid: r.nid,
+          tag: r.nid,
+          urgent: r.priority === "urgent",
+        });
         let delivered = 0;
         let lastError: string | null = null;
         for (const s of subs) {

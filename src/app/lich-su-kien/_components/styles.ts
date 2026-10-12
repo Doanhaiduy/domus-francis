@@ -13,6 +13,8 @@ export const CATEGORY_STYLES: Record<string, CatStyle> = {
   EVT_TRIP: { bg: "bg-emerald-100", dot: "bg-emerald-600", text: "text-emerald-800", border: "border-emerald-200" },
   EVT_SOCIAL: { bg: "bg-amber-100", dot: "bg-amber-600", text: "text-amber-800", border: "border-amber-200" },
   EVT_CLEAN: { bg: "bg-cyan-100", dot: "bg-cyan-600", text: "text-cyan-800", border: "border-cyan-200" },
+  EVT_ROSARY: { bg: "bg-violet-100", dot: "bg-violet-600", text: "text-violet-800", border: "border-violet-200" },
+  EVT_PILGRIM: { bg: "bg-teal-100", dot: "bg-teal-600", text: "text-teal-800", border: "border-teal-200" },
 };
 
 const FALLBACK: CatStyle = { bg: "bg-purple-50", dot: "bg-primary", text: "text-primary", border: "border-purple-200" };

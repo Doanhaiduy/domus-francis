@@ -57,6 +57,8 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/finance/payments": "Ghi nhận đã thu tiền",
     "POST /api/v1/finance/payments/[id]/void": "Hủy phiếu thu",
     "PUT /api/v1/finance/receiving-account": "Cập nhật tài khoản nhận tiền",
+    "POST /api/v1/finance/contribution-plans/[id]/members": "Cập nhật người phải đóng khoản thu",
+    "POST /api/v1/finance/periods/[month]/[action]": "Chốt sổ / xác nhận / mở lại / đối soát sổ quỹ tháng",
   }),
   ...A("event", {
     "POST /api/v1/events": "Tạo sự kiện",
@@ -78,6 +80,7 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/duty/weeks/[id]/review": "Nhận xét / chấm điểm trực tuần",
     "POST /api/v1/duty/weeks/[id]/remind": "Nhắc lịch trực tuần",
     "POST /api/v1/duty/weeks/[id]/zalo": "Gửi lịch trực vào Zalo",
+    "POST /api/v1/duty/weeks/bulk": "Xếp lịch trực nhiều tuần",
     "POST /api/v1/duty/rosters": "Tạo bảng phân công trực",
     "POST /api/v1/duty/rosters/[id]/publish": "Công bố bảng phân công",
     "DELETE /api/v1/duty/rosters/[id]": "Xóa bảng phân công",
@@ -182,6 +185,7 @@ const RULES: [string, string, string][] = [
     "PUT /api/v1/liturgy/calendar/[date]/note": "Ghi chú lịch phụng vụ",
     "POST /api/v1/liturgy/checkins": "Check-in đi lễ",
     "POST /api/v1/liturgy/checkins/[id]/review": "Duyệt check-in đi lễ",
+    "POST /api/v1/liturgy/checkins/review-bulk": "Duyệt check-in đi lễ hàng loạt",
     "DELETE /api/v1/liturgy/checkins/[id]": "Xóa check-in đi lễ",
     "POST /api/v1/liturgy/documents": "Thêm tài liệu phụng vụ",
     "PATCH /api/v1/liturgy/documents/[id]": "Sửa tài liệu phụng vụ",
@@ -254,6 +258,13 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/issues/[id]/costs": "Thêm chi phí sửa chữa",
     "DELETE /api/v1/issues/[id]/costs/[costId]": "Xóa chi phí sửa chữa",
   }),
+  ...A("member", {
+    "PUT /api/v1/consents": "Đồng ý / rút đồng ý về dữ liệu cá nhân",
+    "POST /api/v1/consents/legal": "Đồng ý Điều khoản sử dụng & Chính sách bảo mật",
+    "POST /api/v1/data-requests": "Gửi yêu cầu về dữ liệu cá nhân",
+    "PATCH /api/v1/data-requests/[id]": "Xử lý / trả lời yêu cầu về dữ liệu cá nhân",
+    "POST /api/v1/data-requests/[id]/anonymize": "Ẩn danh hóa hồ sơ theo yêu cầu dữ liệu",
+  }),
   ...A("ai", {
     "POST /api/v1/ai/run": "Chạy trợ lý AI",
     "PUT /api/v1/ai/consent": "Đồng ý / rút đồng ý dùng AI",
@@ -265,6 +276,8 @@ const RULES: [string, string, string][] = [
     "POST /api/v1/integrations/zalo/send": "Gửi tin vào nhóm Zalo",
     "POST /api/v1/integrations/zalo/test": "Gửi tin thử Zalo",
     "POST /api/v1/integrations/cron/run": "Chạy tác vụ hằng ngày thủ công",
+    "PATCH /api/v1/system/errors/[id]": "Đổi trạng thái lỗi hệ thống",
+    "PATCH /api/v1/system/errors": "Đổi trạng thái nhiều lỗi hệ thống",
   }),
 ];
 
@@ -274,7 +287,7 @@ const SEGMENT_AREA: Record<string, string> = {
   finance: "finance", events: "event", polls: "event", duty: "duty", members: "member", applications: "member", inquiries: "member", leave: "event", discipline: "member", donations: "finance", reports: "other", accounts: "account",
   rbac: "account", settings: "setting", categories: "setting", reminders: "setting", "house-rules": "setting", academic: "academic",
   meals: "kitchen", pantry: "kitchen", liturgy: "liturgy", prayers: "liturgy", announcements: "community", notifications: "community",
-  forum: "community", moments: "community", files: "community", house: "house", issues: "house", ai: "ai", integrations: "integration", auth: "auth",
+  forum: "community", moments: "community", files: "community", house: "house", issues: "house", ai: "ai", integrations: "integration", auth: "auth", system: "integration",
 };
 
 export interface ActivityLabel {

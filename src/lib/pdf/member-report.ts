@@ -36,6 +36,17 @@ async function houseLandscapePdf(r: MemberReportDto) {
     { label: "SỰ KIỆN", value: String(t.events.total), color: C.primaryDark, bg: C.tint, note: `${t.events.completed} đã diễn ra · ${t.events.cancelled} hủy` },
     { label: "HÀNH HƯƠNG · LẦN CHUỖI", value: `${t.events.pilgrimages} · ${t.events.rosary}`, color: C.primaryDark, bg: C.tint, note: "số buổi trong kỳ" },
     ...(t.attendance ? [{ label: "TỈ LỆ CÓ MẶT", value: pctText(t.attendance.ratePct), color: C.green, bg: C.greenBg, note: `${num(t.attendance.records)} lượt điểm danh` }] : []),
+    ...(t.mass
+      ? [
+          {
+            label: "ĐI LỄ (CHECK-IN)",
+            value: pctText(t.mass.ratePct),
+            color: C.primaryDark,
+            bg: C.tint,
+            note: `${t.mass.approved + t.mass.pending}/${t.mass.required} lượt · ${t.mass.missed} vắng · ${t.mass.days} ngày lễ`,
+          },
+        ]
+      : []),
     ...(t.leave ? [{ label: "ĐƠN XIN PHÉP", value: String(t.leave.total), color: C.amber, bg: C.amberBg, note: `${t.leave.lateReturn} về muộn · ${t.leave.overnightOut} ngủ ngoài` }] : []),
   ];
   content.push(sectionBar("I. Số liệu cả nhà"), kpiRow(kpis));
@@ -45,6 +56,7 @@ async function houseLandscapePdf(r: MemberReportDto) {
     ...(t.donations ? [{ label: "ỦNG HỘ ĐÃ NHẬN", value: money(t.donations.totalVnd), color: C.primaryDark, bg: C.tint, note: `${t.donations.donors} người (${t.donations.memberDonors} trong nhà) · ${t.donations.count} khoản` }] : []),
     ...(t.duty ? [{ label: "TRỰC VỆ SINH", value: `${t.duty.weeks} lượt`, color: C.amber, bg: C.amberBg, note: `Điểm TB ${dash(t.duty.avgScore)}/10` }] : []),
   ];
+
   if (kpis2.length) content.push(kpiRow(kpis2));
   if (t.events.byCategory.length) {
     content.push({ text: `Sự kiện theo loại: ${t.events.byCategory.map((c) => `${c.name} (${c.count})`).join(" · ")}`, fontSize: 8.5, color: C.muted, margin: [0, 2, 0, 0] });
@@ -57,6 +69,7 @@ async function houseLandscapePdf(r: MemberReportDto) {
   if (s.attendance) heads.push({ title: "Có mặt / trễ / vắng KP / có phép", width: 96, align: "center", cell: (m) => (m.attendance ? `${m.attendance.present} / ${m.attendance.late} / ${m.attendance.absent} / ${m.attendance.excused}` : "—") });
   if (s.leave) heads.push({ title: "Xin phép (về muộn · ngủ ngoài · khác)", width: 100, align: "center", cell: (m) => (m.leave ? `${m.leave.total} (${m.leave.lateReturn} · ${m.leave.overnightOut} · ${m.leave.total - m.leave.lateReturn - m.leave.overnightOut})` : "—") });
   if (s.duty) heads.push({ title: "Trực (tuần · điểm TB)", width: 64, align: "center", cell: (m) => (m.duty ? `${m.duty.weeks} · ${dash(m.duty.avgScore)}` : "—") });
+  if (s.mass) heads.push({ title: "Đi lễ (đã đi/phải tính · vắng)", width: 66, align: "center", cell: (m) => (m.mass ? `${m.mass.approved + m.mass.pending}/${m.mass.required} · ${m.mass.missed}` : "—") });
   if (s.merit) heads.push({ title: "Điểm thi đua", width: 42, align: "right", cell: (m) => (m.merit ? (m.merit.points > 0 ? `+${m.merit.points}` : String(m.merit.points)) : "—") });
   if (s.discipline) heads.push({ title: "Vi phạm (số · hình phạt)", width: 110, align: "left", cell: (m) => (m.discipline ? (m.discipline.count ? `${m.discipline.count} · ${fmtPenalty(m.discipline)}` : "0") : "—") });
   if (s.finance) heads.push({ title: "Còn nợ quỹ", width: 62, align: "right", cell: (m) => (m.finance ? (m.finance.owedVnd ? money(m.finance.owedVnd) : "—") : "—") });
@@ -70,6 +83,7 @@ async function houseLandscapePdf(r: MemberReportDto) {
 
   const notes: string[] = [];
   if (s.attendance) notes.push("Điểm danh tính các sự kiện đã diễn ra trong kỳ (KP = không phép). Tỉ lệ có mặt = (có mặt + trễ) / (có mặt + trễ + vắng không phép).");
+  if (s.mass) notes.push("Đi lễ: các ngày bắt buộc check-in (Chúa Nhật, lễ trọng, lễ Bổn mạng, ngày đặc biệt) đã qua, trong thời gian ở nhà; đã đi = được xác nhận + chờ duyệt; ngày còn hạn check-in chưa tính vắng.");
   if (s.academic) notes.push("GPA hệ 4 của học kỳ trong kỳ — chỉ hiện với thành viên đã đồng ý chia sẻ bảng điểm.");
   if (s.finance) notes.push("Còn nợ quỹ = các khoản đến hạn trong kỳ mà chưa đóng đủ.");
   content.push(
@@ -105,6 +119,16 @@ async function personalPdf(r: MemberReportDto) {
     const block = (title: string, rows: TableCell[][]): Content[] => [sectionBar(title), { table: { widths: ["*", 160], body: rows }, layout: tableLayout }];
     if (m.attendance) content.push(...block("Điểm danh sự kiện", [kv("Có mặt", String(m.attendance.present)), kv("Đi trễ", String(m.attendance.late)), kv("Vắng có phép", String(m.attendance.excused)), kv("Vắng không phép", String(m.attendance.absent)), kv("Tỉ lệ có mặt", pctText(m.attendance.ratePct))]));
     if (m.leave) content.push(...block("Xin phép", [kv("Tổng số đơn", String(m.leave.total)), kv("Đã duyệt", String(m.leave.approved)), kv("Về muộn", String(m.leave.lateReturn)), kv("Ngủ ngoài", String(m.leave.overnightOut)), kv("Tạm vắng nhiều ngày", String(m.leave.longLeave)), kv("Vắng sự kiện", String(m.leave.eventAbsence))]));
+    if (m.mass)
+      content.push(
+        ...block("Đi lễ (check-in các ngày lễ bắt buộc)", [
+          kv("Lễ bắt buộc phải tính", String(m.mass.required)),
+          kv("Đã xác nhận", String(m.mass.approved)),
+          kv("Đang chờ duyệt", String(m.mass.pending)),
+          kv("Vắng", String(m.mass.missed)),
+          kv("Tỉ lệ đi lễ", pctText(m.mass.ratePct)),
+        ]),
+      );
     if (m.duty) content.push(...block("Trực vệ sinh sân nhà", [kv("Số tuần trực", String(m.duty.weeks)), kv("Điểm trung bình (0–10)", dash(m.duty.avgScore)), kv("Tuần phải trực lại", String(m.duty.redo))]));
     if (m.merit) content.push(...block("Điểm thi đua", [kv("Điểm cộng/trừ trong kỳ", m.merit.points > 0 ? `+${m.merit.points}` : String(m.merit.points))]));
     if (m.discipline) content.push(...block("Vi phạm & kỷ luật", [kv("Số lần được ghi nhận", String(m.discipline.count)), kv("Đang chấp hành / chờ", String(m.discipline.active)), kv("Đã hoàn thành", String(m.discipline.completed)), kv("Được miễn", String(m.discipline.waived)), kv("Hình phạt", fmtPenalty(m.discipline))]));

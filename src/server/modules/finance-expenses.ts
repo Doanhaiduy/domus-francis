@@ -3,7 +3,7 @@ import type { Tx } from "../db";
 import { ApiError, badRequest, forbidden, notFound } from "../errors";
 import { financeCaller, type FinanceCaller } from "./finance";
 import type { CreateExpenseInput, ExpenseItemInput, UpdateExpenseInput } from "./finance-schema";
-import type { ExpenseDetailDto, ExpenseDto, ExpenseStatus, PaymentMethod } from "@/lib/types/finance";
+import type { ExpenseDetailDto, ExpenseDto, ExpenseStatus, PaymentMethod, SplitAlertsDto } from "@/lib/types/finance";
 
 // ---------------------------------------------------------------------
 // Phiếu chi: đọc (RLS quyết định phiếu nào nhìn thấy) — người thường thấy phiếu mình lập/mình ứng tiền,
@@ -22,8 +22,9 @@ const EXPENSE_SELECT = `
            WHERE ea.voucher_id = ev.id AND ea.round = ev.approval_round AND ea.decision = 'approved') AS approved_count,
          EXISTS (SELECT 1 FROM expense_approvals ea
                   WHERE ea.voucher_id = ev.id AND ea.round = ev.approval_round AND ea.approver_user_id = app.current_user_id()) AS i_signed,
-         ARRAY(SELECT ea.approver_role FROM expense_approvals ea
-                WHERE ea.voucher_id = ev.id AND ea.round = ev.approval_round AND ea.decision = 'approved') AS used_roles,
+         -- Ký được theo đúng luật của trigger tg_expense_approval_rules (gồm chế độ ký chéo, Admin ký như Trưởng nhà/Thủ quỹ) — cùng hàm
+         -- với hộp "Việc cần xử lý" (db/app/1044) nên nút Duyệt luôn khớp số việc
+         CASE WHEN ev.status = 'pending_approval' THEN app.fn_expense_can_sign(ev.id) ELSE false END AS can_sign,
          COALESCE((SELECT json_agg(json_build_object('fileId', ma.file_id, 'mime', sf.detected_mime) ORDER BY ma.position, ma.created_at)
                      FROM media_attachments ma LEFT JOIN storage_files sf ON sf.id = ma.file_id
                     WHERE ma.entity_type = 'expense_voucher' AND ma.entity_id = ev.id AND ma.purpose = 'receipt'), '[]'::json) AS receipts,
@@ -43,18 +44,6 @@ async function fundNames(tx: Tx, c: FinanceCaller): Promise<Map<string, string>>
   if (!c.fundOptions) return new Map();
   const rows = (await tx.query<{ id: string; name: string }>("SELECT id, name FROM app.fn_fund_options()")).rows;
   return new Map(rows.map((r) => [r.id, r.name]));
-}
-
-/** Có thể ký duyệt theo luật chữ ký (trigger tg_expense_approval_rules): phiếu 1 chữ ký do Trưởng nhà, hoặc Thủ quỹ với khoản
- *  ≤ hạn mức tự duyệt (BR-FIN-17); phiếu 2 chữ ký: vai trò của người ký chưa được dùng trong vòng này (BR-FIN-02). */
-function canSign(r: Row, c: FinanceCaller): boolean {
-  const roles = c.approverRoles;
-  if (Number(r.required_approvals) === 1) {
-    if (roles.includes("house_head")) return true;
-    return roles.includes("treasurer") && (c.treasurerSoloMaxVnd === null || Number(r.amount_vnd) <= c.treasurerSoloMaxVnd);
-  }
-  const used: string[] = r.used_roles ?? [];
-  return roles.some((x) => !used.includes(x));
 }
 
 function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto {
@@ -95,7 +84,8 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
       edit: mine && OWNER_EDITABLE.includes(status),
       submit: mine && status === "draft",
       withdraw: mine && (status === "pending_approval" || status === "rejected"),
-      approve: mayDecide && canSign(r, c),
+      // Ký duyệt được: hàm CSDL app.fn_expense_can_sign (BR-FIN-01/02/17 + ký chéo) — trước đây tự tính ở đây nên bỏ sót chế độ ký chéo
+      approve: mayDecide && !!r.can_sign,
       reject: mayDecide,
       pay: c.pay && status === "approved",
       cancel: (mine && OWNER_EDITABLE.includes(status)) || (c.approve && (status === "pending_approval" || status === "approved")),
@@ -338,4 +328,74 @@ export async function expenseAction(
       ]);
       return;
   }
+}
+
+// ---------------------------------------------------------------------
+// Cảnh báo tách phiếu chi (view v_expense_split_alerts): ≥ 2 phiếu MỘT chữ ký cho cùng đối tượng trong một tuần có tổng ≥ ngưỡng
+// 2 chữ ký (nghi chia nhỏ để né duyệt 2 người). Chỉ người duyệt chi / xem mọi phiếu chi. View thiếu (CSDL chưa vá) ⇒ danh sách rỗng.
+// ---------------------------------------------------------------------
+export async function listSplitAlerts(tx: Tx, days: number): Promise<SplitAlertsDto> {
+  const c = await financeCaller(tx);
+  if (!c.approve && !c.readAll) throw forbidden("Chỉ người duyệt chi xem được cảnh báo tách phiếu.");
+  const span = Math.min(365, Math.max(7, Math.round(days) || 60));
+  const threshold = (
+    await tx.query<{ v: string | null }>("SELECT value #>> '{}' AS v FROM settings WHERE key = 'finance.expense.dual_approval_min_vnd'")
+  ).rows[0]?.v;
+  await tx.query("SAVEPOINT split_alerts");
+  let alerts: Row[] = [];
+  try {
+    alerts = (
+      await tx.query(
+        `SELECT a.counterparty, a.week_start::text AS week_start, (a.week_start + 6)::text AS week_end, a.total_vnd, a.max_single_vnd, a.voucher_nos
+           FROM v_expense_split_alerts a
+          WHERE a.week_start >= app.local_today() - $1::int
+          ORDER BY a.week_start DESC, a.total_vnd DESC
+          LIMIT 50`,
+        [span]
+      )
+    ).rows;
+    await tx.query("RELEASE SAVEPOINT split_alerts");
+  } catch (e) {
+    await tx.query("ROLLBACK TO SAVEPOINT split_alerts");
+    if ((e as { code?: string }).code !== "42P01") throw e; // view chưa có
+  }
+  const nos = [...new Set(alerts.flatMap((a) => a.voucher_nos as string[]))];
+  const vouchers = nos.length
+    ? (
+        await tx.query(
+          `SELECT ev.id, ev.voucher_no, ev.title, ev.amount_vnd, ev.status::text AS status, ev.expense_date::text AS expense_date,
+                  ev.paid_by_member_id, ev.payee_name,
+                  (SELECT COALESCE(m.display_name, m.full_name) FROM members m WHERE m.id = ev.paid_by_member_id) AS payee_member,
+                  (SELECT COALESCE(m.display_name, m.full_name) FROM members m WHERE m.user_id = ev.requested_by LIMIT 1) AS requester
+             FROM expense_vouchers ev WHERE ev.voucher_no = ANY ($1::text[])`,
+          [nos]
+        )
+      ).rows
+    : [];
+  const byNo = new Map(vouchers.map((v) => [v.voucher_no as string, v]));
+  return {
+    thresholdVnd: threshold === null || threshold === undefined ? null : Number(threshold),
+    days: span,
+    alerts: alerts.map((a) => {
+      const vs = (a.voucher_nos as string[]).map((no) => byNo.get(no)).filter(Boolean) as Row[];
+      const first = vs[0];
+      const who = first?.payee_member ?? first?.payee_name ?? first?.requester ?? "Không rõ";
+      return {
+        key: `${a.counterparty}:${a.week_start}`,
+        counterparty: String(who),
+        weekStart: a.week_start,
+        weekEnd: a.week_end,
+        totalVnd: Number(a.total_vnd),
+        maxSingleVnd: Number(a.max_single_vnd),
+        vouchers: vs.map((v) => ({
+          id: v.id,
+          voucherNo: v.voucher_no,
+          title: v.title,
+          amountVnd: Number(v.amount_vnd),
+          status: v.status as ExpenseStatus,
+          expenseDate: v.expense_date,
+        })),
+      };
+    }),
+  };
 }

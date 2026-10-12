@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { QueryResult } from "pg";
-import { batch, type Tx } from "../db";
+import { batch, withTx, type Tx } from "../db";
 import { ApiError, forbidden, notFound } from "../errors";
 import {
   FINANCE_CALLER_SQL,
@@ -22,7 +22,9 @@ import {
   type ContributionStatus,
   type CreatePlanResultDto,
   type FeeType,
+  type NewMemberDuesDto,
   type PaymentMethod,
+  type PlanMembersSyncDto,
   type PlanPreviewDto,
 } from "@/lib/types/finance";
 
@@ -158,21 +160,32 @@ const runPeople = (tx: Tx, ids: string[]): Promise<QueryResult> => {
 export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResultDto> {
   const c = await financeCaller(tx);
   if (!c.planManage) throw forbidden("Bạn không có quyền lập kế hoạch thu quỹ.");
-  const r =
-    b.kind === "periodic_dues"
-      ? (
-          await tx.query<{ r: Record<string, unknown> }>("SELECT app.fn_create_dues_cycle_plan($1::date, $2::date, $3::uuid) AS r", [
-            b.startMonth ? `${b.startMonth}-01` : null,
-            b.dueDate ?? null,
-            b.fundId ?? null,
-          ])
-        ).rows[0].r
-      : (
-          await tx.query<{ r: Record<string, unknown> }>(
-            "SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5, $6::bigint, $7::boolean, $8::payment_method_t) AS r",
-            [`${b.month}-01`, b.billTotalVnd ?? null, b.dueDate ?? null, b.fundId ?? null, b.note ?? null, b.perPersonVnd ?? null, b.autoExpense ?? false, b.payMethod ?? "cash"]
-          )
-        ).rows[0].r;
+  let r: Record<string, unknown>;
+  if (b.kind === "periodic_dues") {
+    r = (
+      await tx.query<{ r: Record<string, unknown> }>("SELECT app.fn_create_dues_cycle_plan($1::date, $2::date, $3::uuid) AS r", [
+        b.startMonth ? `${b.startMonth}-01` : null,
+        b.dueDate ?? null,
+        b.fundId ?? null,
+      ])
+    ).rows[0].r;
+  } else if (b.kind === "utility") {
+    r = (
+      await tx.query<{ r: Record<string, unknown> }>(
+        "SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5, $6::bigint, $7::boolean, $8::payment_method_t) AS r",
+        [`${b.month}-01`, b.billTotalVnd ?? null, b.dueDate ?? null, b.fundId ?? null, b.note ?? null, b.perPersonVnd ?? null, b.autoExpense ?? false, b.payMethod ?? "cash"]
+      )
+    ).rows[0].r;
+  } else {
+    // Khoản thu MỘT LẦN cho những người được chọn — mức chung + mức riêng (nếu có) từng người; hàm DB kiểm quyền + danh sách người
+    const members = b.members.map((m) => ({ member_id: m.memberId, amount_vnd: m.amountVnd ?? null }));
+    r = (
+      await tx.query<{ r: Record<string, unknown> }>(
+        "SELECT app.fn_create_onetime_plan($1, $2::fee_type_t, $3::bigint, $4::date, $5::jsonb, $6::uuid, $7) AS r",
+        [b.name, b.feeType, b.amountVnd, b.dueDate, JSON.stringify(members), b.fundId ?? null, b.note ?? null]
+      )
+    ).rows[0].r;
+  }
   const num = (k: string) => (r[k] === undefined || r[k] === null ? null : Number(r[k]));
   return {
     id: String(r.plan_id),
@@ -186,6 +199,7 @@ export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResult
     remainderVnd: num("remainder_vnd"),
     expenseVoucherNo: r.expense_voucher_no ? String(r.expense_voucher_no) : null,
     expenseVnd: num("expense_vnd"),
+    totalVnd: num("total_vnd"),
   };
 }
 
@@ -426,4 +440,82 @@ export async function adjustContribution(
     )
   ).rows[0].r;
   return { id: String(r.id), amountDueVnd: Number(r.amount_due_vnd), note: String(r.note ?? "") };
+}
+
+// ---------------------------------------------------------------------
+// "Cập nhật người phải đóng" (người mới vào giữa kỳ quỹ định kỳ) / thêm người vào khoản thu một lần — app.fn_plan_sync_members
+// (chỉ THÊM khoản còn thiếu, không sửa/xóa khoản đã có ⇒ bấm lại nhiều lần không sinh trùng)
+// ---------------------------------------------------------------------
+type SyncJson = {
+  plan_id: string;
+  plan_name: string;
+  fee_type: string;
+  due_date: string;
+  added: number;
+  total_vnd: number;
+  dry: boolean;
+  members: { member_id: string; name: string; full_name: string; room: string | null; amount_vnd: number }[];
+};
+
+function planMembersFrom(r: SyncJson): PlanMembersSyncDto {
+  return {
+    planId: r.plan_id,
+    planName: r.plan_name,
+    feeType: r.fee_type as FeeType,
+    dueDate: String(r.due_date),
+    added: Number(r.added),
+    totalVnd: Number(r.total_vnd),
+    dry: !!r.dry,
+    members: (r.members ?? []).map((m) => ({
+      memberId: m.member_id,
+      name: m.name,
+      fullName: m.full_name,
+      room: m.room ?? null,
+      amountVnd: Number(m.amount_vnd),
+    })),
+  };
+}
+
+export async function syncPlanMembers(tx: Tx, planId: string, memberIds: string[] | null, dry: boolean): Promise<PlanMembersSyncDto> {
+  const c = await financeCaller(tx);
+  if (!c.planManage) throw forbidden("Bạn không có quyền cập nhật người phải đóng.");
+  const r = (
+    await tx.query<{ r: SyncJson }>("SELECT app.fn_plan_sync_members($1::uuid, $2::uuid[], $3::boolean) AS r", [planId, memberIds?.length ? memberIds : null, dry])
+  ).rows[0].r;
+  return planMembersFrom(r);
+}
+
+/**
+ * Sau khi DUYỆT đơn vào nhà: thêm khoản quỹ định kỳ (kỳ đang diễn ra + kỳ đã lập trước) cho người mới. Chạy như HỆ THỐNG
+ * (worker không gắn người dùng — người duyệt đơn có thể không có quyền lập kế hoạch thu). Lỗi ⇒ bỏ qua (không làm hỏng việc duyệt đơn).
+ */
+export async function addNewMemberToOpenDues(memberId: string, requestId?: string): Promise<NewMemberDuesDto[]> {
+  try {
+    return await withTx({ requestId }, "luuxa_worker", async (tx) => {
+      const plans = (
+        await tx.query<{ id: string }>(
+          `SELECT id FROM contribution_plans
+            WHERE fee_type = 'periodic_dues' AND status IN ('draft', 'active')
+              AND COALESCE(period_end_month, period_month) >= date_trunc('month', app.local_today())::date
+            ORDER BY period_month`
+        )
+      ).rows;
+      const out: NewMemberDuesDto[] = [];
+      for (const p of plans) {
+        await tx.query("SAVEPOINT dues_sync");
+        try {
+          const r = (await tx.query<{ r: SyncJson }>("SELECT app.fn_plan_sync_members($1::uuid, ARRAY[$2]::uuid[], false) AS r", [p.id, memberId])).rows[0].r;
+          await tx.query("RELEASE SAVEPOINT dues_sync");
+          for (const m of r.members ?? []) if (r.added > 0) out.push({ planId: r.plan_id, planName: r.plan_name, amountVnd: Number(m.amount_vnd), dueDate: String(r.due_date) });
+        } catch (e) {
+          await tx.query("ROLLBACK TO SAVEPOINT dues_sync");
+          console.error("[finance] thêm khoản quỹ cho người mới lỗi:", (e as Error).message);
+        }
+      }
+      return out;
+    });
+  } catch (e) {
+    console.error("[finance] thêm khoản quỹ cho người mới lỗi:", (e as Error).message);
+    return [];
+  }
 }

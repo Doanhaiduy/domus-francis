@@ -101,13 +101,6 @@ export function InquiryForm({ turnstileSiteKey }: { turnstileSiteKey?: string })
           <span>{error}</span>
         </div>
       )}
-      {/* Ô bẫy cho người máy: ẩn khỏi người dùng thật */}
-      <div aria-hidden className="absolute -left-[9999px] h-0 overflow-hidden">
-        <label>
-          Trang web của bạn
-          <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => set("website")(e.target.value)} />
-        </label>
-      </div>
 
       <CustomInput label="Họ và tên *" value={f.fullName} onChange={(e) => set("fullName")(e.target.value)} maxLength={120} autoComplete="name" placeholder="VD: Nguyễn Văn An" />
       <div className="grid sm:grid-cols-2 gap-4">
@@ -132,6 +125,13 @@ export function InquiryForm({ turnstileSiteKey }: { turnstileSiteKey?: string })
         Thông tin chỉ dùng để người quản lý liên hệ tư vấn, không chia sẻ cho bên thứ ba. Khi gửi đăng ký, bạn đồng ý để chúng tôi xử lý thông tin này theo{" "}
         <Link href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-primary hover:underline">Chính sách bảo mật</Link>.
       </p>
+      {/* Ô bẫy cho người máy: ẩn khỏi người dùng thật */}
+      <div aria-hidden className="absolute -left-[9999px] h-0 overflow-hidden">
+        <label>
+          Trang web của bạn
+          <input tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => set("website")(e.target.value)} />
+        </label>
+      </div>
     </form>
   );
 }

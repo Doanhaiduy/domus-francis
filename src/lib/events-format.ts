@@ -13,6 +13,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   EVT_TRIP: "Dã ngoại",
   EVT_SOCIAL: "Sinh hoạt",
   EVT_CLEAN: "Vệ sinh",
+  EVT_ROSARY: "Kinh nguyện",
+  EVT_PILGRIM: "Hành hương",
 };
 
 /** Thời lượng mặc định (phút) khi người dùng không nhập giờ kết thúc. */
@@ -23,6 +25,8 @@ export const DEFAULT_DURATION_MIN: Record<string, number> = {
   EVT_TRIP: 600,
   EVT_SOCIAL: 120,
   EVT_CLEAN: 120,
+  EVT_ROSARY: 45,
+  EVT_PILGRIM: 600,
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -167,6 +171,113 @@ export function resolveEventTimes(v: { date: string; time: string; endTime?: str
     endsAt = new Date(new Date(startsAt).getTime() + dur * 60_000).toISOString();
   }
   return { ok: true, startsAt, endsAt };
+}
+
+// ---------------------------------------------------------------------
+// Sự kiện định kỳ (lặp hằng tuần) — CÙNG công thức với app.fn_recurrence_matches / app.fn_generate_recurring_events (db/app/1049):
+// tuần được đếm từ Thứ Hai của tuần chứa ngày bắt đầu; "2 tuần một lần" = các tuần 0, 2, 4… kể từ tuần đó.
+// ---------------------------------------------------------------------
+
+/** Hệ thống tạo trước các buổi của chuỗi định kỳ bao nhiêu ngày (cron sáng "recurring-events"). */
+export const SERIES_HORIZON_DAYS = 14;
+/** Giới hạn số buổi khi chọn "kết thúc sau N lần" */
+export const SERIES_MAX_COUNT = 200;
+/** Ngày kết thúc xa nhất của một chuỗi (tính từ ngày bắt đầu) */
+export const SERIES_MAX_SPAN_DAYS = 730;
+
+export const WEEKDAY_SHORT = ["", "T2", "T3", "T4", "T5", "T6", "T7", "CN"] as const;
+export const WEEKDAY_LONG = ["", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chúa Nhật"] as const;
+
+const dayNumber = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
+};
+/** Số ngày từ a tới b (b − a) */
+export const daysBetween = (a: string, b: string) => dayNumber(b) - dayNumber(a);
+
+/** Thứ ISO của ngày YYYY-MM-DD: 1 = Thứ Hai … 7 = Chúa Nhật */
+export function isoWeekday(dateIso: string): number {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  return ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7) + 1;
+}
+
+/** "T2 12/10" */
+export const weekdayDm = (dateIso: string) => `${WEEKDAY_SHORT[isoWeekday(dateIso)]} ${dateIso.slice(8, 10)}/${dateIso.slice(5, 7)}`;
+
+export interface WeeklyPattern {
+  startsOn: string;
+  /** ISO 1..7 */
+  weekdays: number[];
+  intervalWeeks: number;
+  untilDate?: string | null;
+}
+
+/** Ngày `d` có phải một buổi của mẫu lặp hằng tuần không (không xét ngày bỏ qua). */
+export function weeklyMatches(p: WeeklyPattern, d: string): boolean {
+  if (d < p.startsOn || (p.untilDate && d > p.untilDate)) return false;
+  if (!p.weekdays.includes(isoWeekday(d))) return false;
+  const monday = addDaysIso(p.startsOn, -(isoWeekday(p.startsOn) - 1));
+  return Math.floor(daysBetween(monday, d) / 7) % Math.max(1, p.intervalWeeks) === 0;
+}
+
+/** Các ngày của mẫu lặp từ `from` (tính cả), không quá `to`/ngày kết thúc, tối đa `limit` ngày; bỏ các ngày trong `skip`. */
+export function weeklyDates(
+  p: WeeklyPattern,
+  from: string,
+  opts: { to?: string | null; limit?: number; skip?: ReadonlySet<string> } = {}
+): string[] {
+  const out: string[] = [];
+  if (!p.weekdays.length) return out;
+  const limit = opts.limit ?? 50;
+  let d = from > p.startsOn ? from : p.startsOn;
+  const bounds = [opts.to, p.untilDate].filter((x): x is string => !!x).sort();
+  const end = bounds[0] ?? addDaysIso(d, SERIES_MAX_SPAN_DAYS + 7);
+  for (let i = 0; i < SERIES_MAX_SPAN_DAYS * 3 && out.length < limit && d <= end; i++, d = addDaysIso(d, 1)) {
+    if (weeklyMatches(p, d) && !opts.skip?.has(d)) out.push(d);
+  }
+  return out;
+}
+
+/** "Kết thúc sau N lần" ⇒ ngày của buổi thứ N (null nếu mẫu lặp không có buổi nào). */
+export function untilForCount(p: WeeklyPattern, count: number): string | null {
+  const dates = weeklyDates({ ...p, untilDate: null }, p.startsOn, { limit: Math.max(1, count) });
+  return dates.length ? dates[dates.length - 1] : null;
+}
+
+/** "Thứ Hai, Thứ Tư" · "Mỗi ngày" · "Thứ Hai – Thứ Sáu" */
+export function weekdaysLabel(days: number[]): string {
+  const s = [...new Set(days)].filter((d) => d >= 1 && d <= 7).sort((a, b) => a - b);
+  if (s.length === 7) return "Mỗi ngày";
+  if (s.join(",") === "1,2,3,4,5") return "Thứ Hai – Thứ Sáu";
+  if (s.join(",") === "6,7") return "Thứ Bảy & Chúa Nhật";
+  return s.map((d) => WEEKDAY_LONG[d]).join(", ");
+}
+
+/** "Thứ Hai, Thứ Tư hằng tuần" · "Mỗi ngày" · "Thứ Bảy · 2 tuần một lần" */
+export function seriesPatternLabel(p: { weekdays: number[]; intervalWeeks: number }): string {
+  const w = weekdaysLabel(p.weekdays);
+  if (p.intervalWeeks <= 1) return w === "Mỗi ngày" ? w : `${w} hằng tuần`;
+  return `${w} · ${p.intervalWeeks} tuần một lần`;
+}
+
+/** "21:00" + 90 phút ⇒ "22:30" (qua nửa đêm thì quay vòng) */
+export function addMinutesHm(hm: string, minutes: number): string {
+  const [h, m] = hm.split(":").map(Number);
+  const t = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
+  return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
+}
+
+/** Thời lượng (phút) từ giờ bắt đầu tới giờ kết thúc dạng chữ; kết thúc ≤ bắt đầu ⇒ sang hôm sau. null nếu không hiểu giờ. */
+export function durationFromTimes(time: string, endTime: string | null | undefined, categoryCode: string): { startHm: string; minutes: number } | null {
+  const t = parseVnTime(time);
+  if (!t) return null;
+  const startHm = `${pad(t.h)}:${pad(t.m)}`;
+  if (!endTime || !endTime.trim()) return { startHm, minutes: DEFAULT_DURATION_MIN[categoryCode] ?? 90 };
+  const e = parseVnTime(endTime);
+  if (!e) return null;
+  let minutes = e.h * 60 + e.m - (t.h * 60 + t.m);
+  if (minutes <= 0) minutes += 1440;
+  return { startHm, minutes };
 }
 
 /** Trạng thái hiển thị theo thời gian thực. */

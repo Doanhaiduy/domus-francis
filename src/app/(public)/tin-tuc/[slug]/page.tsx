@@ -11,6 +11,7 @@ import { PublicHeader } from "@/components/public/PublicHeader";
 import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
 import { ArticleCard, ArticleMeta, CategoryChip, Cover } from "@/components/public/ArticleCard";
 import { ShareBar, ViewBeacon } from "@/components/public/PublicClient";
+import { JsonLd } from "@/components/public/JsonLd";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +24,14 @@ async function load(slug: string) {
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const [data, org] = await Promise.all([load(params.slug), getOrgInfo()]);
-  if (!data) return { title: `Không tìm thấy bài viết — ${org.houseName}`, robots: { index: false } };
+  if (!data) return { title: "Không tìm thấy bài viết", robots: { index: false } };
   const { article } = data;
   const origin = siteOrigin();
   const description = article.summary ?? article.title;
   const cover = publicFileUrl(article.coverFileId, "medium");
   const image = cover ? `${origin}${cover}` : `${origin}/og-default.png`;
   return {
-    metadataBase: new URL(origin),
-    title: `${article.title} — ${org.houseName}`,
+    title: article.title,
     description,
     alternates: { canonical: `/tin-tuc/${article.slug}` },
     openGraph: {
@@ -66,17 +66,29 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
     datePublished: article.publishedAt ?? undefined,
     dateModified: article.updatedAt || undefined,
     image: cover ? [`${origin}${cover}`] : undefined,
-    author: { "@type": "Organization", name: article.byline || org.houseName },
-    publisher: { "@type": "Organization", name: org.houseName },
+    author: article.byline ? { "@type": "Person", name: article.byline } : { "@id": `${origin}/#org` },
+    publisher: { "@id": `${origin}/#org` },
     mainEntityOfPage: `${origin}/tin-tuc/${article.slug}`,
     keywords: article.tags.length ? article.tags.join(", ") : undefined,
+    inLanguage: "vi",
+  };
+  // Đường dẫn (breadcrumb) cho công cụ tìm kiếm: Bản tin › Chuyên mục › Bài
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Bản tin", item: `${origin}/tin-tuc` },
+      { "@type": "ListItem", position: 2, name: articleCategoryLabel(article.category), item: `${origin}/tin-tuc?muc=${article.category}` },
+      { "@type": "ListItem", position: 3, name: article.title, item: `${origin}/tin-tuc/${article.slug}` },
+    ],
   };
 
   return (
     <>
       <PublicHeader org={org} section="tin-tuc" activeCategory={article.category} donationEnabled={site.donationEnabled} />
       <ViewBeacon slug={article.slug} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbLd} />
 
       <article className="max-w-3xl mx-auto w-full px-4 sm:px-6 pt-8 pb-4">
         <Link href="/tin-tuc" className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-primary transition mb-6">
@@ -129,8 +141,8 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
         {/* LIÊN HỆ */}
         <aside className="mt-10 rounded-3xl bg-gradient-to-br from-[#5f3add] to-[#7857f8] text-white p-6 sm:p-8">
           <h2 className="text-xl font-extrabold">Bạn quan tâm đến {org.houseName}?</h2>
-          <p className="mt-1.5 text-purple-100 text-sm leading-relaxed">Liên hệ người quản lý để được tư vấn, hoặc ghé thăm nhà vào một buổi chiều cuối tuần.</p>
-          <ul className="mt-4 space-y-2 text-sm text-purple-50">
+          <p className="mt-1.5 text-[#ede9fe] text-sm leading-relaxed">Liên hệ người quản lý để được tư vấn, hoặc ghé thăm nhà vào một buổi chiều cuối tuần.</p>
+          <ul className="mt-4 space-y-2 text-sm text-[#f5f3ff]">
             {org.address && <li className="flex gap-2.5"><MapPin className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />{org.address}</li>}
             {org.phone && (
               <li className="flex gap-2.5"><Phone className="w-4 h-4 mt-0.5 shrink-0" aria-hidden /><a href={`tel:${org.phone.replace(/[^\d+]/g, "")}`} className="font-bold hover:underline">{org.phone}</a></li>
@@ -140,8 +152,8 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
             <Link href="/lien-he#dang-ky" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff] text-[#5f3add] text-sm font-extrabold hover:bg-[#f3f0ff] transition active:scale-95">
               Đăng ký tìm hiểu <ArrowRight className="w-4 h-4" aria-hidden />
             </Link>
-            <Link href="/tin-tuc?muc=tuyen-sinh" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-bold hover:bg-white/25 transition active:scale-95">
-              Thông tin tuyển sinh
+            <Link href="/vao-o" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ffffff]/15 border border-[#ffffff]/30 text-white text-sm font-bold hover:bg-[#ffffff]/25 transition active:scale-95">
+              Chi phí &amp; thủ tục vào ở
             </Link>
           </div>
         </aside>

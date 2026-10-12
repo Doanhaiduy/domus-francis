@@ -1,7 +1,8 @@
 import "server-only";
 import type { Ctx } from "../http";
+import { siteOrigin } from "../public";
 import { ZALO_EVENT_KEYS, ZALO_EVENT_LABEL, zaloEventOn, type ZaloEventKey } from "@/lib/types/settings";
-import { renderTemplate, templateFor } from "@/lib/zalo-templates";
+import { ZALO_DEFAULT_LINK, renderTemplate, templateFor } from "@/lib/zalo-templates";
 
 // =====================================================================
 // Tích hợp nhóm Zalo qua Zalo Bot (https://bot.zaloplatforms.com) — API dạng Telegram:
@@ -109,6 +110,8 @@ export interface ZaloPostResult {
   sent: boolean;
   /** Lý do không gửi (tắt, thiếu cấu hình, lỗi Zalo…) — để hiện cho người dùng, không phải lỗi nghiêm trọng. */
   reason?: string;
+  /** true = ĐÃ thử gửi nhưng Zalo/mạng lỗi (đáng thử lại); false/không có = bỏ qua có chủ đích (tắt, thiếu cấu hình) hoặc đã gửi. */
+  failed?: boolean;
 }
 
 type PostCtx = Pick<Ctx, "dbAs"> & { userId?: string | null };
@@ -158,7 +161,7 @@ async function deliver(ctx: PostCtx, cfg: ZaloConfig, event: ZaloEventKey | null
 ${await senderFooter(ctx)}`;
   const r = await sendZaloText(cfg.chatId, full);
   await logZaloMessage(ctx, { event, chatId: cfg.chatId, text: full, status: r.ok ? "sent" : "failed", error: r.error });
-  return r.ok ? { sent: true } : { sent: false, reason: r.error };
+  return r.ok ? { sent: true } : { sent: false, reason: r.error, failed: true };
 }
 
 /**
@@ -169,24 +172,56 @@ export async function postToZaloGroup(ctx: PostCtx, event: ZaloEventKey | null, 
   try {
     return await deliver(ctx, await readZaloConfig(ctx), event, text);
   } catch (e) {
-    return { sent: false, reason: (e as Error).message };
+    return { sent: false, reason: (e as Error).message, failed: true };
   }
 }
 
-/** Đăng một tin theo MẪU của loại tin (mẫu tùy chỉnh hoặc mặc định) với các biến `vars`. Không ném lỗi. */
+// ---------------------------------------------------------------------
+// Biến {link}: liên kết TUYỆT ĐỐI mở thẳng trang tương ứng trong ứng dụng (anh em bấm từ nhóm Zalo).
+// Nơi gọi có thể truyền `link` (đường dẫn trong ứng dụng "/thu-chi?tab=…" hoặc URL đầy đủ); không truyền ⇒ trang mặc định của loại tin
+// (ZALO_DEFAULT_LINK). Gốc URL: NEXT_PUBLIC_APP_URL (nếu đặt, không phải localhost) → địa chỉ của request hiện tại (siteOrigin).
+// ---------------------------------------------------------------------
+function appOrigin(): string | null {
+  const env = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
+  if (env && /^https?:\/\//.test(env) && !/\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(env)) return env;
+  try {
+    return siteOrigin();
+  } catch {
+    // Ngoài request (không đọc được header) ⇒ dùng biến môi trường kể cả localhost, không có thì bỏ trống (dòng "👉 Xem: {link}" tự ẩn)
+    return env && /^https?:\/\//.test(env) ? env : null;
+  }
+}
+
+/** Đường dẫn trong ứng dụng / URL ⇒ URL tuyệt đối (null nếu không dựng được — biến rỗng thì dòng chứa nó tự bị bỏ). */
+export function absoluteAppLink(link: string | null | undefined): string | null {
+  const v = link?.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (!v.startsWith("/") || v.startsWith("//")) return null;
+  const origin = appOrigin();
+  return origin ? `${origin}${v}` : null;
+}
+
+/** Biến của tin + {link} (mặc định theo loại tin nếu nơi gọi không truyền). */
+function withLink(event: ZaloEventKey, vars: Record<string, string | undefined | null>): Record<string, string | undefined | null> {
+  if ("link" in vars && vars.link === "") return vars; // nơi gọi cố ý bỏ liên kết
+  return { ...vars, link: absoluteAppLink(vars.link ?? ZALO_DEFAULT_LINK[event] ?? null) };
+}
+
+/** Đăng một tin theo MẪU của loại tin (mẫu tùy chỉnh hoặc mặc định) với các biến `vars` (+ {link}). Không ném lỗi. */
 export async function postZaloEvent(ctx: PostCtx, event: ZaloEventKey, vars: Record<string, string | undefined | null>): Promise<ZaloPostResult> {
   try {
     const cfg = await readZaloConfig(ctx);
-    return await deliver(ctx, cfg, event, renderTemplate(templateFor(cfg.templates, event), vars));
+    return await deliver(ctx, cfg, event, renderTemplate(templateFor(cfg.templates, event), withLink(event, vars)));
   } catch (e) {
     return { sent: false, reason: (e as Error).message };
   }
 }
 
-/** Dựng nội dung theo mẫu (không gửi) — để hiện cho người dùng sao chép khi chưa gửi được. */
+/** Dựng nội dung theo mẫu (không gửi) — để hiện cho người dùng sao chép khi chưa gửi được (+ {link}). */
 export async function renderZaloEvent(ctx: Pick<Ctx, "dbAs">, event: ZaloEventKey, vars: Record<string, string | undefined | null>): Promise<string> {
   const cfg = await readZaloConfig(ctx);
-  return renderTemplate(templateFor(cfg.templates, event), vars);
+  return renderTemplate(templateFor(cfg.templates, event), withLink(event, vars));
 }
 
 /** Thông tin bot (getMe) — kiểm tra token. */

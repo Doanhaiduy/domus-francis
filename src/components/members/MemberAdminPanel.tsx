@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { KeyRound, UserPlus, ShieldCheck, UserMinus, Pencil, Copy, X, IdCard } from "lucide-react";
+import { KeyRound, UserPlus, ShieldCheck, UserMinus, UserCheck, Pencil, Copy, X, IdCard } from "lucide-react";
 import { api } from "@/lib/api";
 import { Portal } from "@/components/ui/Portal";
 import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
@@ -13,6 +13,7 @@ import { membersApi, refreshPeople } from "@/lib/data/members";
 import { accountsApi } from "@/lib/data/accounts";
 import type { Member } from "@/lib/types/members";
 import type { MemberRolesDto } from "@/lib/types/accounts";
+import DepartureDialog from "./DepartureDialog";
 const STATUS_LABEL: Record<string, string> = { active: "Đang ở", on_leave: "Tạm vắng", alumni: "Cựu thành viên", left: "Đã rời lưu xá" };
 
 function SecretBox({ title, lines, onClose }: { title: string; lines: [string, string][]; onClose: () => void }) {
@@ -52,7 +53,7 @@ function SecretBox({ title, lines, onClose }: { title: string; lines: [string, s
 
 /** Các thao tác quản trị trên một thành viên — mỗi nút chỉ hiện khi người dùng có quyền tương ứng (server kiểm lại). */
 export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: Member; canEdit: boolean; onEdit: () => void }) {
-  const { showToast } = useApp();
+  const { showToast, rooms } = useApp();
   const { can, session } = useSession();
   const [secret, setSecret] = useState<{ title: string; lines: [string, string][] } | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -62,6 +63,9 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
   const [roles, setRoles] = useState<MemberRolesDto | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [status, setStatus] = useState<string>("left");
+  const [departOpen, setDepartOpen] = useState<"left" | "alumni" | null>(null);
+  const [reactivateOpen, setReactivateOpen] = useState(false);
+  const [reactivateRoom, setReactivateRoom] = useState("");
   const [reason, setReason] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const [nidOpen, setNidOpen] = useState(false);
@@ -126,10 +130,16 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
             <ShieldCheck className="w-3.5 h-3.5" /> Vai trò
           </button>
         )}
-        {canStatus && (
-          <button onClick={() => setStatusOpen(true)} className={`${btn} border-rose-200 text-rose-700 hover:bg-rose-50`}>
-            <UserMinus className="w-3.5 h-3.5" /> Trạng thái
+        {canStatus && (member.status === "left" || member.status === "alumni") ? (
+          <button onClick={() => setReactivateOpen(true)} className={`${btn} border-emerald-200 text-emerald-700 hover:bg-emerald-50`}>
+            <UserCheck className="w-3.5 h-3.5" /> Kích hoạt lại
           </button>
+        ) : (
+          canStatus && (
+            <button onClick={() => setStatusOpen(true)} className={`${btn} border-rose-200 text-rose-700 hover:bg-rose-50`}>
+              <UserMinus className="w-3.5 h-3.5" /> Trạng thái
+            </button>
+          )
         )}
         {canNid && (
           <button onClick={() => setNidOpen(true)} className={`${btn} border-gray-200 text-gray-700 hover:bg-gray-50`}>
@@ -278,23 +288,67 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
                   .map(([value, label]) => ({ value, label }))}
               />
               {(status === "left" || status === "alumni") && (
-                <CustomInput label="Lý do / ghi chú" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Tốt nghiệp, chuyển nơi ở…" />
+                <p className="text-[11px] text-gray-500 leading-relaxed">Bước tiếp theo sẽ hiện các việc còn treo của {member.fullName} (khoản quỹ chưa đóng, tuần trực sắp tới, hình phạt, đơn xin phép) để bạn chọn cách xử lý một lần.</p>
               )}
               <div className="flex justify-end gap-2">
                 <button onClick={() => setStatusOpen(false)} className="px-4 py-2 rounded-xl border text-xs font-bold">Hủy</button>
                 <button
                   disabled={busy}
-                  onClick={() =>
-                    run(async () => {
+                  onClick={() => {
+                    if (status === "left" || status === "alumni") {
+                      setStatusOpen(false);
+                      setDepartOpen(status);
+                      return;
+                    }
+                    void run(async () => {
                       await membersApi.changeStatus(member.id, status, null, reason || null);
                       await refreshPeople();
                       setStatusOpen(false);
                       showToast("success", `Đã chuyển ${member.fullName} sang "${STATUS_LABEL[status]}".`);
-                    })
-                  }
+                    });
+                  }}
                   className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold disabled:opacity-50"
                 >
-                  Xác nhận
+                  {status === "left" || status === "alumni" ? "Tiếp tục" : "Xác nhận"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {departOpen && <DepartureDialog memberId={member.id} memberName={member.fullName} initialStatus={departOpen} onClose={() => setDepartOpen(null)} />}
+
+      {reactivateOpen && (
+        <Portal>
+          <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => !busy && setReactivateOpen(false)}>
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-gray-900">Kích hoạt lại — {member.fullName}</h3>
+              <p className="text-xs text-gray-500">Một thao tác: chuyển về <b>Đang ở</b>, mở lại tài khoản đăng nhập{member.userId ? "" : " (nếu có)"} và (tùy chọn) xếp phòng. Các khoản quỹ / lịch sử cũ giữ nguyên.</p>
+              <CustomSelect
+                label="Xếp phòng (tùy chọn)"
+                value={reactivateRoom}
+                onChange={setReactivateRoom}
+                options={[
+                  { value: "", label: "— Chưa xếp phòng —" },
+                  ...rooms.filter((r) => r.type === "bedroom" && r.status === "active").map((r) => ({ value: r.id, label: r.name || r.id })),
+                ]}
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setReactivateOpen(false)} disabled={busy} className="px-4 py-2 rounded-xl border text-xs font-bold">Hủy</button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const r = await membersApi.reactivate(member.id, reactivateRoom || null);
+                      await refreshPeople();
+                      setReactivateOpen(false);
+                      showToast("success", `Đã kích hoạt lại ${member.fullName}${r.accountEnabled ? " và mở lại tài khoản" : ""}${r.roomAssigned ? " và xếp phòng" : ""}.`);
+                    })
+                  }
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+                >
+                  Kích hoạt lại
                 </button>
               </div>
             </div>

@@ -7,7 +7,7 @@ import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/For
 import { cn } from "@/lib/utils";
 import type { RoleDto, SettingDto } from "@/lib/types/settings";
 import type { SettingsDraft } from "./useSettingsDraft";
-import { settingHelp, settingLabel } from "@/lib/settings-catalog";
+import { isHiddenSetting, settingHelp, settingLabel } from "@/lib/settings-catalog";
 import {
   AddressSetting,
   CardLockNote,
@@ -54,7 +54,6 @@ export const FINANCE_CONTROL_KEYS = [
   "finance.reminder.days_before_due",
   "finance.reminder.overdue_every_days",
   "finance.period.close_requires_reconciliation",
-  "finance.transparency.show_debtor_names",
 ];
 /** Khóa tài chính cũ / có màn hình riêng — không hiện ở tab này:
  *  quỹ tháng (đã thay bằng quỹ định kỳ), tài khoản nhận quỹ (Thủ quỹ sửa ở trang Thu chi → thẻ "Tài khoản nhận quỹ", có mã QR). */
@@ -138,7 +137,7 @@ export default function GeneralTab({ draft, roles }: Props) {
   const advanced = useMemo(() => {
     const groups = new Map<string, SettingDto[]>();
     for (const m of draft.byKey.values()) {
-      if (used.has(m.key) || !isGeneralKey(m.key)) continue;
+      if (used.has(m.key) || !isGeneralKey(m.key) || isHiddenSetting(m.key)) continue; // khóa không có tác dụng thật bị ẩn (xem hidden trong settings-catalog)
       const g = m.key.split(".")[0];
       groups.set(g, [...(groups.get(g) ?? []), m]);
     }
@@ -355,12 +354,6 @@ export default function GeneralTab({ draft, roles }: Props) {
                     description="Áp dụng cho túi quỹ ngân hàng — Thủ quỹ phải đối soát xong mới đề nghị chốt sổ"
                   />
                 )}
-                <ToggleSetting
-                  draft={draft}
-                  k="finance.transparency.show_debtor_names"
-                  label="Công khai danh sách người chưa đóng quỹ cho mọi thành viên"
-                  description="Mặc định chỉ Thủ quỹ / người quản lý thấy tên; thành viên chỉ thấy số liệu tổng hợp"
-                />
               </div>
             </LockNoteShown.Provider>
           </div>

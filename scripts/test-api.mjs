@@ -19,11 +19,16 @@ import { buildDatabase } from "./db/build.mjs";
 const args = process.argv.slice(2);
 const get = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const NO_SERVER = args.includes("--no-server");
+// --serve: chỉ dựng DB thử + khởi động máy chủ thử rồi GIỮ chạy (không chạy ca nào) — để chạy nhiều lượt
+//          `--no-server --db luuxa_test --base http://localhost:3100 --only <bộ>` nhanh, không dựng lại DB mỗi lần.
+const SERVE = args.includes("--serve");
 // --only <tiền tố tên file>: chỉ chạy bộ kiểm thử phân hệ tương ứng (vd. --only public-site), bỏ các suite nền
 const ONLY = get("--only", "");
 const PORT = Number(get("--port", "3100"));
 const BASE = get("--base", `http://localhost:${PORT}`);
-const DB = "luuxa_test";
+// --db <tên>: DB thử (mặc định luuxa_test). Với --no-server: DB mà máy chủ đang chạy dùng (mặc định luuxa — DB dev)
+const DB = get("--db", "luuxa_test");
+const TARGET_DB = NO_SERVER ? get("--db", "luuxa") : DB;
 const PW = "LuuXa@2026";
 const env = loadEnvLocal();
 
@@ -122,6 +127,7 @@ const section = (s) => {
 // Máy chủ thử nghiệm
 // ---------------------------------------------------------------------
 let server = null;
+let log = "";
 async function startServer() {
   console.log(`▶ Dựng DB ${DB} + dữ liệu demo…`);
   await buildDatabase(DB, "app", { verbose: false });
@@ -130,6 +136,15 @@ async function startServer() {
   // Dữ liệu nghiệp vụ hiện hành (db/data: bỏ Phó nhà, quyền Admin…) giống DB thật
   const mig = spawnSync(process.execPath, [path.join(ROOT, "scripts/db/migrate.mjs"), "--db", DB], { stdio: "inherit", cwd: ROOT });
   if (mig.status !== 0) throw new Error("migrate lỗi");
+  // Tài khoản demo (Trưởng nhà, Thủ quỹ, Admin) chưa bật 2FA; API chặn vai trò bắt buộc 2FA chưa bật ⇒ DB thử tắt danh sách vai trò bắt buộc.
+  // Ca kiểm thử riêng (scripts/test-api/security-gates.mjs) tự bật lại để kiểm tra việc chặn.
+  {
+    const pg = (await import("pg")).default;
+    const db = new pg.Client(pgConfig({ database: DB }));
+    await db.connect();
+    await db.query("UPDATE settings SET value = '[]'::jsonb WHERE key = 'auth.mfa_required_roles'");
+    await db.end();
+  }
   const require = createRequire(import.meta.url);
   const nextBin = require.resolve("next/dist/bin/next");
   const port = process.env.PGPORT_LOCAL || env.PGPORT_LOCAL || 54329;
@@ -169,12 +184,33 @@ async function startServer() {
       CRON_SECRET: "test-cron-secret-0001",
       // Webhook ngân hàng (scripts/test-api/bank-webhook.mjs dùng đúng khóa này)
       BANK_WEBHOOK_SECRET: "test-bank-webhook-secret-0001",
+      // Email: khóa giả + máy chủ Resend giả ở loopback (cổng 3194) — không có lưu lượng ra Resend khi kiểm thử
+      EMAIL_FROM: "Lưu Xá Thử <no-reply@luuxa.local>",
+      RESEND_API_KEY: "offline-test-resend",
+      EMAIL_TEST_BASE_URL: "http://127.0.0.1:3194",
+      // Nhịp tim sao lưu (repo sao lưu gọi về sau mỗi lần chạy)
+      OPS_HEARTBEAT_SECRET: "test-ops-heartbeat-secret-0001",
+      // Địa chỉ công khai (liên kết trong email/Zalo/lịch)
+      NEXT_PUBLIC_APP_URL: `http://localhost:${PORT}`,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
-  server.stderr.on("data", (d) => (log += d));
+  log = "";
+  // Giữ tối đa ~200 KB log cuối trong bộ nhớ (ghi ra .local/test-server.log khi dừng); chế độ --serve ghi thêm toàn bộ ra .local/testsrv-next.log
+  const { appendFileSync } = await import("node:fs");
+  const serveLog = path.join(ROOT, ".local/testsrv-next.log");
+  const onLog = (d) => {
+    log = (log + d).slice(-200_000);
+    if (SERVE) {
+      try {
+        appendFileSync(serveLog, d);
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  };
+  server.stdout.on("data", onLog);
+  server.stderr.on("data", onLog);
   const t0 = Date.now();
   for (;;) {
     if (Date.now() - t0 > 240_000) throw new Error("Máy chủ thử nghiệm không khởi động được:\n" + log.slice(-2000));
@@ -190,6 +226,12 @@ async function startServer() {
 }
 function stopServer() {
   if (!server) return;
+  try {
+    // Log máy chủ thử của cả lượt chạy (cảnh báo "[api] GET … có ghi dữ liệu", lỗi không mong đợi…) để xem lại sau
+    writeFileSync(path.join(ROOT, ".local/test-server.log"), log);
+  } catch {
+    /* bỏ qua */
+  }
   if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
   else server.kill("SIGTERM");
 }
@@ -257,7 +299,7 @@ async function suiteAuth() {
     ok(c.jar.get("luuxa_rt") !== rt1, "refresh token phải đổi");
     // Giả lập kẻ gian dùng lại rt1 sau 30 giây: lùi rotated_at trong DB
     const pg = (await import("pg")).default;
-    const db = new pg.Client(pgConfig({ database: NO_SERVER ? "luuxa" : DB }));
+    const db = new pg.Client(pgConfig({ database: TARGET_DB }));
     await db.connect();
     await db.query("UPDATE refresh_tokens SET rotated_at = now() - interval '5 minutes' WHERE rotated_at IS NOT NULL AND rotated_at > now() - interval '1 minute'");
     await db.end();
@@ -283,9 +325,17 @@ async function suiteAuth() {
 async function suiteRegistration() {
   section("Đăng ký & duyệt đơn");
   const email = `test.${Date.now()}@luuxa.local`;
+  // Giới hạn tự đăng ký (5 lần/giờ/IP — db/app/1041) đếm cả các lượt chạy thử trước ⇒ xóa bộ đếm trước khi thử
+  {
+    const pg = (await import("pg")).default;
+    const db = new pg.Client(pgConfig({ database: TARGET_DB }));
+    await db.connect();
+    await db.query("DELETE FROM rate_limit_hits WHERE key LIKE 'register:%'").catch(() => {});
+    await db.end();
+  }
   const applicant = await new Client("applicant").init();
   await test("Đăng ký tài khoản mới → trạng thái chờ duyệt", async () => {
-    const r = await applicant.post("/api/v1/auth/register", { fullName: "Phêrô Nguyễn Văn Thử", email, password: "MatKhau2026", universityName: "ĐH Bách Khoa Hà Nội" });
+    const r = await applicant.post("/api/v1/auth/register", { fullName: "Phêrô Nguyễn Văn Thử", email, password: "MatKhau2026", universityName: "ĐH Nha Trang", acceptTerms: true });
     eq(r.status, 201);
     eq(r.json.pending, true);
   });
@@ -498,13 +548,37 @@ async function suiteModules() {
   if (!existsSync(dir)) return;
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".mjs") && x.startsWith(ONLY)).sort()) {
     const mod = await import(`./test-api/${f}`);
-    await mod.run({ as, test, eq, ok, section, BASE, Client, pgConfig: () => pgConfig({ database: NO_SERVER ? "luuxa" : DB }) });
+    await mod.run({ as, test, eq, ok, section, BASE, Client, pgConfig: () => pgConfig({ database: TARGET_DB }) });
   }
 }
 
 // ---------------------------------------------------------------------
 (async () => {
   const t0 = Date.now();
+  if (SERVE) {
+    // Máy chủ thử chạy lâu dài: dừng bằng Ctrl+C / kill tiến trình này (máy chủ con dừng theo)
+    try {
+      await startServer();
+    } catch (e) {
+      console.error(e);
+      stopServer();
+      process.exit(1);
+    }
+    console.log(`✓ Máy chủ thử sẵn sàng tại ${BASE} (DB ${DB}). Chạy ca: node --no-warnings scripts/test-api.mjs --no-server --db ${DB} --base ${BASE} --only <bộ>`);
+    const bye = () => {
+      stopServer();
+      process.exit(0);
+    };
+    process.on("SIGINT", bye);
+    process.on("SIGTERM", bye);
+    server.on("exit", (code) => {
+      console.error(`Máy chủ thử đã dừng (mã ${code}).`);
+      process.exit(1);
+    });
+    // giữ tiến trình sống; ghi log máy chủ định kỳ
+    setInterval(() => {}, 1 << 30);
+    return;
+  }
   try {
     if (!NO_SERVER) await startServer();
     if (!ONLY) {

@@ -10,6 +10,11 @@ export interface SettingCatalogEntry {
   help?: string;
   /** Nhóm hiển thị (mặc định: phần đầu của khóa) */
   group?: string;
+  /**
+   * Khóa KHÔNG có tác dụng thật (mã nguồn không đọc giá trị này) hoặc đã có nơi quản lý riêng ⇒ ẩn khỏi màn hình Cài đặt.
+   * Giá trị = lý do ẩn (ghi cho người phát triển). Khi nối khóa vào mã thật thì xóa dòng `hidden`.
+   */
+  hidden?: string;
 }
 
 export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
@@ -21,14 +26,17 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
 
   // --- Bảo mật đăng nhập ---
   "auth.access_token_ttl_seconds": {
+    hidden: "Giá trị thật cố định trong mã (src/lib/auth-shared.ts, session.ts); đổi ở đây không có tác dụng.",
     label: "Thời hạn phiên làm việc ngắn",
     help: "Sau khoảng thời gian này trình duyệt tự gia hạn phiên đăng nhập ở nền (mặc định 15 phút).",
   },
   "auth.lockout_minutes": {
+    hidden: "Giá trị thật cố định trong mã đăng nhập; không nối để tránh rủi ro khóa nhầm toàn nhà.",
     label: "Thời gian khóa tạm sau khi nhập sai mật khẩu",
     help: "Tài khoản bị khóa tạm trong số phút này khi nhập sai mật khẩu quá số lần cho phép.",
   },
   "auth.max_failed_logins": {
+    hidden: "Giá trị thật cố định trong mã đăng nhập; không nối để tránh rủi ro khóa nhầm toàn nhà.",
     label: "Số lần nhập sai mật khẩu tối đa",
     help: "Nhập sai liên tiếp quá số lần này thì tài khoản bị khóa tạm.",
   },
@@ -37,6 +45,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
     help: "Người giữ các vai trò được chọn nên bật xác thực hai lớp khi đăng nhập.",
   },
   "auth.refresh_token_ttl_days": {
+    hidden: "Giá trị thật cố định trong mã (session.ts); đổi ở đây không có tác dụng.",
     label: "Thời gian ghi nhớ đăng nhập",
     help: "Số ngày tối đa một thiết bị được giữ đăng nhập; quá hạn phải đăng nhập lại.",
   },
@@ -113,6 +122,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
     help: "Công tắc tổng cho mọi tính năng AI; từng tác vụ còn có công tắc riêng ở tab Trợ lý AI.",
   },
   "feature.meals.enabled": {
+    hidden: "Bật/tắt Bếp & Cơm nay làm ở tab Phân hệ (một nguồn duy nhất); máy chủ đồng bộ cờ này theo đó.",
     label: "Bật phân hệ Bếp & Cơm",
     help: "Cho phép anh em đăng ký suất ăn. Tắt khi người quản lý tạm hoãn việc nấu chung.",
   },
@@ -153,7 +163,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "finance.monthly_dues_vnd": { label: "Mức quỹ hằng tháng (cũ)", help: "Mức quỹ sinh hoạt hằng tháng theo cách thu cũ." },
   "finance.period.close_requires_reconciliation": {
     label: "Bắt buộc đối soát sao kê trước khi chốt sổ tháng",
-    help: "Áp dụng cho quỹ gửi ngân hàng.",
+    help: "Bật: Thủ quỹ phải đối soát số dư cuối tháng (sao kê ngân hàng / tiền mặt) ở Thu chi → Sổ quỹ & chốt sổ trước khi chốt — áp cho quỹ ngân hàng và quỹ chung (gộp tiền mặt + ngân hàng).",
   },
   "finance.receiving_account": {
     label: "Tài khoản nhận quỹ",
@@ -162,6 +172,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "finance.reminder.days_before_due": { label: "Nhắc đóng quỹ trước hạn", help: "Gửi lời nhắc trước hạn nộp số ngày này." },
   "finance.reminder.overdue_every_days": { label: "Chu kỳ nhắc khi quá hạn", help: "Quá hạn mà chưa nộp thì cứ sau số ngày này nhắc lại." },
   "finance.transparency.show_debtor_names": {
+    hidden: "Chưa có màn hình nào đọc khóa này (danh sách người chưa đóng chỉ người có quyền tài chính xem).",
     label: "Công khai danh sách người chưa đóng quỹ",
     help: "Bật thì mọi thành viên thấy tên người chưa đóng; tắt thì chỉ Thủ quỹ / người quản lý thấy, thành viên chỉ thấy số liệu tổng.",
   },
@@ -197,13 +208,17 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "laundry.slots": { label: "Các khung giờ giặt trong ngày", help: "Nhập dạng 06:00-08:00, 08:00-10:00…" },
 
   // --- Phụng vụ ---
+  "liturgy.auto_approve_no_photo": {
+    label: "Tự xác nhận check-in đi lễ không cần ảnh",
+    help: "Chúa Nhật (và ngày đặc biệt không cần ảnh): check-in được xác nhận ngay khi gửi. Ngày cần ảnh, ảnh giống ảnh người khác / chụp không đúng ngày, hoặc gửi lại sau khi bị đánh dấu chưa hợp lệ vẫn chờ Ban Phụng vụ duyệt.",
+  },
   "liturgy.checkin_grace_days": {
     label: "Được check-in đi lễ muộn tối đa",
     help: "Số ngày sau ngày lễ anh em vẫn còn check-in được (vd. quên bấm trong ngày).",
   },
   "liturgy.checkin_reminder_time": {
     label: "Giờ nhắc người chưa check-in đi lễ",
-    help: "Vào giờ này của ngày lễ bắt buộc, ai chưa check-in sẽ nhận một thông báo nhắc.",
+    help: "Vào giờ này của ngày lễ bắt buộc, ai chưa check-in sẽ nhận một thông báo nhắc. Trên máy chủ, lượt nhắc buổi tối chạy khoảng 19:00–20:00 nên giờ đặt muộn hơn vẫn được gửi trong lượt đó — nên đặt không muộn hơn 19:00.",
   },
   "liturgy.checkin_solemnity": {
     label: "Bắt buộc check-in đi lễ trọng và lễ Bổn mạng",
@@ -228,16 +243,24 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
   "org.contact_phone": { label: "Hotline công khai của lưu xá", help: "Không dùng số điện thoại cá nhân." },
   "org.donation_enabled": { label: "Bật trang Ủng hộ", help: "Hiện mã VietQR của tài khoản nhận quỹ cho người ngoài ủng hộ." },
   "org.donation_note": { label: "Lời nhắn trang Ủng hộ" },
+  "org.donation_transparency": {
+    label: "Công khai số liệu ủng hộ và chi tiêu ở trang Ủng hộ",
+    help: "Bật thì trang Ủng hộ hiện tổng tiền ủng hộ đã nhận, số lượt và tổng chi theo hạng mục từng năm — chỉ số tổng, không tên người.",
+  },
   "org.house_name": { label: "Tên lưu xá chính thức" },
   "org.motto": { label: "Khẩu hiệu cộng đoàn" },
   "org.order_name": { label: "Tỉnh Dòng", help: "In trên sơ yếu lý lịch." },
   "org.patron_feast": { label: "Ngày lễ Bổn mạng", help: "Ngày / tháng lễ Bổn mạng của nhà." },
   "org.patron_name": { label: "Vị thánh Bổn mạng", help: "Tên vị thánh hoặc mầu nhiệm Bổn mạng của nhà, hiện nổi bật trên lịch vào ngày Bổn mạng." },
+  "org.show_vacancies": {
+    label: "Hiện số chỗ trống ở trang “Vào ở lưu xá”",
+    help: "Chỗ trống = sức chứa các phòng ngủ đang dùng trừ số người đang ở. Tắt nếu không muốn công bố trên trang công khai.",
+  },
 
   // --- Quyền riêng tư ---
   "privacy.left_member_retention_days": {
     label: "Thời gian giữ dữ liệu cá nhân sau khi rời lưu xá",
-    help: "Quá số ngày này kể từ ngày rời nhà, thông tin cá nhân nhạy cảm của người đã rời được tự động ẩn danh. Cựu thành viên (đã ra trường, vẫn giữ liên lạc) không bị ẩn danh.",
+    help: "Đặt 0 = TẮT (mặc định). Khi đặt số ngày: hồ sơ người đã rời nhà (trạng thái “Rời nhà”) quá số ngày này kể từ ngày rời được tự động ẩn danh hóa mỗi tối — xóa thông tin cá nhân, khóa tài khoản; sổ quỹ vẫn giữ. Người quản lý được báo trước 30 ngày, và hồ sơ chỉ bị ẩn danh sau khi đã báo ít nhất 7 ngày. Cựu thành viên (đã ra trường, vẫn giữ liên lạc) không bị ẩn danh.",
   },
 
   // --- Giao diện ---
@@ -245,13 +268,16 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
 
   // --- Lưu trữ tệp ---
   "upload.max_image_bytes": { label: "Dung lượng tối đa mỗi ảnh tải lên", help: "Tối đa 20 MB." },
-  "upload.monthly_quota_bytes": { label: "Hạn mức tải lên mỗi người mỗi tháng" },
+  "upload.monthly_quota_bytes": { hidden: "Chưa có cơ chế đếm hạn mức tải lên theo tháng; khóa không được đọc.", label: "Hạn mức tải lên mỗi người mỗi tháng" },
   "upload.orphan_ttl_hours": {
     label: "Dọn tệp tải lên bị bỏ dở sau",
     help: "Tệp đã tải lên nhưng không được dùng (vd. đóng biểu mẫu giữa chừng) sẽ bị xóa sau số giờ này.",
   },
-  "upload.presign_ttl_seconds": { label: "Thời hạn của một lượt tải tệp lên", help: "Liên kết tải lên hết hạn sau số giây này." },
+  "upload.presign_ttl_seconds": { hidden: "Ứng dụng tải tệp qua máy chủ, không dùng liên kết ký trước; khóa không được đọc.", label: "Thời hạn của một lượt tải tệp lên", help: "Liên kết tải lên hết hạn sau số giây này." },
 };
+
+/** Khóa bị ẩn khỏi màn hình Cài đặt (không có tác dụng thật / quản lý ở nơi khác). */
+export const isHiddenSetting = (key: string): boolean => !!SETTING_CATALOG[key]?.hidden;
 
 /** Bỏ thuật ngữ kỹ thuật khỏi mô tả lưu trong DB (dùng khi khóa chưa có trong danh mục). */
 export function cleanSettingDescription(d: string | null | undefined): string {

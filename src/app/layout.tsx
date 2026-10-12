@@ -22,6 +22,7 @@ import { PwaRegister } from "@/components/PwaRegister";
 import { SheetEnhancer } from "@/components/SheetEnhancer";
 import { ModalGuard } from "@/components/ModalGuard";
 import { ImageViewerHost } from "@/components/ImageViewerHost";
+import { ClientErrorReporter } from "@/components/ClientErrorReporter";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -68,6 +69,8 @@ export default function RootLayout({
           </SessionProvider>
         </ThemeProvider>
         <PwaRegister />
+        {/* Lỗi JS chưa bắt / promise bị từ chối ⇒ báo về nhật ký lỗi (Cài đặt → Hệ thống) */}
+        <ClientErrorReporter />
         {/* Hộp thoại trên điện thoại: tờ trượt từ đáy, kéo xuống để đóng */}
         <SheetEnhancer />
         {/* Trình xem ảnh dùng chung: openImageViewer(...) mở từ bất kỳ đâu (phóng to, kéo, xoay, tải về) */}

@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BookOpen,
   Check,
+  CheckCheck,
   ChevronDown,
   Church,
   ExternalLink,
@@ -22,7 +23,8 @@ import { errorMessage, fileUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { liturgyCalendarApi, refreshLiturgy, useLiturgyDay } from "@/lib/data/liturgy-calendar";
 import type { CalendarDayDetailDto, MassCheckinRowDto, ReadingSetDto, ReadingSlotDto } from "@/lib/types/liturgy";
-import { CHECKIN_STATUS_CLASS, CHECKIN_STATUS_LABEL, LIT_COLOR, SPECIAL_COLOR, dm, dmy } from "./liturgy-style";
+import { CHECKIN_STATUS_CLASS, CHECKIN_STATUS_LABEL, LIT_COLOR, SPECIAL_COLOR, checkinStatusText, dm, dmy } from "./liturgy-style";
+import { CustomInput, CustomTextarea } from "@/components/ui/FormControls";
 import MassCheckinModal from "./MassCheckinModal";
 import { ZoomableImage } from "@/components/ui/ZoomableImage";
 import { fileViewerImage } from "@/lib/image-viewer";
@@ -163,21 +165,21 @@ function IntentionBox({ d }: { d: CalendarDayDetailDto }) {
       </div>
       {editing ? (
         <div className="flex flex-col gap-2">
-          <textarea
+          <CustomTextarea
+            aria-label="Ý lễ của nhà"
             value={intention}
             onChange={(e) => setIntention(e.target.value)}
             rows={2}
             maxLength={1000}
             placeholder="Ý lễ của cộng đoàn, vd: Cầu cho anh em sắp thi học kỳ; cầu cho linh hồn ông cố của anh Tuấn…"
-            className="w-full p-2.5 rounded-xl border border-purple-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white"
           />
-          <textarea
+          <CustomTextarea
+            aria-label="Ghi chú phụng vụ"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             maxLength={2000}
             placeholder="Ghi chú phụng vụ (giờ lễ, nơi dự lễ, hướng dẫn của giáo xứ…) — không bắt buộc"
-            className="w-full p-2.5 rounded-xl border border-purple-200 text-xs focus:ring-2 focus:ring-purple-200 outline-none bg-white"
           />
           <div className="flex justify-end gap-2">
             <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-white">
@@ -211,9 +213,9 @@ function IntentionBox({ d }: { d: CalendarDayDetailDto }) {
 }
 
 // ---------------------------------------------------------------------
-// Check-in đi lễ
+// Check-in đi lễ (dùng cả ở trang Lịch lẫn thẻ "Check-in đi lễ hôm nay" của trang Phụng vụ)
 // ---------------------------------------------------------------------
-function CheckinBox({ d, onOpen }: { d: CalendarDayDetailDto; onOpen: () => void }) {
+export function CheckinBox({ d, onOpen, showAttendance = true }: { d: CalendarDayDetailDto; onOpen: () => void; showAttendance?: boolean }) {
   const { showToast } = useApp();
   const req = d.requirement;
   const mine = d.myCheckin;
@@ -242,13 +244,12 @@ function CheckinBox({ d, onOpen }: { d: CalendarDayDetailDto; onOpen: () => void
             <Church className="w-4 h-4" /> Check-in đi lễ · {req.label}
           </span>
           <p className="text-[11px] text-amber-800/90 mt-0.5">
-            {req.evidenceRequired ? "Cần kèm ảnh minh chứng" : "Không cần ảnh minh chứng"} · hạn hết ngày {dm(req.deadline)}
+            {req.evidenceRequired ? "Cần kèm ảnh minh chứng" : d.autoApprove ? "Không cần ảnh · xác nhận ngay khi gửi" : "Không cần ảnh minh chứng"} · hạn hết ngày{" "}
+            {dm(req.deadline)}
           </p>
         </div>
         {mine && (
-          <span className={cn("shrink-0 px-2 py-0.5 rounded-lg border text-[10px] font-bold", CHECKIN_STATUS_CLASS[mine.status])}>
-            {CHECKIN_STATUS_LABEL[mine.status]}
-          </span>
+          <span className={cn("shrink-0 px-2 py-0.5 rounded-lg border text-[10px] font-bold", CHECKIN_STATUS_CLASS[mine.status])}>{checkinStatusText(mine)}</span>
         )}
       </div>
       {mine && (
@@ -268,27 +269,30 @@ function CheckinBox({ d, onOpen }: { d: CalendarDayDetailDto; onOpen: () => void
             </p>
             {mine.note && <p className="text-gray-500">{mine.note}</p>}
             {mine.status === "rejected" && mine.reviewNote && <p className="text-rose-700 font-semibold">Lý do: {mine.reviewNote}</p>}
+            {mine.status === "approved" && mine.autoApproved && <p className="text-emerald-700">Ngày không cần ảnh — hệ thống tự xác nhận.</p>}
             {mine.reviewedByName && mine.status !== "submitted" && <p className="text-gray-400">Duyệt bởi {mine.reviewedByName}</p>}
           </div>
         </div>
       )}
       {d.checkinBlockedReason && !mine && <p className="text-[11px] text-gray-600">{d.checkinBlockedReason}</p>}
-      {d.canCheckin && (
+      {(d.canCheckin || d.canCancelCheckin) && (
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={onOpen}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs active:scale-95 transition"
-          >
-            <Check className="w-4 h-4" /> {mine ? (mine.status === "rejected" ? "Gửi lại minh chứng" : "Sửa check-in") : "Tôi đã đi lễ"}
-          </button>
-          {mine && mine.status === "submitted" && (
-            <button onClick={cancel} disabled={busy} className="px-3 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-white">
-              Hủy check-in
+          {d.canCheckin && (
+            <button
+              onClick={onOpen}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs active:scale-95 transition"
+            >
+              <Check className="w-4 h-4" /> {mine ? (mine.status === "rejected" ? "Gửi lại minh chứng" : "Sửa check-in") : "Tôi đã đi lễ"}
+            </button>
+          )}
+          {mine && d.canCancelCheckin && (
+            <button onClick={cancel} disabled={busy} className="px-3 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-white disabled:opacity-60">
+              {busy ? "Đang hủy…" : "Hủy check-in"}
             </button>
           )}
         </div>
       )}
-      {d.attendance && <AttendanceReview d={d} />}
+      {showAttendance && d.attendance && <AttendanceReview d={d} />}
     </div>
   );
 }
@@ -301,6 +305,9 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const missing = a.rows.filter((r) => !r.checkin);
+  // "Duyệt tất cả": bản chờ duyệt không có cảnh báo, không phải của mình
+  const quick = a.rows.filter((r) => r.checkin?.status === "submitted" && !r.flagged && !r.isMe);
+  const flaggedPending = a.rows.filter((r) => r.checkin?.status === "submitted" && r.flagged).length;
 
   const review = async (row: MassCheckinRowDto, status: "approved" | "rejected" | "submitted") => {
     if (!row.checkin) return;
@@ -321,19 +328,47 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
     }
   };
 
+  const approveAll = async () => {
+    setBusy("all");
+    try {
+      const r = await liturgyCalendarApi.approveDay(d.date);
+      await refreshLiturgy();
+      const skipped = r.skipped.length ? ` · ${r.skipped.length} bản có cảnh báo cần xem riêng` : "";
+      showToast(r.reviewed ? "success" : "info", r.reviewed ? `Đã xác nhận ${r.reviewed} check-in${skipped}.` : `Không có bản nào duyệt nhanh được${skipped}.`);
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
-    <div className="border-t border-amber-200 pt-3">
-      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between text-[11px] font-bold text-amber-900">
-        <span>
-          Cả nhà: {a.checkedIn}/{a.expected} đã check-in{a.rejected ? ` · ${a.rejected} chưa hợp lệ` : ""}
-          {missing.length ? ` · ${missing.length} chưa check-in` : ""}
-        </span>
-        <ChevronDown className={cn("w-4 h-4 transition-transform", open && "rotate-180")} />
-      </button>
+    <div className="border-t border-amber-200 pt-3 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => setOpen((o) => !o)} className="flex-1 min-w-[12rem] flex items-center justify-between gap-2 text-left text-[11px] font-bold text-amber-900">
+          <span>
+            Cả nhà: {a.checkedIn}/{a.expected} đã check-in{a.pending ? ` · ${a.pending} chờ duyệt` : ""}
+            {a.rejected ? ` · ${a.rejected} chưa hợp lệ` : ""}
+            {missing.length ? ` · ${missing.length} chưa check-in` : ""}
+          </span>
+          <ChevronDown className={cn("w-4 h-4 shrink-0 transition-transform", open && "rotate-180")} />
+        </button>
+        {quick.length > 0 && (
+          <button
+            onClick={approveAll}
+            disabled={busy === "all"}
+            title={flaggedPending ? `Bỏ qua ${flaggedPending} bản có cảnh báo (ảnh trùng / sai ngày / thiếu ảnh) — cần xem riêng` : undefined}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs active:scale-95 transition disabled:opacity-60"
+          >
+            <CheckCheck className="w-3.5 h-3.5" /> {busy === "all" ? "Đang duyệt…" : `Duyệt tất cả (${quick.length})`}
+          </button>
+        )}
+      </div>
+      {flaggedPending > 0 && <p className="text-[10px] text-orange-700">{flaggedPending} bản có cảnh báo không được duyệt nhanh — mở danh sách để xem từng bản.</p>}
       {open && (
-        <ul className="mt-2 flex flex-col gap-1.5 max-h-96 overflow-y-auto custom-scroll pr-1">
+        <ul className="mt-1 flex flex-col gap-1.5 max-h-96 overflow-y-auto custom-scroll pr-1">
           {a.rows.map((r) => (
-            <li key={r.memberId} className="p-2 rounded-xl bg-white border border-gray-100 flex flex-col gap-1.5">
+            <li key={r.memberId} className={cn("p-2 rounded-xl bg-white border flex flex-col gap-1.5", r.flagged && r.checkin?.status === "submitted" ? "border-orange-200" : "border-gray-100")}>
               <div className="flex items-center gap-2">
                 {r.checkin?.evidenceFileId ? (
                   <ZoomableImage
@@ -352,6 +387,7 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
                   <p className="text-xs font-bold text-gray-900 truncate">
                     {r.name}
                     {r.room ? <span className="font-medium text-gray-400"> · {r.room}</span> : null}
+                    {r.isMe ? <span className="font-medium text-primary"> · bạn</span> : null}
                   </p>
                   <p className="text-[10px] text-gray-500 truncate">
                     {r.checkin
@@ -361,18 +397,18 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
                 </div>
                 {r.checkin && (
                   <span className={cn("shrink-0 px-1.5 py-0.5 rounded-md border text-[9px] font-bold", CHECKIN_STATUS_CLASS[r.checkin.status])}>
-                    {r.checkin.status === "submitted" ? "Chờ duyệt" : CHECKIN_STATUS_LABEL[r.checkin.status]}
+                    {r.checkin.status === "submitted" ? "Chờ duyệt" : r.checkin.autoApproved && r.checkin.status === "approved" ? "Tự xác nhận" : CHECKIN_STATUS_LABEL[r.checkin.status]}
                   </span>
                 )}
               </div>
-              {(r.duplicateOf || r.warning) && (
+              {r.checkin && (r.duplicateOf || r.warning) && (
                 <p className="text-[10px] text-orange-700 inline-flex items-start gap-1">
                   <AlertTriangle className="w-3 h-3 mt-px shrink-0" />
                   {r.duplicateOf ? `Ảnh giống ảnh của ${r.duplicateOf}. ` : ""}
                   {r.warning ?? ""}
                 </p>
               )}
-              {r.checkin && (
+              {r.checkin && !r.isMe && (
                 <div className="flex flex-wrap items-center gap-1.5">
                   {r.checkin.status !== "approved" && (
                     <button
@@ -400,19 +436,22 @@ function AttendanceReview({ d }: { d: CalendarDayDetailDto }) {
                     </button>
                   )}
                   {rejecting === r.checkin.id && (
-                    <div className="flex items-center gap-1.5 w-full">
-                      <input
-                        autoFocus
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Lý do (vd: ảnh không phải trong nhà thờ)"
-                        className="flex-1 min-w-0 px-2 py-1 rounded-lg border border-rose-200 text-[11px] outline-none focus:ring-2 focus:ring-rose-100"
-                      />
-                      <button onClick={() => review(r, "rejected")} disabled={busy === r.checkin.id} className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold">
+                    <div className="flex items-end gap-1.5 w-full">
+                      <div className="flex-1 min-w-0">
+                        <CustomInput
+                          autoFocus
+                          aria-label="Lý do không hợp lệ"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          maxLength={500}
+                          placeholder="Lý do (vd: ảnh không phải trong nhà thờ)"
+                        />
+                      </div>
+                      <button onClick={() => review(r, "rejected")} disabled={busy === r.checkin.id} className="px-3 py-2.5 rounded-xl bg-rose-600 text-white text-[11px] font-bold">
                         Gửi
                       </button>
-                      <button onClick={() => setRejecting(null)} className="p-1 rounded-lg text-gray-400 hover:bg-gray-50" title="Hủy">
-                        <X className="w-3 h-3" />
+                      <button onClick={() => setRejecting(null)} className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-50" title="Hủy" aria-label="Hủy">
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}

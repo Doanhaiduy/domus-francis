@@ -47,6 +47,10 @@ export default function FeedbackPage() {
   const [toDelete, setToDelete] = useState<FeedbackDto | null>(null);
 
   const canManage = data?.canManage ?? false;
+  // Mở thẳng tab "Tất cả" từ thông báo góp ý mới / hộp "Việc cần xử lý": /gop-y?tab=all
+  useEffect(() => {
+    if (canManage && new URLSearchParams(window.location.search).get("tab") === "all") setTab("all");
+  }, [canManage]);
   const list = tab === "all" ? (data?.all ?? []) : (data?.mine ?? []);
   const shown = useMemo(() => (tab === "all" && filter !== "all" ? list.filter((f) => f.status === filter) : list), [list, tab, filter]);
   const countOf = (s: FeedbackStatus) => (data?.all ?? []).filter((f) => f.status === s).length;

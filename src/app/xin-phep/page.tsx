@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { AlarmClockPlus, CalendarOff, Check, Clock, DoorOpen, ListFilter, MapPin, Pencil, Phone, Plus, Search, X } from "lucide-react";
+import { AlarmClockPlus, CalendarOff, Check, Clock, DoorOpen, ListFilter, MapPin, Moon, Pencil, Phone, Plus, Search, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
-import { leaveApi, useLeave, useLeaveAll } from "@/lib/data/leave";
+import { leaveApi, useLeave, useLeaveAll, useLeaveTonight } from "@/lib/data/leave";
 import { LEAVE_KIND_GROUPS, LEAVE_KIND_LABEL, LEAVE_STATUS_LABEL, type LeaveKind, type LeaveRequestDto, type LeaveStatus } from "@/lib/types/leave";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CustomInput, CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
@@ -52,6 +52,7 @@ export default function LeavePage() {
   const { showToast } = useApp();
   const { isLoading: sessionLoading } = useSession();
   const { data, isLoading } = useLeave();
+  const tonight = useLeaveTonight();
   const [tab, setTab] = useState<Tab | null>(null);
   const [form, setForm] = useState<{ open: boolean; item: LeaveRequestDto | null }>({ open: false, item: null });
   const [toCancel, setToCancel] = useState<LeaveRequestDto | null>(null);
@@ -138,6 +139,26 @@ export default function LeavePage() {
             <CustomSelect aria-label="Lọc theo loại đơn" value={fKind} onChange={(v) => { setFKind(v); setFLimit(30); }} options={KIND_FILTER_OPTIONS} />
           </div>
           <p className="text-[11px] text-gray-500 flex items-center gap-1.5"><ListFilter className="w-3.5 h-3.5" aria-hidden />Toàn bộ đơn của cả nhà, mọi thời gian{all.data ? ` — hiển thị ${all.data.items.length}/${all.data.total} đơn` : ""}.</p>
+        </div>
+      )}
+
+      {active !== "all" && (tonight?.items.length ?? 0) > 0 && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 sm:p-5 space-y-2.5">
+          <p className="text-sm font-extrabold text-indigo-900 flex items-center gap-2"><Moon className="w-4 h-4" aria-hidden /> Tối nay ai vắng / về muộn</p>
+          <ul className="space-y-1.5">
+            {tonight!.items.map((t) => (
+              <li key={t.leaveId} className="text-sm text-indigo-900 flex flex-wrap items-baseline gap-x-2">
+                <b>{t.memberName}</b>
+                <span>
+                  {t.kind === "late_return" ? "về muộn" : t.kind === "overnight_out" ? "ngủ ngoài" : "vắng (" + LEAVE_KIND_LABEL[t.kind].toLowerCase() + ")"} —{" "}
+                  {t.kind === "late_return" || t.kind === "overnight_out" ? <>dự kiến về <b>{fmt(t.effectiveEndsAt)}</b></> : <>đến <b>{fmt(t.effectiveEndsAt)}</b></>}
+                </span>
+                {t.effectiveEndsAt !== t.endsAt && <span className="text-xs text-amber-700 font-semibold">(đã xin thêm giờ, ban đầu {fmt(t.endsAt)})</span>}
+                {t.doorForMe && <span className="text-[11px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded">bạn để cửa</span>}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-indigo-800/80">Chỉ hiện tên, loại đơn và giờ — lý do, nơi đến và số điện thoại chỉ người duyệt đơn xem ở danh sách đơn.</p>
         </div>
       )}
 

@@ -1,33 +1,15 @@
 import "server-only";
-import type { Tx } from "../db";
-import { badRequest, forbidden } from "../errors";
+import { batch, type Tx } from "../db";
+import { ApiError, badRequest, forbidden } from "../errors";
 import { pushConfigured, vapidPublicKey } from "../push";
+import { NOTIFICATION_CATEGORIES, type NotificationPrefsDto, type NotificationTypePrefDto } from "@/lib/types/notification-prefs";
 
-// Tùy chọn nhận thông báo của chính mình: bật/tắt kênh đẩy theo nhóm, giờ yên tĩnh, thiết bị đã đăng ký.
+// Tùy chọn nhận thông báo của chính mình: bật/tắt kênh đẩy theo nhóm, giờ yên tĩnh, thiết bị đã đăng ký, và TẮT RIÊNG từng loại thông báo
+// (bảng notification_type_mutes — db/app/1052: app.fn_notify không tạo thông báo loại đã tắt cho người này; loại bắt buộc không tắt được).
 
-export const NOTIFICATION_CATEGORIES: { code: string; label: string; text: string }[] = [
-  { code: "announcement", label: "Thông báo & bảng tin", text: "Thông báo của người quản lý" },
-  { code: "event", label: "Lịch & sự kiện", text: "Sự kiện sắp tới, điểm danh, biểu quyết" },
-  { code: "duty", label: "Trực nhật", text: "Lịch trực, đổi ca, nhắc việc" },
-  { code: "finance", label: "Thu chi & quỹ", text: "Nhắc đóng quỹ, duyệt chi" },
-  { code: "meal", label: "Bếp & cơm", text: "Thực đơn, chốt suất ăn" },
-  { code: "academic", label: "Học tập", text: "Bảng điểm, phụ đạo" },
-  { code: "facility", label: "Hậu cần", text: "Báo hỏng, sửa chữa" },
-  { code: "social", label: "Diễn đàn & khoảnh khắc", text: "Bình luận, nhắc tên" },
-  { code: "security", label: "Bảo mật", text: "Đăng nhập mới, đổi mật khẩu (luôn bật)" },
-  { code: "system", label: "Hệ thống", text: "Thông tin chung từ hệ thống" },
-];
+export { NOTIFICATION_CATEGORIES };
+export type { NotificationPrefsDto };
 const CODES = new Set(NOTIFICATION_CATEGORIES.map((c) => c.code));
-
-export interface NotificationPrefsDto {
-  categories: (typeof NOTIFICATION_CATEGORIES)[number][];
-  /** category → bật kênh đẩy (mặc định true khi chưa có dòng) */
-  push: Record<string, boolean>;
-  quiet: { start: string; end: string } | null;
-  devices: number;
-  pushAvailable: boolean;
-  vapidPublicKey: string | null;
-}
 
 const hm = (t: unknown) => (typeof t === "string" ? t.slice(0, 5) : null);
 
@@ -37,14 +19,44 @@ async function myMember(tx: Tx): Promise<string> {
   return id;
 }
 
+/** Mọi tùy chọn của người xem — MỘT vòng mạng. */
 export async function getPrefs(tx: Tx): Promise<NotificationPrefsDto> {
-  const me = await myMember(tx);
-  const rows = (await tx.query<{ category: string; enabled: boolean; quiet_start: string | null; quiet_end: string | null }>("SELECT category, enabled, quiet_start::text, quiet_end::text FROM notification_preferences WHERE member_id = $1 AND channel = 'web_push'", [me])).rows;
+  const [meR, prefR, devR, typeR] = await batch(tx, [
+    ["SELECT app.current_member_id() AS id"],
+    ["SELECT category, enabled, quiet_start::text, quiet_end::text FROM notification_preferences WHERE member_id = app.current_member_id() AND channel = 'web_push'"],
+    ["SELECT count(*)::int AS n FROM push_subscriptions WHERE user_id = app.current_user_id() AND revoked_at IS NULL"],
+    [
+      `SELECT t.code, t.category, t.name_vi, t.is_mandatory,
+              EXISTS (SELECT 1 FROM notification_type_mutes x WHERE x.member_id = app.current_member_id() AND x.type_code = t.code) AS muted,
+              (SELECT count(*)::int FROM notifications n
+                WHERE n.member_id = app.current_member_id() AND n.type_code = t.code AND n.created_at > now() - interval '90 days') AS received
+         FROM notification_types t
+        WHERE t.is_active
+        ORDER BY t.category, t.name_vi`,
+    ],
+  ]);
+  if (!meR.rows[0]?.id) throw forbidden("Chỉ thành viên đã được duyệt mới chỉnh được tùy chọn thông báo.");
+  const rows = prefR.rows as { category: string; enabled: boolean; quiet_start: string | null; quiet_end: string | null }[];
   const push: Record<string, boolean> = Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c.code, true]));
   for (const r of rows) push[r.category] = r.enabled;
   const q = rows.find((r) => r.quiet_start && r.quiet_end);
-  const devices = (await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM push_subscriptions WHERE user_id = app.current_user_id() AND revoked_at IS NULL")).rows[0].n;
-  return { categories: NOTIFICATION_CATEGORIES, push, quiet: q ? { start: hm(q.quiet_start)!, end: hm(q.quiet_end)! } : null, devices, pushAvailable: pushConfigured(), vapidPublicKey: vapidPublicKey() };
+  const types: NotificationTypePrefDto[] = (typeR.rows as { code: string; category: string; name_vi: string; is_mandatory: boolean; muted: boolean; received: number }[]).map((t) => ({
+    code: t.code,
+    category: t.category,
+    name: t.name_vi,
+    mandatory: t.is_mandatory,
+    muted: t.muted && !t.is_mandatory,
+    received90: t.received,
+  }));
+  return {
+    categories: NOTIFICATION_CATEGORIES,
+    push,
+    quiet: q ? { start: hm(q.quiet_start)!, end: hm(q.quiet_end)! } : null,
+    devices: (devR.rows[0] as { n: number }).n,
+    pushAvailable: pushConfigured(),
+    vapidPublicKey: vapidPublicKey(),
+    types,
+  };
 }
 
 export async function setPushEnabled(tx: Tx, category: string, enabled: boolean) {
@@ -55,6 +67,28 @@ export async function setPushEnabled(tx: Tx, category: string, enabled: boolean)
      ON CONFLICT (member_id, category, channel) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now()`,
     [me, category, enabled]
   );
+}
+
+/**
+ * Bật / tắt RIÊNG một loại thông báo (cả trong ứng dụng lẫn đẩy về điện thoại). Loại bắt buộc ⇒ 422.
+ * `enabled = false` ⇒ thêm dòng notification_type_mutes; `true` ⇒ xóa dòng (nhận lại như mặc định).
+ */
+export async function setTypeEnabled(tx: Tx, typeCode: string, enabled: boolean) {
+  const t = (
+    await tx.query<{ me: string | null; is_mandatory: boolean | null; is_active: boolean | null }>(
+      `SELECT app.current_member_id() AS me, t.is_mandatory, t.is_active
+         FROM (SELECT 1) one LEFT JOIN notification_types t ON t.code = $1`,
+      [typeCode]
+    )
+  ).rows[0];
+  if (!t?.me) throw forbidden("Chỉ thành viên đã được duyệt mới chỉnh được tùy chọn thông báo.");
+  if (t.is_mandatory === null) throw badRequest("Loại thông báo không hợp lệ.");
+  if (!enabled && t.is_mandatory) throw new ApiError(422, "MANDATORY_NOTIFICATION", "Loại thông báo bắt buộc (bảo mật, thông báo quan trọng, kết quả đơn) không tắt được.");
+  if (enabled) {
+    await tx.query("DELETE FROM notification_type_mutes WHERE member_id = $1 AND type_code = $2", [t.me, typeCode]);
+  } else {
+    await tx.query("INSERT INTO notification_type_mutes (member_id, type_code) VALUES ($1, $2) ON CONFLICT (member_id, type_code) DO NOTHING", [t.me, typeCode]);
+  }
 }
 
 /** Giờ yên tĩnh áp cho mọi nhóm của kênh đẩy; start = end = null để xóa. Thông báo bảo mật/bắt buộc vẫn gửi ngay (DB bỏ qua giờ yên tĩnh). */

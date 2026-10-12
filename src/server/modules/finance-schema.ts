@@ -136,16 +136,75 @@ const PlanBase = z.discriminatedUnion(
       fundId: zUuid.optional(),
       note: optText(500, "Ghi chú"),
     }),
+    z.object({
+      /** Khoản thu MỘT LẦN cho những người được chọn (phí sự kiện / hành hương, tiền cọc, khoản khác) */
+      kind: z.literal("onetime"),
+      feeType: z.enum(["event_fee", "deposit", "other"], { error: "Chọn loại khoản thu: phí sự kiện, tiền cọc hoặc khoản khác." }),
+      name: zText(3, 120, "Tên khoản thu"),
+      /** Mức chung mỗi người */
+      amountVnd: zAmount.max(100_000_000, "Số tiền mỗi người tối đa 100.000.000đ."),
+      dueDate: zDate,
+      members: z
+        .array(
+          z.object({
+            memberId: zUuid,
+            /** Mức riêng của người này (bỏ trống = mức chung) */
+            amountVnd: zAmount.max(100_000_000, "Số tiền mỗi người tối đa 100.000.000đ.").nullable().optional(),
+          })
+        )
+        .min(1, "Chọn ít nhất một người phải đóng.")
+        .max(200, "Mỗi khoản thu tối đa 200 người."),
+      fundId: zUuid.optional(),
+      note: optText(500, "Ghi chú"),
+    }),
   ],
-  { error: "Chọn loại kế hoạch: quỹ định kỳ hoặc tiền điện nước (quỹ sinh hoạt tháng không còn lập mới)." }
+  { error: "Chọn loại kế hoạch: quỹ định kỳ, tiền điện nước hoặc khoản thu một lần (quỹ sinh hoạt tháng không còn lập mới)." }
 );
 export const PlanSchema = PlanBase.superRefine((v, ctx) => {
+  if (v.kind === "onetime") {
+    if (new Set(v.members.map((m) => m.memberId)).size !== v.members.length)
+      ctx.addIssue({ code: "custom", path: ["members"], message: "Mỗi người chỉ chọn một lần." });
+    return;
+  }
   if (v.kind !== "utility") return;
   const hasTotal = v.billTotalVnd !== undefined;
   const hasPer = v.perPersonVnd !== undefined;
   if (hasTotal === hasPer) ctx.addIssue({ code: "custom", path: ["billTotalVnd"], message: "Nhập tổng hóa đơn HOẶC số tiền mỗi người (chỉ một trong hai)." });
 });
 export type PlanInput = z.infer<typeof PlanSchema>;
+
+/** "Cập nhật người phải đóng" / thêm người vào khoản thu một lần: bỏ trống memberIds = mọi người đang ở còn thiếu (chỉ quỹ định kỳ). */
+export const PlanMembersSchema = z.object({
+  memberIds: z.array(zUuid).min(1, "Chọn ít nhất một người.").max(200, "Mỗi lần thêm tối đa 200 người.").optional(),
+});
+
+// ---------------------------------------------------------------------
+// Chốt sổ tháng / đối soát
+// ---------------------------------------------------------------------
+export const ClosePeriodSchema = z.object({ note: optText(500, "Ghi chú chốt sổ") });
+export const ConfirmPeriodSchema = z.object({});
+export const ReopenPeriodSchema = z.object({
+  reason: z.string().trim().min(10, "Lý do mở lại sổ tối thiểu 10 ký tự (ghi rõ vì sao).").max(500, "Lý do tối đa 500 ký tự."),
+});
+export const ReconcileSchema = z.object({
+  fundId: zUuid,
+  /** Số dư thực tế cuối tháng: sao kê ngân hàng / kiểm đếm tiền mặt */
+  statementVnd: z
+    .number({ error: "Số dư thực tế phải là số." })
+    .int("Số dư phải là số nguyên (đồng).")
+    .min(0, "Số dư thực tế không được âm.")
+    .max(100_000_000_000, "Số dư tối đa 100.000.000.000đ."),
+  explanation: optText(1000, "Giải trình"),
+});
+
+/** Sổ quỹ có số dư theo khoảng ngày (tối đa 366 ngày) */
+export const LedgerQuery = z
+  .object({ from: zDate, to: zDate, fund: zUuid.optional() })
+  .refine((v) => v.from <= v.to, { message: "Ngày bắt đầu phải trước ngày kết thúc.", path: ["from"] })
+  .refine((v) => (Date.parse(`${v.to}T00:00:00Z`) - Date.parse(`${v.from}T00:00:00Z`)) / 86_400_000 <= 366, {
+    message: "Khoảng ngày tối đa 366 ngày.",
+    path: ["to"],
+  });
 
 export const PlanPreviewQuery = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("periodic_dues"), startMonth: zMonth.optional(), dueDate: zDate.optional() }),

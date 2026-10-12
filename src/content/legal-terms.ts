@@ -1,4 +1,6 @@
 // Điều khoản sử dụng. Khẳng định về tính năng (quỹ bất biến, Thủ quỹ xác nhận ghi thu, AI chỉ gợi ý…) phải khớp hệ thống thật.
+// Bản 1.2 (12/10/2026): tick đồng ý khi tự đăng ký + hỏi lại khi văn bản đổi phiên bản; quyền với dữ liệu ngay trong ứng dụng; đường dẫn
+// đồng bộ lịch cá nhân; Trợ lý Lưu Xá dựa trên Luật nhà chính thức; thời hạn lưu / ẩn danh hóa sau khi rời nhà.
 import type { PublicOrgInfo } from "@/lib/types/articles";
 import { LEGAL_PATHS, contactLine, houseOf, type LegalDoc } from "./legal";
 
@@ -37,8 +39,10 @@ Trong văn bản này, “**Lưu xá**” hoặc “**chúng tôi**” là ${hou
         blocks: [
           {
             t: "md",
-            text: `- Trang công khai (bản tin, giới thiệu, hỏi đáp, thư viện, liên hệ) ai cũng xem được. Các chức năng còn lại dành cho **thành viên, cựu thành viên** và người được cộng đoàn mời hoặc duyệt.
+            text: `- Trang công khai (bản tin, giới thiệu, vào ở lưu xá, hỏi đáp, thư viện, ủng hộ, liên hệ) ai cũng xem được. Các chức năng còn lại dành cho **thành viên, cựu thành viên** và người được cộng đoàn mời hoặc duyệt.
+- Tự đăng ký tài khoản dành cho người **đã được nhà nhận vào ở** (hoặc được người quản lý hướng dẫn); người mới muốn tìm hiểu gửi “Đăng ký tìm hiểu” ở trang [Liên hệ](/lien-he). Người quản lý có thể tạm đóng việc tự đăng ký.
 - Tài khoản được tạo khi bạn đăng ký và được người quản lý duyệt, hoặc do quản trị viên cấp (kèm mật khẩu tạm — bạn phải đổi ngay ở lần đăng nhập đầu tiên).
+- Khi tự đăng ký, bạn phải **tick đồng ý** Điều khoản này và [Chính sách bảo mật](${P}); tài khoản do người quản lý cấp được hỏi ở lần đăng nhập đầu tiên. Mỗi khi văn bản đổi **phiên bản**, ứng dụng hỏi lại và chỉ cho dùng tiếp khi bạn xác nhận (hoặc bạn có thể đăng xuất).
 - Bạn cung cấp thông tin **chính xác** và cập nhật khi có thay đổi.
 - Bạn giữ bí mật mật khẩu và mã xác thực, **chịu trách nhiệm** về mọi hoạt động dưới tài khoản của mình. Nếu nghi tài khoản bị lộ, hãy đổi mật khẩu ở **Cài đặt → Bảo mật** và báo ngay cho người quản lý.
 - **Mỗi người một tài khoản.** Không cho người khác mượn, không dùng tài khoản của người khác.
@@ -54,7 +58,8 @@ Trong văn bản này, “**Lưu xá**” hoặc “**chúng tôi**” là ${hou
             t: "md",
             text: `- Dùng Hệ thống đúng mục đích sinh hoạt chung của cộng đoàn và tuân thủ Luật nhà, pháp luật Việt Nam.
 - **Trung thực**: điểm danh, đơn xin phép (kể cả giờ dự kiến về và các lần xin thêm giờ), báo sự cố, chứng từ tài chính, điểm học tập và mọi khai báo khác phải đúng sự thật.
-- **Tôn trọng quyền riêng tư**: dữ liệu về thành viên khác (số điện thoại, hồ sơ, ảnh…) chỉ dùng cho sinh hoạt chung; không sao chép, chia sẻ hay công bố ra ngoài khi chưa được họ đồng ý.
+- **Tôn trọng quyền riêng tư**: dữ liệu về thành viên khác (số điện thoại, hồ sơ, ảnh, video…) chỉ dùng cho sinh hoạt chung; không sao chép, chia sẻ hay công bố ra ngoài khi chưa được họ đồng ý.
+- **Giữ kín những gì mang dữ liệu của bạn**: đường dẫn đồng bộ lịch cá nhân (ai có đường dẫn đều xem được lịch trong đó — lỡ lộ thì thu hồi và tạo đường dẫn mới), tệp “dữ liệu của tôi” đã tải về, liên kết video Khoảnh khắc.
 - Ứng xử văn minh, đúng tinh thần của một cộng đoàn sinh viên Công giáo.`,
           },
         ],
@@ -99,7 +104,7 @@ Bạn bảo đảm có quyền đối với nội dung bạn đăng, và đã đ
 - Một khoản thu chỉ được ghi vào sổ quỹ khi **Thủ quỹ** (người có thẩm quyền) xác nhận. Giao dịch ngân hàng tự động chỉ để gợi ý đối chiếu, không tự ghi sổ.
 - Sổ quỹ **bất biến**: không sửa hay xóa bút toán đã ghi; sai sót được đính chính bằng bút toán đảo hoặc điều chỉnh có nêu lý do và lưu vết.
 - Chi quỹ theo quy trình duyệt và ngưỡng do cộng đoàn quy định.
-- **Ủng hộ** là tự nguyện, không bắt buộc, dành cho mục đích của Lưu xá và không được hoàn lại, trừ trường hợp nhầm lẫn rõ ràng được người quản lý xác nhận.
+- **Ủng hộ** là tự nguyện, không bắt buộc, dành cho mục đích của Lưu xá và không được hoàn lại, trừ trường hợp nhầm lẫn rõ ràng được người quản lý xác nhận. Khoản bạn tự báo đã ủng hộ (ở trang Ủng hộ) chỉ vào sổ quỹ sau khi Thủ quỹ đối chiếu với tài khoản và xác nhận.
 - Nếu có thắc mắc về số liệu, hãy gửi Thủ quỹ hoặc Trưởng nhà sớm để được đối chiếu.`,
           },
         ],
@@ -110,9 +115,9 @@ Bạn bảo đảm có quyền đối với nội dung bạn đăng, và đã đ
         blocks: [
           {
             t: "md",
-            text: `Các tính năng AI (như Trợ lý Lưu Xá, gợi ý soạn bài viết) chỉ **hỗ trợ**. Kết quả có thể thiếu chính xác hoặc lỗi thời, **không thay thế** ý kiến của người quản lý, tư vấn pháp lý, y tế hay tài chính. Bạn cần kiểm tra lại trước khi dùng.
+            text: `Các tính năng AI (như Trợ lý Lưu Xá, gợi ý soạn bài viết) chỉ **hỗ trợ**. Kết quả có thể thiếu chính xác hoặc lỗi thời, **không thay thế** ý kiến của người quản lý, tư vấn pháp lý, y tế hay tài chính. Bạn cần kiểm tra lại trước khi dùng. Trợ lý Lưu Xá trả lời dựa trên **Luật nhà chính thức**, hỏi đáp công khai, thông báo, lịch và hướng dẫn sử dụng mà chính bạn được xem; khi câu trả lời khác văn bản gốc, văn bản gốc (Luật nhà, thông báo của người quản lý) được áp dụng.
 
-Đừng nhập mật khẩu, số CCCD, số tài khoản hay thông tin nhạy cảm của người khác vào ô AI. Cách dữ liệu được xử lý khi dùng AI được nêu ở [Chính sách bảo mật](${P}#ben-thu-ba). Chúng tôi có thể đặt hạn mức sử dụng, hoặc tạm tắt tính năng AI bất cứ lúc nào; mọi việc vẫn làm thủ công được như bình thường.`,
+Đừng nhập mật khẩu, số CCCD, số tài khoản hay thông tin nhạy cảm của người khác vào ô AI. Cách dữ liệu được xử lý khi dùng AI (che email, số điện thoại, tên thành viên…) được nêu ở [Chính sách bảo mật](${P}#ben-thu-ba). Chúng tôi có thể đặt hạn mức sử dụng, hoặc tạm tắt tính năng AI bất cứ lúc nào; mọi việc vẫn làm thủ công được như bình thường.`,
           },
         ],
       },
@@ -162,7 +167,7 @@ Bạn bảo đảm có quyền đối với nội dung bạn đăng, và đã đ
         blocks: [
           {
             t: "md",
-            text: `Người quản lý có thể **tạm khóa hoặc thu hồi** tài khoản khi có vi phạm Điều khoản, Luật nhà hoặc pháp luật, hoặc để bảo vệ an toàn Hệ thống; việc này thực hiện theo quy trình của cộng đoàn và bạn có quyền giải trình. Khi bạn rời nhà, tài khoản được chuyển trạng thái phù hợp (cựu thành viên hoặc ngừng hoạt động). Bạn có thể yêu cầu đóng tài khoản bất cứ lúc nào. Dữ liệu sau đó được xử lý theo [Chính sách bảo mật](${P}#luu-tru). Các điều khoản về sổ quỹ, sở hữu trí tuệ, giới hạn trách nhiệm và giải quyết tranh chấp vẫn có hiệu lực sau khi chấm dứt.`,
+            text: `Người quản lý có thể **tạm khóa hoặc thu hồi** tài khoản khi có vi phạm Điều khoản, Luật nhà hoặc pháp luật, hoặc để bảo vệ an toàn Hệ thống; việc này thực hiện theo quy trình của cộng đoàn và bạn có quyền giải trình. Khi bạn rời nhà, tài khoản được chuyển trạng thái phù hợp (cựu thành viên hoặc ngừng hoạt động). Bạn có thể yêu cầu đóng tài khoản hoặc xóa dữ liệu bất cứ lúc nào bằng mục **Quyền riêng tư & dữ liệu của tôi** (Cài đặt → Hồ sơ cá nhân) hoặc qua người quản lý. Nếu người quản lý đặt thời hạn lưu dữ liệu, hồ sơ của người đã rời nhà quá hạn được **tự động ẩn danh hóa** (tài khoản bị khóa, thông tin cá nhân bị xóa). Dữ liệu được xử lý theo [Chính sách bảo mật](${P}#luu-tru). Các điều khoản về sổ quỹ, sở hữu trí tuệ, giới hạn trách nhiệm và giải quyết tranh chấp vẫn có hiệu lực sau khi chấm dứt.`,
           },
         ],
       },
@@ -192,7 +197,7 @@ Bạn bảo đảm có quyền đối với nội dung bạn đăng, và đã đ
         blocks: [
           {
             t: "md",
-            text: `Chúng tôi có thể cập nhật Điều khoản này; phiên bản và ngày cập nhật được ghi ở đầu trang. Với thay đổi quan trọng, chúng tôi sẽ thông báo trên trang web hoặc trong ứng dụng trước khi áp dụng. Việc tiếp tục sử dụng Hệ thống sau ngày có hiệu lực được hiểu là bạn chấp nhận nội dung đã cập nhật. Văn bản này đi cùng [Chính sách bảo mật](${P}); bản hiện hành luôn được đăng tại trang này.`,
+            text: `Chúng tôi có thể cập nhật Điều khoản này; phiên bản và ngày cập nhật được ghi ở đầu trang. Mỗi khi đổi **phiên bản**, ứng dụng hiện hộp thoại tóm tắt điểm chính để bạn xem và xác nhận lại; hệ thống lưu phiên bản và thời điểm bạn xác nhận. Nếu không đồng ý, bạn có thể đăng xuất và ngừng sử dụng, hoặc liên hệ người quản lý. Văn bản này đi cùng [Chính sách bảo mật](${P}); bản hiện hành luôn được đăng tại trang này.`,
           },
         ],
       },

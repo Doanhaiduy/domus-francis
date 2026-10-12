@@ -1,8 +1,9 @@
 import React from "react";
 import type { Metadata } from "next";
-import { ExternalLink, MapPin, Phone } from "lucide-react";
-import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
-import { getSiteInfo, siteOrigin } from "@/server/public";
+import Link from "next/link";
+import { ArrowRight, ExternalLink, MapPin, Phone } from "lucide-react";
+import { OG_DEFAULT_IMAGES, SITE_KIND, mapLinks, telHref } from "@/lib/public-site";
+import { getSiteInfo } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { InquiryForm } from "@/components/public/InquiryForm";
@@ -11,14 +12,18 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { org } = await getSiteInfo();
-  const title = `Liên hệ & đăng ký tìm hiểu — ${org.houseName}`;
-  const description = `Để lại thông tin để ${org.houseName} liên hệ tư vấn và hẹn bạn đến thăm nhà.`;
-  return { metadataBase: new URL(siteOrigin()), title, description, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
+  const description = `Để lại thông tin để ${org.houseName} — ${SITE_KIND} — liên hệ tư vấn và hẹn bạn đến thăm nhà.`;
+  return {
+    title: `Liên hệ & đăng ký vào ${SITE_KIND}`,
+    description,
+    alternates: { canonical: "/lien-he" },
+    openGraph: { title: `Liên hệ & đăng ký tìm hiểu — ${org.houseName}`, description, url: "/lien-he", type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES },
+  };
 }
 
 export default async function ContactPage() {
   const { org, donationEnabled } = await getSiteInfo();
-  const map = org.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(org.address)}` : null;
+  const map = org.address ? mapLinks(org.address) : null;
   return (
     <>
       <PublicHeader org={org} section="lien-he" donationEnabled={donationEnabled} />
@@ -38,7 +43,7 @@ export default async function ContactPage() {
                 <Phone className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden />
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400">Hotline</p>
-                  <a href={`tel:${org.phone.replace(/[^\d+]/g, "")}`} className="text-lg font-extrabold text-gray-900 hover:text-primary">{org.phone}</a>
+                  <a href={telHref(org.phone)} className="text-lg font-extrabold text-gray-900 hover:text-primary">{org.phone}</a>
                 </div>
               </div>
             )}
@@ -49,9 +54,14 @@ export default async function ContactPage() {
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400">Địa chỉ</p>
                   <p className="text-sm font-semibold text-gray-900 leading-relaxed">{org.address}</p>
                   {map && (
-                    <a href={map} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
-                      Xem bản đồ <ExternalLink className="w-3 h-3" aria-hidden />
-                    </a>
+                    <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                      <a href={map.google} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                        Google Maps <ExternalLink className="w-3 h-3" aria-hidden />
+                      </a>
+                      <a href={map.osm} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                        OpenStreetMap <ExternalLink className="w-3 h-3" aria-hidden />
+                      </a>
+                    </span>
                   )}
                 </div>
               </div>
@@ -65,6 +75,9 @@ export default async function ContactPage() {
               <li>Chúng tôi gọi/nhắn tin trao đổi và tư vấn.</li>
               <li>Hẹn bạn đến thăm nhà và gặp gỡ anh em.</li>
             </ol>
+            <Link href="/vao-o" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+              Xem chi phí, chỗ trống và các bước vào ở <ArrowRight className="w-3.5 h-3.5" aria-hidden />
+            </Link>
           </div>
         </aside>
       </div>

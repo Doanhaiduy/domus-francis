@@ -74,6 +74,16 @@ export interface PollDto {
   hasVotes: boolean;
 }
 
+/** Buổi thuộc chuỗi sự kiện định kỳ (event_recurrence_rules) */
+export interface EventSeriesRefDto {
+  id: string;
+  /** Ngày "chỗ" của buổi trong chuỗi (YYYY-MM-DD) — không đổi khi dời giờ riêng buổi đó */
+  occurrenceDate: string;
+  /** "Thứ Hai, Thứ Tư hằng tuần" */
+  label: string;
+  isActive: boolean;
+}
+
 export interface EventDto {
   id: string;
   title: string;
@@ -105,6 +115,8 @@ export interface EventDto {
   /** Người xem điểm danh hộ được (event.attendance.record hoặc ban tổ chức) */
   canRecord: boolean;
   polls: PollDto[];
+  /** Thuộc chuỗi sự kiện định kỳ (null = sự kiện riêng lẻ) */
+  series: EventSeriesRefDto | null;
 }
 
 export interface EventsMonthDto {
@@ -159,10 +171,175 @@ export interface CheckInResultDto {
   date: string;
 }
 
-export interface DayDutyDto {
+// ---------------------------------------------------------------------
+// Trực vệ sinh sân nhà của tuần chứa một ngày (duty_weeks — hiển thị ở panel ngày trên Lịch)
+// ---------------------------------------------------------------------
+export interface DayDutyMemberDto {
   id: string;
-  shift: string;
-  area: string;
-  members: string[];
-  status: string;
+  name: string;
+  fullName: string;
+  room: string | null;
+  isMe: boolean;
+}
+
+export interface DayDutyDto {
+  /** Ngày đang xem (YYYY-MM-DD) */
+  date: string;
+  /** null = tuần này chưa xếp người trực */
+  weekId: string | null;
+  weekStart: string;
+  weekEnd: string;
+  members: DayDutyMemberDto[];
+  note: string | null;
+  /** Kết quả đánh giá sau tuần trực (null = chưa đánh giá) */
+  review: { score: number; comment: string | null; redoRequired: boolean; redoNote: string | null } | null;
+  isMine: boolean;
+  /** Tuần đã qua / đang diễn ra / sắp tới (so với hôm nay) */
+  phase: "past" | "current" | "upcoming";
+}
+
+// ---------------------------------------------------------------------
+// Sự kiện định kỳ (lặp hằng tuần)
+// ---------------------------------------------------------------------
+export interface EventSeriesOccurrenceDto {
+  eventId: string;
+  date: string; // occurrence_date
+  startHm: string;
+  endHm: string;
+  status: EventStatus;
+  /** Giờ/tiêu đề/địa điểm khác với chuỗi (đã sửa riêng buổi này) */
+  customized: boolean;
+}
+
+export interface EventSeriesSkipDto {
+  date: string;
+  reason: string | null;
+  createdAt: string;
+  /** Còn khôi phục được (ngày chưa qua) */
+  restorable: boolean;
+}
+
+export interface EventSeriesDto {
+  id: string;
+  title: string;
+  categoryId: string;
+  categoryCode: string;
+  category: string;
+  categoryColor: string;
+  startHm: string; // "21:00"
+  endHm: string; // "21:30" (có thể sang hôm sau)
+  durationMinutes: number;
+  /** ISO 1 = Thứ Hai … 7 = Chúa Nhật */
+  weekdays: number[];
+  intervalWeeks: number;
+  startsOn: string;
+  untilDate: string | null;
+  location: string | null;
+  organizerText: string | null;
+  description: string | null;
+  hasCheckIn: boolean;
+  organizers: { memberId: string; name: string }[];
+  isActive: boolean;
+  /** Đã qua ngày kết thúc */
+  finished: boolean;
+  /** "Thứ Hai, Thứ Tư hằng tuần" */
+  patternLabel: string;
+  /** "21:00–21:30" */
+  timeLabel: string;
+  /** Các buổi sắp tới đã có trên lịch (tối đa 12) */
+  upcoming: EventSeriesOccurrenceDto[];
+  /** Các ngày dự kiến sắp tới theo mẫu lặp (kể cả chưa tạo; không gồm ngày bỏ qua) — tối đa 12 */
+  nextDates: string[];
+  skips: EventSeriesSkipDto[];
+  pastCount: number;
+  upcomingCount: number;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventSeriesListDto {
+  items: EventSeriesDto[];
+  canManage: boolean;
+  /** Số ngày hệ thống tạo trước các buổi (cron sáng) */
+  horizonDays: number;
+}
+
+export interface EventSeriesSaveResultDto {
+  series: EventSeriesDto;
+  /** Số buổi vừa tạo / cập nhật / gỡ / khôi phục */
+  generated: number;
+  updated: number;
+  removed: number;
+  restored: number;
+  /** Buổi đầu tiên sắp tới (để mở lịch tới đúng ngày) */
+  firstDate: string | null;
+}
+
+// ---------------------------------------------------------------------
+// Đồng bộ lịch (.ics) — đường dẫn đăng ký theo mã bí mật
+// ---------------------------------------------------------------------
+export interface CalendarFeedTokenDto {
+  id: string;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface CalendarFeedListDto {
+  items: CalendarFeedTokenDto[];
+  max: number;
+}
+
+export interface CalendarFeedCreatedDto {
+  item: CalendarFeedTokenDto;
+  /** Đường dẫn đầy đủ — CHỈ hiện một lần (máy chủ chỉ lưu mã băm) */
+  url: string;
+  /** webcal://… — mở thẳng ứng dụng Lịch (iPhone/macOS/Outlook) */
+  webcalUrl: string;
+}
+
+// ---------------------------------------------------------------------
+// Xuất điểm danh nhiều sự kiện (bảng thành viên × sự kiện)
+// ---------------------------------------------------------------------
+/** Ô của bảng: trạng thái đã ghi; "none" = thuộc đối tượng nhưng chưa ghi nhận; null = không thuộc đối tượng sự kiện đó */
+export type AttendanceCell = AttendanceStatus | "none" | null;
+
+export interface AttendanceReportEventDto {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startHm: string;
+  endHm: string;
+  category: string;
+  status: EventStatus;
+  location: string;
+  expected: number;
+  present: number;
+  late: number;
+  excused: number;
+  absent: number;
+  unrecorded: number;
+}
+
+export interface AttendanceReportMemberDto {
+  memberId: string;
+  name: string;
+  fullName: string;
+  room: string | null;
+  /** Theo thứ tự `events` */
+  cells: AttendanceCell[];
+  /** Giờ điểm danh "HH:MM" tương ứng (null nếu không có) */
+  times: (string | null)[];
+  totals: { expected: number; present: number; late: number; excused: number; absent: number; unrecorded: number; ratePct: number | null };
+}
+
+export interface AttendanceReportDto {
+  from: string;
+  to: string;
+  events: AttendanceReportEventDto[];
+  members: AttendanceReportMemberDto[];
+  /** Có quyền xem toàn bộ (event.attendance.read_all) hay chỉ các sự kiện mình phụ trách */
+  scope: "all" | "organizer";
+  generatedAt: string;
 }

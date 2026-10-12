@@ -2,19 +2,19 @@
 
 import React, { useEffect, useState } from "react";
 import { Settings2 } from "lucide-react";
-import { CustomInput, CustomToggle } from "@/components/ui/FormControls";
+import Link from "next/link";
+import { CustomInput } from "@/components/ui/FormControls";
 import { useApp } from "@/lib/store";
 import { mealsApi, refreshMeals } from "@/lib/data/kitchen";
 import { kitchenErrorText } from "@/lib/kitchen-format";
 import type { MealsWeekDto } from "@/lib/types/kitchen";
 import KitchenModal, { btnGhost, btnPrimary } from "./KitchenModal";
 
-/** Giờ chốt suất trưa/tối (Ban Ẩm thực) và bật/tắt phân hệ (người có quyền Cài đặt hệ thống). */
+/** Giờ chốt suất trưa/tối (Ban Ẩm thực). Bật/tắt phân hệ làm ở Cài đặt → Phân hệ (một nguồn duy nhất). */
 export default function MealSettingsModal({ open, week, onClose }: { open: boolean; week: MealsWeekDto; onClose: () => void }) {
   const { showToast } = useApp();
   const [lunch, setLunch] = useState("");
   const [dinner, setDinner] = useState("");
-  const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +22,6 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
     if (!open) return;
     setLunch(week.settings.lunchCutoff);
     setDinner(week.settings.dinnerCutoff);
-    setEnabled(week.enabled);
     setError(null);
   }, [open, week]);
 
@@ -34,7 +33,6 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
       if (lunch !== week.settings.lunchCutoff) body.lunchCutoff = lunch;
       if (dinner !== week.settings.dinnerCutoff) body.dinnerCutoff = dinner;
     }
-    if (week.canToggleFeature && enabled !== week.enabled) body.enabled = enabled;
     if (!Object.keys(body).length) return onClose();
     setBusy(true);
     setError(null);
@@ -72,14 +70,11 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
           </div>
         </>
       )}
-      {week.canToggleFeature && (
-        <CustomToggle
-          checked={enabled}
-          onChange={setEnabled}
-          label="Phân hệ Bếp & Cơm đang hoạt động"
-          description="Tắt = tạm hoãn: không ai đăng ký / sửa suất ăn được (dữ liệu vẫn giữ nguyên)"
-        />
-      )}
+      <p className="text-[11px] text-gray-500 leading-relaxed">
+        Muốn tạm hoãn hoặc bật lại cả phân hệ Bếp &amp; Cơm? Làm ở{" "}
+        <Link href="/cai-dat?tab=modules" className="font-bold text-primary hover:underline">Cài đặt → Phân hệ</Link>
+        {week.canToggleFeature ? "" : " (cần quyền Cài đặt hệ thống)"}.
+      </p>
       {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">{error}</div>}
     </KitchenModal>
   );

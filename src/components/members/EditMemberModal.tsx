@@ -208,10 +208,10 @@ export default function EditMemberModal({ memberId, onClose }: Props) {
                           const val = e.target.value.replace(/\D/g, "");
                           set("customDuesVnd")(val ? Number(val) : null);
                         }}
-                        placeholder={`Tự động: ${f.studentStatus === "graduated" ? "500.000 đ (Đã ra trường)" : "300.000 đ (Sinh viên)"}`}
+                        placeholder={!member.customDuesVnd && member.effectiveDuesVnd ? `Tự động: ${member.effectiveDuesVnd.toLocaleString("vi-VN")} đ (${f.studentStatus === "graduated" ? "Đã ra trường" : "Sinh viên"})` : "Tự động theo mức quỹ đang cấu hình"}
                       />
                       <span className="text-[10px] text-gray-400 mt-1 block">
-                        Để trống = tự động theo tình trạng (Sinh viên 300k, Đã ra trường 500k).
+                        Để trống = tự động theo tình trạng (sinh viên / đã ra trường) và mức quỹ đang cấu hình ở Cài đặt → Cấu hình chung.
                       </span>
                     </div>
                   )}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { BookOpen, Church } from "lucide-react";
+import { BookOpen, Church, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
@@ -12,12 +12,18 @@ import LiturgySchedule from "./_parts/LiturgySchedule";
 import PrayerBox from "./_parts/PrayerBox";
 import ReflectionCard from "./_parts/ReflectionCard";
 import LiturgyDocuments from "./_parts/LiturgyDocuments";
+import MassCheckinToday from "./_parts/MassCheckinToday";
+import MassCheckinTab from "./_parts/MassCheckinTab";
+import { usePendingCheckins } from "@/lib/data/liturgy-calendar";
 
-type Tab = "main" | "docs";
+type Tab = "main" | "checkin" | "docs";
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "main", label: "Phụng Vụ & Đời Sống Thiêng Liêng", icon: <Church className="w-3.5 h-3.5" /> },
+  { key: "checkin", label: "Check-in đi lễ", icon: <ListChecks className="w-3.5 h-3.5" /> },
   { key: "docs", label: "Tài liệu phụng vụ", icon: <BookOpen className="w-3.5 h-3.5" /> },
 ];
+/** ?tab= trên đường dẫn (thông báo, hộp việc, liên kết từ Lịch) */
+const TAB_PARAM: Record<string, Tab> = { checkin: "checkin", "check-in": "checkin", docs: "docs", "tai-lieu": "docs" };
 
 export default function PhungVuPage() {
   const { members, showToast, isLoadingSkeleton } = useApp();
@@ -25,10 +31,14 @@ export default function PhungVuPage() {
   const [from, setFrom] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("main");
 
-  // Liên kết cũ dạng #tai-lieu-phung-vu mở thẳng tab Tài liệu
+  // Liên kết cũ dạng #tai-lieu-phung-vu mở thẳng tab Tài liệu; ?tab=checkin mở tab Check-in đi lễ
   useEffect(() => {
     if (window.location.hash === "#tai-lieu-phung-vu") setTab("docs");
+    const t = TAB_PARAM[new URLSearchParams(window.location.search).get("tab") ?? ""];
+    if (t) setTab(t);
   }, []);
+  const canReviewMass = can("liturgy.calendar.manage");
+  const { pending: massPending } = usePendingCheckins(canReviewMass);
   const { week, isLoading: weekLoading } = useLiturgyWeek(from);
   const { data: prayers, isLoading: prayersLoading, mutate: mutatePrayers } = usePrayers();
 
@@ -49,7 +59,7 @@ export default function PhungVuPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Phụng Vụ</h1>
-          <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, ý hiệp thông cầu nguyện, suy niệm Lời Chúa hàng tuần và kho tài liệu phụng vụ</p>
+          <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, check-in đi lễ, ý hiệp thông cầu nguyện, suy niệm Lời Chúa hàng tuần và kho tài liệu phụng vụ</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
@@ -79,12 +89,20 @@ export default function PhungVuPage() {
           >
             {t.icon}
             {t.label}
+            {t.key === "checkin" && canReviewMass && (massPending?.total ?? 0) > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-sky-600 text-white text-[10px] font-extrabold leading-none" title="Check-in chờ duyệt">
+                {massPending!.total}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {tab === "main" && (
       <>
+      {/* CHECK-IN ĐI LỄ: chỉ hiện khi hôm nay / ngày mai (lễ vọng) / ngày còn hạn cần check-in */}
+      <MassCheckinToday compact />
+
       {/* TOP 3 CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex items-center justify-between gap-3">
@@ -159,7 +177,10 @@ export default function PhungVuPage() {
       </>
       )}
 
-      {/* TAB 2: THƯ VIỆN TÀI LIỆU PHỤNG VỤ (kinh, bài hát, video, PDF, liên kết) */}
+      {/* TAB CHECK-IN ĐI LỄ: hôm nay, các ngày trong tháng, hàng đợi chờ duyệt + xuất Excel (người duyệt) */}
+      {tab === "checkin" && <MassCheckinTab canManage={canReviewMass} />}
+
+      {/* TAB 3: THƯ VIỆN TÀI LIỆU PHỤNG VỤ (kinh, bài hát, video, PDF, liên kết) */}
       {tab === "docs" && <LiturgyDocuments showToast={showToast} />}
     </div>
   );

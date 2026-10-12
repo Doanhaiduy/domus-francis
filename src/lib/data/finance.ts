@@ -14,12 +14,18 @@ import type {
   FinanceOptionsDto,
   FinanceOverviewDto,
   FinanceStatsDto,
+  LedgerBookDto,
   MemberPaymentAccountDto,
+  OneTimeFeeType,
   PaymentMethod,
+  PeriodsDto,
+  PlanMembersSyncDto,
   PlanPreviewDto,
   ReceivingAccountDto,
   RemindResultDto,
+  SplitAlertsDto,
   StatsGranularity,
+  ClosePeriodResultDto,
 } from "../types/finance";
 
 export const FINANCE_KEY = "/api/v1/finance";
@@ -150,6 +156,38 @@ export const bankLinesApi = {
   restore: (id: string) => api.post(`${FINANCE_KEY}/bank-lines/${id}`, { action: "restore" }),
 };
 
+/** Sổ quỹ theo tháng + chốt sổ hai người + đối soát + kiểm chứng chuỗi băm (người xem sổ quỹ / người chốt, xác nhận, đối soát). */
+export function usePeriods(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR<PeriodsDto>(enabled ? `${FINANCE_KEY}/periods` : null, swrFetcher, {
+    keepPreviousData: true,
+    shouldRetryOnError: false,
+  });
+  return { periods: data, error, isLoading: isLoading && !data, mutate };
+}
+
+/** Sổ quỹ có số dư theo khoảng ngày (cần finance.ledger.read). */
+export function useLedgerBook(from: string | null, to: string | null, fund?: string | null, enabled = true) {
+  const key = enabled && from && to ? `${FINANCE_KEY}/ledger?from=${from}&to=${to}${fund ? `&fund=${fund}` : ""}` : null;
+  const { data, error, isLoading } = useSWR<LedgerBookDto>(key, swrFetcher, { keepPreviousData: true, revalidateOnFocus: false, shouldRetryOnError: false });
+  return { book: data, error, isLoading: isLoading && !data };
+}
+
+/** Cảnh báo nghi tách phiếu chi (người duyệt chi). */
+export function useSplitAlerts(enabled = true, days = 60) {
+  const { data, error } = useSWR<SplitAlertsDto>(enabled ? `${FINANCE_KEY}/split-alerts?days=${days}` : null, swrFetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
+  return { split: data, error };
+}
+
+/** Xem trước "Cập nhật người phải đóng" của một kế hoạch (null = tắt). */
+export function usePlanMembersPreview(planId: string | null, memberIds?: string[] | null) {
+  const key = planId ? `${FINANCE_KEY}/contribution-plans/${planId}/members${memberIds?.length ? `?members=${memberIds.join(",")}` : ""}` : null;
+  const { data, error, isLoading } = useSWR<PlanMembersSyncDto>(key, swrFetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+  return { preview: data, error, isLoading: isLoading && !data };
+}
+
 /** Làm mới mọi dữ liệu tài chính đang hiển thị (tổng quan, danh sách phiếu, ma trận, chi tiết). */
 export const refreshFinance = (): Promise<void> =>
   inBackground(globalMutate((key) => typeof key === "string" && key.startsWith(FINANCE_KEY)));
@@ -211,7 +249,34 @@ export const financeApi = {
           fundId?: string;
           note?: string | null;
         }
+      | {
+          /** Khoản thu MỘT LẦN cho những người được chọn */
+          kind: "onetime";
+          feeType: OneTimeFeeType;
+          name: string;
+          /** Mức chung mỗi người */
+          amountVnd: number;
+          dueDate: string;
+          /** amountVnd của từng người: bỏ trống = mức chung */
+          members: { memberId: string; amountVnd?: number | null }[];
+          fundId?: string;
+          note?: string | null;
+        }
   ) => api.post<CreatePlanResultDto>(`${FINANCE_KEY}/contribution-plans`, body),
+  /** "Cập nhật người phải đóng": quỹ định kỳ — mọi người đang ở còn thiếu; khoản một lần — những người chọn (memberIds) */
+  syncPlanMembers: (planId: string, memberIds?: string[] | null) =>
+    api.post<PlanMembersSyncDto>(`${FINANCE_KEY}/contribution-plans/${planId}/members`, memberIds?.length ? { memberIds } : {}),
+  closePeriod: (month: string, note?: string | null) => api.post<ClosePeriodResultDto>(`${FINANCE_KEY}/periods/${month}/close`, { note: note ?? null }),
+  confirmPeriod: (month: string) => api.post(`${FINANCE_KEY}/periods/${month}/confirm`, {}),
+  reopenPeriod: (month: string, reason: string) => api.post(`${FINANCE_KEY}/periods/${month}/reopen`, { reason }),
+  reconcilePeriod: (month: string, body: { fundId: string; statementVnd: number; explanation?: string | null }) =>
+    api.post<{ statementVnd: number; ledgerVnd: number; differenceVnd: number }>(`${FINANCE_KEY}/periods/${month}/reconcile`, body),
+  ledgerBook: (from: string, to: string, fund?: string | null) =>
+    api.get<LedgerBookDto>(`${FINANCE_KEY}/ledger?from=${from}&to=${to}${fund ? `&fund=${fund}` : ""}`),
+  matrix: (q: MatrixQuery) =>
+    api.get<ContributionMatrixDto>(
+      `${FINANCE_KEY}/contributions?${[`months=${q.months ?? 12}`, q.to && `to=${q.to}`, q.plan && `plan=${q.plan}`, q.member && `member=${q.member}`].filter(Boolean).join("&")}`
+    ),
   cancelPlan: (planId: string, reason: string) => api.post<{ cancelled: number }>(`${FINANCE_KEY}/contribution-plans/${planId}/cancel`, { reason }),
   saveReceivingAccount: (body: BankAccountDto) => api.put<ReceivingAccountDto>(`${FINANCE_KEY}/receiving-account`, body),
   recordPayment: (body: {

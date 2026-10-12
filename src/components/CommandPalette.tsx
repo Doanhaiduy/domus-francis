@@ -25,10 +25,18 @@ import {
   CalendarOff,
   FileText,
   Gavel,
+  BellRing,
+  BookOpen,
+  MessageSquareHeart,
+  QrCode,
+  Sun,
+  UserRound,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useModules } from "@/lib/data/modules";
+import { useOrgSettings } from "@/lib/data/settings";
+import { myTodayShortcut } from "@/lib/data/me-today";
 import { Portal } from "@/components/ui/Portal";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +51,7 @@ export const CommandPalette: React.FC = () => {
 
   const { can, session } = useSession();
   const modules = useModules(!!session?.member);
+  const { org } = useOrgSettings();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -64,9 +73,31 @@ export const CommandPalette: React.FC = () => {
     { label: "Sơ đồ nhà & Phòng ở", href: "/so-do-nha", icon: Building2, category: "Điều hướng" },
     { label: "Lưu Khoảnh Khắc & Kỷ niệm", href: "/khoanh-khac", icon: Camera, category: "Điều hướng" },
     { label: "Cài đặt & Quản lý danh mục", href: "/cai-dat", icon: Settings, category: "Điều hướng" },
+    { label: "Hồ sơ cá nhân (ảnh, tài khoản nhận tiền, đồng ý dữ liệu)", href: "/cai-dat?tab=profile", icon: UserRound, category: "Điều hướng" },
+    { label: "Cài đặt thông báo (tắt từng loại, giờ yên tĩnh, cài ứng dụng)", href: "/cai-dat?tab=notifications", icon: BellRing, category: "Điều hướng" },
+    { label: "Hướng dẫn sử dụng", href: "/huong-dan", icon: BookOpen, category: "Điều hướng" },
+    { label: "Góp ý về ứng dụng", href: "/gop-y", icon: MessageSquareHeart, category: "Điều hướng" },
   ].filter((n) => !("perm" in n) || !n.perm || can(n.perm));
 
+  const go = (href: string) => {
+    setCommandPaletteOpen(false);
+    router.push(href);
+  };
+  /** Lối tắt của thẻ "Việc của tôi hôm nay": đang ở Tổng quan thì mở ngay, trang khác thì chuyển về Tổng quan rồi mở. */
+  const todayShortcut = (want: "check-in-le" | "bao-com") => {
+    setCommandPaletteOpen(false);
+    const href = myTodayShortcut(want);
+    if (href) router.push(href);
+  };
+  const mealsOn = org.mealsEnabled && (modules.canManage || !modules.disabled["/bep-com"]);
+
   const ACTION_ITEMS = [
+    { label: "Việc của tôi hôm nay", action: () => go("/"), icon: Sun, category: "Hành động nhanh" },
+    ...(mealsOn ? [{ label: "Đăng ký cơm hôm nay (báo ăn / không ăn)", action: () => go("/bep-com"), icon: UtensilsCrossed, category: "Hành động nhanh", perm: ["meal.register", "meal.manage"] }] : []),
+    { label: "Viết đơn xin phép (vắng, về muộn, ngủ ngoài, về quê)", action: () => go("/xin-phep"), icon: CalendarOff, category: "Hành động nhanh", perm: ["leave.request", "leave.manage"] },
+    { label: "Check-in đi lễ hôm nay", action: () => todayShortcut("check-in-le"), icon: Church, category: "Hành động nhanh" },
+    { label: "Nộp quỹ — mã QR các khoản chưa đóng", action: () => go("/thu-chi"), icon: QrCode, category: "Hành động nhanh" },
+    { label: "Đọc & xác nhận Luật nhà", action: () => go("/thong-bao?tab=luat#xac-nhan-luat-nha"), icon: ScrollText, category: "Hành động nhanh" },
     { label: "Xem sơ đồ nhà tương tác", action: () => { setCommandPaletteOpen(false); router.push("/so-do-nha"); }, icon: Building2, category: "Hành động nhanh" },
     { label: "Xem album & Lưu khoảnh khắc", action: () => { setCommandPaletteOpen(false); router.push("/khoanh-khac"); }, icon: Camera, category: "Hành động nhanh" },
     { label: "Ghi chi tiêu quỹ mới", action: () => openModal("addExpense"), icon: Plus, category: "Hành động nhanh", perm: "finance.expense.create" },
@@ -75,7 +106,7 @@ export const CommandPalette: React.FC = () => {
     { label: "Thêm sự kiện mới", action: () => openModal("addEvent"), icon: Plus, category: "Hành động nhanh", perm: "event.manage" },
     { label: "Thêm thành viên mới", action: () => openModal("addMember"), icon: User, category: "Hành động nhanh", perm: "member.create" },
     { label: "Đổi mật khẩu", action: () => openModal("changePassword"), icon: User, category: "Hành động nhanh" },
-  ].filter((a) => !("perm" in a) || !a.perm || can(a.perm));
+  ].filter((a) => !("perm" in a) || !a.perm || can(a.perm as string | string[]));
 
   const handleSelectNav = (href: string) => {
     setCommandPaletteOpen(false);
@@ -172,6 +203,9 @@ export const CommandPalette: React.FC = () => {
       >
         <div
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tìm kiếm nhanh"
           className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-purple-100 overflow-hidden animate-in zoom-in-95 duration-150"
         >
           {/* SEARCH HEADER */}
@@ -183,21 +217,24 @@ export const CommandPalette: React.FC = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tìm chức năng, hành động, hoặc tên thành viên..."
-              className="w-full text-xs text-gray-900 bg-transparent outline-none placeholder:text-gray-400"
+              aria-label="Tìm chức năng, hành động, hoặc tên thành viên"
+              className="w-full text-sm sm:text-xs text-gray-900 bg-transparent outline-none placeholder:text-gray-400"
             />
             <kbd className="hidden sm:inline-block text-[10px] font-mono bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200 shrink-0">
               ESC để đóng
             </kbd>
             <button
+              type="button"
               onClick={() => setCommandPaletteOpen(false)}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              aria-label="Đóng tìm kiếm nhanh"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* RESULTS LIST */}
-          <div className="max-h-96 overflow-y-auto p-2 space-y-4">
+          <div className="max-h-[min(24rem,60dvh)] overflow-y-auto p-2 space-y-4">
             
             {/* QUICK ACTIONS */}
             {filteredActions.length > 0 && (
@@ -322,8 +359,8 @@ export const CommandPalette: React.FC = () => {
 
           {/* FOOTER */}
           <div className="px-4 py-2.5 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-            <span>Lưu Xá Phanxicô Quick Switcher</span>
-            <span>Dùng phím ↑ ↓ để duyệt</span>
+            <span>Tìm nhanh trong Lưu Xá Phanxicô</span>
+            <span className="hidden sm:inline">↑ ↓ để chọn · Enter để mở</span>
           </div>
         </div>
       </div>

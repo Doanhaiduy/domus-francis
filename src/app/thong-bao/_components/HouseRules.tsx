@@ -1,7 +1,7 @@
 "use client";
 
-// Luật nhà: các mục (giờ giấc, vệ sinh, khách…) + điều khoản, có giờ cụ thể. Mọi thành viên xem và tải PDF;
-// Trưởng nhà / Admin soạn, sửa, sắp xếp từng mục.
+// Luật nhà: các mục (giờ giấc, vệ sinh, khách…) + điều khoản, có giờ cụ thể. Mọi thành viên xem, tải PDF và XÁC NHẬN "Tôi đã đọc phiên bản …"
+// (HouseRulesAck.tsx — db/app/1052); Trưởng nhà / Admin soạn, sửa, sắp xếp từng mục và xem ai đã / chưa xác nhận.
 import React, { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Clock, Download, EyeOff, FilePlus2, Pencil, Plus, ScrollText, ShieldAlert, Trash2, X } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -14,6 +14,16 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RedBadge } from "@/components/ui/RedBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
+import { refreshHouseRulesAck, useHouseRulesAck } from "@/lib/data/house-rules-ack";
+import { refreshMyToday } from "@/lib/data/me-today";
+import { AckBox, AckRoster, AckStatusPill } from "./HouseRulesAck";
+
+/** Nội dung luật nhà đổi ⇒ phiên bản đổi ⇒ trạng thái xác nhận đọc + thẻ "Việc của tôi" cũng đổi. */
+const refreshAll = async () => {
+  await refreshHouseRules();
+  void refreshHouseRulesAck();
+  refreshMyToday(0);
+};
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -102,7 +112,7 @@ function SectionEditor({
     try {
       if (section) await houseRulesApi.update(section.id, body);
       else await houseRulesApi.create(body);
-      await refreshHouseRules();
+      await refreshAll();
       showToast("success", section ? "Đã cập nhật mục luật nhà." : "Đã thêm mục luật nhà.");
       onClose();
     } catch (e) {
@@ -209,6 +219,7 @@ function SectionEditor({
 export default function HouseRules() {
   const { showToast } = useApp();
   const { rules, error, isLoading, mutate } = useHouseRules();
+  const { ack } = useHouseRulesAck();
   const [editing, setEditing] = useState<HouseRuleSectionDto | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [template, setTemplate] = useState<HouseRuleInput | null>(null);
@@ -255,6 +266,8 @@ export default function HouseRules() {
     try {
       await houseRulesApi.reorder(ids);
       await mutate();
+      void refreshHouseRulesAck();
+      refreshMyToday(0);
     } catch (e) {
       showToast("error", errorMessage(e));
     }
@@ -263,7 +276,7 @@ export default function HouseRules() {
   const useTemplates = async () => {
     try {
       for (const t of HOUSE_RULE_TEMPLATES) await houseRulesApi.create(t);
-      await refreshHouseRules();
+      await refreshAll();
       showToast("success", "Đã tạo các mục mẫu — hãy sửa lại cho đúng thực tế của nhà.");
     } catch (e) {
       showToast("error", errorMessage(e));
@@ -320,6 +333,7 @@ export default function HouseRules() {
               <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">{totalClauses} điều khoản</span>
               {redCount > 0 && <span className="px-2.5 py-1 rounded-full bg-red-600 text-white shadow-sm shadow-red-900/30">{redCount} Lỗi đỏ</span>}
               {rules.updatedAt && <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur">Cập nhật {fmtDate(rules.updatedAt)}</span>}
+              <AckStatusPill ack={ack} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -496,6 +510,9 @@ export default function HouseRules() {
                 </ol>
               </section>
             ))}
+            {/* Xác nhận "Tôi đã đọc phiên bản …" + (người quản lý) ai đã / chưa xác nhận */}
+            <AckBox />
+            <AckRoster />
             <p className="text-center text-[11px] text-gray-400 py-2">Mọi thành viên có trách nhiệm tuân thủ luật nhà · Pax et Bonum 🕊️</p>
           </div>
         </div>
@@ -512,7 +529,7 @@ export default function HouseRules() {
           if (!s) return;
           try {
             await houseRulesApi.remove(s.id);
-            await refreshHouseRules();
+            await refreshAll();
             showToast("success", "Đã xóa mục luật nhà.");
           } catch (e) {
             showToast("error", errorMessage(e));

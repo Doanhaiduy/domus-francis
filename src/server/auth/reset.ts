@@ -3,7 +3,8 @@ import { withTx } from "../db";
 import { ApiError } from "../errors";
 import { emailButton, emailConfigured, emailLayout, sendEmail } from "../email";
 import { hashPassword, passwordProblem } from "./password";
-import { normalizeIdentifier, type ReqMeta } from "./session";
+import { normalizeIdentifier, notifyPasswordChanged, type ReqMeta } from "./session";
+import { inBackground, recordErrorEvent } from "../ops";
 import { randomToken, sha256Hex } from "./tokens";
 
 // Đặt lại mật khẩu tự phục vụ qua email: yêu cầu → email chứa liên kết dùng một lần (30 phút) → đặt mật khẩu mới.
@@ -58,7 +59,10 @@ export async function requestPasswordReset(identifier: string, meta: ReqMeta, or
     ),
     text: `Đặt lại mật khẩu Lưu Xá Phanxicô\n\nMở liên kết sau (dùng một lần, ${TTL_MINUTES} phút):\n${link}\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.`,
   });
-  if (!r.ok) console.error("[password-reset] gửi email thất bại:", r.error);
+  if (!r.ok) {
+    console.error("[password-reset] gửi email thất bại:", r.error);
+    void inBackground(recordErrorEvent({ source: "auth", route: "POST /api/v1/auth/forgot", code: "EMAIL_SEND_FAILED", message: `Gửi email đặt lại mật khẩu thất bại: ${r.error ?? "lỗi"}`, requestId: meta.requestId }));
+  }
 }
 
 export async function performPasswordReset(token: string, newPassword: string, meta: ReqMeta): Promise<void> {
@@ -80,5 +84,6 @@ export async function performPasswordReset(token: string, newPassword: string, m
     await tx.query("UPDATE users SET password_hash = $2, password_changed_at = now(), must_change_password = false, locked_until = NULL WHERE id = $1", [r.user_id, await hashPassword(newPassword)]);
     await tx.query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [r.user_id]);
     await tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'password_changed' WHERE user_id = $1 AND revoked_at IS NULL", [r.user_id]);
+    void inBackground(notifyPasswordChanged(r.user_id, "reset", meta));
   });
 }

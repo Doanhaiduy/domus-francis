@@ -7,7 +7,7 @@ import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea } from "@/c
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { vnToday } from "@/lib/vn-time";
-import { disciplineApi, useDisciplineRules } from "@/lib/data/discipline";
+import { disciplineApi, useDisciplineRepeat, useDisciplineRules } from "@/lib/data/discipline";
 import { PENALTY_KINDS, PENALTY_LABEL, PENALTY_UNIT, type DisciplineRecordDto, type PenaltyKind } from "@/lib/types/discipline";
 
 const KIND_OPTIONS = PENALTY_KINDS.map((k) => ({ value: k, label: PENALTY_LABEL[k] }));
@@ -69,6 +69,9 @@ export function RecordForm({ record, defaultMemberId, onClose }: { record?: Disc
 
   const needsQty = kind === "rosary" || kind === "mass" || kind === "duty";
 
+  // "Lần thứ N trong 12 tháng" với cùng điều luật + cảnh báo đỏ khi tái phạm điều có quy định "tái phạm ⇒ Lỗi đỏ"
+  const repeat = useDisciplineRepeat({ memberId, ruleId, ruleTitle, occurredOn, excludeId: record?.id });
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberId) return showToast("error", "Hãy chọn thành viên.");
@@ -112,6 +115,19 @@ export function RecordForm({ record, defaultMemberId, onClose }: { record?: Disc
             <CustomSelect label="Thành viên" value={memberId} onChange={setMemberId} options={memberOptions} placeholder="Chọn thành viên…" disabled={editing} />
             <CustomSelect label="Điều luật vi phạm" value={ruleId} onChange={pickRule} options={ruleOptions} />
             {!ruleId && <CustomInput label="Tên điều đã vi phạm *" value={ruleTitle} onChange={(e) => setRuleTitle(e.target.value)} maxLength={200} placeholder="VD: Về nhà sau giờ giới nghiêm không xin phép" />}
+            {repeat && (repeat.sameRuleBefore > 0 || repeat.totalBefore > 0) && (
+              <div
+                role={repeat.escalatesToRed ? "alert" : "status"}
+                className={repeat.escalatesToRed ? "rounded-2xl border border-red-300 bg-red-50 p-3.5 text-xs text-red-900 space-y-1" : "rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 space-y-1"}
+              >
+                <p className="font-extrabold">
+                  {repeat.sameRuleBefore > 0 ? `Lần thứ ${repeat.nth} trong 12 tháng với cùng điều luật` : "Chưa vi phạm điều này trong 12 tháng qua"}
+                  {" · "}đã có {repeat.totalBefore} vi phạm (mọi điều) trong 12 tháng
+                </p>
+                {repeat.previousDates.length > 0 && <p>Các lần trước: {repeat.previousDates.map((d) => d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4)).join(", ")}</p>}
+                {repeat.escalatesToRed && <p className="font-extrabold text-red-800">⚠ TÁI PHẠM — điều luật này quy định tái phạm là LỖI ĐỎ: hãy xử lý theo mức Lỗi đỏ.</p>}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <CustomDatePicker label="Ngày vi phạm" format="YYYY-MM-DD" value={occurredOn} onChange={(d) => d && setOccurredOn(d)} required />
             </div>

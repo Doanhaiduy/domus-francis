@@ -122,10 +122,23 @@ export function guideChunks(): KnowledgeChunk[] {
 
 /** Trang trợ lý được phép gợi ý mở (nút bấm cho người dùng). Đường dẫn ngoài danh sách này bị loại khỏi câu trả lời. */
 export const AI_LINKS: { href: string; label: string; hint: string }[] = [
-  { href: "/", label: "Tổng quan", hint: "Màn hình chính, việc cần làm hôm nay" },
+  {
+    href: "/",
+    label: "Tổng quan",
+    hint: "Màn hình chính: thẻ “Việc của tôi hôm nay” (trực tuần, cơm, khoản quỹ chưa đóng, điểm danh, đơn xin phép…), hộp “Việc cần xử lý” của người quản lý, thông báo và lịch sắp tới",
+  },
   ...TOGGLEABLE_MODULES.map((m) => ({ href: m.href, label: m.label, hint: m.description })),
-  { href: "/cai-dat?tab=profile", label: "Cài đặt → Hồ sơ cá nhân", hint: "Sửa hồ sơ, giao diện sáng/tối, cỡ chữ, tài khoản nhận tiền" },
-  { href: "/cai-dat?tab=security", label: "Cài đặt → Bảo mật", hint: "Đổi mật khẩu, đổi email đăng nhập, xác thực 2 bước, quyền riêng tư" },
+  {
+    href: "/cai-dat?tab=profile",
+    label: "Cài đặt → Hồ sơ cá nhân",
+    hint: "Sửa hồ sơ, giao diện sáng/tối, cỡ chữ, tài khoản nhận tiền; mục “Quyền riêng tư & dữ liệu của tôi”: tải dữ liệu của mình (JSON), gửi yêu cầu xem / sửa / xóa dữ liệu hoặc rút đồng ý",
+  },
+  { href: "/cai-dat?tab=security", label: "Cài đặt → Bảo mật", hint: "Đổi mật khẩu, đổi email đăng nhập, xác thực 2 bước, bật/tắt các đồng ý về dữ liệu (hồ sơ Công giáo, chia sẻ điểm, gắn thẻ ảnh…)" },
+  {
+    href: "/thanh-vien?tab=data-requests",
+    label: "Thành viên → Yêu cầu dữ liệu",
+    hint: "Người quản lý (Trưởng nhà, Admin): xử lý yêu cầu xem / sửa / xóa dữ liệu cá nhân của thành viên, phản hồi trong 72 giờ",
+  },
   { href: "/cai-dat?tab=notifications", label: "Cài đặt → Thông báo", hint: "Cài ứng dụng ra màn hình chính, bật thông báo đẩy, giờ yên tĩnh" },
   { href: "/huong-dan", label: "Hướng dẫn sử dụng", hint: "Sách hướng dẫn đầy đủ theo từng vai trò" },
   { href: "/gop-y", label: "Góp ý về ứng dụng", hint: "Báo lỗi, đề xuất tính năng, góp ý cho người quản lý (có thể ẩn tên, đính ảnh chụp màn hình)" },

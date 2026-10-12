@@ -3,11 +3,17 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
 import type {
+  AttendanceReportDto,
   AttendanceRosterDto,
+  CalendarFeedCreatedDto,
+  CalendarFeedListDto,
   CheckInResultDto,
   DayDutyDto,
   EventCategoryDto,
   EventDto,
+  EventSeriesDto,
+  EventSeriesListDto,
+  EventSeriesSaveResultDto,
   EventsMonthDto,
   PollDto,
   RsvpStatus,
@@ -53,12 +59,28 @@ export function useAttendanceRoster(eventId: string | null, enabled: boolean) {
   return { roster: data, error, isLoading, mutate };
 }
 
+/** Tuần trực vệ sinh sân nhà chứa ngày đang xem (null khi đang tải lần đầu). */
 export function useDayDuties(dateIso: string) {
-  const { data } = useSWR<DayDutyDto[]>(`${EVENTS_KEY}/duties?date=${dateIso}`, swrFetcher, { keepPreviousData: true });
-  return data ?? [];
+  const { data, isLoading } = useSWR<DayDutyDto>(`${EVENTS_KEY}/duties?date=${dateIso}`, swrFetcher, { keepPreviousData: true });
+  return { duty: data ?? null, isLoading: isLoading && !data };
 }
 
-/** Làm mới mọi dữ liệu sự kiện/biểu quyết (lịch tháng, sắp tới, điểm danh, biểu quyết). */
+export const SERIES_KEY = `${EVENTS_KEY}/series`;
+export const FEED_KEY = "/api/v1/me/calendar-feed";
+
+/** Danh sách sự kiện định kỳ (chỉ tải khi cần — ví dụ khi mở hộp thoại). */
+export function useEventSeries(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR<EventSeriesListDto>(enabled ? SERIES_KEY : null, swrFetcher, { keepPreviousData: true });
+  return { list: data, error, isLoading: isLoading && !data, mutate };
+}
+
+/** Các đường dẫn lịch cá nhân đang dùng (Đồng bộ lịch). */
+export function useCalendarFeeds(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR<CalendarFeedListDto>(enabled ? FEED_KEY : null, swrFetcher);
+  return { feeds: data, error, isLoading: isLoading && !data, mutate };
+}
+
+/** Làm mới mọi dữ liệu sự kiện/biểu quyết (lịch tháng, sắp tới, điểm danh, biểu quyết, chuỗi định kỳ). */
 export const refreshEvents = () =>
   globalMutate((key) => typeof key === "string" && (key.startsWith(EVENTS_KEY) || key.startsWith(POLLS_KEY)));
 
@@ -104,6 +126,58 @@ export const eventsApi = {
     ),
   /** Tự điểm danh bằng ảnh: fileId là mã ảnh đã tải lên (bucket "attachments"). */
   checkIn: (b: { eventId: string; fileId: string }) => api.post<CheckInResultDto>(`${EVENTS_KEY}/checkin`, b),
+  /** Danh sách điểm danh đầy đủ của một sự kiện (để xuất Excel) */
+  roster: (id: string) => api.get<AttendanceRosterDto>(`${EVENTS_KEY}/${id}/attendance`),
+  /** Bảng điểm danh thành viên × sự kiện trong khoảng ngày (xuất Excel) */
+  attendanceReport: (from: string, to: string) => api.get<AttendanceReportDto>(`${EVENTS_KEY}/attendance-report?from=${from}&to=${to}`),
+  /** Đường dẫn tải .ics của một sự kiện (mở bằng thẻ <a download>) */
+  icsUrl: (id: string) => `${EVENTS_KEY}/${id}/ics`,
+};
+
+// ---------------------------------------------------------------------
+// Sự kiện định kỳ
+// ---------------------------------------------------------------------
+export interface SeriesPayload {
+  title: string;
+  time: string;
+  endTime?: string | null;
+  categoryCode: string;
+  location?: string | null;
+  organizerText?: string | null;
+  organizerIds?: string[];
+  description?: string | null;
+  hasCheckIn?: boolean;
+  weekdays: number[];
+  intervalWeeks?: number;
+  startsOn: string;
+  untilDate?: string | null;
+  count?: number | null;
+  notifyApp?: boolean;
+  notifyZalo?: boolean;
+}
+
+export type SeriesPatchPayload = Partial<Omit<SeriesPayload, "startsOn" | "notifyApp" | "notifyZalo">> & {
+  fromDate?: string;
+  isActive?: true;
+  noEnd?: boolean;
+};
+
+export const seriesApi = {
+  create: (b: SeriesPayload) => api.post<EventSeriesSaveResultDto & { zalo: { sent: boolean; reason?: string } | null }>(SERIES_KEY, b),
+  get: (id: string) => api.get<EventSeriesDto>(`${SERIES_KEY}/${id}`),
+  update: (id: string, b: SeriesPatchPayload) => api.patch<EventSeriesSaveResultDto>(`${SERIES_KEY}/${id}`, b),
+  skip: (id: string, b: { date: string; reason?: string | null; notify?: boolean }) => api.post<EventSeriesDto>(`${SERIES_KEY}/${id}/skip`, b),
+  restore: (id: string, date: string) => api.post<EventSeriesDto>(`${SERIES_KEY}/${id}/restore`, { date }),
+  stop: (id: string, b: { fromDate?: string; reason?: string | null; notify?: boolean }) =>
+    api.post<EventSeriesDto & { removed: number }>(`${SERIES_KEY}/${id}/stop`, b),
+};
+
+// ---------------------------------------------------------------------
+// Đồng bộ lịch (đường dẫn .ics cá nhân)
+// ---------------------------------------------------------------------
+export const calendarFeedApi = {
+  create: (label?: string | null) => api.post<CalendarFeedCreatedDto>(FEED_KEY, { label: label ?? null }),
+  revoke: (id: string) => api.del<CalendarFeedListDto>(`${FEED_KEY}/${id}`),
 };
 
 export const pollsApi = {

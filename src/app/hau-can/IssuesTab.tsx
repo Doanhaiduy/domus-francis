@@ -23,6 +23,11 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
   const [showClosed, setShowClosed] = useState(true);
   const visible = useMemo(() => issues.filter((i) => showClosed || isOpenIssue(i.status)), [issues, showClosed]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Mở thẳng một sự cố từ thông báo / hộp "Việc cần xử lý": /hau-can?tab=bao-hong&issue=<id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("issue");
+    if (id) setSelectedId(id);
+  }, []);
   const selected = visible.find((i) => i.id === selectedId) ?? visible[0] ?? null;
 
   const canTriage = can("issue.triage");

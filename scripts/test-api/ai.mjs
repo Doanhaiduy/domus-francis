@@ -191,7 +191,7 @@ export async function run({ as, test, eq, ok, section, Client }) {
       eq(c.headers.authorization, "Bearer offline-test-key", "khóa Groq trong header Authorization");
       eq(c.body.response_format.type, "json_object");
       eq(c.body.messages[0].role, "system");
-      ok(c.body.messages[1].content.includes("<du_lieu>") && /22:30/.test(c.body.messages[1].content), "prompt có khối dữ liệu + đoạn nội quy truy hồi: " + c.body.messages[1].content.slice(0, 1500));
+      ok(c.body.messages[1].content.includes("<du_lieu>") && /22:00/.test(c.body.messages[1].content), "prompt có khối dữ liệu + đoạn nội quy truy hồi: " + c.body.messages[1].content.slice(0, 1500));
       ok(!c.url.includes("offline-test-key"), "khóa không được nằm trong URL");
     });
 

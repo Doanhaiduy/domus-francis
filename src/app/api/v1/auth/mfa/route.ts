@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { api } from "@/server/http";
+import { api, invalidateSessionCache } from "@/server/http";
 import { disableMfa, getMfaStatus } from "@/server/auth/mfa";
 
 const meta = (ctx: Parameters<Parameters<typeof api>[1]>[0]) => ({ ip: ctx.ip, userAgent: ctx.req.headers.get("user-agent"), requestId: ctx.requestId });
@@ -11,5 +11,6 @@ export const GET = api({ auth: "user" }, (ctx) => getMfaStatus(ctx.userId!, meta
 export const DELETE = api({ auth: "user" }, async (ctx) => {
   const b = await ctx.body(z.object({ password: z.string().min(1).max(200) }));
   await disableMfa(ctx.userId!, b.password, meta(ctx));
+  if (ctx.session) invalidateSessionCache(ctx.session.sid);
   return { ok: true };
 });

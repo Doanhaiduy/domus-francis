@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { api } from "@/server/http";
-import { ApiError, forbidden } from "@/server/errors";
-import { submitInquiry } from "@/server/modules/public-site";
+import { ApiError } from "@/server/errors";
+import { assertSameOrigin, submitInquiry, verifyTurnstile } from "@/server/modules/public-site";
 
 export const runtime = "nodejs";
 
@@ -21,35 +21,9 @@ const Body = z.object({
   turnstileToken: z.string().max(4096).optional(),
 });
 
-async function verifyTurnstile(token: string | undefined, ip: string | null): Promise<boolean> {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // chưa bật CAPTCHA
-  if (!token) return false;
-  try {
-    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ secret, response: token, ...(ip ? { remoteip: ip } : {}) }),
-      signal: AbortSignal.timeout(8000),
-    });
-    return ((await r.json()) as { success?: boolean }).success === true;
-  } catch {
-    return false;
-  }
-}
-
 /** Người ngoài gửi đăng ký tìm hiểu / xin vào ở (không cần tài khoản). Chống spam: ô ẩn, thời gian điền, giới hạn theo IP, CAPTCHA tùy chọn. */
 export const POST = api({ auth: "public", csrf: false }, async (ctx) => {
-  const origin = ctx.req.headers.get("origin");
-  if (origin) {
-    const host = ctx.req.headers.get("x-forwarded-host") || ctx.req.headers.get("host");
-    try {
-      if (new URL(origin).host !== host) throw forbidden("Yêu cầu bị chặn (Origin không hợp lệ).");
-    } catch (e) {
-      if (e instanceof ApiError) throw e;
-      throw forbidden("Yêu cầu bị chặn (Origin không hợp lệ).");
-    }
-  }
+  assertSameOrigin(ctx.req.headers);
   const b = await ctx.body(Body);
   // Người máy: giả vờ thành công (không báo lý do để khó né)
   const tooFast = b.startedAt !== undefined && Date.now() - b.startedAt < 2500;

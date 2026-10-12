@@ -7,7 +7,7 @@ import { badRequest, conflict, forbidden, notFound } from "../errors";
 import { normalizePhone } from "../auth/session";
 import { permissions } from "./community-shared";
 import { postZaloEvent } from "../integrations/zalo";
-import type { LeaveAllDto, LeaveDoorDutyDto, LeaveEventOption, LeaveKind, LeaveListDto, LeaveRequestDto, LeaveStatus } from "@/lib/types/leave";
+import type { LeaveAllDto, LeaveDoorDutyDto, LeaveEventOption, LeaveKind, LeaveListDto, LeaveRequestDto, LeaveStatus, LeaveTonightDto } from "@/lib/types/leave";
 import { LEAVE_KIND_LABEL, LEAVE_KIND_SHORT, isDoorKind, leaveNeedsPlace } from "@/lib/types/leave";
 
 // Đơn xin phép. Quy tắc nghiệp vụ nằm ở CSDL: RLS (tự xem đơn mình / người duyệt xem tất cả), trigger BR-EVT-07 (không tự duyệt đơn của mình),
@@ -347,7 +347,7 @@ async function cancelLeave(tx: Tx, id: string) {
   if (!r.rowCount) throw notFound("Không tìm thấy đơn đang chờ duyệt của bạn.");
 }
 
-async function decideLeave(tx: Tx, id: string, action: "approve" | "reject", note: string | null) {
+export async function decideLeave(tx: Tx, id: string, action: "approve" | "reject", note: string | null) {
   if (!(await permissions(tx, ["leave.review"] as const))["leave.review"]) throw forbidden("Bạn không có quyền duyệt đơn xin phép.");
   if (action === "reject" && (note ?? "").trim().length < 5) throw badRequest("Hãy ghi lý do từ chối (tối thiểu 5 ký tự).");
   const cur = (await tx.query<{ status: string }>("SELECT status::text AS status FROM leave_requests WHERE id = $1", [id])).rows[0];
@@ -515,4 +515,23 @@ export async function notifyLeaveDecided(ctx: Ctx, id: string) {
   } catch (e) {
     console.error("[leave] báo kết quả lỗi:", (e as Error).message);
   }
+}
+
+/**
+ * "Tối nay ai vắng / về muộn": đơn ĐÃ DUYỆT có hiệu lực từ 18:00 hôm nay đến 06:00 sáng mai (giờ VN) — về muộn, ngủ ngoài, vắng nhiều ngày.
+ * Chỉ người có leave.review hoặc người đang được nhờ để cửa tối nay thấy (app.fn_leave_tonight kiểm quyền); KHÔNG kèm lý do / nơi đến / số điện thoại.
+ */
+export async function getLeaveTonight(tx: Tx): Promise<LeaveTonightDto> {
+  const rows = (await tx.query("SELECT * FROM app.fn_leave_tonight()")).rows;
+  return {
+    items: rows.map((r) => ({
+      leaveId: r.leave_id,
+      memberName: r.member_name,
+      kind: r.kind,
+      startsAt: iso(r.starts_at),
+      endsAt: iso(r.ends_at),
+      effectiveEndsAt: iso(r.effective_ends_at),
+      doorForMe: !!r.door_for_me,
+    })),
+  };
 }

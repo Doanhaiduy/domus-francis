@@ -142,6 +142,12 @@ function TemplateRow({ draft, k }: { draft: SettingsDraft; k: ZaloEventKey }) {
                 ))}
               </ul>
               <p className="text-[10.5px] text-gray-400 mt-2">Dòng nào chỉ có biến rỗng sẽ tự bị bỏ. Cuối mỗi tin hệ thống tự thêm “— Thao tác bởi &lt;tên&gt;” hoặc “— 🤖 Tin tự động của hệ thống”.</p>
+              {def.placeholders.some((p) => p.name === "link") && (
+                <p className="text-[10.5px] text-gray-500 mt-1">
+                  <code className="font-bold text-gray-700">{"{link}"}</code> là địa chỉ web đầy đủ — anh em bấm trong Zalo là mở đúng trang của ứng dụng.
+                  {custom && !current.includes("{link}") ? " Mẫu đã tùy chỉnh trước đây chưa có liên kết: thêm dòng “👉 Xem: {link}” nếu muốn." : ""}
+                </p>
+              )}
             </div>
             {custom && (
               <button type="button" onClick={() => set(def.default)} disabled={!writable} className="self-start inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline">

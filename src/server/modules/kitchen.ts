@@ -100,7 +100,8 @@ export async function getMealsWeek(tx: Tx, date: string | null): Promise<MealsWe
               (date_trunc('week', COALESCE($1::date, app.local_today()))::date + 6)::text AS wk_end,
               extract(week FROM COALESCE($1::date, app.local_today()))::int AS wn,
               (SELECT name FROM academic_years WHERE is_current LIMIT 1) AS ay,
-              (SELECT count(*)::int FROM members WHERE status = 'active' AND deleted_at IS NULL) AS active`,
+              (SELECT count(*)::int FROM members WHERE status = 'active' AND deleted_at IS NULL) AS active,
+              EXISTS (SELECT 1 FROM meal_auto_eaters WHERE member_id = app.current_member_id()) AS auto_eat`,
       [date]
     )
   ).rows[0];
@@ -233,6 +234,7 @@ export async function getMealsWeek(tx: Tx, date: string | null): Promise<MealsWe
     canManage: p.manage,
     canRegister: p.register || p.manage,
     canToggleFeature: p.setting_write,
+    autoEat: !!base.auto_eat,
   };
 }
 
@@ -270,13 +272,14 @@ export async function setRegistration(
 export async function bulkRegister(
   tx: Tx,
   b: { scope: "self-week"; date: string } | { scope: "all-members"; date: string; meals?: MealType[] }
-): Promise<{ registered: number; skipped: number; message: string }> {
+): Promise<{ registered: number; skipped: number; absent: number; message: string }> {
   const p = await perms(tx);
   if (!p.enabled) throw new ApiError(422, "MEAL_DISABLED", "Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định người quản lý.");
   if (b.scope === "all-members") {
     if (!p.manage) throw forbidden("Chỉ Ban Ẩm thực mới đăng ký hộ cả nhà.");
     let registered = 0;
     let skipped = 0;
+    let absent = 0;
     for (const meal of b.meals ?? (["lunch", "dinner"] as MealType[])) {
       const menuId = await ensureMenu(tx, b.date, meal);
       const st = (await tx.query<{ status: string }>("SELECT status FROM meal_menus WHERE id = $1", [menuId])).rows[0]?.status;
@@ -284,20 +287,32 @@ export async function bulkRegister(
         skipped++;
         continue;
       }
+      // Người có đơn xin phép ĐÃ DUYỆT bao trùm bữa này (ngủ ngoài, về quê, tạm vắng dài…) KHÔNG bị đăng ký ăn hộ
+      const ab = await tx.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM members m
+          WHERE m.status = 'active' AND m.deleted_at IS NULL
+            AND m.id IN (SELECT x.member_id FROM app.fn_members_absent_for_meal($2::date, $3::meal_type_t) x)
+            AND NOT EXISTS (SELECT 1 FROM meal_registrations r WHERE r.menu_id = $1 AND r.member_id = m.id)`,
+        [menuId, b.date, meal]
+      );
+      absent += ab.rows[0]?.n ?? 0;
       const r = await tx.query(
         `INSERT INTO meal_registrations (menu_id, member_id, will_eat)
          SELECT $1, m.id, true FROM members m WHERE m.status = 'active' AND m.deleted_at IS NULL
+            AND m.id NOT IN (SELECT x.member_id FROM app.fn_members_absent_for_meal($2::date, $3::meal_type_t) x)
          ON CONFLICT (menu_id, member_id) DO NOTHING`,
-        [menuId]
+        [menuId, b.date, meal]
       );
       registered += r.rowCount ?? 0;
     }
+    const absentNote = absent ? ` Bỏ qua ${absent} lượt người đang có đơn xin phép vắng đã duyệt.` : "";
     return {
       registered,
       skipped,
+      absent,
       message: registered
-        ? `Đã đăng ký thêm ${registered} suất cho những anh em chưa đăng ký (giữ nguyên người đã báo vắng).`
-        : "Mọi thành viên đã có đăng ký cho ngày này — không có suất nào cần thêm.",
+        ? `Đã đăng ký thêm ${registered} suất cho những anh em chưa đăng ký (giữ nguyên người đã báo vắng).${absentNote}`
+        : `Mọi thành viên đã có đăng ký cho ngày này — không có suất nào cần thêm.${absentNote}`,
     };
   }
 
@@ -342,10 +357,29 @@ export async function bulkRegister(
   return {
     registered,
     skipped,
+    absent: 0,
     message: registered
       ? `Đã đăng ký ${registered} bữa trong tuần${skipped ? ` (bỏ qua ${skipped} bữa đã chốt sổ / không nấu)` : ""}.`
       : "Không còn bữa nào mở đăng ký trong tuần này (đã quá giờ chốt hoặc không nấu).",
   };
+}
+
+/**
+ * Bật / tắt "Luôn ăn, trừ khi báo vắng" của CHÍNH mình (db/app/1051). Bật ⇒ ghi ngay đăng ký ĂN vào mọi bữa đang mở trong 14 ngày tới
+ * (trừ bữa có đơn vắng đã duyệt, không đè đăng ký sẵn có); từ đó bữa nào mở đăng ký cũng tự ghi "ăn". Tắt ⇒ giữ nguyên các suất đã ghi.
+ */
+export async function setAutoEat(tx: Tx, enabled: boolean): Promise<{ autoEat: boolean; registered: number }> {
+  const p = await perms(tx);
+  if (!p.me) throw forbidden("Tài khoản của bạn chưa gắn hồ sơ thành viên.");
+  if (!p.register && !p.manage) throw forbidden("Bạn không có quyền đăng ký suất ăn.");
+  if (!enabled) {
+    await tx.query("DELETE FROM meal_auto_eaters WHERE member_id = $1", [p.me]);
+    return { autoEat: false, registered: 0 };
+  }
+  if (!p.enabled) throw new ApiError(422, "MEAL_DISABLED", "Phân hệ Bếp & Cơm đang tạm hoãn theo quyết định người quản lý.");
+  await tx.query("INSERT INTO meal_auto_eaters (member_id) VALUES ($1) ON CONFLICT (member_id) DO NOTHING", [p.me]);
+  const n = (await tx.query<{ n: number }>("SELECT app.fn_meal_auto_register_self() AS n")).rows[0].n;
+  return { autoEat: true, registered: n };
 }
 
 // ---------------------------------------------------------------------
@@ -569,13 +603,12 @@ export async function suggestOption(tx: Tx, id: string, label: string) {
 // ---------------------------------------------------------------------
 export async function updateMealSettings(
   tx: Tx,
-  b: { enabled?: boolean; lunchCutoff?: string; dinnerCutoff?: string }
+  b: { lunchCutoff?: string; dinnerCutoff?: string }
 ) {
   const set = async (key: string, value: unknown, label: string) => {
     const r = await tx.query("UPDATE settings SET value = $2::jsonb, updated_by = app.current_user_id() WHERE key = $1", [key, JSON.stringify(value)]);
     if (!r.rowCount) throw forbidden(`Bạn không có quyền đổi ${label}.`);
   };
-  if (b.enabled !== undefined) await set("feature.meals.enabled", b.enabled, "trạng thái bật/tắt phân hệ Bếp & Cơm (cần quyền Cài đặt hệ thống)");
   for (const [meal, v] of [["lunch", b.lunchCutoff], ["dinner", b.dinnerCutoff]] as const) {
     if (v === undefined) continue;
     await set(`meal.${meal}_cutoff_time`, v, `giờ chốt suất ${meal === "lunch" ? "trưa" : "tối"}`);

@@ -31,20 +31,20 @@ import { prefetchProps } from "@/lib/prefetch";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { fileUrl } from "@/lib/api";
-import { useDutySummary, useUnreadCount } from "@/lib/data/dashboard";
+import { useUnreadCount } from "@/lib/data/dashboard";
 import { useModules } from "@/lib/data/modules";
-import { useInquiries } from "@/lib/data/public-site";
-import { usePendingLeaveCount } from "@/lib/data/leave";
-import { groupPaths, isInPath } from "@/lib/nav-groups";
+import { useInbox } from "@/lib/data/inbox";
+import { groupPaths, inboxKindsFor, isInPath } from "@/lib/nav-groups";
 import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
+import { InboxBadge } from "./InboxBadge";
 
 export const NAV_ITEMS: {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** "announcements": số thông báo bảng tin chưa đọc. Số việc chờ xử lý (hộp "Việc cần xử lý") tự tính theo `paths` — xem INBOX_KINDS_BY_PATH. */
   badgeKey?: string;
   isPaused?: boolean;
-  badgeDot?: boolean;
   isDividerBefore?: boolean;
   /** Các trang con gộp chung mục này (xem lib/nav-groups.ts) — mục sáng lên khi đang ở một trong các trang đó */
   paths?: string[];
@@ -53,15 +53,15 @@ export const NAV_ITEMS: {
 }[] = [
   { href: "/", label: "Tổng quan", icon: LayoutGrid },
   { href: "/thong-bao", label: "Thông báo & Diễn đàn", icon: Bell, badgeKey: "announcements", paths: groupPaths("/thong-bao") },
-  { href: "/lich-su-kien", label: "Lịch & Xin phép", icon: Calendar, badgeKey: "leave", paths: groupPaths("/lich-su-kien") },
+  { href: "/lich-su-kien", label: "Lịch & Xin phép", icon: Calendar, paths: groupPaths("/lich-su-kien") },
   { href: "/thu-chi", label: "Thu Chi & Báo cáo", icon: Wallet, paths: groupPaths("/thu-chi") },
   { href: "/bep-com", label: "Bếp & Cơm", icon: UtensilsCrossed, isPaused: false },
-  { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench, badgeDot: true },
+  { href: "/hau-can", label: "Hậu Cần & Trực", icon: Wrench },
   { href: "/phung-vu", label: "Phụng Vụ", icon: Church },
   { href: "/thanh-vien", label: "Thành Viên & Nhà", icon: Users, paths: groupPaths("/thanh-vien") },
   { href: "/hoc-tap", label: "Học Tập", icon: GraduationCap },
   { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera },
-  { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, requires: ["article.manage", "application.review"], badgeKey: "inquiries", isDividerBefore: true },
+  { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, requires: ["article.manage", "application.review"], isDividerBefore: true },
   { href: "/cai-dat", label: "Cài Đặt & Hướng dẫn", icon: Settings, paths: groupPaths("/cai-dat") },
 ];
 
@@ -86,13 +86,10 @@ export const Sidebar: React.FC = () => {
   const avatar = fileUrl(session?.member?.avatarFileId, "thumb");
   const handleSignOut = () => logout();
 
-  // Huy hiệu từ dữ liệu thật: thông báo chưa đọc của chính mình, sự cố còn mở
+  // Huy hiệu từ dữ liệu thật: thông báo bảng tin chưa đọc của chính mình + số việc chờ xử lý (người quản lý — hộp "Việc cần xử lý")
   const unread = useUnreadCount(!!session?.member);
-  const duty = useDutySummary(!!session?.member);
   const unreadAnnCount = unread?.announcementsUnread ?? 0;
-  const pendingLeave = usePendingLeaveCount(!!session?.member && can("leave.review"));
-  const { newCount: newInquiries } = useInquiries(!!session?.member && can("application.review"), 180_000);
-  const pendingIssuesCount = duty?.openIssuesCount ?? 0;
+  const inbox = useInbox(!!session?.member);
   // Phân hệ Admin tạm ẩn (bảo trì): thành viên thấy mục mờ, không bấm được; người quản trị vẫn vào được
   const modules = useModules(!!session?.member);
 
@@ -167,45 +164,33 @@ export const Sidebar: React.FC = () => {
                     paused && "opacity-60"
                   )}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-primary" : "text-gray-500")} />
                     <span className="truncate">{item.label}</span>
                   </div>
 
-                  {item.badgeKey === "announcements" && unreadAnnCount > 0 && (
-                    <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                      {unreadAnnCount}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5 shrink-0 empty:hidden">
+                    {item.badgeKey === "announcements" && unreadAnnCount > 0 && (
+                      <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                        {unreadAnnCount}
+                      </span>
+                    )}
 
-                  {item.badgeKey === "leave" && pendingLeave > 0 && (
-                    <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0" title="Đơn xin phép chờ duyệt">
-                      {pendingLeave}
-                    </span>
-                  )}
+                    {/* Số việc chờ xử lý của các trang trong mục (đỏ = có việc quá hạn) */}
+                    <InboxBadge items={inbox.itemsOf(inboxKindsFor(item.paths ?? [item.href]))} />
 
-                  {item.badgeKey === "inquiries" && newInquiries > 0 && (
-                    <span className="bg-error-container text-on-error-container text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0" title="Đăng ký tìm hiểu mới">
-                      {newInquiries}
-                    </span>
-                  )}
+                    {item.isPaused && (
+                      <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">
+                        TẠM HOÃN
+                      </span>
+                    )}
 
-                  {item.badgeDot && pendingIssuesCount > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-error shrink-0" />
-                  )}
-
-
-                  {item.isPaused && (
-                    <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0">
-                      TẠM HOÃN
-                    </span>
-                  )}
-
-                  {paused && (
-                    <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0" title="Đang ẩn với thành viên">
-                      ĐANG ẨN
-                    </span>
-                  )}
+                    {paused && (
+                      <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0" title="Đang ẩn với thành viên">
+                        ĐANG ẨN
+                      </span>
+                    )}
+                  </span>
                 </Link>
                 )}
               </React.Fragment>

@@ -78,15 +78,15 @@ export function PhotoGallery({ photos, albumTitle }: { photos: GalleryPhoto[]; a
             if (Math.abs(dx) > 50) go(dx > 0 ? -1 : 1);
           }}
         >
-          <button ref={closeBtn} type="button" onClick={close} aria-label="Đóng" className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+          <button ref={closeBtn} type="button" onClick={close} aria-label="Đóng" className="absolute top-4 right-4 w-11 h-11 rounded-full bg-[#ffffff]/15 hover:bg-[#ffffff]/25 text-white flex items-center justify-center">
             <X className="w-6 h-6" />
           </button>
           {photos.length > 1 && (
             <>
-              <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Ảnh trước" className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Ảnh trước" className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-[#ffffff]/15 hover:bg-[#ffffff]/25 text-white flex items-center justify-center">
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Ảnh sau" className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Ảnh sau" className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-[#ffffff]/15 hover:bg-[#ffffff]/25 text-white flex items-center justify-center">
                 <ChevronRight className="w-6 h-6" />
               </button>
             </>

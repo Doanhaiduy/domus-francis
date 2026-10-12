@@ -2,10 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Circle, Rocket } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Rocket, Server } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { SETUP_GROUPS, useSetupStatus, type SetupItem } from "@/lib/data/setup";
 import { cn } from "@/lib/utils";
+
+const GROUP_NOTE: Partial<Record<SetupItem["group"], string>> = {
+  public: "Khách chưa đăng nhập mở trang web sẽ vào thẳng trang Giới thiệu — hãy để trang công khai thật chỉn chu.",
+  system: "Các mục này do người triển khai đặt trên máy chủ (Vercel) — trang chỉ báo đã có hay chưa, không hiện giá trị khóa.",
+};
 
 export default function SetupPage() {
   const { can, isLoading } = useSession();
@@ -20,6 +25,7 @@ export default function SetupPage() {
   }
 
   const pct = setup.requiredCount ? Math.round((setup.requiredDone / setup.requiredCount) * 100) : 100;
+  const optional = setup.items.filter((i) => i.optional);
   const groups = (Object.keys(SETUP_GROUPS) as SetupItem["group"][]).map((g) => ({ g, items: setup.items.filter((i) => i.group === g) })).filter((x) => x.items.length);
 
   return (
@@ -32,8 +38,11 @@ export default function SetupPage() {
       </div>
 
       <div className="bg-white border border-purple-100 rounded-2xl p-5">
-        <div className="flex items-end justify-between gap-3 mb-2">
-          <p className="text-sm font-bold text-gray-900">{setup.requiredDone}/{setup.requiredCount} việc cần làm đã xong</p>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
+          <div>
+            <p className="text-sm font-bold text-gray-900">{setup.requiredDone}/{setup.requiredCount} việc cần làm đã xong</p>
+            {optional.length > 0 && <p className="text-xs text-gray-500 mt-0.5">Việc tùy chọn: {optional.filter((i) => i.done).length}/{optional.length}</p>}
+          </div>
           <p className="text-2xl font-extrabold text-primary">{pct}%</p>
         </div>
         <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden" role="progressbar" aria-label="Tiến độ thiết lập" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
@@ -43,26 +52,33 @@ export default function SetupPage() {
 
       {groups.map(({ g, items }) => (
         <section key={g} className="space-y-2.5" aria-labelledby={`g-${g}`}>
-          <h2 id={`g-${g}`} className="text-xs font-extrabold uppercase tracking-wider text-gray-400">{SETUP_GROUPS[g]}</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 id={`g-${g}`} className="text-xs font-extrabold uppercase tracking-wider text-gray-500 inline-flex items-center gap-1.5">
+              {g === "system" && <Server className="w-3.5 h-3.5" aria-hidden />}
+              {SETUP_GROUPS[g]}
+            </h2>
+            <span className="text-[11px] font-bold text-gray-400">{items.filter((i) => i.done).length}/{items.length}</span>
+          </div>
+          {GROUP_NOTE[g] && <p className="text-xs text-gray-500 -mt-1 leading-relaxed">{GROUP_NOTE[g]}</p>}
           <div className="grid gap-2.5 lg:grid-cols-2">
-          {items.map((it) => (
-            <Link
-              key={it.key}
-              href={it.href}
-              className={cn("group flex items-center gap-4 rounded-2xl border p-4 transition", it.done ? "bg-emerald-50/50 border-emerald-100" : "bg-white border-purple-100 hover:border-purple-300 hover:shadow-sm")}
-            >
-              {it.done ? <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" aria-label="Đã xong" /> : <Circle className="w-6 h-6 text-gray-300 shrink-0" aria-label="Chưa xong" />}
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-gray-900 flex items-center gap-2">
-                  {it.title}
-                  {it.optional && <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Tùy chọn</span>}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{it.description}</p>
-                {it.detail && <p className={cn("text-[11px] mt-1 font-semibold", it.done ? "text-emerald-700" : "text-amber-700")}>{it.detail}</p>}
-              </div>
-              <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-primary group-hover:translate-x-0.5 transition shrink-0" />
-            </Link>
-          ))}
+            {items.map((it) => (
+              <Link
+                key={it.key}
+                href={it.href}
+                className={cn("group flex items-center gap-4 rounded-2xl border p-4 transition", it.done ? "bg-emerald-50/50 border-emerald-100" : "bg-white border-purple-100 hover:border-purple-300 hover:shadow-sm")}
+              >
+                {it.done ? <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" aria-label="Đã xong" /> : <Circle className="w-6 h-6 text-gray-300 shrink-0" aria-label="Chưa xong" />}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-gray-900 flex flex-wrap items-center gap-x-2">
+                    {it.title}
+                    {it.optional && <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Tùy chọn</span>}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{it.description}</p>
+                  {it.detail && <p className={cn("text-[11px] mt-1 font-semibold", it.done ? "text-emerald-700" : "text-amber-700")}>{it.detail}</p>}
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-primary group-hover:translate-x-0.5 transition shrink-0" />
+              </Link>
+            ))}
           </div>
         </section>
       ))}

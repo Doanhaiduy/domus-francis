@@ -16,7 +16,10 @@ import { errorMessage, fileUrl } from "@/lib/api";
 import { cohortLabel } from "@/lib/types/members";
 import { membersApi, refreshPeople, useLookups, useMemberDetail } from "@/lib/data/members";
 import { consentsApi, useMyConsents } from "@/lib/data/consents";
+import { useOrgSettings } from "@/lib/data/settings";
 import { fileViewerImage, openImageViewer } from "@/lib/image-viewer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MyPrivacyCard } from "@/components/privacy/MyPrivacyCard";
 
 const SACRAMENTS = ["Rửa tội", "Thánh thể", "Thêm sức", "Hòa giải"];
 const splitParent = (s?: string) => {
@@ -32,6 +35,9 @@ export default function ProfileTab() {
   const lookups = useLookups();
   const { consents } = useMyConsents(!!memberId);
   const [consentBusy, setConsentBusy] = useState(false);
+  // Rút đồng ý lưu hồ sơ Công giáo = XÓA hồ sơ Công giáo ⇒ hỏi lại trước
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const { org } = useOrgSettings();
   // Chưa tải xong trạng thái đồng ý ⇒ coi như chưa đồng ý (không gửi dữ liệu Công giáo, tránh lỗi)
   const catholicOk = !!consents?.catholic_profile;
 
@@ -179,14 +185,30 @@ export default function ProfileTab() {
   const toggleConsent = async (purpose: "catholic_profile" | "catholic_share_leadership", granted: boolean) => {
     setConsentBusy(true);
     try {
-      await consentsApi.set(purpose, granted);
-      showToast("success", granted ? "Đã ghi nhận đồng ý của bạn." : "Đã rút đồng ý.");
+      const r = await consentsApi.set(purpose, granted);
+      if (r.deleted) {
+        // Hồ sơ Công giáo + Bí tích đã bị xóa ở máy chủ ⇒ tải lại hồ sơ (ô Tên Thánh, giáo xứ… về trống)
+        await mutate();
+        await refreshPeople();
+        showToast("success", "Đã rút đồng ý và xóa hồ sơ Công giáo của bạn (Tên Thánh, giáo xứ, giáo phận, linh mục quản xứ, các Bí tích).");
+      } else {
+        showToast("success", granted ? "Đã ghi nhận đồng ý của bạn." : "Đã rút đồng ý.");
+      }
     } catch (e) {
       showToast("error", errorMessage(e));
     } finally {
       setConsentBusy(false);
     }
   };
+
+  // Định mức quỹ tự động (khi không đặt định mức riêng): đọc cấu hình quỹ kỳ — mức sinh viên / mức người đã ra trường
+  const autoDuesVnd = (() => {
+    const v = org.values ?? {};
+    const num = (x: unknown) => (typeof x === "number" && x > 0 ? x : null);
+    const graduated = num(v["finance.dues_cycle_graduated_amount_vnd"]);
+    const student = num(v["finance.dues_cycle_amount_vnd"]);
+    return f.studentStatus === "graduated" && graduated ? { vnd: graduated, label: "Đã ra trường" } : student ? { vnd: student, label: "Sinh viên" } : null;
+  })();
 
   const avatar = fileUrl(f.avatarFileId || member.avatarFileId, "thumb");
 
@@ -369,7 +391,7 @@ export default function ProfileTab() {
                 onChange={set("gender")}
                 options={[
                   { value: "Nam", label: "Nam" },
-                  { value: "Nữ", label: "Bính" },
+                  { value: "Nữ", label: "Nữ" },
                 ]}
               />
               <div className="pb-1">
@@ -447,10 +469,10 @@ export default function ProfileTab() {
                     const val = e.target.value.replace(/\D/g, "");
                     set("customDuesVnd")(val ? Number(val) : null);
                   }}
-                  placeholder={`Tự động: ${f.studentStatus === "graduated" ? "500.000 đ (Đã ra trường)" : "300.000 đ (Sinh viên)"}`}
+                  placeholder={autoDuesVnd ? `Tự động: ${autoDuesVnd.vnd.toLocaleString("vi-VN")} đ (${autoDuesVnd.label})` : "Để trống = theo định mức chung"}
                 />
                 <span className="text-[10px] text-gray-500 block">
-                  Chỉ cán bộ có quyền mới chỉnh sửa ô này. Để trống = áp dụng định mức tự động.
+                  Chỉ cán bộ có quyền mới chỉnh sửa ô này. Để trống = áp dụng định mức tự động theo cấu hình quỹ (Cài đặt → Quản lý quỹ).
                 </span>
               </div>
             )}
@@ -532,8 +554,8 @@ export default function ProfileTab() {
                 label="Cho người quản lý xem hồ sơ Công giáo"
                 description="Để phục vụ sinh hoạt phụng vụ (Trưởng nhà, Trưởng ban Phụng vụ)."
               />
-              <button type="button" onClick={() => toggleConsent("catholic_profile", false)} disabled={consentBusy} className="text-[11px] font-semibold text-gray-400 hover:text-rose-600 transition">
-                Rút đồng ý lưu hồ sơ Công giáo
+              <button type="button" onClick={() => setConfirmWithdraw(true)} disabled={consentBusy} className="text-[11px] font-semibold text-gray-400 hover:text-rose-600 transition">
+                Rút đồng ý lưu hồ sơ Công giáo (xóa hồ sơ Công giáo)
               </button>
             </div>
           )}
@@ -610,6 +632,28 @@ export default function ProfileTab() {
 
     {/* Tài khoản nhận tiền của CHÍNH MÌNH (STK + ảnh QR) — tự khai báo/sửa/xóa, lưu riêng bằng nút trong thẻ. Đặt NGOÀI <form> hồ sơ để các nút của thẻ không gửi nhầm form. */}
     <PaymentAccountCard memberId={member.id} canEdit />
+
+    {/* Quyền riêng tư & dữ liệu của tôi: tải dữ liệu (JSON), gửi yêu cầu xem/sửa/xóa/rút đồng ý, theo dõi trả lời. Ngoài <form> hồ sơ. */}
+    <MyPrivacyCard />
+
+    <ConfirmDialog
+      isOpen={confirmWithdraw}
+      onClose={() => setConfirmWithdraw(false)}
+      onConfirm={() => {
+        setConfirmWithdraw(false);
+        void toggleConsent("catholic_profile", false);
+      }}
+      variant="danger"
+      title="Rút đồng ý và xóa hồ sơ Công giáo?"
+      message={
+        <>
+          Hệ thống sẽ <b>xóa hẳn</b> Tên Thánh, giáo phận, giáo xứ, linh mục quản xứ và các Bí tích (cùng ngày lãnh nhận, nơi lãnh nhận) của bạn, đồng thời ngừng chia
+          sẻ hồ sơ Công giáo với người quản lý. Dữ liệu đã xóa không khôi phục được — muốn lưu lại, bạn phải đồng ý và nhập lại từ đầu.
+        </>
+      }
+      confirmText="Rút đồng ý & xóa"
+      cancelText="Giữ lại"
+    />
     </div>
   );
 }

@@ -188,6 +188,8 @@ export interface CreatePlanResultDto {
   /** Phiếu chi tự lập khi chọn "Trừ quỹ ngay" (điện nước); null nếu không trừ quỹ tự động */
   expenseVoucherNo: string | null;
   expenseVnd: number | null;
+  /** Tổng phải thu (khoản thu một lần — có thể có mức riêng từng người); null với loại khác */
+  totalVnd?: number | null;
 }
 
 export interface ReceiptDto {
@@ -494,4 +496,226 @@ export interface FinanceStatsDto {
   incomeByType: { type: string; label: string; amountVnd: number }[] | null;
   houseName: string | null;
   generatedAt: string;
+}
+
+// ---------------------------------------------------------------------
+// Liên kết thẳng trong trang /thu-chi (?tab=…&plan=…&pay=…&expense=…&month=…)
+// ---------------------------------------------------------------------
+/** Tên tab ổn định (không dấu) — dùng trong đường dẫn thông báo, hộp "Việc cần xử lý", liên kết giữa các trang. */
+export type FinanceTab = "tong-quan" | "chi" | "dong-quy" | "ung-ho" | "so-quy" | "bao-cao" | "thong-ke";
+export const FINANCE_TABS: FinanceTab[] = ["tong-quan", "chi", "dong-quy", "ung-ho", "so-quy", "bao-cao", "thong-ke"];
+/** Tên cũ / tên gọi khác vẫn mở đúng tab */
+export const FINANCE_TAB_ALIASES: Record<string, FinanceTab> = {
+  "danh-sach": "chi",
+  "phieu-chi": "chi",
+  thu: "tong-quan",
+  "khoan-thu": "tong-quan",
+  "ma-tran": "dong-quy",
+  "chot-so": "so-quy",
+  "doi-soat": "so-quy",
+};
+/** Đường dẫn tới một phiếu chi (mở hộp chi tiết) */
+export const expenseLink = (id: string) => `/thu-chi?tab=chi&expense=${id}`;
+/** Đường dẫn tới một khoản thu (chọn kế hoạch; `pay` = mở ngay mã QR nộp khoản của chính mình) */
+export const planLink = (planId: string, payContributionId?: string | null) =>
+  `/thu-chi?tab=tong-quan&plan=${planId}${payContributionId ? `&pay=${payContributionId}` : ""}`;
+/** Đường dẫn tới sổ quỹ / chốt sổ của một tháng ('YYYY-MM') */
+export const periodLink = (month?: string | null) => `/thu-chi?tab=so-quy${month ? `&month=${month}` : ""}`;
+
+// ---------------------------------------------------------------------
+// Chốt sổ tháng hai người + đối soát số dư (GET /api/v1/finance/periods)
+// ---------------------------------------------------------------------
+export interface PeriodReconciliationDto {
+  /** Số dư thực tế: sao kê ngân hàng / kiểm đếm tiền mặt cuối tháng */
+  statementVnd: number;
+  /** Số dư sổ quỹ tại ngày cuối tháng LÚC đối soát */
+  ledgerVnd: number;
+  /** = thực tế − sổ quỹ */
+  differenceVnd: number;
+  explanation: string | null;
+  byName: string | null;
+  at: string;
+  /** Sổ quỹ của tháng đã thay đổi sau khi đối soát ⇒ phải đối soát lại */
+  stale: boolean;
+}
+
+export interface PeriodFundDto {
+  fundId: string;
+  code: string;
+  name: string;
+  type: string;
+  openingVnd: number;
+  inVnd: number;
+  outVnd: number;
+  closingVnd: number;
+  entryCount: number;
+  /** true = ảnh chụp lúc chốt (period_fund_balances); false = tính trực tiếp từ sổ quỹ (kỳ đang mở) */
+  snapshot: boolean;
+  /** Băm bút toán cuối cùng của kỳ (chỉ có khi đã chốt) — in lên báo cáo để đối chiếu */
+  headHash: string | null;
+  reconciliation: PeriodReconciliationDto | null;
+  /** Cấu hình "Bắt buộc đối soát" đang bật và túi quỹ này phải đối soát trước khi chốt */
+  requiresReconciliation: boolean;
+}
+
+export interface PeriodDto {
+  id: string;
+  /** 'YYYY-MM' */
+  month: string;
+  status: PeriodStatus;
+  /** Ngày cuối tháng đã tới (mới chốt / đối soát được) */
+  monthEnded: boolean;
+  closed: { name: string | null; at: string; note: string | null; byMe: boolean } | null;
+  confirmed: { name: string | null; at: string } | null;
+  reopenCount: number;
+  reopened: { name: string | null; at: string; reason: string | null } | null;
+  /** Phiếu chi đang chờ duyệt / chờ chi có ngày chi trong tháng (chỉ người xem mọi phiếu chi) */
+  unsettledVouchers: number | null;
+  /** Số liệu từng túi quỹ — null khi người xem không có quyền xem sổ quỹ */
+  funds: PeriodFundDto[] | null;
+  /** Tổng các túi quỹ */
+  totals: { openingVnd: number; inVnd: number; outVnd: number; closingVnd: number; entryCount: number } | null;
+  can: { close: boolean; confirm: boolean; reopen: boolean; reconcile: boolean };
+  /** Vì sao chưa chốt được (chưa hết tháng, kỳ trước chưa chốt, chưa đối soát…) — chỉ với kỳ đang mở */
+  blockers: string[];
+}
+
+export interface LedgerChainDto {
+  fundId: string;
+  code: string;
+  name: string | null;
+  entries: number;
+  ok: boolean;
+  firstBrokenSeq: number | null;
+}
+
+export interface PeriodsDto {
+  today: string;
+  /** Mới → cũ */
+  periods: PeriodDto[];
+  /** Cấu hình finance.period.close_requires_reconciliation */
+  requireReconciliation: boolean;
+  access: { ledger: boolean; close: boolean; confirm: boolean; reopen: boolean; reconcile: boolean };
+  /** Kiểm chứng chuỗi băm sổ quỹ (app.fn_verify_ledger_chain) — null khi không có quyền xem sổ quỹ */
+  chain: LedgerChainDto[] | null;
+}
+
+export interface ClosePeriodResultDto {
+  month: string;
+  unsettledVouchers: number;
+  funds: { fund: string; openingVnd: number; inVnd: number; outVnd: number; closingVnd: number; headHash: string }[];
+}
+
+// ---------------------------------------------------------------------
+// Sổ quỹ có số dư (GET /api/v1/finance/ledger?from&to&fund)
+// ---------------------------------------------------------------------
+export type LedgerSourceType = "contribution" | "expense" | "transfer" | "adjustment" | "opening_balance" | "reversal" | "donation" | "refund";
+
+export const LEDGER_SOURCE_LABEL: Record<LedgerSourceType, string> = {
+  contribution: "Thu quỹ",
+  expense: "Chi",
+  transfer: "Chuyển quỹ",
+  adjustment: "Điều chỉnh",
+  opening_balance: "Số dư đầu kỳ",
+  reversal: "Bút toán đảo",
+  donation: "Ủng hộ",
+  refund: "Hoàn tiền",
+};
+
+export interface LedgerBookEntryDto {
+  id: string;
+  /** Số thứ tự bút toán trong túi quỹ (chuỗi băm) */
+  seq: number;
+  date: string;
+  postedAt: string;
+  direction: "in" | "out";
+  amountVnd: number;
+  sourceType: LedgerSourceType;
+  description: string;
+  /** Thành viên đối ứng (người nộp / người ứng tiền / người được hoàn) */
+  counterparty: string | null;
+  /** Chứng từ: số phiếu chi, mã khoản thu, … */
+  document: string | null;
+  recordedBy: string | null;
+  /** Số dư túi quỹ sau bút toán (theo thứ tự ngày hạch toán) */
+  balanceAfterVnd: number;
+}
+
+export interface LedgerBookFundDto {
+  fundId: string;
+  code: string;
+  name: string;
+  type: string | null;
+  openingVnd: number;
+  inVnd: number;
+  outVnd: number;
+  closingVnd: number;
+  entries: LedgerBookEntryDto[];
+}
+
+export interface LedgerBookDto {
+  from: string;
+  to: string;
+  funds: LedgerBookFundDto[];
+  houseName: string | null;
+  generatedAt: string;
+  /** Quá nhiều bút toán — đã cắt bớt (thu hẹp khoảng ngày) */
+  truncated: boolean;
+}
+
+// ---------------------------------------------------------------------
+// Cảnh báo tách phiếu chi (v_expense_split_alerts) — GET /api/v1/finance/split-alerts
+// ---------------------------------------------------------------------
+export interface SplitAlertDto {
+  key: string;
+  /** Người ứng tiền / nơi nhận tiền / người lập */
+  counterparty: string;
+  weekStart: string;
+  weekEnd: string;
+  totalVnd: number;
+  maxSingleVnd: number;
+  vouchers: { id: string; voucherNo: string; title: string; amountVnd: number; status: ExpenseStatus; expenseDate: string }[];
+}
+
+export interface SplitAlertsDto {
+  /** Ngưỡng phiếu cần 2 chữ ký (finance.expense.dual_approval_min_vnd) */
+  thresholdVnd: number | null;
+  days: number;
+  alerts: SplitAlertDto[];
+}
+
+// ---------------------------------------------------------------------
+// Khoản thu một lần + cập nhật người phải đóng
+// ---------------------------------------------------------------------
+/** Loại khoản thu một lần (cho những người được chọn) */
+export type OneTimeFeeType = "event_fee" | "deposit" | "other";
+export const ONE_TIME_FEE_TYPES: OneTimeFeeType[] = ["event_fee", "deposit", "other"];
+
+export interface PlanMemberCandidateDto {
+  memberId: string;
+  name: string;
+  fullName: string;
+  room: string | null;
+  amountVnd: number;
+}
+
+/** GET (xem trước) / POST (thêm) /api/v1/finance/contribution-plans/:id/members */
+export interface PlanMembersSyncDto {
+  planId: string;
+  planName: string;
+  feeType: FeeType;
+  /** Hạn nộp của người được thêm */
+  dueDate: string;
+  added: number;
+  totalVnd: number;
+  members: PlanMemberCandidateDto[];
+  dry: boolean;
+}
+
+/** Kết quả tự thêm khoản quỹ cho người mới sau khi duyệt đơn vào nhà */
+export interface NewMemberDuesDto {
+  planId: string;
+  planName: string;
+  amountVnd: number;
+  dueDate: string;
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { batch, type Tx } from "../db";
 import { badRequest, forbidden } from "../errors";
 import type { AcademicInsightOutput, AcademicInsightRow, AiOutputMap, AiTaskCode } from "@/lib/types/ai";
-import { maskText, sanitizeOutput } from "./mask";
+import { createNameMasker, maskPatterns, maskText, sanitizeOutput } from "./mask";
 import { retrieve } from "./retrieval";
 import { AI_LINKS, ROLE_HINT } from "./knowledge";
 import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
@@ -124,7 +124,7 @@ const ASSISTANT_SYSTEM = [
   "",
   "VAI TRÒ: bạn là Trợ lý Lưu Xá — hướng dẫn viên của ứng dụng quản lý cộng đoàn sinh viên Công giáo Lưu Xá Phanxicô. Bạn giúp thành viên (1) biết cách thao tác trong ứng dụng, (2) tra cứu nội quy, thông báo, lịch sự kiện mà chính họ được xem.",
   "CÁCH TRẢ LỜI:",
-  "- Chỉ dựa vào tài liệu trong khối dữ liệu (Hướng dẫn, Nội quy, Thông báo, Lịch) và thông tin ngữ cảnh người hỏi. Thiếu thông tin thì nói rõ là chưa có và gợi ý hỏi Trưởng nhà/người quản lý hoặc mở trang Hướng dẫn sử dụng.",
+  "- Chỉ dựa vào tài liệu trong khối dữ liệu (Hướng dẫn, Luật nhà, Hỏi đáp, Thông báo, Lịch) và thông tin ngữ cảnh người hỏi. Thiếu thông tin thì nói rõ là chưa có và gợi ý hỏi Trưởng nhà/người quản lý hoặc mở trang Hướng dẫn sử dụng.",
   "- Câu hỏi 'làm thế nào / ở đâu': trả lời bằng các BƯỚC đánh số, mỗi bước một dòng ngắn (ví dụ \"1. Mở Cài đặt → Thông báo.\"). Tên nút/mục đặt trong dấu ngoặc kép “…”, đường đi menu viết bằng mũi tên →. Nêu rõ khác biệt theo thiết bị (iPhone/Android/máy tính) nếu tài liệu có.",
   "- Kiểm tra VAI TRÒ của người hỏi: nếu thao tác cần vai trò họ không có, nói rõ cần vai trò nào và nhờ ai (Trưởng nhà, Thủ quỹ, Admin…) thay vì hướng dẫn như thể họ làm được.",
   "- Bạn KHÔNG thể tự bấm nút hay thay đổi dữ liệu giúp người dùng, và không được tiết lộ dữ liệu cá nhân, tài chính, điểm số của người khác — từ chối khéo và chỉ đường tới đúng nơi.",
@@ -143,11 +143,20 @@ const ragTask: TaskDef<"community.policy_rag"> = {
   suggestionType: "answer",
   input: ragIn,
   async prepare(tx, input: z.infer<typeof ragIn>) {
-    const q = await maskText(tx, input.question, false);
-    const history = await Promise.all(input.history.slice(-3).map(async (h) => ({ q: await maskText(tx, h.q, false), a: h.a ? await maskText(tx, h.a, false) : "" })));
+    // Truy hồi chạy NỘI BỘ trên câu hỏi gốc (chỉ che email/SĐT/liên kết); mọi thứ gửi cho nhà cung cấp AI được che thêm TÊN thành viên bằng
+    // MỘT bộ che dùng chung (câu hỏi, lịch sử, tài liệu ⇒ cùng người cùng nhãn "Thành viên A"); câu trả lời được trả lại tên thật khi hiển thị.
+    const q = maskPatterns(input.question);
+    const historyRaw = input.history.slice(-3).map((h) => ({ q: maskPatterns(h.q), a: h.a ? maskPatterns(h.a) : "" }));
     const short = q.split(/\s+/).filter(Boolean).length <= 5;
-    const prevQ = short && history.length ? history[history.length - 1].q : "";
+    const prevQ = short && historyRaw.length ? historyRaw[historyRaw.length - 1].q : "";
     const chunks = await retrieve(tx, q, 7, 7500, prevQ);
+    const masker = await createNameMasker(tx);
+    const qMasked = masker.mask(q, { loose: true });
+    const history = historyRaw.map((h) => ({ q: masker.mask(h.q, { loose: true }), a: h.a ? masker.mask(h.a, { loose: true }) : "" }));
+    // Tài liệu gửi kèm: Luật nhà / hỏi đáp / thông báo / lịch có thể nhắc tên người ⇒ che; Hướng dẫn sử dụng là văn bản tĩnh của ứng dụng
+    const sent = chunks.map((c) =>
+      c.kind === "guide" ? { title: c.title, text: c.text } : { title: masker.mask(maskPatterns(c.title)), text: masker.mask(maskPatterns(c.text)) },
+    );
 
     const NONE: AiOutputMap["community.policy_rag"] = {
       answer:
@@ -174,24 +183,25 @@ const ragTask: TaskDef<"community.policy_rag"> = {
     const roleText = roles.length ? roles.map((r) => r.name_vi || ROLE_HINT[r.code] || r.code).join(", ") : "Thành viên";
     const today = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "full" }).format(new Date());
 
-    const KIND_LABEL = { policy: "Nội quy", announcement: "Thông báo", event: "Lịch", guide: "Hướng dẫn" } as const;
-    const ctx = chunks.map((c) => `[${c.label}] (${KIND_LABEL[c.kind]}: ${clean(c.title)})\n${clean(c.text)}`).join("\n\n");
+    const ctx = chunks.map((c, i) => `[${c.label}] (${c.source}: ${clean(sent[i].title)})\n${clean(sent[i].text)}`).join("\n\n");
     const links = AI_LINKS.map((l) => `- ${l.href} — ${l.label}: ${l.hint}`).join("\n");
     const convo = history.length ? history.map((h) => `Người hỏi: ${clean(h.q)}${h.a ? `\nTrợ lý: ${clean(h.a)}` : ""}`).join("\n") : "";
     const user = [
       "Trả lời câu hỏi của thành viên theo đúng VAI TRÒ và CÁCH TRẢ LỜI đã nêu. Nếu tài liệu không đủ để trả lời, đặt confident=false và nói rõ là chưa có thông tin (đừng đoán).",
       "Trích nguồn bằng nhãn đoạn (ví dụ S1) trong mảng sources; không dùng nhãn không có trong tài liệu.",
+      "Luật nhà là nội quy CHÍNH THỨC của nhà (ưu tiên khi trả lời về giờ giấc, quy định, mức xử lý). Tên người đã được thay bằng nhãn \"Thành viên A/B/…\": khi nhắc tới người đó, giữ NGUYÊN nhãn (không đoán tên thật).",
       'Lược đồ: {"answer": "<câu trả lời>", "confident": true|false, "sources": ["S1"], "actions": ["/duong-dan"]}',
       `Ngữ cảnh người hỏi: vai trò = ${roleText}; hôm nay = ${today}.`,
       `Trang có thể gợi ý mở (chỉ chọn trong danh sách này):\n${links}`,
-      `Câu hỏi hiện tại: ${clean(q)}`,
+      `Câu hỏi hiện tại: ${clean(qMasked)}`,
       block(`${convo ? `LỊCH SỬ TRÒ CHUYỆN GẦN ĐÂY\n${convo}\n\n` : ""}TÀI LIỆU\n${ctx}`),
     ].join("\n");
     return {
       system: ASSISTANT_SYSTEM,
       user,
-      hashInput: `${q.toLowerCase()}|${prevQ.toLowerCase()}|${roleText}|${chunks.map((c) => `${c.label}:${c.title}:${c.text.length}`).join(",")}`,
-      inputRef: { kind: "policy_rag", chunks: chunks.length, turns: history.length },
+      // Băm (không lưu nguyên văn): câu hỏi đã che + nhãn ↔ tên (hai câu hỏi về hai người khác nhau không dùng chung kết quả cache)
+      hashInput: `${qMasked.toLowerCase()}|${prevQ.toLowerCase()}|${roleText}|${chunks.map((c, i) => `${c.label}:${c.title}:${sent[i].text.length}`).join(",")}|${masker.signature()}`,
+      inputRef: { kind: "policy_rag", chunks: chunks.length, turns: history.length, maskedNames: masker.count },
       temperature: 0.2,
       maxOutputTokens: 700,
       shortCircuit,
@@ -209,8 +219,8 @@ const ragTask: TaskDef<"community.policy_rag"> = {
           .filter((l): l is NonNullable<typeof l> => !!l)
           .slice(0, 3)
           .map((l) => ({ label: l.label, href: l.href }));
-        // Không có nguồn hợp lệ ⇒ không thể tuyên bố chắc chắn.
-        return { answer: sanitizeOutput(o.answer, 1500), confident: o.confident && sources.length > 0, sources, actions };
+        // Không có nguồn hợp lệ ⇒ không thể tuyên bố chắc chắn. Nhãn "Thành viên A" ⇒ trả lại tên thật cho người hỏi (đã thấy trong câu hỏi/tài liệu).
+        return { answer: masker.unmask(sanitizeOutput(o.answer, 1500)), confident: o.confident && sources.length > 0, sources, actions };
       },
     };
   },
@@ -234,7 +244,8 @@ const modTask: TaskDef<"community.moderation"> = {
   input: modIn,
   async prepare(tx, input: z.infer<typeof modIn>) {
     // Chỉ gửi nội dung, đã ẩn danh; không bao giờ kèm danh tính tác giả. Ý chỉ cầu nguyện không nằm trong phạm vi (BR-COM-19).
-    const text = await maskText(tx, input.text, true);
+    const masker = await createNameMasker(tx);
+    const text = masker.mask(maskPatterns(input.text));
     const user = [
       "Đánh giá nội dung dưới đây có vi phạm quy tắc cộng đoàn không: xúc phạm/công kích (insult), lộ thông tin cá nhân (personal_info), quảng cáo/spam (spam), chủ đề nhạy cảm gây chia rẽ (sensitive), khác (other).",
       "Chỉ gắn cờ khi thật sự cần; góp ý thẳng thắn hoặc tranh luận lịch sự KHÔNG phải vi phạm. Người kiểm duyệt sẽ quyết định cuối cùng.",
@@ -244,13 +255,13 @@ const modTask: TaskDef<"community.moderation"> = {
     return {
       system: BASE_SYSTEM,
       user,
-      hashInput: `${input.kind}|${text}`,
+      hashInput: `${input.kind}|${text}|${masker.signature()}`,
       inputRef: { kind: "moderation", length: input.text.length },
       parse(raw) {
         const o = modOut.parse(raw);
         const known = new Set(["insult", "personal_info", "spam", "sensitive", "other"]);
         const categories = [...new Set(o.categories.map((c) => c.trim().toLowerCase()).filter((c) => known.has(c)))] as AiOutputMap["community.moderation"]["categories"];
-        return { flagged: o.flagged, categories, reason: sanitizeOutput(o.reason, 300) };
+        return { flagged: o.flagged, categories, reason: masker.unmask(sanitizeOutput(o.reason, 300)) };
       },
     };
   },
@@ -331,8 +342,9 @@ const minutesTask: TaskDef<"community.minutes"> = {
   suggestionType: "minutes_draft",
   input: minutesIn,
   async prepare(tx, input: z.infer<typeof minutesIn>) {
-    // Tên thành viên được thay bằng "Thành viên A/B…" trước khi gửi; phía giao diện người duyệt tự điền lại người phụ trách.
-    const notes = await maskText(tx, input.notes, true);
+    // Tên thành viên được thay bằng "Thành viên A/B…" trước khi gửi; kết quả được điền lại tên thật (người phụ trách…) trước khi hiển thị.
+    const masker = await createNameMasker(tx);
+    const notes = masker.mask(maskPatterns(input.notes));
     const user = [
       input.kind === "weekly_digest"
         ? "Soạn bản tin tuần từ các ý chính: summary là đoạn mở đầu ngắn, decisions là các tin nổi bật, actions là việc cần làm."
@@ -343,14 +355,14 @@ const minutesTask: TaskDef<"community.minutes"> = {
     return {
       system: BASE_SYSTEM,
       user,
-      hashInput: `${input.kind}|${notes}`,
+      hashInput: `${input.kind}|${notes}|${masker.signature()}`,
       inputRef: { kind: "minutes", length: input.notes.length },
       parse(raw) {
         const o = minutesOut.parse(raw);
         return {
-          summary: sanitizeOutput(o.summary, 1200),
-          decisions: o.decisions.map((d) => sanitizeOutput(d, 300)).filter(Boolean),
-          actions: o.actions.map((a) => ({ task: sanitizeOutput(a.task, 300), owner: sanitizeOutput(a.owner, 80) })).filter((a) => a.task),
+          summary: masker.unmask(sanitizeOutput(o.summary, 1200)),
+          decisions: o.decisions.map((d) => masker.unmask(sanitizeOutput(d, 300))).filter(Boolean),
+          actions: o.actions.map((a) => ({ task: masker.unmask(sanitizeOutput(a.task, 300)), owner: masker.unmask(sanitizeOutput(a.owner, 80)) })).filter((a) => a.task),
         };
       },
     };

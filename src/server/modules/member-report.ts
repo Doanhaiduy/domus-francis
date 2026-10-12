@@ -4,6 +4,7 @@ import type { Tx } from "../db";
 import { forbidden } from "../errors";
 import { permissions, iso } from "./community-shared";
 import { PHASE_SQL } from "./discipline";
+import { loadLiturgyConf, requiredMassDays, tallyMass } from "./liturgy-calendar";
 import { penaltyText, type PenaltyKind } from "@/lib/types/discipline";
 import type {
   MemberAcademicStat,
@@ -13,6 +14,7 @@ import type {
   MemberDutyStat,
   MemberFinanceStat,
   MemberLeaveStat,
+  MemberMassStat,
   MemberReportDto,
   MemberReportKind,
   MemberReportRow,
@@ -21,6 +23,8 @@ import type {
 
 // Tổng kết theo thành viên + cả nhà theo tháng / quý / năm. Mỗi mục đọc dưới RLS của người gọi và chỉ chạy khi người gọi có quyền xem mục đó
 // (phạm vi "all" cần report.read); phạm vi "me" chỉ gồm số liệu của chính mình. Điểm học tập chỉ hiện với thành viên đã đồng ý chia sẻ.
+// Đi lễ: các ngày bắt buộc check-in đã đến trong kỳ (lịch phụng vụ + cấu hình hiện tại), chỉ tính trong thời gian ở nhà; cả nhà cần
+// liturgy.calendar.manage (RLS mass_checkins chỉ cho người duyệt xem check-in của người khác).
 
 export const MemberReportQuerySchema = z.object({
   kind: z.enum(["month", "quarter", "year"]),
@@ -70,6 +74,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
     "finance.contribution.read_all",
     "finance.contribution.record",
     "academic.read_all",
+    "liturgy.calendar.manage",
   ] as const);
   const all = scope === "all";
   if (all && !p["report.read"]) {
@@ -90,6 +95,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
     finance: !all || p["finance.contribution.read_all"],
     donations: !all || p["finance.contribution.record"],
     academic: !all || p["academic.read_all"],
+    mass: !all || p["liturgy.calendar.manage"],
   };
 
   const { from, to, label, month, quarter } = memberPeriodOf(q.kind, q.year, q.month, q.quarter);
@@ -101,6 +107,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
       .then((r) => Object.fromEntries(r.rows.map((x) => [x.k, x.v]))),
     tx.query<Row>(
       `SELECT m.id, COALESCE(m.display_name, m.full_name) AS name, m.full_name, m.status::text AS status,
+              m.joined_on::text AS joined_on, m.left_on::text AS left_on,
               (SELECT r.code FROM room_assignments ra JOIN rooms r ON r.id = ra.room_id
                 WHERE ra.member_id = m.id AND ra.starts_on <= $2::date AND (ra.ends_on IS NULL OR ra.ends_on > $2::date)
                 ORDER BY ra.starts_on DESC LIMIT 1) AS room
@@ -122,6 +129,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
       attendance: sections.attendance ? emptyAttendance() : null,
       leave: sections.leave ? emptyLeave() : null,
       duty: emptyDuty(),
+      mass: null,
       merit: sections.merit ? { points: 0, entries: 0 } : null,
       discipline: sections.discipline ? emptyDiscipline() : null,
       finance: sections.finance ? emptyFinance() : null,
@@ -290,6 +298,31 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
     row.academic = { semester: r.semester, gpa10: r.gpa10, gpa4: r.gpa4 } satisfies MemberAcademicStat;
   });
 
+  // Đi lễ: ngày bắt buộc đã đến trong kỳ × check-in (RLS: phạm vi "me" chỉ thấy của mình; "all" cần quyền duyệt check-in)
+  let massDays = 0;
+  if (sections.mass && base.rows.length) {
+    const conf = await loadLiturgyConf(tx);
+    const days = requiredMassDays(conf, from, to);
+    massDays = days.length;
+    const checks = (
+      await tx.query<{ member_id: string; d: string; status: string }>(
+        `SELECT c.member_id, c.day_date::text AS d, c.status FROM mass_checkins c WHERE c.day_date BETWEEN $1::date AND $2::date${scoped("c")}`,
+        [from, to]
+      )
+    ).rows;
+    const st = new Map(checks.map((c) => [`${c.member_id}|${c.d}`, c.status]));
+    for (const r of base.rows) {
+      const row = rows.get(r.id);
+      if (!row) continue;
+      // Đã rời nhà / cựu thành viên mà thiếu ngày rời ⇒ không tính lễ nào (tránh ghi vắng oan)
+      const gone = !r.left_on && (r.status === "left" || r.status === "alumni");
+      const t = gone
+        ? tallyMass(conf.today, [], { from: null, to: null }, () => undefined)
+        : tallyMass(conf.today, days, { from: r.joined_on ?? null, to: r.left_on ?? null }, (d) => st.get(`${r.id}|${d}`));
+      row.mass = { required: t.required, approved: t.approved, pending: t.pending, missed: t.missed, ratePct: pct(t.attended, t.required) } satisfies MemberMassStat;
+    }
+  }
+
   const members = [...rows.values()];
   const sum = <K extends string>(pick: (r: MemberReportRow) => Record<K, number> | null, keys: K[]) => {
     const t = Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
@@ -305,6 +338,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
   const dutyT = sum((m) => m.duty, ["weeks", "reviewed", "redo"]);
   const discT = sections.discipline ? sum((m) => m.discipline, ["count", "active", "overdue", "completed", "waived", "rosary", "mass", "duty", "other"]) : null;
   const finT = sections.finance ? sum((m) => m.finance, ["dueVnd", "paidVnd", "owedVnd", "overdueVnd", "unpaidCount"]) : null;
+  const massT = sections.mass ? sum((m) => m.mass, ["required", "approved", "pending", "missed"]) : null;
   const scores = members.flatMap((m) => (m.duty && m.duty.avgScore !== null && m.duty.reviewed ? Array(m.duty.reviewed).fill(m.duty.avgScore) : []));
   const evCount = (code: string) => evCat.rows.find((r) => r.code === code)?.n ?? 0;
   const dA = donAgg?.rows[0];
@@ -335,6 +369,7 @@ export async function buildMemberReport(tx: Tx, q: MemberReportQuery): Promise<M
       attendance: attT ? { ...attT, ratePct: pct(attT.present + attT.late, attT.present + attT.late + attT.absent), records: attT.present + attT.late + attT.excused + attT.absent } : null,
       leave: leaveT,
       duty: { weeks: dutyT.weeks, avgScore: scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null },
+      mass: massT ? { ...massT, days: massDays, ratePct: pct(massT.approved + massT.pending, massT.required) } : null,
       merit: sections.merit ? { points: members.reduce((s, m) => s + (m.merit?.points ?? 0), 0) } : null,
       discipline: discT ? { ...discT, people: members.filter((m) => (m.discipline?.count ?? 0) > 0).length } : null,
       finance: finT,

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Tx } from "../db";
+import type { Ctx } from "../http";
 import { ApiError, conflict, forbidden, notFound } from "../errors";
 import { addDays, issueCode, mondayOf } from "@/lib/duty-format";
 import type { IssueDto, IssueStatus, IssuesDto, IssueUrgency } from "@/lib/types/duty";
@@ -198,8 +199,11 @@ export async function updateIssue(
   return { reporterId: cur.reporter_member_id, code: issueCode(Number(cur.issue_no)), title: cur.title, status: (i.status ?? cur.status) as IssueStatus };
 }
 
-/** Phân công người phụ trách chính (lead): gỡ người phụ trách cũ (ghi unassigned_at), thêm người mới. Cần issue.triage. */
-export async function assignIssue(tx: Tx, id: string, memberId: string, note: string | null) {
+/**
+ * Phân công người phụ trách chính (lead): gỡ người phụ trách cũ (ghi unassigned_at), thêm người mới. Cần issue.triage.
+ * `changed` = đã giao cho người MỚI (để báo người được giao; chỉ sửa ghi chú của cùng người thì không báo lại).
+ */
+export async function assignIssue(tx: Tx, id: string, memberId: string, note: string | null): Promise<{ changed: boolean }> {
   const exists = (await tx.query("SELECT 1 FROM maintenance_issues WHERE id = $1", [id])).rowCount;
   if (!exists) throw notFound("Không tìm thấy sự cố.");
   const same = (
@@ -207,7 +211,7 @@ export async function assignIssue(tx: Tx, id: string, memberId: string, note: st
   ).rows[0];
   if (same) {
     if (note !== null) await tx.query("UPDATE issue_assignments SET note = $2 WHERE id = $1", [same.id, note]);
-    return;
+    return { changed: false };
   }
   await tx.query("UPDATE issue_assignments SET unassigned_at = now() WHERE issue_id = $1 AND unassigned_at IS NULL AND role_label = 'lead'", [id]);
   await tx.query(
@@ -215,6 +219,58 @@ export async function assignIssue(tx: Tx, id: string, memberId: string, note: st
      VALUES ($1, $2, 'lead', $3, app.current_user_id())`,
     [id, memberId, note]
   );
+  return { changed: true };
+}
+
+// ---------------------------------------------------------------------
+// Thông báo về sự cố (kèm liên kết mở thẳng sự cố)
+// ---------------------------------------------------------------------
+/** Đường dẫn mở thẳng một sự cố: Hậu cần → tab Báo hỏng (+ id sự cố để trang chọn sẵn). */
+export const issueLink = (id: string) => `/hau-can?tab=bao-hong&issue=${id}`;
+
+/**
+ * Gửi thông báo về một sự cố cho các thành viên (`members`) và/hoặc người giữ vai trò (`roles`), TRỪ người đang thao tác; payload.link mở thẳng
+ * sự cố. Chạy bằng vai trò worker (luuxa_app không gọi được app.fn_notify) trong MỘT transaction; lỗi gửi chỉ ghi log, không làm hỏng thao tác chính.
+ */
+export async function notifyIssue(
+  ctx: Pick<Ctx, "dbAs" | "userId">,
+  to: { members?: (string | null | undefined)[]; roles?: string[] },
+  type: string,
+  title: string,
+  body: string,
+  issueId: string
+): Promise<number> {
+  try {
+    return await ctx.dbAs("luuxa_worker", async (tx) => {
+      const r = await tx.query<{ n: number }>(
+        `WITH target AS (
+           SELECT m.id FROM members m WHERE m.id = ANY ($1::uuid[]) AND m.deleted_at IS NULL
+           UNION
+           SELECT m.id FROM user_roles ur
+             JOIN roles r ON r.id = ur.role_id AND r.code = ANY ($2::text[])
+             JOIN members m ON m.user_id = ur.user_id AND m.deleted_at IS NULL AND m.status = 'active'
+            WHERE ur.revoked_at IS NULL AND ur.valid_from <= now() AND (ur.valid_to IS NULL OR ur.valid_to > now())
+         )
+         SELECT count(app.fn_notify(t.id, $3, $4, $5, $6::jsonb, 'maintenance_issues', $7::uuid))::int AS n
+           FROM target t
+          WHERE $8::uuid IS NULL OR NOT EXISTS (SELECT 1 FROM members me WHERE me.id = t.id AND me.user_id = $8::uuid)`,
+        [
+          [...new Set((to.members ?? []).filter((x): x is string => !!x))],
+          to.roles ?? [],
+          type,
+          title.slice(0, 200),
+          body.slice(0, 1000),
+          JSON.stringify({ link: issueLink(issueId) }),
+          issueId,
+          ctx.userId ?? null,
+        ]
+      );
+      return r.rows[0]?.n ?? 0;
+    });
+  } catch (e) {
+    console.error("[facilities] gửi thông báo lỗi:", (e as Error).message);
+    return 0;
+  }
 }
 
 export async function addIssueCost(tx: Tx, id: string, amount: number, description: string) {

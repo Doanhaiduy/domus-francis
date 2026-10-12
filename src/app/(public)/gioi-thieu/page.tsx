@@ -1,11 +1,11 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Building2, CalendarHeart, Church, MapPin, Phone } from "lucide-react";
+import { ArrowRight, Building2, CalendarHeart, Church, House, MapPin, Phone } from "lucide-react";
 import { listPublished } from "@/server/modules/articles";
 import { listPublicAlbums } from "@/server/modules/public-site";
-import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
-import { getSiteInfo, publicDb, siteOrigin } from "@/server/public";
+import { OG_DEFAULT_IMAGES, SITE_KIND } from "@/lib/public-site";
+import { getSiteInfo, publicDb } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { JoinCta } from "@/components/public/JoinCta";
@@ -17,8 +17,15 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { org } = await getSiteInfo();
-  const description = org.motto ? `${org.motto}. Tìm hiểu về ${org.houseName}: tinh thần, đời sống chung và cách đăng ký vào ở.` : `Tìm hiểu về ${org.houseName} — cộng đoàn sinh viên Công giáo.`;
-  return { metadataBase: new URL(siteOrigin()), title: `Giới thiệu — ${org.houseName}`, description, openGraph: { title: `Giới thiệu — ${org.houseName}`, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
+  const description = org.motto
+    ? `${org.motto}. ${org.houseName} — ${SITE_KIND}: tinh thần, đời sống chung và cách đăng ký vào ở.`
+    : `${org.houseName} — ${SITE_KIND}: cùng học, cùng sống và cùng cầu nguyện. Tinh thần, đời sống chung và cách đăng ký vào ở.`;
+  return {
+    title: `Giới thiệu ${SITE_KIND}`,
+    description,
+    alternates: { canonical: "/gioi-thieu" },
+    openGraph: { title: `Giới thiệu — ${org.houseName}`, description, url: "/gioi-thieu", type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES },
+  };
 }
 
 const FEAST_MONTH = (v: string | null) => {
@@ -72,6 +79,22 @@ export default async function AboutPage() {
             </div>
           )}
         </section>
+
+        <Link
+          href="/vao-o"
+          className="group flex flex-col sm:flex-row sm:items-center gap-4 rounded-3xl bg-white border border-purple-100 p-5 sm:p-6 hover:border-purple-300 hover:shadow-md transition"
+        >
+          <span className="w-12 h-12 rounded-2xl bg-purple-50 text-primary flex items-center justify-center shrink-0" aria-hidden>
+            <House className="w-6 h-6" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-lg font-extrabold text-gray-900 group-hover:text-primary transition-colors">Muốn vào ở lưu xá?</span>
+            <span className="block text-sm text-gray-600 mt-0.5 leading-relaxed">Chi phí, chỗ còn trống, nhịp sinh hoạt và các bước để trở thành thành viên của nhà.</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-primary shrink-0">
+            Xem chi tiết <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" aria-hidden />
+          </span>
+        </Link>
 
         {albums.length > 0 && (
           <section aria-labelledby="gallery">

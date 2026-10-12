@@ -3,13 +3,26 @@
 // Nhật ký hoạt động người dùng — CHỈ Admin (quyền activity.log.read): ai làm gì, lúc nào, từ thiết bị/IP nào.
 //   • Thao tác: mọi thao tác ghi qua API (không lưu nội dung gửi lên)
 //   • Đăng nhập: thành công / thất bại
-//   • Thay đổi dữ liệu: giá trị trước → sau (audit_logs; hồ sơ cá nhân nhạy cảm chỉ Trưởng nhà xem được)
+//   • Thay đổi dữ liệu: giá trị trước → sau + LÝ DO (audit_logs; lọc theo hành động — thêm/sửa/xóa, xem dữ liệu nhạy cảm, xuất dữ liệu, đổi quyền…)
+// Nút "Xuất Excel": tải danh sách ĐANG LỌC (tối đa 5.000 dòng) rồi dựng tệp .xlsx ngay trên trình duyệt.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Loader2, LogIn, PencilLine, RefreshCw, Search, ShieldAlert, Users, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, FileSpreadsheet, Loader2, LogIn, PencilLine, RefreshCw, Search, ShieldAlert, Users, XCircle } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
-import { CustomSelect } from "@/components/ui/FormControls";
+import { useApp } from "@/lib/store";
+import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { ACTIVITY_AREAS } from "@/lib/activity-labels";
-import type { ActivityActionDto, ActivityActor, ActivityChangeDto, ActivityLoginDto, ActivityPage, ActivityUserDto } from "@/lib/types/activity";
+import {
+  ACTIVITY_EXPORT_MAX,
+  AUDIT_ACTIONS,
+  AUDIT_ACTION_LABEL,
+  type ActivityActionDto,
+  type ActivityActor,
+  type ActivityChangeDto,
+  type ActivityLoginDto,
+  type ActivityPage,
+  type ActivityUserDto,
+  type AuditAction,
+} from "@/lib/types/activity";
 import { cn } from "@/lib/utils";
 import { ListSkeleton } from "./TabSkeletons";
 
@@ -152,6 +165,12 @@ function ActionRow({ a }: { a: ActivityActionDto }) {
           <span className="text-xs font-bold text-gray-900">{a.label}</span>
           <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-primary text-[10px] font-bold">{a.areaLabel}</span>
           <ResultBadge ok={a.ok} text={a.ok ? "Thành công" : `Lỗi ${a.status}${a.errorCode ? ` · ${a.errorCode}` : ""}`} />
+          {/* Lỗi hệ thống: "mã lỗi" người dùng thấy = 8 ký tự đầu mã request — tra ở Cài đặt → Hệ thống → Nhật ký lỗi */}
+          {a.status >= 500 && a.requestId && (
+            <span className="text-[10px] text-gray-400" title="Mã lỗi người dùng thấy trong thông báo lỗi">
+              mã lỗi <b className="font-mono text-gray-600">{a.requestId.slice(0, 8)}</b>
+            </span>
+          )}
         </div>
         <p className="text-[10.5px] text-gray-400 font-mono truncate mt-0.5" title={`${a.method} ${a.path}`}>
           {a.method} {a.path.replace(/^\/api\/v1/, "")}
@@ -188,10 +207,23 @@ const SHOWN = (v: unknown) => {
   return s.length > 160 ? `${s.slice(0, 160)}…` : s;
 };
 
+const ACTION_TONE: Partial<Record<string, string>> = {
+  DELETE: "bg-rose-50 text-rose-700 border-rose-200",
+  INSERT: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  READ_SENSITIVE: "bg-violet-50 text-violet-700 border-violet-200",
+  EXPORT: "bg-sky-50 text-sky-700 border-sky-200",
+  PRINT: "bg-sky-50 text-sky-700 border-sky-200",
+  DOWNLOAD_FILE: "bg-sky-50 text-sky-700 border-sky-200",
+  SHARE_LINK: "bg-sky-50 text-sky-700 border-sky-200",
+  PERMISSION_CHANGE: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  PASSWORD_CHANGE: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  MFA_CHANGE: "bg-indigo-50 text-indigo-700 border-indigo-200",
+};
+
 function ChangeRow({ c }: { c: ActivityChangeDto }) {
   const [open, setOpen] = useState(false);
   const fields = c.changedFields.length ? c.changedFields : Object.keys((c.newData ?? c.oldData ?? {}) as object);
-  const tone = c.action === "DELETE" ? "bg-rose-50 text-rose-700 border-rose-200" : c.action === "INSERT" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200";
+  const tone = ACTION_TONE[c.action] ?? "bg-amber-50 text-amber-800 border-amber-200";
   return (
     <div>
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full text-left px-4 py-3 grid grid-cols-1 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_minmax(0,12rem)] gap-x-4 gap-y-1.5 items-center hover:bg-gray-50/70">
@@ -201,6 +233,11 @@ function ChangeRow({ c }: { c: ActivityChangeDto }) {
             <span className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold", tone)}>{c.actionLabel}</span>
             <span className="text-xs font-bold text-gray-900">{c.entityLabel}</span>
           </div>
+          {c.reason && (
+            <p className="text-[11px] text-gray-600 mt-0.5 line-clamp-2 break-words">
+              <span className="font-bold text-gray-500">Lý do:</span> {c.reason}
+            </p>
+          )}
           {fields.length > 0 && <p className="text-[10.5px] text-gray-400 truncate mt-0.5">{fields.slice(0, 8).join(", ")}{fields.length > 8 ? "…" : ""}</p>}
         </div>
         <div className="flex md:justify-end items-center gap-2 min-w-0">
@@ -214,7 +251,12 @@ function ChangeRow({ c }: { c: ActivityChangeDto }) {
       {open && (
         <div className="px-4 pb-3 -mt-1">
           <div className="rounded-xl border border-gray-100 bg-gray-50/60 divide-y divide-gray-100 text-[11px]">
-            {fields.length === 0 && <p className="p-3 text-gray-400">Không có chi tiết.</p>}
+            {c.reason && (
+              <p className="p-2.5 text-gray-700 break-words whitespace-pre-line">
+                <span className="font-bold">Lý do:</span> {c.reason}
+              </p>
+            )}
+            {fields.length === 0 && !c.reason && <p className="p-3 text-gray-400">Không có chi tiết.</p>}
             {fields.map((f) => (
               <div key={f} className="grid grid-cols-1 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-0.5 p-2.5">
                 <span className="font-mono font-bold text-gray-700 break-all">{f}</span>
@@ -276,7 +318,115 @@ function FeedList<T extends { id: string; at: string }>({
   );
 }
 
+// ---------------------------------------------------------------------
+// Xuất Excel (phía trình duyệt) — danh sách đang lọc, tối đa ACTIVITY_EXPORT_MAX dòng
+// ---------------------------------------------------------------------
+const PATHS: Record<Sub, string> = { actions: "/api/v1/activity", logins: "/api/v1/activity/logins", changes: "/api/v1/activity/changes" };
+const SHEET: Record<Sub, string> = { actions: "Thao tac", logins: "Dang nhap", changes: "Thay doi du lieu" };
+const FILE: Record<Sub, string> = { actions: "Thao_tac", logins: "Dang_nhap", changes: "Thay_doi_du_lieu" };
+
+const p2 = (n: number) => String(n).padStart(2, "0");
+/** "2026-10-12 08:15:03" theo giờ máy (sắp xếp được trong Excel) */
+const stamp = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+};
+const json = (v: unknown, max = 2000) => {
+  if (v === null || v === undefined) return "";
+  const s = typeof v === "string" ? v : JSON.stringify(v);
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+};
+
+/** Tải tuần tự mọi trang của danh sách đang lọc (500 dòng/lượt) tới khi hết hoặc đủ giới hạn. */
+async function fetchAllPages<T>(path: string, params: Record<string, string | undefined>, onProgress: (n: number) => void): Promise<{ items: T[]; truncated: boolean }> {
+  const out: T[] = [];
+  let before: string | undefined;
+  for (;;) {
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...params, limit: "500", before })) if (v) sp.set(k, v);
+    const page = await api.get<ActivityPage<T>>(`${path}?${sp.toString()}`);
+    out.push(...page.items);
+    onProgress(Math.min(out.length, ACTIVITY_EXPORT_MAX));
+    if (!page.next || out.length >= ACTIVITY_EXPORT_MAX) return { items: out.slice(0, ACTIVITY_EXPORT_MAX), truncated: out.length > ACTIVITY_EXPORT_MAX || !!page.next };
+    before = page.next;
+  }
+}
+
+type XCell = { value: string | number; [k: string]: unknown };
+const head = (v: string): XCell => ({ value: v, fontWeight: "bold", backgroundColor: "#EDE9FE", align: "center", alignVertical: "center", wrap: true });
+const tx = (v: string | number | null | undefined): XCell => (typeof v === "number" ? { value: v, type: Number } : { value: v ?? "", type: String });
+
+function sheetOf(sub: Sub, items: unknown[]): { rows: XCell[][]; widths: number[] } {
+  if (sub === "actions") {
+    const list = items as ActivityActionDto[];
+    return {
+      rows: [
+        ["Thời gian", "Người dùng", "Email", "Thao tác", "Phân hệ", "Phương thức", "Đường dẫn", "Kết quả", "Mã HTTP", "Mã lỗi", "Xử lý (ms)", "IP", "Thiết bị", "Mã request"].map(head),
+        ...list.map((a) =>
+          [stamp(a.at), a.actor.name, a.actor.email, a.label, a.areaLabel, a.method, a.path, a.ok ? "Thành công" : "Lỗi / từ chối", a.status, a.errorCode, a.durationMs ?? "", a.ip, a.device, a.requestId].map(tx),
+        ),
+      ],
+      widths: [19, 24, 26, 30, 18, 10, 40, 14, 9, 18, 10, 16, 18, 38],
+    };
+  }
+  if (sub === "logins") {
+    const list = items as ActivityLoginDto[];
+    return {
+      rows: [
+        ["Thời gian", "Tài khoản", "Email", "Đã nhập", "Kết quả", "Lý do thất bại", "IP", "Thiết bị"].map(head),
+        ...list.map((l) => [stamp(l.at), l.actor.userId ? l.actor.name : "", l.actor.email, l.identifier, l.success ? "Thành công" : "Thất bại", l.reasonLabel, l.ip, l.device].map(tx)),
+      ],
+      widths: [19, 24, 26, 26, 12, 28, 16, 18],
+    };
+  }
+  const list = items as ActivityChangeDto[];
+  return {
+    rows: [
+      ["Thời gian", "Người thực hiện", "Email", "Hành động", "Đối tượng", "Bảng", "Mã bản ghi", "Trường thay đổi", "Lý do", "IP", "Giá trị trước", "Giá trị sau"].map(head),
+      ...list.map((c) =>
+        [
+          stamp(c.at),
+          c.actor.name,
+          c.actor.email,
+          c.actionLabel,
+          c.entityLabel,
+          c.entityTable,
+          c.entityId,
+          c.changedFields.join(", "),
+          c.reason,
+          c.ip,
+          json(c.action === "INSERT" ? null : c.oldData),
+          json(c.action === "DELETE" ? null : c.newData),
+        ].map(tx),
+      ),
+    ],
+    widths: [19, 24, 26, 20, 26, 24, 38, 30, 40, 16, 50, 50],
+  };
+}
+
+async function writeActivityExcel(sub: Sub, items: unknown[], filterText: string, truncated: boolean) {
+  const writeExcelFile = (await import("write-excel-file/browser")).default;
+  const { rows, widths } = sheetOf(sub, items);
+  const now = new Date().toISOString();
+  const info: XCell[][] = [
+    [head("Mục"), head("Giá trị")],
+    [tx("Danh sách"), tx(SUBS.find((s) => s.key === sub)?.label ?? sub)],
+    [tx("Bộ lọc"), tx(filterText)],
+    [tx("Số dòng"), tx(items.length)],
+    [tx("Ghi chú"), tx(truncated ? `Chỉ xuất ${ACTIVITY_EXPORT_MAX.toLocaleString("vi-VN")} dòng mới nhất — thu hẹp bộ lọc để xuất phần còn lại.` : "Đủ toàn bộ danh sách đang lọc.")],
+    [tx("Xuất lúc"), tx(stamp(now))],
+  ];
+  const d = new Date(now);
+  const name = `Nhat_ky_${FILE[sub]}_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}.xlsx`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (writeExcelFile as any)([
+    { data: rows, sheet: SHEET[sub], columns: widths.map((width) => ({ width })), stickyRowsCount: 1 },
+    { data: info, sheet: "Thong tin", columns: [{ width: 14 }, { width: 70 }] },
+  ]).toFile(name);
+}
+
 export default function ActivityTab() {
+  const { showToast } = useApp();
   const [sub, setSub] = useState<Sub>("actions");
   const [range, setRange] = useState<Range>("7d");
   const [userId, setUserId] = useState("");
@@ -286,6 +436,9 @@ export default function ActivityTab() {
   const [qDebounced, setQDebounced] = useState("");
   const [users, setUsers] = useState<ActivityUserDto[] | null>(null);
   const [tick, setTick] = useState(0);
+  const [action, setAction] = useState<AuditAction | "">("");
+  /** null = không xuất; số = đang xuất (số dòng đã tải) */
+  const [exporting, setExporting] = useState<number | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 350);
@@ -308,10 +461,50 @@ export default function ActivityTab() {
   }, [from]);
 
   const common = { userId: userId || undefined, from, q: qDebounced || undefined };
-  const actions = usePaged<ActivityActionDto>("/api/v1/activity", { ...common, result: result === "all" ? undefined : result, area: area || undefined }, sub === "actions");
-  const logins = usePaged<ActivityLoginDto>("/api/v1/activity/logins", { ...common, result: result === "all" ? undefined : result }, sub === "logins");
-  const changes = usePaged<ActivityChangeDto>("/api/v1/activity/changes", common, sub === "changes");
+  const paramsOf: Record<Sub, Record<string, string | undefined>> = {
+    actions: { ...common, result: result === "all" ? undefined : result, area: area || undefined },
+    logins: { ...common, result: result === "all" ? undefined : result },
+    changes: { ...common, action: action || undefined },
+  };
+  const actions = usePaged<ActivityActionDto>(PATHS.actions, paramsOf.actions, sub === "actions");
+  const logins = usePaged<ActivityLoginDto>(PATHS.logins, paramsOf.logins, sub === "logins");
+  const changes = usePaged<ActivityChangeDto>(PATHS.changes, paramsOf.changes, sub === "changes");
   const active = sub === "actions" ? actions : sub === "logins" ? logins : changes;
+
+  /** Mô tả bộ lọc đang dùng (ghi vào trang "Thong tin" của tệp Excel). */
+  const filterText = () =>
+    [
+      RANGES.find((r) => r.value === range)?.label,
+      userId ? `người dùng: ${users?.find((u) => u.userId === userId)?.name ?? userId}` : "mọi người dùng",
+      sub === "actions" && area ? `phân hệ: ${ACTIVITY_AREAS[area] ?? area}` : null,
+      sub !== "changes" && result !== "all" ? `kết quả: ${result === "ok" ? "thành công" : sub === "logins" ? "thất bại" : "lỗi / từ chối"}` : null,
+      sub === "changes" && action ? `hành động: ${AUDIT_ACTION_LABEL[action]}` : null,
+      qDebounced ? `tìm: “${qDebounced}”` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  const exportExcel = async () => {
+    setExporting(0);
+    try {
+      const { items, truncated } = await fetchAllPages<unknown>(PATHS[sub], paramsOf[sub], (n) => setExporting(n));
+      if (!items.length) {
+        showToast("info", "Danh sách đang lọc không có dòng nào để xuất.");
+        return;
+      }
+      await writeActivityExcel(sub, items, filterText(), truncated);
+      showToast(
+        truncated ? "warning" : "success",
+        truncated
+          ? `Đã xuất ${items.length.toLocaleString("vi-VN")} dòng mới nhất (giới hạn ${ACTIVITY_EXPORT_MAX.toLocaleString("vi-VN")}) — thu hẹp bộ lọc để xuất phần còn lại.`
+          : `Đã xuất ${items.length.toLocaleString("vi-VN")} dòng ra Excel.`,
+      );
+    } catch (e) {
+      showToast("error", errorMessage(e));
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const totals = useMemo(() => {
     const list = users ?? [];
@@ -325,6 +518,11 @@ export default function ActivityTab() {
     { value: "all", label: "Mọi kết quả" },
     { value: "ok", label: "Thành công" },
     { value: "error", label: sub === "logins" ? "Thất bại" : "Bị lỗi / từ chối" },
+  ];
+  // Hành động đăng nhập/đăng xuất nằm ở tab "Đăng nhập" nên không đưa vào bộ lọc này
+  const actionOptions = [
+    { value: "", label: "Mọi hành động" },
+    ...AUDIT_ACTIONS.filter((a) => !["LOGIN_SUCCESS", "LOGIN_FAILURE", "LOGOUT"].includes(a)).map((a) => ({ value: a, label: AUDIT_ACTION_LABEL[a] })),
   ];
 
   return (
@@ -342,15 +540,28 @@ export default function ActivityTab() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setTick((t) => t + 1);
-              void active.reload();
-            }}
-            className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", active.loading && "animate-spin")} /> Làm mới
-          </button>
+          <div className="self-start sm:self-auto shrink-0 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportExcel}
+              disabled={exporting !== null || (active.items.length === 0 && !active.loading)}
+              title={`Xuất danh sách đang lọc ra Excel (tối đa ${ACTIVITY_EXPORT_MAX.toLocaleString("vi-VN")} dòng)`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold text-emerald-800 disabled:opacity-50 transition"
+            >
+              {exporting !== null ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+              {exporting !== null ? `Đang xuất… ${exporting.toLocaleString("vi-VN")} dòng` : "Xuất Excel"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTick((t) => t + 1);
+                void active.reload();
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", active.loading && "animate-spin")} /> Làm mới
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -392,17 +603,16 @@ export default function ActivityTab() {
           ) : sub === "logins" ? (
             <CustomSelect value={result} onChange={(v) => setResult(v as Result)} options={resultOptions} />
           ) : (
-            <div className="hidden lg:block" />
+            <CustomSelect<string> value={action} onChange={(v) => setAction(v as AuditAction | "")} options={actionOptions} aria-label="Lọc theo hành động" />
           )}
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={sub === "actions" ? "Tìm thao tác, tên, đường dẫn…" : sub === "logins" ? "Tìm email, IP, tên…" : "Tìm tên bảng, mã bản ghi…"}
-              className="w-full h-[42px] pl-9 pr-3 rounded-xl border border-gray-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-primary"
-            />
-          </div>
+          <CustomInput
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={sub === "actions" ? "Tìm thao tác, tên, đường dẫn…" : sub === "logins" ? "Tìm email, IP, tên…" : "Tìm tên bảng, mã bản ghi, lý do…"}
+            leftIcon={<Search className="w-4 h-4" />}
+            aria-label="Tìm trong nhật ký"
+            data-no-dirty
+          />
         </div>
         {sub === "actions" && (
           <div className="flex flex-wrap items-center gap-2 -mt-1">
@@ -430,7 +640,9 @@ export default function ActivityTab() {
       {sub === "changes" && (
         <>
           <FeedList state={changes} render={(c) => <ChangeRow c={c} />} empty="Chưa có thay đổi dữ liệu nào trong khoảng thời gian này." />
-          <p className="text-[11px] text-gray-400 px-1">Dữ liệu cá nhân nhạy cảm (hồ sơ, điểm học tập…) chỉ Trưởng nhà xem được nên không hiện ở đây.</p>
+          <p className="text-[11px] text-gray-400 px-1">
+            Gồm cả “Xem dữ liệu nhạy cảm” (xem CCCD, ý chỉ ẩn danh… kèm lý do người xem nêu) và xuất dữ liệu. Bản ghi trên dữ liệu cá nhân nhạy cảm chỉ hiện với người có quyền xem nhật ký nhạy cảm.
+          </p>
         </>
       )}
     </div>

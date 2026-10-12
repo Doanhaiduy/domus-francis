@@ -10,6 +10,11 @@ const Body = z.object({
   password: z.string().max(128),
   universityName: z.string().trim().max(200).optional().nullable(),
   message: z.string().trim().max(1000).optional().nullable(),
+  /**
+   * Tick "Tôi đã đọc và đồng ý Điều khoản sử dụng và Chính sách bảo mật" — BẮT BUỘC true (kiểm trong register() SAU bước kiểm mở đăng ký +
+   * giới hạn tần suất ⇒ đăng ký đang đóng vẫn trả 403, quá nhiều lượt vẫn trả 429; thiếu đồng ý trả 400 TERMS_REQUIRED).
+   */
+  acceptTerms: z.boolean().optional(),
 });
 
 export const POST = api({ auth: "public" }, async (ctx) => {

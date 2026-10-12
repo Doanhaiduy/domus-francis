@@ -1,61 +1,9 @@
 import "server-only";
 import { z } from "zod";
-import { zDate, zUuid } from "../http";
+import { zUuid } from "../http";
 
+// Lược đồ kiểm tra dữ liệu phân hệ Báo hỏng (trực vệ sinh theo tuần: duty-weeks-schema.ts).
 const optText = (max: number) => z.string().trim().max(max).nullable().optional();
-
-// ---- Trực nhật ----
-export const RosterCreateSchema = z.object({
-  weekStart: zDate,
-  notes: optText(500),
-  copyFromWeek: zDate.nullable().optional(),
-});
-
-export const AssignmentCreateSchema = z.object({
-  date: zDate,
-  areaId: zUuid,
-  shiftId: zUuid,
-  roomCode: z.string().trim().max(14).nullable().optional(),
-  memberIds: z.array(zUuid).min(1, "Chọn ít nhất một người trực.").max(30),
-  overrideReason: optText(300),
-});
-
-export const AssignmentUpdateSchema = z.object({
-  memberIds: z.array(zUuid).min(1, "Ca trực phải có ít nhất một người.").max(30).optional(),
-  roomCode: z.string().trim().max(14).nullable().optional(),
-  overrideReason: optText(300),
-  date: zDate.optional(),
-  areaId: zUuid.optional(),
-  shiftId: zUuid.optional(),
-});
-
-export const CheckinSchema = z.object({
-  fileId: z.string().uuid("Hãy tải lên ảnh minh chứng sau khi dọn."),
-  doneItemIds: z.array(zUuid).max(50).default([]),
-  note: optText(1000),
-  clientCapturedAt: z.string().datetime({ offset: true }).nullable().optional(),
-});
-
-export const ReviewSchema = z
-  .object({
-    decision: z.enum(["approved", "rework"]),
-    score: z.number().int().min(1).max(5).nullable().optional(),
-    feedback: optText(1000),
-  })
-  .superRefine((v, ctx) => {
-    if (v.decision === "approved" && !v.score) ctx.addIssue({ code: "custom", path: ["score"], message: "Chấm điểm 1–5 sao khi nghiệm thu đạt." });
-    if (v.decision === "rework" && (v.feedback ?? "").trim().length < 5)
-      ctx.addIssue({ code: "custom", path: ["feedback"], message: "Ghi rõ điểm cần dọn lại (tối thiểu 5 ký tự)." });
-  });
-
-export const SwapCreateSchema = z.object({
-  assignmentId: zUuid,
-  toMemberId: zUuid,
-  reason: z.string().trim().min(5, "Lý do xin đổi ca tối thiểu 5 ký tự.").max(500),
-});
-
-export const SwapRespondSchema = z.object({ accept: z.boolean(), note: optText(300) });
-export const SwapDecideSchema = z.object({ approve: z.boolean(), note: optText(300) });
 
 // ---- Báo hỏng ----
 const zUrgency = z.enum(["low", "medium", "high", "critical"]);

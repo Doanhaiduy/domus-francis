@@ -10,6 +10,27 @@ if (!url) {
   process.exit(2);
 }
 
+// CHỐT AN TOÀN: script này ĐẶT LẠI MẬT KHẨU MỌI TÀI KHOẢN thành mật khẩu demo công khai (in trong README) và mở khóa tất cả.
+// Chạy nhầm vào production = mọi tài khoản thật bị chiếm. Chỉ cho phép DB local hoặc dự án Supabase STAGING, và phải xác nhận bằng cờ.
+const STAGING_REF = "mxwlphjyxnrwrnfgiinr";
+const PRODUCTION_REF = "hpevzmhdfmzczhgqjmnj";
+let host = "";
+try {
+  host = new URL(url).hostname;
+} catch {
+  /* để kiểm tra bên dưới từ chối */
+}
+const isLocal = ["127.0.0.1", "localhost", "::1"].includes(host);
+const isStaging = url.includes(STAGING_REF);
+if (url.includes(PRODUCTION_REF) || (!isLocal && !isStaging)) {
+  console.error("✗ TỪ CHỐI: script này chỉ chạy trên DB local hoặc Supabase STAGING (đặt lại mật khẩu mọi tài khoản thành mật khẩu demo công khai).");
+  process.exit(2);
+}
+if (!process.argv.includes("--yes-reset-all-passwords")) {
+  console.error("✗ Script sẽ ĐẶT LẠI MẬT KHẨU MỌI TÀI KHOẢN chưa vô hiệu hóa thành mật khẩu demo. Chạy lại kèm cờ --yes-reset-all-passwords nếu chắc chắn.");
+  process.exit(2);
+}
+
 async function run() {
   const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
   await client.connect();

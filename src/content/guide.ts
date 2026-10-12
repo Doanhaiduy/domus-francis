@@ -84,7 +84,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         items: [
           { title: "Nhận tài khoản", text: "Admin hoặc Trưởng nhà gửi cho bạn **email** và **mật khẩu tạm** (gửi riêng, không đăng lên nhóm)." },
           { title: "Đăng nhập", text: "Mở ứng dụng, nhập email và mật khẩu tạm.", demo: "login" },
-          { title: "Đổi mật khẩu", text: "Lần đầu hệ thống bắt buộc đặt mật khẩu mới: **ít nhất 10 ký tự**, nên có cả chữ và số." },
+          { title: "Đổi mật khẩu", text: "Lần đầu hệ thống bắt buộc đặt mật khẩu mới (chưa đổi thì chưa dùng được ứng dụng): **ít nhất 8 ký tự, có cả chữ và số**, không trùng email." },
         ],
       },
       { t: "callout", tone: "tip", title: "Quên mật khẩu?", text: "Ở trang đăng nhập bấm **Quên mật khẩu?**, nhập email — ứng dụng gửi đường dẫn đặt lại (có hiệu lực **30 phút**, dùng một lần). Nếu chưa nhận được thư hoặc nhà chưa cấu hình email, nhờ Admin/Trưởng nhà vào **Cài đặt → Tài khoản → Đặt lại mật khẩu** để nhận mật khẩu tạm." },
@@ -283,6 +283,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Gửi lại vào nhóm Zalo", text: "Bấm gửi: giờ về mới được **báo lại vào nhóm Zalo** và cho người để cửa. Đơn lưu lịch sử các lần xin thêm; bạn xin thêm được tối đa 5 lần cho mỗi đơn, mỗi lần phải muộn hơn lần trước." },
         ],
       },
+      { t: "md", text: "**Tối nay ai vắng / về muộn:** người duyệt đơn và người **được nhờ giữ cửa** thấy ở đầu trang Xin phép danh sách đơn đã duyệt có hiệu lực từ 18:00 tối nay đến 06:00 sáng mai (về muộn, ngủ ngoài, vắng nhiều ngày) — **chỉ tên, loại đơn và giờ**, không có lý do, nơi đến hay số điện thoại." },
       { t: "callout", tone: "tip", text: "Đơn **vắng sự kiện được duyệt** thì điểm danh sự kiện đó ghi **“có phép”** và không bị trừ điểm chuyên cần. Không ai tự duyệt được đơn của chính mình." },
     ],
   },
@@ -430,6 +431,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "md", text: "Bạn cũng có thể **chấm điểm, góp ý món ăn** và tham gia các khảo sát món do Ban Ẩm thực tạo." },
+      { t: "md", text: "**Luôn ăn, trừ khi tôi báo vắng:** bật công tắc này ở đầu trang Bếp & Cơm thì bữa nào mở đăng ký cũng **tự ghi “ăn”** cho bạn — trừ khi bạn có **đơn xin phép vắng đã duyệt** (ngủ ngoài, về quê, nghỉ Tết/hè…) bao trùm bữa đó. Bạn vẫn bỏ được từng bữa. Hằng sáng hệ thống **nhắc** những ai chưa đăng ký bữa còn mở hôm nay (mỗi người một lần mỗi ngày). Ban Ẩm thực bấm “đăng ký cả nhà” cũng **bỏ qua người đang vắng**." },
     ],
   },
 
@@ -711,6 +713,28 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
           {
+            title: "Cho thành viên rời nhà / kích hoạt lại",
+            blocks: [
+              { t: "path", items: ["Thành Viên & Nhà", "Thành viên", "(chọn người)", "Trạng thái"] },
+              { t: "md", text: "Chọn **Đã rời lưu xá** hoặc **Cựu thành viên** rồi bấm **Tiếp tục**: hộp thoại liệt kê các **việc còn treo** của người đó — khoản quỹ chưa đóng (kèm tổng tiền), tuần trực vệ sinh sắp tới, hình phạt đang mở, đơn xin phép đang chờ. Với từng nhóm bạn chọn **Miễn / Gỡ khỏi tuần trực / Đóng đơn** hoặc **để nguyên** (vd. vẫn theo dõi khoản nợ), có thể tạo luôn **hồ sơ cựu thành viên**. Bấm **Xác nhận** một lần: mọi thay đổi được làm **cùng lúc, hoặc không gì cả** nếu có lỗi. Đã rời thì tài khoản bị khóa và phòng được trả. Bạn không tự cho mình rời được." },
+              { t: "md", text: "Người đã rời quay lại: mở hồ sơ → **Kích hoạt lại** — một thao tác đưa về **Đang ở**, mở lại tài khoản và (tùy chọn) xếp phòng. Chi tiết thành viên có thêm mục **Lịch sử phòng ở**." },
+            ],
+          },
+          {
+            title: "Xuất danh bạ & danh sách tạm trú (Excel)",
+            blocks: [
+              { t: "path", items: ["Thành Viên & Nhà", "Thành viên", "Xuất danh bạ / Danh sách tạm trú"] },
+              { t: "md", text: "**Xuất danh bạ:** mọi thành viên tải được danh bạ anh em đang ở (họ tên, phòng, SĐT — người ẩn SĐT hiện “Đã ẩn”, email liên hệ, trường/ngành/niên khóa); chỉ có cột bạn được phép xem.\n**Danh sách tạm trú** (chỉ người có quyền xem CCCD đầy đủ — Trưởng nhà, Admin): họ tên, ngày sinh, quê quán, địa chỉ thường trú, **số CCCD đầy đủ**, ngày vào ở, phòng — để khai báo tạm trú. **Bắt buộc ghi lý do**; mỗi CCCD được giải mã đều ghi vào **nhật ký kiểm toán**. Tệp chứa dữ liệu nhạy cảm: chỉ dùng đúng mục đích và xóa sau khi dùng." },
+            ],
+          },
+          {
+            title: "Ủy quyền vai trò tạm thời (khi đi vắng)",
+            blocks: [
+              { t: "path", items: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Phân quyền & Vai trò", "Ủy quyền tạm thời"] },
+              { t: "md", text: "Trưởng nhà, Thủ quỹ hay trưởng ban đi vắng (về quê dịp Tết…) có thể **giao vai trò của mình** cho một thành viên có tài khoản: chọn **vai trò**, **người nhận**, **từ ngày – đến hết ngày** (tối đa **60 ngày**) và **lý do**. Người nhận được **thông báo** và có quyền của vai trò đó trong khoảng ngày; bạn vẫn giữ vai trò của mình. **Thu hồi sớm** bất cứ lúc nào (người có quyền gán vai trò cũng thu hồi hộ được). Không ủy quyền được vai trò **Admin**; bạn chỉ ủy quyền được vai trò mình **đang giữ**." },
+            ],
+          },
+          {
             title: "Đơn xin phép của anh em",
             blocks: [
               { t: "path", items: ["Lịch & Xin phép", "Xin phép", "Chờ tôi duyệt"] },
@@ -794,7 +818,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
                 title: "Thiết lập và ghi nhận",
                 items: [
                   { title: "Nhập danh mục luật phạt", path: ["Vi phạm & kỷ luật", "Luật & mức phạt"], text: "Bấm **Thêm điều luật** (mã, tên, mức phạt gợi ý: **lần chuỗi / đi lễ / trực nhật / khác** + số lượng). Điều nghiêm trọng thì bật **Lỗi đỏ** để hiện nhãn đỏ ở danh sách và khi ghi nhận. Đã có **Luật nhà** rồi thì bấm **Nhập từ Luật nhà** để lấy sẵn các điều khoản (bỏ qua điều con và ghi chú, giữ nhãn Lỗi đỏ). Điều không còn dùng thì **Ẩn** (lịch sử vẫn giữ)." },
-                  { title: "Ghi vi phạm", path: ["Vi phạm & kỷ luật", "Cả nhà", "Ghi vi phạm"], text: "Chọn **thành viên**, **điều luật** (hoặc tự ghi tên điều vi phạm), **ngày vi phạm**, ghi chú. Mức phạt tự điền theo điều luật, bạn sửa được: **loại, số lượng**, **ngày bắt đầu – kết thúc** chấp hành. Thành viên nhận thông báo." },
+                  { title: "Ghi vi phạm", path: ["Vi phạm & kỷ luật", "Cả nhà", "Ghi vi phạm"], text: "Chọn **thành viên**, **điều luật** (hoặc tự ghi tên điều vi phạm), **ngày vi phạm**, ghi chú. Mức phạt tự điền theo điều luật, bạn sửa được: **loại, số lượng**, **ngày bắt đầu – kết thúc** chấp hành. Thành viên nhận thông báo. Khi chọn thành viên và điều luật, form hiện **“Lần thứ N trong 12 tháng”** với cùng điều luật (và tổng vi phạm 12 tháng); điều luật bật **Tái phạm ⇒ Lỗi đỏ** (luật nhà L04–L09) sẽ **cảnh báo đỏ** từ lần thứ hai để bạn xử lý như Lỗi đỏ." },
                   { title: "Theo dõi & đóng việc", text: "Mỗi ghi nhận tự cho biết **sắp chấp hành / đang chấp hành / quá hạn chưa xong**. Khi đã làm xong bấm **Hoàn thành**; muốn bỏ hình phạt bấm **Miễn** (ghi lý do). **Mở lại**, **Sửa**, **Xóa** khi nhập nhầm." },
                 ],
               },

@@ -16,7 +16,12 @@ const ISSUER = "Lưu Xá Phanxicô";
 const MAX_FAILS = 5; // mã sai trong 15 phút ⇒ chặn tạm
 const RECOVERY_CODES = 8;
 
-const authTx = <T>(meta: ReqMeta, fn: (tx: Tx) => Promise<T>) => withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", fn);
+/**
+ * Transaction luuxa_auth. `actorUserId` = người thực hiện (chính chủ, hoặc Admin khi gỡ 2FA hộ) ⇒ đặt app.current_user_id để trigger
+ * kiểm toán ghi đúng người làm (trước đây để trống nên thay đổi 2FA bị ẩn khỏi Nhật ký → Thay đổi dữ liệu).
+ */
+const authTx = <T>(meta: ReqMeta, fn: (tx: Tx) => Promise<T>, actorUserId?: string) =>
+  withTx({ requestId: meta.requestId, ip: meta.ip, userId: actorUserId ?? null }, "luuxa_auth", fn);
 
 export interface MfaStatus {
   enabled: boolean;
@@ -40,7 +45,7 @@ export async function startEnroll(userId: string, account: string, meta: ReqMeta
     if (f?.confirmed_at) throw new ApiError(409, "MFA_ENABLED", "Xác thực 2 bước đã được bật. Hãy tắt trước nếu muốn thiết lập lại.");
     await tx.query("DELETE FROM user_mfa_factors WHERE user_id = $1 AND factor_type = 'totp'", [userId]);
     await tx.query("INSERT INTO user_mfa_factors (user_id, factor_type, secret_enc, secret_key_version) VALUES ($1, 'totp', $2, $3)", [userId, encryptPii(secret), PII_KEY_VERSION]);
-  });
+  }, userId);
   const uri = otpauthUri(secret, account, ISSUER);
   return { secret, otpauthUri: uri, qrDataUrl: await QRCode.toDataURL(uri, { margin: 1, width: 220 }) };
 }
@@ -66,7 +71,7 @@ export async function confirmEnroll(userId: string, code: string, meta: ReqMeta)
     const codes = newRecoveryCodes();
     for (const h of codes.hashes) await tx.query("INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES ($1, $2)", [userId, h]);
     return codes.plain;
-  });
+  }, userId);
 }
 
 /** Tắt 2FA của chính mình — bắt buộc nhập lại mật khẩu. */
@@ -76,17 +81,17 @@ export async function disableMfa(userId: string, password: string, meta: ReqMeta
     if (!u || !(await verifyPassword(u.password_hash, password))) throw new ApiError(400, "BAD_PASSWORD", "Mật khẩu không đúng.");
     await tx.query("DELETE FROM user_mfa_factors WHERE user_id = $1", [userId]);
     await tx.query("DELETE FROM mfa_recovery_codes WHERE user_id = $1", [userId]);
-  });
+  }, userId);
 }
 
 /** Admin/Trưởng nhà gỡ 2FA của người mất điện thoại (người gọi đã được kiểm quyền auth.user.manage). */
-export async function resetMfaForUser(targetUserId: string, meta: ReqMeta) {
+export async function resetMfaForUser(targetUserId: string, meta: ReqMeta, actorUserId?: string) {
   await authTx(meta, async (tx) => {
     await tx.query("DELETE FROM user_mfa_factors WHERE user_id = $1", [targetUserId]);
     await tx.query("DELETE FROM mfa_recovery_codes WHERE user_id = $1", [targetUserId]);
     // đăng xuất mọi phiên đang mở của người đó cho chắc
     await tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'admin_revoked' WHERE user_id = $1 AND revoked_at IS NULL", [targetUserId]);
-  });
+  }, actorUserId);
 }
 
 /** Người dùng có bật 2FA không (dùng ở bước đăng nhập, trong cùng transaction luuxa_auth). */

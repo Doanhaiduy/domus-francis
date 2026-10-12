@@ -112,6 +112,7 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
           <ul className="space-y-2 text-sm text-gray-600 font-medium">
             <li><Link href="/gioi-thieu" className="hover:text-primary">Giới thiệu lưu xá</Link></li>
             <li><Link href="/tin-tuc" className="hover:text-primary">Bản tin</Link></li>
+            <li><Link href="/vao-o" className="hover:text-primary">Vào ở lưu xá: chi phí &amp; thủ tục</Link></li>
             <li><Link href="/tin-tuc?muc=tuyen-sinh" className="hover:text-primary">Thông tin tuyển sinh</Link></li>
             <li><Link href="/hoi-dap" className="hover:text-primary">Hỏi đáp</Link></li>
             <li><Link href="/thu-vien" className="hover:text-primary">Thư viện ảnh</Link></li>

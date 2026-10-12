@@ -2,17 +2,12 @@
 
 import React, { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { reportClientError } from "@/components/ClientErrorReporter";
 
 /** Khung bắt lỗi của mọi trang: báo về máy chủ (log) và cho người dùng thử lại thay vì màn hình trắng. */
 export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    fetch("/api/v1/public/client-error", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: error.message?.slice(0, 500) ?? "unknown", digest: error.digest, path: window.location.pathname, stack: error.stack?.slice(0, 2000) }),
-    })
-      .then((r) => r.text())
-      .catch(() => {});
+    reportClientError("boundary", error.message ?? "unknown", error.stack, error.digest);
   }, [error]);
 
   return (

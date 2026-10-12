@@ -17,6 +17,29 @@ export interface TemplateDef {
 
 const HOUSE: TemplatePlaceholder = { name: "house", desc: "Tên lưu xá", sample: "Lưu Xá Sinh Viên Phanxicô Assisi" };
 
+/**
+ * Trang trong ứng dụng mà biến {link} trỏ tới theo từng loại tin (máy chủ tự gắn địa chỉ web phía trước — src/server/integrations/zalo.ts).
+ * Nơi gửi có thể truyền liên kết cụ thể hơn (vd. đúng sự cố vừa báo, đúng ngày của sự kiện).
+ */
+export const ZALO_DEFAULT_LINK: Partial<Record<ZaloEventKey, string>> = {
+  duty_week: "/hau-can?tab=truc-nhat",
+  dues_reminder: "/thu-chi",
+  facility_new: "/hau-can?tab=bao-hong",
+  liturgy: "/lich-su-kien",
+  announcement: "/thong-bao",
+  event_new: "/lich-su-kien",
+  event_reminder: "/lich-su-kien",
+  reminder_schedule: "/lich-su-kien",
+  room_change: "/so-do-nha",
+  member_joined: "/thanh-vien",
+  birthday: "/thanh-vien",
+  leave_notice: "/xin-phep",
+  leave_extension: "/xin-phep",
+};
+
+/** Biến {link}: liên kết mở thẳng trang tương ứng trong ứng dụng (anh em bấm từ nhóm Zalo). */
+const LINK = (page: string, path: string): TemplatePlaceholder => ({ name: "link", desc: `Liên kết mở ${page} trên web Lưu Xá`, sample: `https://…${path}` });
+
 export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
   duty_week: {
     placeholders: [
@@ -24,6 +47,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "week", desc: "Khoảng ngày của tuần", sample: "05/10 – 11/10/2026" },
       { name: "members", desc: "Người trực", sample: "Minh Tuấn & Văn Đức" },
       { name: "note", desc: "Ghi chú của Trưởng nhà (có thể trống)", sample: "Quét sân, đổ rác" },
+      LINK("lịch trực (Hậu cần)", "/hau-can?tab=truc-nhat"),
     ],
     default: [
       "🧹 LỊCH TRỰC VỆ SINH SÂN NHÀ — {house}",
@@ -31,6 +55,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       "👥 Người trực: {members}",
       "📝 {note}",
       "Nhớ dọn dẹp sân nhà trong tuần này nhé. Cảm ơn anh em! 🕊️",
+      "👉 Xem: {link}",
     ].join("\n"),
   },
   dues_reminder: {
@@ -44,6 +69,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "transfer_note", desc: "Nội dung chuyển khoản", sample: "QUY-2026-07 <tên bạn>" },
       { name: "instruction", desc: "Hướng dẫn đóng tiền", sample: "Đóng tiền mặt cho Thủ quỹ hoặc chuyển khoản rồi bấm “Tôi đã đóng” trên web Lưu Xá nhé." },
       { name: "message", desc: "Lời nhắn thêm của người gửi (có thể trống)", sample: "Anh em sớm hoàn tất nhé" },
+      LINK("trang Thu chi (mã QR, nút “Tôi đã đóng”)", "/thu-chi"),
     ],
     default: [
       "💰 NHẮC ĐÓNG QUỸ — {house}",
@@ -54,6 +80,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       "📝 Nội dung: {transfer_note}",
       "{instruction}",
       "📣 {message}",
+      "👉 Xem: {link}",
       "Pax et Bonum! 🕊️",
     ].join("\n"),
   },
@@ -64,22 +91,25 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "urgency", desc: "Mức độ khẩn", sample: "Gấp (Trong ngày)" },
       { name: "location", desc: "Vị trí / phòng", sample: "Nhà vệ sinh tầng 2" },
       { name: "reporter", desc: "Người báo", sample: "Minh Tuấn" },
+      LINK("đúng sự cố vừa báo (Hậu cần → Báo hỏng)", "/hau-can?tab=bao-hong"),
     ],
-    default: ["🔧 BÁO HỎNG MỚI {code}", "• {title}", "• Mức độ: {urgency}", "• Vị trí: {location}", "Anh em Ban Hậu cần chú ý xử lý nhé."].join("\n"),
+    default: ["🔧 BÁO HỎNG MỚI {code}", "• {title}", "• Mức độ: {urgency}", "• Vị trí: {location}", "Anh em Ban Hậu cần chú ý xử lý nhé.", "👉 Xem: {link}"].join("\n"),
   },
   liturgy: {
     placeholders: [
       { name: "title", desc: "Tên lễ / dịp", sample: "Còn 7 ngày: Lễ Các Thánh" },
       { name: "body", desc: "Nội dung nhắc", sample: "Lễ Các Thánh vào Thứ Bảy 1/11. Anh em nhớ tham dự Thánh lễ." },
+      LINK("lịch (ngày lễ, check-in đi lễ)", "/lich-su-kien"),
     ],
-    default: ["⛪ {title}", "{body}"].join("\n"),
+    default: ["⛪ {title}", "{body}", "👉 Xem: {link}"].join("\n"),
   },
   announcement: {
     placeholders: [
       { name: "title", desc: "Tiêu đề thông báo", sample: "Lịch tĩnh tâm tháng 11" },
       { name: "content", desc: "Phần đầu nội dung (tối đa 400 ký tự)", sample: "Anh em đăng ký tham dự tĩnh tâm trước 30/10…" },
+      LINK("bảng thông báo", "/thong-bao"),
     ],
-    default: ["📣 THÔNG BÁO: {title}", "{content}", "👉 Xem chi tiết trên web Lưu Xá."].join("\n"),
+    default: ["📣 THÔNG BÁO: {title}", "{content}", "👉 Xem chi tiết: {link}"].join("\n"),
   },
   event_new: {
     placeholders: [
@@ -87,16 +117,25 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "when", desc: "Thời gian", sample: "07:00 ngày 12/10/2026" },
       { name: "location", desc: "Địa điểm", sample: "Hồ Đá Bàn" },
       { name: "description", desc: "Mô tả ngắn (có thể trống)", sample: "Mang theo nước và mũ nón" },
+      LINK("lịch sự kiện", "/lich-su-kien"),
     ],
-    default: ["📅 SỰ KIỆN MỚI: {title}", "🕒 {when}", "📍 {location}", "📝 {description}", "Anh em xem chi tiết và báo tham gia trên web Lưu Xá nhé."].join("\n"),
+    default: [
+      "📅 SỰ KIỆN MỚI: {title}",
+      "🕒 {when}",
+      "📍 {location}",
+      "📝 {description}",
+      "Anh em xem chi tiết và báo tham gia trên web Lưu Xá nhé.",
+      "👉 Xem: {link}",
+    ].join("\n"),
   },
   event_reminder: {
     placeholders: [
       { name: "day_label", desc: "HÔM NAY hoặc NGÀY MAI", sample: "HÔM NAY" },
       { name: "date", desc: "Thứ, ngày", sample: "Thứ Tư 08/10" },
       { name: "list", desc: "Danh sách sự kiện (nhiều dòng)", sample: "• 19:30 — Họp nhà @ Phòng sinh hoạt chung\n• 20:30 — Kinh Tối chung" },
+      LINK("lịch sự kiện", "/lich-su-kien"),
     ],
-    default: ["⏰ SỰ KIỆN {day_label} ({date})", "{list}", "Anh em sắp xếp thời gian tham gia nhé. 🕊️"].join("\n"),
+    default: ["⏰ SỰ KIỆN {day_label} ({date})", "{list}", "Anh em sắp xếp thời gian tham gia nhé. 🕊️", "👉 Xem: {link}"].join("\n"),
   },
   reminder_schedule: {
     placeholders: [
@@ -104,6 +143,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "title", desc: "Tên lịch nhắc", sample: "Họp nhà" },
       { name: "time", desc: "Giờ diễn ra (có thể trống)", sample: "21:00 tối" },
       { name: "message", desc: "Nội dung thêm (có thể trống)", sample: "Tại phòng sinh hoạt chung" },
+      LINK("lịch sự kiện", "/lich-su-kien"),
     ],
     default: ["📢 {headline}", "{message}"].join("\n"),
   },
@@ -111,6 +151,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
     placeholders: [
       { name: "member", desc: "Tên thành viên", sample: "Minh Tuấn" },
       { name: "room", desc: "Phòng mới", sample: "P.2" },
+      LINK("sơ đồ nhà", "/so-do-nha"),
     ],
     default: "🚪 {member} chuyển sang {room}.",
   },
@@ -118,6 +159,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
     placeholders: [
       { name: "member", desc: "Tên thành viên mới", sample: "Hoài An" },
       { name: "room_part", desc: "Phòng ở (vd. “, ở P.3”; có thể trống)", sample: ", ở P.3" },
+      LINK("danh sách thành viên", "/thanh-vien"),
     ],
     default: "👋 Chào mừng {member} vào nhà{room_part}! Anh em giúp đỡ bạn làm quen nhé. 🕊️",
   },
@@ -125,6 +167,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
     placeholders: [
       { name: "names", desc: "Người sinh nhật hôm nay", sample: "Văn Đức" },
       { name: "them", desc: "“bạn” hoặc “các bạn”", sample: "bạn" },
+      LINK("danh sách thành viên", "/thanh-vien"),
     ],
     default: ["🎂 Hôm nay sinh nhật {names}!", "Chúc {them} một ngày thật vui, bình an và luôn được Chúa gìn giữ. 🕊️"].join("\n"),
   },
@@ -137,6 +180,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "destination", desc: "Nơi đang ở / nơi đến (có thể trống)", sample: "Thư viện trường" },
       { name: "reason", desc: "Lý do", sample: "Thi xong lúc 21h, về trễ" },
       { name: "door", desc: "Người được nhờ để cửa (có thể trống)", sample: "Văn Đức" },
+      LINK("trang Xin phép", "/xin-phep"),
     ],
     default: [
       "📣 {kind} — {member}",
@@ -145,6 +189,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       "📝 Lý do: {reason}",
       "🔑 Nhờ {door} để cửa giúp.",
       "Anh em chú ý giúp nhé. 🕊️",
+      "👉 Xem: {link}",
     ].join("\n"),
   },
   leave_extension: {
@@ -156,6 +201,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       { name: "new_time", desc: "Giờ mới", sample: "00:30 (13/10)" },
       { name: "reason", desc: "Lý do xin thêm", sample: "Xe hỏng giữa đường, đang chờ sửa" },
       { name: "door", desc: "Người được nhờ để cửa (có thể trống)", sample: "Văn Đức" },
+      LINK("trang Xin phép", "/xin-phep"),
     ],
     default: [
       "⏰ XIN THÊM GIỜ ({kind}) — {member}",
@@ -163,6 +209,7 @@ export const ZALO_TEMPLATES: Record<ZaloEventKey, TemplateDef> = {
       "📝 Lý do: {reason}",
       "🔑 {door} để cửa giúp nhé.",
       "Anh em chú ý giúp. 🕊️",
+      "👉 Xem: {link}",
     ].join("\n"),
   },
 };

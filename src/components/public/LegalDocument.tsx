@@ -164,9 +164,9 @@ export function LegalDocument({ doc, org, donationEnabled, current }: { doc: Leg
       <PublicHeader org={org} donationEnabled={donationEnabled} />
       <PageHero eyebrow="Pháp lý" title={doc.title} subtitle={doc.subtitle}>
         <ul className="mt-6 flex flex-wrap gap-2 text-xs font-semibold" aria-label="Thông tin văn bản">
-          <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1"><FileText className="w-3.5 h-3.5" aria-hidden />Phiên bản {LEGAL_VERSION}</li>
-          <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1"><CalendarDays className="w-3.5 h-3.5" aria-hidden />Cập nhật {LEGAL_UPDATED}</li>
-          <li className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1"><ShieldCheck className="w-3.5 h-3.5" aria-hidden />Có hiệu lực từ {LEGAL_UPDATED}</li>
+          <li className="inline-flex items-center gap-1.5 rounded-full bg-[#ffffff]/15 px-3 py-1"><FileText className="w-3.5 h-3.5" aria-hidden />Phiên bản {LEGAL_VERSION}</li>
+          <li className="inline-flex items-center gap-1.5 rounded-full bg-[#ffffff]/15 px-3 py-1"><CalendarDays className="w-3.5 h-3.5" aria-hidden />Cập nhật {LEGAL_UPDATED}</li>
+          <li className="inline-flex items-center gap-1.5 rounded-full bg-[#ffffff]/15 px-3 py-1"><ShieldCheck className="w-3.5 h-3.5" aria-hidden />Có hiệu lực từ {LEGAL_UPDATED}</li>
         </ul>
       </PageHero>
 

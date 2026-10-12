@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MapPin, User, Check, CheckCircle2, Camera, Pencil, Ban, Trash2, Users } from "lucide-react";
+import { MapPin, User, Check, CheckCircle2, Camera, Pencil, Ban, Trash2, Users, Repeat, CalendarPlus } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -20,9 +20,11 @@ interface Props {
   onCancel: (e: EventDto) => void;
   onDelete: (e: EventDto) => void;
   onCheckIn: (e: EventDto) => void;
+  /** Mở danh sách sự kiện định kỳ tại chuỗi của buổi này */
+  onOpenSeries?: (seriesId: string) => void;
 }
 
-export default function EventDayCard({ event: evt, canManage, canManagePoll, canVote, onEdit, onCancel, onDelete, onCheckIn }: Props) {
+export default function EventDayCard({ event: evt, canManage, canManagePoll, canVote, onEdit, onCancel, onDelete, onCheckIn, onOpenSeries }: Props) {
   const { showToast } = useApp();
   const [busy, setBusy] = useState(false);
   const style = catStyle(evt.categoryCode);
@@ -58,6 +60,17 @@ export default function EventDayCard({ event: evt, canManage, canManagePoll, can
       <div className="flex items-center justify-between text-xs font-bold gap-2">
         <span className="flex items-center gap-1.5 flex-wrap">
           <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] bg-white/70", style.text)}>⭐ {evt.category.toUpperCase()}</span>
+          {evt.series && (
+            <button
+              type="button"
+              onClick={() => onOpenSeries?.(evt.series!.id)}
+              title={`Sự kiện định kỳ: ${evt.series.label}${evt.series.isActive ? "" : " (đã dừng)"} — bấm để xem chuỗi`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-indigo-600 text-white hover:bg-indigo-700 transition"
+            >
+              <Repeat className="w-3 h-3" />
+              ĐỊNH KỲ
+            </button>
+          )}
           {cancelled && <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-600 text-white">ĐÃ HỦY</span>}
           {phase === "ongoing" && <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white">ĐANG DIỄN RA</span>}
           {phase === "ended" && !cancelled && <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/80 text-white">ĐÃ KẾT THÚC</span>}
@@ -111,7 +124,28 @@ export default function EventDayCard({ event: evt, canManage, canManagePoll, can
             <span>Phụ trách: {leadNames}</span>
           </div>
         )}
+        {evt.series && (
+          <div className="flex items-center gap-1.5">
+            <Repeat className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span>
+              Lặp lại: <b className="text-gray-700">{evt.series.label}</b>
+              {!evt.series.isActive && <span className="text-gray-400"> (chuỗi đã dừng)</span>}
+            </span>
+          </div>
+        )}
       </div>
+
+      {!cancelled && (
+        <a
+          href={eventsApi.icsUrl(evt.id)}
+          download
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/80 border border-white text-[11px] font-bold text-gray-700 hover:text-primary hover:bg-white transition"
+          title="Tải tệp .ics để thêm sự kiện này vào Google Calendar / Lịch iPhone / Outlook"
+        >
+          <CalendarPlus className="w-3.5 h-3.5" />
+          Thêm vào lịch của tôi
+        </a>
+      )}
 
       {evt.hasCheckIn && !cancelled && (
         <div className="p-3 bg-white/90 rounded-xl border border-purple-100 flex flex-col gap-2">

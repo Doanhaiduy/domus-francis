@@ -2,9 +2,12 @@ name: Sao lưu production hằng ngày
 
 # Chạy mỗi ngày 02:17 giờ Việt Nam (19:17 UTC hôm trước) + bấm tay được (Actions → Run workflow).
 # 1) pg_dump production bằng tài khoản DB CHỈ ĐỌC (luuxa_backup) → 2) kiểm tra tệp → 3) mã hóa AES-256 (gpg) →
-# 4) lưu vào Artifacts 90 ngày; Chủ nhật (giờ VN) lưu thêm một bản vào thư mục weekly/ của repo để giữ lâu dài →
-# 5) diễn tập khôi phục: nạp bản vừa sao lưu vào một PostgreSQL tạm trên máy chạy và đối chiếu số dòng.
-# Repo này PHẢI để riêng tư (private). Secrets cần có: BACKUP_DATABASE_URL, BACKUP_PASSPHRASE.
+# 4) lưu vào Artifacts 30 ngày (đổi bằng biến repo BACKUP_RETENTION_DAYS; hạn mức Artifacts của repo riêng tư gói Free chỉ 500 MB);
+#    Chủ nhật (giờ VN) lưu thêm một bản vào thư mục weekly/ của repo để giữ lâu dài →
+# 5) diễn tập khôi phục: nạp bản vừa sao lưu vào một PostgreSQL tạm trên máy chạy và đối chiếu số dòng →
+# 6) bước cuối (CHẠY CẢ KHI LỖI): gửi nhịp tim về ứng dụng (Cài đặt → Hệ thống; ứng dụng báo Admin khi thất bại hoặc > 36 giờ không có lần đạt).
+# Repo này PHẢI để riêng tư (private). Secrets cần có: BACKUP_DATABASE_URL, BACKUP_PASSPHRASE, OPS_HEARTBEAT_SECRET; biến (Variables): APP_URL.
+# Sao lưu TỆP (Supabase Storage) chạy riêng mỗi Chủ nhật: .github/workflows/storage-backup.yml.
 
 on:
   schedule:
@@ -45,6 +48,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Kiểm tra cấu hình
+        id: config
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
@@ -55,6 +59,7 @@ jobs:
           if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" != "true" ]; then echo "::error::Repo này không riêng tư — dừng, không lưu dữ liệu cá nhân ở repo công khai"; exit 1; fi
 
       - name: Cài PostgreSQL client 17
+        id: pgclient
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -66,6 +71,7 @@ jobs:
           /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Đếm số dòng trước khi sao lưu
+        id: count_before
         env:
           PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
@@ -91,6 +97,7 @@ jobs:
           cat out/counts-before.txt
 
       - name: Sao lưu (pg_dump)
+        id: dump
         env:
           PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
@@ -102,6 +109,7 @@ jobs:
           ls -l out
 
       - name: Kiểm tra tệp sao lưu
+        id: verify
         run: |
           F="out/luuxa-prod-$STAMP.dump"
           SIZE=$(stat -c %s "$F")
@@ -112,6 +120,7 @@ jobs:
           [ "$TABLES" -ge 100 ] || { echo "::error::Chỉ có $TABLES bảng dữ liệu (kỳ vọng ≥ 100)"; exit 1; }
 
       - name: Đếm số dòng sau khi sao lưu
+        id: count_after
         env:
           PGURL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: psql "$PGURL" -At -f out/counts.sql > out/counts-after.txt
@@ -186,6 +195,7 @@ jobs:
           [ "$FAIL" -eq 0 ] || exit 1
 
       - name: Mã hóa (AES-256)
+        id: encrypt
         env:
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
@@ -210,17 +220,22 @@ jobs:
           cat out/manifest.txt
           rm -f out/counts.sql out/counts-*.txt out/toc.txt out/restore-errors.txt out/restore-real-errors.txt out/prep.sql out/dump.sha256
 
-      - name: Lưu vào Artifacts (90 ngày)
+      # 30 ngày (mặc định): bản hằng ngày ~vài MB × 30 + bản tệp hằng tuần phải nằm gọn trong hạn mức Artifacts 500 MB của repo riêng tư gói Free.
+      # Đổi bằng biến repo BACKUP_RETENTION_DAYS (1–90). Bản Chủ nhật vẫn được giữ lâu dài trong thư mục weekly/.
+      - name: Lưu vào Artifacts (30 ngày)
+        id: artifact
         uses: actions/upload-artifact@v4
         with:
           name: luuxa-prod-${{ env.STAMP }}
           path: |
             out/*.gpg
             out/manifest.txt
-          retention-days: 90
+          retention-days: ${{ vars.BACKUP_RETENTION_DAYS || 30 }}
+          compression-level: 0
           if-no-files-found: error
 
       - name: Lưu bản hằng tuần vào repo (Chủ nhật giờ VN)
+        id: weekly
         run: |
           if [ "$(TZ=Asia/Ho_Chi_Minh date +%u)" = "7" ] || [ "${{ inputs.weekly }}" = "true" ]; then
             mkdir -p weekly
@@ -249,3 +264,19 @@ jobs:
         run: |
           echo "::error::Diễn tập khôi phục THẤT BẠI — bản sao lưu đã được lưu nhưng chưa chứng minh khôi phục được. Xem log bước 'Diễn tập khôi phục'."
           exit 1
+
+      # Bước CUỐI, chạy cả khi các bước trước lỗi/bị hủy: báo kết quả về ứng dụng (POST /api/v1/public/ops-heartbeat).
+      # Thiếu APP_URL / OPS_HEARTBEAT_SECRET thì chỉ in nhắc; lỗi gửi không làm hỏng job (script luôn thoát 0).
+      - name: Gửi nhịp tim về ứng dụng
+        if: always()
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          OPS_HEARTBEAT_SECRET: ${{ secrets.OPS_HEARTBEAT_SECRET }}
+          HEARTBEAT_KIND: backup
+          JOB_STATUS: ${{ job.status }}
+          STEPS_JSON: ${{ toJSON(steps) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUT_DIR: out
+          SUMMARY_EXTRA: "Diễn tập khôi phục: ${{ steps.drill.outcome }}"
+        run: |
+          if command -v node >/dev/null 2>&1 && [ -f scripts/heartbeat.mjs ]; then node scripts/heartbeat.mjs; else echo "::warning::Thiếu Node hoặc scripts/heartbeat.mjs — bỏ qua nhịp tim"; fi

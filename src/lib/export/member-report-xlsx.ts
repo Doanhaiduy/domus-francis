@@ -1,6 +1,6 @@
 "use client";
 
-// Xuất tổng kết theo thành viên ra Excel (.xlsx): trang "Tổng quan" (số liệu cả nhà), "Thành viên" (mỗi người một dòng),
+// Xuất tổng kết theo thành viên ra Excel (.xlsx): trang "Tổng quan" (số liệu cả nhà), "Thành viên" (mỗi người một dòng, gồm cả đi lễ),
 // và — nếu người xuất có quyền — "Vi phạm" và "Ủng hộ" liệt kê chi tiết. Chạy hoàn toàn trong trình duyệt.
 import type { MemberReportDto } from "@/lib/types/member-report";
 import { PHASE_LABEL, type DisciplinePhase } from "@/lib/types/discipline";
@@ -53,6 +53,17 @@ export async function downloadMemberReportXlsx(r: MemberReportDto) {
     overview.push(kv("Tổng số đơn", n(t.leave.total)), kv("Đã duyệt", n(t.leave.approved)), kv("Về muộn", n(t.leave.lateReturn)), kv("Ngủ ngoài", n(t.leave.overnightOut)), kv("Tạm vắng nhiều ngày", n(t.leave.longLeave)), kv("Vắng sự kiện", n(t.leave.eventAbsence)));
   }
   if (t.duty) overview.push([], band("Trực vệ sinh sân nhà"), kv("Số lượt người trực", n(t.duty.weeks)), kv("Điểm trung bình (0–10)", n(t.duty.avgScore)));
+  if (t.mass) {
+    overview.push([], band("Đi lễ (check-in các ngày lễ bắt buộc)"));
+    overview.push(
+      kv("Ngày lễ bắt buộc đã qua trong kỳ", n(t.mass.days)),
+      kv("Lượt phải tính (cả nhà)", n(t.mass.required)),
+      kv("Đã xác nhận", n(t.mass.approved)),
+      kv("Đang chờ duyệt", n(t.mass.pending)),
+      kv("Lượt vắng", n(t.mass.missed)),
+      kv("Tỉ lệ đi lễ", pct(t.mass.ratePct)),
+    );
+  }
   if (t.merit) overview.push([], band("Điểm thi đua"), kv("Tổng điểm cộng/trừ trong kỳ", n(t.merit.points)));
   if (t.discipline) {
     overview.push([], band("Vi phạm & kỷ luật"));
@@ -95,6 +106,13 @@ export async function downloadMemberReportXlsx(r: MemberReportDto) {
     ["Số tuần trực", 11, (m) => n(m.duty?.weeks)],
     ["Điểm TB (0–10)", 12, (m) => n(m.duty?.avgScore)],
     ["Phải trực lại", 11, (m) => n(m.duty?.redo)],
+  ]);
+  add(s.mass, "ĐI LỄ", "#EDE9FE", [
+    ["Lễ phải tính", 11, (m) => n(m.mass?.required)],
+    ["Đã xác nhận", 11, (m) => n(m.mass?.approved)],
+    ["Chờ duyệt", 10, (m) => n(m.mass?.pending)],
+    ["Vắng", 8, (m) => n(m.mass?.missed)],
+    ["Tỉ lệ đi lễ", 11, (m) => pct(m.mass?.ratePct)],
   ]);
   add(s.merit, "THI ĐUA", "#FCE7F3", [["Điểm cộng/trừ", 13, (m) => n(m.merit?.points)]]);
   add(s.discipline, "VI PHẠM & KỶ LUẬT", "#FEE2E2", [

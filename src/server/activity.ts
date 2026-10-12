@@ -3,13 +3,15 @@ import { z } from "zod";
 import { withTx, type Tx } from "./db";
 import { forbidden } from "./errors";
 import { ENTITY_LABEL, activityLabel, routesMatching, routesOfArea } from "@/lib/activity-labels";
-import type {
-  ActivityActionDto,
-  ActivityActor,
-  ActivityChangeDto,
-  ActivityLoginDto,
-  ActivityPage,
-  ActivityUserDto,
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTION_LABEL,
+  type ActivityActionDto,
+  type ActivityActor,
+  type ActivityChangeDto,
+  type ActivityLoginDto,
+  type ActivityPage,
+  type ActivityUserDto,
 } from "@/lib/types/activity";
 
 // Nhật ký hoạt động người dùng — CHỈ Admin (quyền activity.log.read, db/app/1016_activity_logs.sql).
@@ -22,6 +24,9 @@ const SKIP_ROUTES = new Set([
   "POST /api/v1/notifications/read-all",
   "POST /api/v1/announcements/[id]/read",
   "POST /api/v1/announcements/read-all",
+  // Không phải thao tác của người dùng: trình duyệt tự báo lỗi giao diện (đã ghi vào error_events — Cài đặt → Hệ thống) / đếm lượt xem bài
+  "POST /api/v1/public/client-error",
+  "POST /api/v1/public/articles/[slug]/view",
 ]);
 
 export interface ActivityRecord {
@@ -95,8 +100,11 @@ export const ActivityQuerySchema = z.object({
   result: z.enum(["all", "ok", "error"]).optional(),
   q: z.string().trim().max(80).optional(),
   area: z.string().trim().max(30).optional(),
+  /** Chỉ "Thay đổi dữ liệu": hành động trong audit_logs */
+  action: z.enum(AUDIT_ACTIONS, { error: "Hành động lọc không hợp lệ." }).optional(),
   before: z.string().trim().max(80).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  /** Mặc định 30–40 dòng/trang; xuất Excel (phía trình duyệt) lấy tới 500 dòng/trang */
+  limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 export type ActivityFilter = z.infer<typeof ActivityQuerySchema>;
 
@@ -268,20 +276,12 @@ export async function listLogins(tx: Tx, f: ActivityFilter): Promise<ActivityPag
   return pageOf(items, limit);
 }
 
-const ACTION_LABEL: Record<string, string> = {
-  INSERT: "Thêm mới",
-  UPDATE: "Sửa",
-  DELETE: "Xóa",
-  STATE_CHANGE: "Đổi trạng thái",
-  PERMISSION_CHANGE: "Đổi quyền",
-  SETTING_CHANGE: "Đổi cấu hình",
-  READ_SENSITIVE: "Xem dữ liệu nhạy cảm",
-  EXPORT: "Xuất dữ liệu",
-  PERIOD_CLOSE: "Chốt kỳ",
-  PERIOD_REOPEN: "Mở lại kỳ",
-};
+const ACTION_LABEL: Record<string, string> = AUDIT_ACTION_LABEL;
 
-/** Thay đổi dữ liệu (audit_logs do trigger ghi). RLS vẫn áp dụng: bảng dữ liệu cá nhân nhạy cảm chỉ Trưởng nhà xem được. */
+/**
+ * Thay đổi dữ liệu (audit_logs do trigger ghi) + sự kiện kiểm toán có người thực hiện (xem dữ liệu nhạy cảm kèm LÝ DO, xuất dữ liệu,
+ * đổi quyền, đổi mật khẩu / 2FA…). RLS vẫn áp dụng: bảng dữ liệu cá nhân nhạy cảm cần quyền audit.sensitive.read.
+ */
 export async function listChanges(tx: Tx, f: ActivityFilter): Promise<ActivityPage<ActivityChangeDto>> {
   await assertActivityAccess(tx);
   const limit = f.limit ?? 30;
@@ -290,9 +290,10 @@ export async function listChanges(tx: Tx, f: ActivityFilter): Promise<ActivityPa
   if (f.userId) w.add("al.actor_user_id = ?::uuid", f.userId);
   if (f.from) w.add("al.occurred_at >= ?::timestamptz", f.from);
   if (f.to) w.add("al.occurred_at < ?::timestamptz", f.to);
+  if (f.action) w.add("al.action = ?", f.action);
   if (f.q) {
     w.params.push(`%${f.q.replace(/[\\%_]/g, "\\$&")}%`);
-    w.raw(`(al.entity_table ILIKE $${w.params.length} OR al.entity_id ILIKE $${w.params.length})`);
+    w.raw(`(al.entity_table ILIKE $${w.params.length} OR al.entity_id ILIKE $${w.params.length} OR al.reason ILIKE $${w.params.length})`);
   }
   const cur = parseCursor(f.before);
   if (cur) {
@@ -303,7 +304,7 @@ export async function listChanges(tx: Tx, f: ActivityFilter): Promise<ActivityPa
   const rows = (
     await tx.query(
       `SELECT al.id, al.occurred_at::text AS cursor, al.occurred_at, al.actor_user_id, al.action, al.entity_table, al.entity_id,
-              al.changed_fields, al.old_data, al.new_data, host(al.ip) AS ip, ${NAME_COLS}
+              al.changed_fields, al.old_data, al.new_data, al.reason, host(al.ip) AS ip, ${NAME_COLS}
          FROM audit_logs al ${NAME_JOIN("al.actor_user_id")}
          ${w.sql}
         ORDER BY al.occurred_at DESC, al.id DESC
@@ -325,6 +326,7 @@ export async function listChanges(tx: Tx, f: ActivityFilter): Promise<ActivityPa
     changedFields: r.changed_fields ?? [],
     oldData: r.old_data ?? null,
     newData: r.new_data ?? null,
+    reason: r.reason ?? null,
     ip: r.ip ?? null,
   }));
   return pageOf(items, limit);

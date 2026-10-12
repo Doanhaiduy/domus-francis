@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { usePathname } from "next/navigation";
 import { api, swrFetcher } from "./api";
@@ -28,6 +28,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     dedupingInterval: 15_000,
     shouldRetryOnError: false,
   });
+
+  // API báo phiên cần xem lại (mật khẩu tạm / 2FA bắt buộc) ⇒ tải lại thông tin phiên (tối đa 1 lần / 3 giây)
+  useEffect(() => {
+    let last = 0;
+    const onStale = () => {
+      if (Date.now() - last < 3000) return;
+      last = Date.now();
+      void mutate();
+    };
+    window.addEventListener("luuxa:session-stale", onStale);
+    return () => window.removeEventListener("luuxa:session-stale", onStale);
+  }, [mutate]);
 
   const can = useCallback(
     (p: string | string[]) => {

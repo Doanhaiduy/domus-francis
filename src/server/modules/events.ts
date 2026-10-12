@@ -1,7 +1,7 @@
 import "server-only";
 import type { Tx } from "../db";
 import { ApiError, badRequest, forbidden, notFound } from "../errors";
-import { CATEGORY_LABEL, hmToVn, isoToDmy, resolveEventTimes } from "@/lib/events-format";
+import { CATEGORY_LABEL, addDaysIso, hmToVn, isoToDmy, isoWeekday, resolveEventTimes, seriesPatternLabel } from "@/lib/events-format";
 import type {
   DayDutyDto,
   EventCategoryDto,
@@ -28,7 +28,7 @@ export async function listCategories(tx: Tx): Promise<EventCategoryDto[]> {
   ).rows.map((c) => ({ id: c.id, code: c.code, name: c.name, label: CATEGORY_LABEL[c.code] ?? c.name, color: c.color, icon: c.icon_name }));
 }
 
-async function resolveCategory(tx: Tx, i: { categoryId?: string; categoryCode?: string }): Promise<{ id: string; code: string }> {
+export async function resolveCategory(tx: Tx, i: { categoryId?: string; categoryCode?: string }): Promise<{ id: string; code: string }> {
   const r = (
     await tx.query<{ id: string; code: string }>(
       `SELECT id, code FROM categories WHERE kind = 'event' AND deleted_at IS NULL AND is_active
@@ -61,13 +61,28 @@ const EVENT_SELECT = `
          COALESCE((SELECT json_agg(json_build_object('memberId', o.member_id, 'name', m.display_name, 'role', o.role_label)
                                    ORDER BY o.role_label, m.display_name)
                      FROM event_organizers o JOIN members m ON m.id = o.member_id
-                    WHERE o.event_id = e.id), '[]'::json) AS organizers
+                    WHERE o.event_id = e.id), '[]'::json) AS organizers,
+         e.recurrence_rule_id AS rr_id, e.occurrence_date::text AS rr_date,
+         rr.freq::text AS rr_freq, rr.by_weekday AS rr_days, rr.interval_n AS rr_interval, rr.is_active AS rr_active
     FROM events e
     JOIN categories c ON c.id = e.category_id
     LEFT JOIN rooms r ON r.id = e.location_room_id
+    LEFT JOIN event_recurrence_rules rr ON rr.id = e.recurrence_rule_id
     LEFT JOIN event_participants ep ON ep.event_id = e.id AND ep.member_id = app.current_member_id()
     LEFT JOIN attendance_records ar ON ar.event_id = e.id AND ar.member_id = app.current_member_id()
    WHERE e.deleted_at IS NULL`;
+
+/** Nhãn chuỗi định kỳ của một buổi (weekly ⇒ "Thứ Hai, Thứ Tư hằng tuần"). */
+function seriesRef(r: Record<string, any>): EventDto["series"] {
+  if (!r.rr_id) return null;
+  const label =
+    r.rr_freq === "weekly" && Array.isArray(r.rr_days)
+      ? seriesPatternLabel({ weekdays: (r.rr_days as unknown[]).map(Number), intervalWeeks: Number(r.rr_interval) || 1 })
+      : r.rr_freq === "monthly"
+      ? "Hằng tháng"
+      : "Định kỳ";
+  return { id: r.rr_id, occurrenceDate: r.rr_date, label, isActive: r.rr_active !== false };
+}
 
 interface Perms {
   manage: boolean;
@@ -131,6 +146,7 @@ async function hydrate(tx: Tx, rows: Record<string, any>[], opts: { withPolls?: 
       canEdit: p.manage || r.is_org,
       canRecord: r.can_record,
       polls: polls.filter((x) => x.eventId === r.id),
+      series: seriesRef(r),
     };
   });
 }
@@ -321,8 +337,21 @@ export async function deleteEvent(tx: Tx, id: string) {
     [id]
   );
   await tx.query("UPDATE polls SET status = 'closed' WHERE event_id = $1 AND status = 'open'", [id]);
-  const r = await tx.query("UPDATE events SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL", [id]);
+  const r = await tx.query<{ rule: string | null; d: string | null }>(
+    "UPDATE events SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING recurrence_rule_id AS rule, occurrence_date::text AS d",
+    [id]
+  );
   if (!r.rowCount) throw forbidden("Bạn không có quyền xóa sự kiện này.");
+  // Buổi của chuỗi định kỳ: ghi thành NGÀY BỎ QUA để chuỗi không tự khôi phục/sinh lại (khôi phục được ở "Sự kiện định kỳ")
+  const { rule, d } = r.rows[0];
+  if (rule && d) {
+    await tx.query(
+      `INSERT INTO event_recurrence_exceptions (rule_id, occurrence_date, reason, created_by)
+       VALUES ($1, $2::date, 'Đã xóa buổi này khỏi lịch', app.current_user_id())
+       ON CONFLICT (rule_id, occurrence_date) DO NOTHING`,
+      [rule, d]
+    );
+  }
 }
 
 /** RSVP của chính mình (RLS event_participants: is_self; trigger ép is_invited=false nếu người thường tự thêm dòng). */
@@ -341,23 +370,52 @@ export async function setRsvp(tx: Tx, id: string, rsvp: RsvpStatus) {
 }
 
 // ---------------------------------------------------------------------
-// Phân công trực nhật trong ngày (chỉ đọc lịch trực đã công bố — dữ liệu của phân hệ Trực nhật)
+// Trực vệ sinh sân nhà của TUẦN chứa ngày đang xem (duty_weeks + duty_week_members — db/app/1010; mọi thành viên xem được ai trực
+// tuần nào). Bảng phân công trực cũ (duty_rosters/duty_assignments) không còn ai ghi nên không đọc nữa.
 // ---------------------------------------------------------------------
-export async function dayDuties(tx: Tx, date: string): Promise<DayDutyDto[]> {
-  return (
+export async function dayDuties(tx: Tx, date: string): Promise<DayDutyDto> {
+  const weekStart = addDaysIso(date, -(isoWeekday(date) - 1));
+  const weekEnd = addDaysIso(weekStart, 6);
+  const r = (
     await tx.query(
-      `SELECT a.id, s.name AS shift, ca.name AS area, a.status::text AS status,
-              COALESCE(array_agg(m.display_name ORDER BY dam.member_role, m.display_name) FILTER (WHERE m.id IS NOT NULL), '{}') AS members
-         FROM duty_assignments a
-         JOIN duty_rosters ro ON ro.id = a.roster_id AND ro.status <> 'draft'
-         JOIN duty_shifts s ON s.id = a.shift_id
-         JOIN cleaning_areas ca ON ca.id = a.area_id
-         LEFT JOIN duty_assignment_members dam ON dam.assignment_id = a.id
-         LEFT JOIN members m ON m.id = dam.member_id
-        WHERE a.duty_date = $1::date AND a.status <> 'cancelled'
-        GROUP BY a.id, s.name, s.start_time, ca.name, ca.sort_order
-        ORDER BY s.start_time, ca.sort_order, ca.name`,
-      [date]
+      `SELECT app.local_today()::text AS today, app.current_member_id() AS me,
+              w.id, w.note, w.score, w.review_comment, w.redo_required, w.redo_note, w.reviewed_at,
+              COALESCE((SELECT json_agg(json_build_object('id', m.id, 'name', m.display_name, 'fullName', m.full_name, 'room', rm.code)
+                                        ORDER BY m.display_name)
+                          FROM duty_week_members wm
+                          JOIN members m ON m.id = wm.member_id
+                          LEFT JOIN LATERAL (
+                            SELECT ro.code FROM room_assignments ra JOIN rooms ro ON ro.id = ra.room_id
+                             WHERE ra.member_id = m.id AND ra.starts_on <= app.local_today() AND (ra.ends_on IS NULL OR ra.ends_on > app.local_today())
+                             ORDER BY ra.starts_on DESC LIMIT 1
+                          ) rm ON true
+                         WHERE wm.week_id = w.id), '[]'::json) AS members
+         FROM (SELECT 1) x
+         LEFT JOIN duty_weeks w ON w.week_start = $1::date`,
+      [weekStart]
     )
-  ).rows.map((r) => ({ id: r.id, shift: r.shift, area: r.area, status: r.status, members: r.members }));
+  ).rows[0];
+  const me: string | null = r.me ?? null;
+  const members = ((r.members ?? []) as { id: string; name: string; fullName: string; room: string | null }[]).map((m) => ({
+    id: m.id,
+    name: m.name,
+    fullName: m.fullName,
+    room: m.room ?? null,
+    isMe: !!me && m.id === me,
+  }));
+  const today: string = r.today;
+  return {
+    date,
+    weekId: r.id ?? null,
+    weekStart,
+    weekEnd,
+    members,
+    note: r.note ?? null,
+    review:
+      r.id && r.reviewed_at
+        ? { score: Number(r.score), comment: r.review_comment ?? null, redoRequired: !!r.redo_required, redoNote: r.redo_note ?? null }
+        : null,
+    isMine: members.some((m) => m.isMe),
+    phase: weekEnd < today ? "past" : weekStart > today ? "upcoming" : "current",
+  };
 }

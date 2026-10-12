@@ -23,6 +23,7 @@ import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useZaloSend } from "@/lib/zalo-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CustomToggle } from "@/components/ui/FormControls";
 import { mealsApi, refreshMeals, useMealsWeek, usePantry, useMealSurveys } from "@/lib/data/kitchen";
 import {
   addDays,
@@ -126,6 +127,20 @@ export default function BepComPage() {
       const r = await mealsApi.registerWeek(sel.date);
       await refreshMeals();
       showToast(r.registered ? "success" : "info", r.message);
+    } catch (e) {
+      showToast("error", kitchenErrorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // "Luôn ăn, trừ khi tôi báo vắng": bật ⇒ tự ghi "ăn" vào mọi bữa mở đăng ký (trừ khi có đơn xin phép vắng); vẫn bỏ được từng bữa
+  const toggleAutoEat = async (on: boolean) => {
+    setBusy(true);
+    try {
+      const r = await mealsApi.setAutoEat(on);
+      await refreshMeals();
+      showToast("success", on ? (r.registered ? `Đã bật "Luôn ăn" và ghi sẵn ${r.registered} suất ăn các bữa đang mở.` : "Đã bật \"Luôn ăn\": từ nay bữa nào mở đăng ký cũng tự ghi \"ăn\".") : "Đã tắt \"Luôn ăn\" (các suất đã ghi được giữ nguyên).");
     } catch (e) {
       showToast("error", kitchenErrorText(e));
     } finally {
@@ -277,12 +292,12 @@ export default function BepComPage() {
             </div>
           </div>
           {week.canToggleFeature ? (
-            <button
-              onClick={() => setSettingsOpen(true)}
+            <Link
+              href="/cai-dat?tab=modules"
               className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs whitespace-nowrap"
             >
-              Bật lại phân hệ
-            </button>
+              Bật lại ở Cài đặt → Phân hệ
+            </Link>
           ) : (
             <Link href="/" className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs whitespace-nowrap">
               Về Trang Chủ →
@@ -325,6 +340,18 @@ export default function BepComPage() {
           )}
         </div>
       </div>
+
+      {canRegister && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-purple-100 shadow-xs">
+          <CustomToggle
+            checked={week.autoEat}
+            onChange={toggleAutoEat}
+            disabled={busy || !enabled}
+            label="Luôn ăn, trừ khi tôi báo vắng"
+            description="Bữa nào mở đăng ký cũng tự ghi “ăn” cho bạn (trừ khi bạn có đơn xin phép vắng đã duyệt). Bạn vẫn bỏ được từng bữa; hằng sáng hệ thống chỉ nhắc những ai chưa đăng ký."
+          />
+        </div>
+      )}
 
       {/* SUB-TABS */}
       <div className="flex gap-2 border-b border-purple-50 pb-2 overflow-x-auto">

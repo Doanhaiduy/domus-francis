@@ -5,6 +5,8 @@ import { ApiError } from "../errors";
 import { hashPassword, passwordProblem, verifyPassword } from "./password";
 import { randomToken, sha256Hex, signAccessToken } from "./tokens";
 import { hasMfa, verifySecondFactor } from "./mfa";
+import { hashKey, inBackground, notifyAdminsOnce, rateLimit } from "../ops";
+import { LEGAL_CONSENT_VERSION } from "@/content/legal";
 import {
   ACCESS_TTL_SECONDS,
   COOKIE,
@@ -12,6 +14,72 @@ import {
   REFRESH_PATH,
   REFRESH_TTL_SECONDS,
 } from "@/lib/auth-shared";
+
+/** Vai trò quản lý — tài khoản bị khóa tạm do nhập sai mật khẩu thì báo Admin (có thể đang bị dò mật khẩu). */
+const PRIVILEGED_ROLES = ["admin", "house_head", "treasurer"];
+const vnDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+const vnTime = () => new Date().toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" });
+
+/** Tài khoản quản lý vừa bị khóa tạm ⇒ báo Admin (mỗi tài khoản tối đa một lần mỗi giờ). Chạy nền, không ném lỗi. */
+async function alertPrivilegedLockout(userId: string, identifier: string) {
+  const who = await withTx({}, "luuxa_worker", async (tx) =>
+    (
+      await tx.query<{ name: string | null }>(
+        `SELECT COALESCE(m.display_name, m.full_name, u.email::text) AS name
+           FROM users u LEFT JOIN members m ON m.user_id = u.id AND m.deleted_at IS NULL
+          WHERE u.id = $1
+            AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                         WHERE ur.user_id = u.id AND ur.revoked_at IS NULL AND (ur.valid_to IS NULL OR ur.valid_to > now()) AND r.code = ANY($2::text[]))`,
+        [userId, PRIVILEGED_ROLES],
+      )
+    ).rows[0],
+  );
+  if (!who) return;
+  const hour = new Date().toISOString().slice(0, 13);
+  await notifyAdminsOnce(
+    `lockout:${userId}:${hour}`,
+    `Tài khoản quản lý bị khóa tạm: ${who.name ?? identifier}`,
+    `Có người nhập sai mật khẩu ${MAX_FAILS_PER_ID} lần liên tiếp lúc ${vnTime()} nên tài khoản bị khóa ${LOCK_MINUTES} phút. Nếu không phải chính chủ, có thể ai đó đang dò mật khẩu — hãy đổi mật khẩu và bật xác thực 2 bước.`,
+    { type: "security.account_locked", link: "/cai-dat?tab=activity" },
+  );
+}
+
+/** Đăng nhập từ thiết bị chưa từng dùng trong 180 ngày (và đã từng đăng nhập trước đó) ⇒ báo chính chủ. Chạy nền, không ném lỗi. */
+async function notifyNewDevice(userId: string, sid: string, meta: ReqMeta) {
+  const label = deviceLabel(meta.userAgent);
+  if (!label) return;
+  await withTx({ requestId: meta.requestId }, "luuxa_worker", async (tx) => {
+    const r = (
+      await tx.query<{ member_id: string | null; seen: boolean; any_prev: boolean }>(
+        `SELECT (SELECT m.id FROM members m WHERE m.user_id = $1 AND m.deleted_at IS NULL) AS member_id,
+                EXISTS (SELECT 1 FROM auth_sessions s WHERE s.user_id = $1 AND s.id <> $2 AND s.device_label = $3 AND s.created_at > now() - interval '180 days') AS seen,
+                EXISTS (SELECT 1 FROM auth_sessions s WHERE s.user_id = $1 AND s.id <> $2) AS any_prev`,
+        [userId, sid, label],
+      )
+    ).rows[0];
+    if (!r?.member_id || r.seen || !r.any_prev) return;
+    await tx.query("SELECT app.fn_notify($1, 'security.new_device', $2, $3, $4::jsonb)", [
+      r.member_id,
+      `Đăng nhập từ thiết bị mới: ${label}`,
+      `Tài khoản của bạn vừa đăng nhập lúc ${vnTime()} ngày ${vnDay().split("-").reverse().join("/")} từ ${label}${meta.ip ? ` (IP ${meta.ip})` : ""}. Nếu không phải bạn, hãy đổi mật khẩu ngay và đăng xuất các thiết bị lạ ở Cài đặt → Bảo mật.`,
+      JSON.stringify({ link: "/cai-dat?tab=security" }),
+    ]);
+  });
+}
+
+/** Mật khẩu vừa đổi / đặt lại ⇒ báo chính chủ (phát hiện kẻ gian đổi mật khẩu). Chạy nền, không ném lỗi. */
+export async function notifyPasswordChanged(userId: string, how: "changed" | "reset", meta: { requestId?: string; ip?: string | null }) {
+  await withTx({ requestId: meta.requestId }, "luuxa_worker", async (tx) => {
+    const m = (await tx.query<{ id: string }>("SELECT id FROM members WHERE user_id = $1 AND deleted_at IS NULL", [userId])).rows[0];
+    if (!m) return;
+    await tx.query("SELECT app.fn_notify($1, 'security.password_changed', $2, $3, $4::jsonb)", [
+      m.id,
+      how === "reset" ? "Mật khẩu của bạn vừa được đặt lại" : "Mật khẩu của bạn vừa được đổi",
+      `Lúc ${vnTime()} ngày ${vnDay().split("-").reverse().join("/")}${meta.ip ? ` (IP ${meta.ip})` : ""}. Các phiên đăng nhập khác đã bị đăng xuất. Nếu không phải bạn làm, hãy liên hệ Trưởng nhà/Admin ngay.`,
+      JSON.stringify({ link: "/cai-dat?tab=security" }),
+    ]);
+  });
+}
 
 const MAX_FAILS_PER_ID = 5; // trong 15 phút ⇒ khóa tạm tài khoản 15 phút
 const MAX_FAILS_PER_IP = 30;
@@ -122,6 +190,17 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
     ]);
     if (fails.rows[0].by_id >= MAX_FAILS_PER_ID * 2 || fails.rows[0].by_ip >= MAX_FAILS_PER_IP) {
       await attempt(null, false, "rate_limited");
+      // Một IP sai liên tục (dò mật khẩu nhiều tài khoản) ⇒ báo Admin, mỗi IP tối đa một lần mỗi ngày
+      if (fails.rows[0].by_ip >= MAX_FAILS_PER_IP && meta.ip) {
+        void inBackground(
+          notifyAdminsOnce(
+            `bruteforce:${hashKey("ip", meta.ip)}:${vnDay()}`,
+            "Phát hiện dò mật khẩu",
+            `Một địa chỉ IP (${meta.ip}) đã đăng nhập sai ${fails.rows[0].by_ip} lần trong 15 phút và đang bị chặn tạm. Xem Cài đặt → Nhật ký hoạt động → Đăng nhập.`,
+            { type: "security.account_locked", link: "/cai-dat?tab=activity" },
+          ),
+        );
+      }
       return { ok: false, error: new ApiError(429, "RATE_LIMITED", "Bạn đã thử quá nhiều lần. Vui lòng đợi 15 phút rồi thử lại.") };
     }
 
@@ -145,6 +224,7 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       await attempt(u.id, false, "bad_password");
       if (fails.rows[0].by_id + 1 >= MAX_FAILS_PER_ID) {
         await tx.query(`UPDATE users SET locked_until = now() + make_interval(mins => $2) WHERE id = $1`, [u.id, LOCK_MINUTES]);
+        void inBackground(alertPrivilegedLockout(u.id, id.key));
       }
       return { ok: false, error: new ApiError(401, "BAD_CREDENTIALS", "Email/SĐT hoặc mật khẩu không đúng.") };
     }
@@ -168,7 +248,9 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       createSessionItem(u.id, meta, refresh),
       ["SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [u.id]],
     ]);
-    return { ok: true, userId: u.id, sid: sess.rows[0].id as string, refresh, pending: mem.rowCount === 0 };
+    const sid = sess.rows[0].id as string;
+    void inBackground(notifyNewDevice(u.id, sid, meta));
+    return { ok: true, userId: u.id, sid, refresh, pending: mem.rowCount === 0 };
   });
 }
 
@@ -193,7 +275,9 @@ export async function completeMfaLogin(userId: string, code: string, meta: ReqMe
       ["SELECT 1 FROM members WHERE user_id = $1 AND deleted_at IS NULL", [userId]],
     ]);
     await tx.query("UPDATE users SET last_login_at = now(), locked_until = NULL WHERE id = $1", [userId]);
-    return { ok: true, userId, sid: sess.rows[0].id as string, refresh, pending: mem.rowCount === 0 };
+    const sid = sess.rows[0].id as string;
+    void inBackground(notifyNewDevice(userId, sid, meta));
+    return { ok: true, userId, sid, refresh, pending: mem.rowCount === 0 };
   });
 }
 
@@ -207,6 +291,16 @@ export interface RegisterInput {
   password: string;
   universityName?: string | null;
   message?: string | null;
+  /** Đã tick "Tôi đã đọc và đồng ý Điều khoản sử dụng và Chính sách bảo mật" — BẮT BUỘC true */
+  acceptTerms?: boolean;
+}
+
+/** Giới hạn tự đăng ký: mỗi IP tối đa 5 lần/giờ và 10 lần/ngày; toàn hệ thống tối đa 60 lần/ngày (chống tạo đơn rác hàng loạt). */
+const REGISTER_LIMITS = { ipHour: 5, ipDay: 10, globalDay: 60 };
+
+export async function registrationOpen(tx: Tx): Promise<boolean> {
+  const v = (await tx.query<{ v: unknown }>("SELECT value AS v FROM settings WHERE key = 'auth.registration_open'")).rows[0]?.v;
+  return v !== false;
 }
 
 export async function register(input: RegisterInput, meta: ReqMeta) {
@@ -214,8 +308,24 @@ export async function register(input: RegisterInput, meta: ReqMeta) {
   const pwErr = passwordProblem(input.password, email);
   if (pwErr) throw new ApiError(400, "WEAK_PASSWORD", pwErr);
   const phone = normalizePhone(input.phone);
+  // Kiểm tra mở đăng ký + giới hạn tần suất TRƯỚC khi băm mật khẩu (Argon2id tốn ~19 MiB bộ nhớ mỗi lần — không để bị lợi dụng)
+  await withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx) => {
+    if (!(await registrationOpen(tx))) throw new ApiError(403, "REGISTRATION_CLOSED", "Hiện lưu xá chưa mở đăng ký tài khoản mới. Bạn có thể gửi \"Đăng ký tìm hiểu\" ở trang Liên hệ hoặc gọi hotline của nhà.");
+    const ipKey = hashKey("ip", meta.ip ?? "?");
+    const okHour = await rateLimit(tx, `register:h:${ipKey}`, 3600, REGISTER_LIMITS.ipHour);
+    const okDay = okHour && (await rateLimit(tx, `register:d:${ipKey}`, 86400, REGISTER_LIMITS.ipDay));
+    const okAll = okDay && (await rateLimit(tx, "register:all", 86400, REGISTER_LIMITS.globalDay));
+    if (!okAll) throw new ApiError(429, "RATE_LIMITED", "Đã có quá nhiều lượt đăng ký từ nơi này. Vui lòng thử lại sau hoặc liên hệ Trưởng nhà.");
+  });
+  // Đồng ý Điều khoản sử dụng + Chính sách bảo mật là điều kiện đăng ký (bằng chứng lưu trên đơn — người đăng ký chưa có hồ sơ thành viên;
+  // trigger db/app/1046 chuyển thành 2 dòng consents khi đơn được duyệt)
+  if (input.acceptTerms !== true) {
+    throw new ApiError(400, "TERMS_REQUIRED", "Bạn cần đọc và tick đồng ý Điều khoản sử dụng và Chính sách bảo mật để đăng ký tài khoản.", [
+      { field: "acceptTerms", message: "Chưa đồng ý Điều khoản sử dụng và Chính sách bảo mật." },
+    ]);
+  }
   const hash = await hashPassword(input.password);
-  return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx) => {
+  const out = await withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx) => {
     const exists = await tx.query(
       "SELECT 1 FROM users WHERE deleted_at IS NULL AND (email = $1::citext OR ($2::text IS NOT NULL AND phone_e164 = $2))",
       [email, phone]
@@ -229,13 +339,36 @@ export async function register(input: RegisterInput, meta: ReqMeta) {
     const userId = u.rows[0].id;
     await tx.query("SELECT set_config('app.current_user_id', $1, true)", [userId]);
     await tx.query(
-      `INSERT INTO member_applications (user_id, full_name, email, phone_e164, university_name, message)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId, input.fullName.trim(), email, phone, input.universityName?.trim() || null, input.message?.trim() || null]
+      `INSERT INTO member_applications (user_id, full_name, email, phone_e164, university_name, message,
+                                        terms_version, terms_accepted_at, terms_ip, terms_user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now(), $8::inet, $9)`,
+      [
+        userId,
+        input.fullName.trim(),
+        email,
+        phone,
+        input.universityName?.trim() || null,
+        input.message?.trim() || null,
+        LEGAL_CONSENT_VERSION,
+        meta.ip,
+        meta.userAgent?.slice(0, 400) ?? null,
+      ]
     );
     const { sid, refresh } = await createSession(tx, userId, meta);
     return { userId, sid, refresh, pending: true };
   });
+  // Báo người quản lý duyệt đơn (Trưởng nhà, Admin) — trước đây người đăng ký phải tự gọi điện báo
+  void inBackground(
+    withTx({ requestId: meta.requestId }, "luuxa_worker", (tx) =>
+      tx.query("SELECT app.fn_notify_roles($1::text[], 'member.application_new', $2, $3, $4::jsonb)", [
+        ["house_head", "admin"],
+        `Đơn đăng ký mới: ${input.fullName.trim().slice(0, 80)}`,
+        `${input.universityName?.trim() ? `${input.universityName.trim().slice(0, 80)} · ` : ""}chờ duyệt ở Thành viên → Đơn chờ duyệt.`,
+        JSON.stringify({ link: "/thanh-vien?tab=applications" }),
+      ]),
+    ),
+  );
+  return out;
 }
 
 // ---------------------------------------------------------------------
@@ -325,6 +458,7 @@ export async function changePassword(userId: string, currentSid: string, current
       "UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'password_changed' WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL",
       [userId, currentSid]
     );
+    void inBackground(notifyPasswordChanged(userId, "changed", meta));
   });
 }
 

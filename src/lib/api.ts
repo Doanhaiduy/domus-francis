@@ -81,7 +81,16 @@ export async function apiFetch<T = unknown>(path: string, opts: RequestOptions =
       window.location.href = `/dang-nhap?next=${next}`;
     }
   }
-  if (!res.ok) throw await parseError(res);
+  if (!res.ok) {
+    const err = await parseError(res);
+    // API chặn vì mật khẩu tạm / chưa bật 2FA bắt buộc ⇒ làm mới phiên để hiện màn hình chặn (SecurityGate)
+    if (res.status === 403 && (err.code === "MFA_REQUIRED" || err.code === "PASSWORD_CHANGE_REQUIRED") && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("luuxa:session-stale"));
+    }
+    throw err;
+  }
+  // Thao tác ghi thành công ⇒ báo cho hộp "Việc cần xử lý" / số trên thanh bên làm mới (src/lib/data/inbox.ts)
+  if (method !== "GET" && typeof window !== "undefined") window.dispatchEvent(new Event("luuxa:api-write"));
   if (res.status === 204) return undefined as T;
   const type = res.headers.get("content-type") ?? "";
   return (type.includes("json") ? res.json() : res.text()) as Promise<T>;

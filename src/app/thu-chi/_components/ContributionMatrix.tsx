@@ -1,12 +1,81 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Search, CalendarPlus, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, CalendarPlus, Zap, Sparkles, FileSpreadsheet } from "lucide-react";
+import { useApp } from "@/lib/store";
+import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import { monthTitle, shiftMonth, vnToday } from "@/lib/finance-format";
-import { useContributionMatrix } from "@/lib/data/finance";
-import type { ContributionCellDto, ContributionPlanDto, ContributionRowDto } from "@/lib/types/finance";
+import { financeApi, useContributionMatrix } from "@/lib/data/finance";
+import type { ContributionCellDto, ContributionMatrixDto, ContributionPlanDto, ContributionRowDto } from "@/lib/types/finance";
 import AiDuesMessage from "./AiDuesMessage";
+import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "./dialogs";
+
+/** Xuất bảng đóng quỹ theo người: 12 tháng đang xem hoặc cả một năm (gói F). */
+function ExportDuesDialog({ open, onClose, view, viewLabel }: { open: boolean; onClose: () => void; view: ContributionMatrixDto | undefined; viewLabel: string }) {
+  const { showToast } = useApp();
+  const year = Number(vnToday().slice(0, 4));
+  const choices = [
+    { key: "view", label: `12 tháng đang xem (${viewLabel})` },
+    { key: String(year), label: `Cả năm ${year}` },
+    { key: String(year - 1), label: `Cả năm ${year - 1}` },
+  ];
+  const [pick, setPick] = useState("view");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const go = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const m = pick === "view" ? view : await financeApi.matrix({ to: `${pick}-12`, months: 12 });
+      if (!m || !m.plans.length) throw new Error("Không có khoản thu nào trong khoảng này.");
+      const { downloadDuesXlsx } = await import("@/lib/export/finance-dues-xlsx");
+      await downloadDuesXlsx({ title: pick === "view" ? viewLabel : `Năm ${pick}`, plans: m.plans, rows: m.rows });
+      showToast("success", "Đã tải bảng đóng quỹ theo người (Excel).");
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <DialogShell
+      open={open}
+      onClose={onClose}
+      icon={<FileSpreadsheet className="w-5 h-5" />}
+      title="Xuất bảng đóng quỹ"
+      subtitle="Mỗi người một dòng × các khoản thu: phải đóng, đã đóng, còn nợ"
+      footer={
+        <>
+          <button onClick={onClose} className={btnGhost}>
+            Hủy bỏ
+          </button>
+          <button disabled={busy} onClick={go} className={btnPrimary}>
+            {busy ? "Đang xuất..." : "Tải Excel"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-2" role="radiogroup" aria-label="Khoảng xuất">
+        {choices.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            role="radio"
+            aria-checked={pick === c.key}
+            onClick={() => setPick(c.key)}
+            className={`text-left px-3.5 py-2.5 rounded-xl border text-xs font-bold transition ${pick === c.key ? "border-primary bg-purple-50 text-primary" : "border-gray-200 text-gray-700 hover:bg-gray-50"}`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-500">Tệp có 3 trang: theo người (tô màu đã đóng / quá hạn / miễn), chi tiết từng khoản, tổng hợp theo khoản thu.</p>
+      <ErrorBox error={error} />
+    </DialogShell>
+  );
+}
 
 const GLYPH: Record<string, string> = { paid: "✓", partial: "½", unpaid: "✗", waived: "M", cancelled: "–" };
 const CELL: Record<string, string> = {
@@ -26,16 +95,20 @@ export default function ContributionMatrix({
   onOpenCell,
   onCreateDues,
   onCreateUtility,
+  onCreateOneTime,
 }: {
   canPlan: boolean;
   onOpenCell: (row: ContributionRowDto, cell: ContributionCellDto) => void;
   onCreateDues: () => void;
   onCreateUtility: () => void;
+  /** Khoản thu một lần cho những người được chọn */
+  onCreateOneTime?: () => void;
 }) {
   const current = vnToday().slice(0, 7);
   const maxEnd = shiftMonth(current, 6);
   const [end, setEnd] = useState(current);
   const [q, setQ] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const { matrix, isLoading, error } = useContributionMatrix({ to: end, months: 12 });
 
   const rows = useMemo(() => {
@@ -58,7 +131,7 @@ export default function ContributionMatrix({
             {!matrix
               ? "Đang tải dữ liệu đóng quỹ…"
               : matrix.canReadAll
-                ? "Mỗi cột là một khoản thu (quỹ định kỳ, tiền điện nước) — bấm vào ô để ghi thu, xem phiếu thu hoặc miễn giảm"
+                ? "Mỗi cột là một khoản thu (quỹ định kỳ, tiền điện nước, khoản thu một lần) — bấm vào ô để ghi thu, xem phiếu thu hoặc miễn giảm"
                 : "Bạn xem được các khoản đóng quỹ của chính mình; số liệu toàn nhà ở thẻ Tổng quan"}
           </p>
         </div>
@@ -78,7 +151,20 @@ export default function ContributionMatrix({
               >
                 <Zap className="w-3.5 h-3.5" /> Nhập tiền điện nước
               </button>
+              {onCreateOneTime && (
+                <button onClick={onCreateOneTime} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold">
+                  <Sparkles className="w-3.5 h-3.5" /> Khoản thu một lần
+                </button>
+              )}
             </>
+          )}
+          {matrix && matrix.canReadAll && matrix.plans.length > 0 && (
+            <button
+              onClick={() => setExportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Xuất Excel
+            </button>
           )}
           <div className="flex items-center gap-1">
             <button
@@ -187,7 +273,7 @@ export default function ContributionMatrix({
                     const c = r.cells[p.id];
                     if (!c)
                       return (
-                        <td key={p.id} className="text-center text-gray-300" title="Không có khoản phải thu (vào ở sau hạn nộp hoặc không thuộc kế hoạch)">
+                        <td key={p.id} className="text-center text-gray-300" title="Không có khoản phải thu (vào ở sau khi lập kỳ — bấm “Cập nhật người phải đóng” ở khoản thu — hoặc không thuộc khoản thu này)">
                           ·
                         </td>
                       );
@@ -252,6 +338,7 @@ export default function ContributionMatrix({
         <span className="text-gray-400">“Quỹ T7–T12” = quỹ định kỳ cả kỳ; “ĐN T9” = tiền điện nước tháng 9</span>
         {matrix && canPlan && !currentDues && end >= current && <span className="text-amber-700 font-semibold">· Kỳ quỹ hiện tại chưa lập kế hoạch thu</span>}
       </div>
+      <ExportDuesDialog open={exportOpen} onClose={() => setExportOpen(false)} view={matrix} viewLabel={`${monthTitle(shiftMonth(end, -11))} – ${monthTitle(end)}`} />
     </div>
   );
 }

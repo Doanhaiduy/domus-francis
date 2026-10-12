@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Check, ExternalLink, Eye, EyeOff, Globe, HelpCircle, Inbox, Link2, Newspaper, Pencil, Plus, Search, Star, Trash2 } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -40,6 +40,11 @@ export default function ArticlesAdminPage() {
   ].filter(Boolean) as { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[];
   const [picked, setPicked] = useState<Tab | null>(null);
   const tab: Tab | null = picked && tabs.some((t) => t.key === picked) ? picked : (tabs[0]?.key ?? null);
+  // Mở thẳng một tab từ liên kết (thông báo / hộp "Việc cần xử lý"): /bai-viet?tab=inquiries
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "inquiries" || t === "faq" || t === "articles") setPicked(t);
+  }, []);
 
   if (!sessionLoading && !tabs.length) {
     return (

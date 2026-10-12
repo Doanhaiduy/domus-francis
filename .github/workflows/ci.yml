@@ -68,3 +68,57 @@ jobs:
       - run: node --no-warnings scripts/db/migrate.mjs --db luuxa_ci
       # Chạy lại: mọi file phải idempotent (không lỗi, không áp lại gì)
       - run: node --no-warnings scripts/db/migrate.mjs --db luuxa_ci
+
+  # Kiểm thử API tích hợp (scripts/test-api.mjs): dựng DB luuxa_test + dữ liệu demo, chạy Next dev thử ở cổng 3100 và toàn bộ các bộ ca
+  # (bảo mật/RLS, xác thực, thu chi, phụng vụ, giám sát…). Mọi dịch vụ ngoài (AI, Zalo, Resend, Cloudinary, tỉnh/thành, Lời Chúa) là máy chủ
+  # giả ở loopback — không có lưu lượng ra ngoài. Báo cáo .local/test-api-report.json được lưu làm artifact.
+  api-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Biến môi trường thử (khóa sinh ngẫu nhiên cho lượt chạy này)
+        run: |
+          echo "PG_SUPERUSER_PASSWORD=postgres" > .env.local
+          echo "PGPORT_LOCAL=5432" >> .env.local
+          echo "LUUXA_API_PASSWORD=ci-api-password-0001" >> .env.local
+          echo "STORAGE_DIR=.local/storage" >> .env.local
+          echo "COOKIE_SECURE=false" >> .env.local
+          node --no-warnings scripts/env/gen-keys.mjs | grep -E '^(AUTH_JWT_|PII_)' >> .env.local
+      - name: Tạo vai trò DB (luuxa_api…) + mật khẩu đăng nhập
+        run: |
+          node --no-warnings scripts/db/build.mjs --db luuxa_ci --stage app
+          node --no-warnings -e "import('pg').then(async ({ default: pg }) => { const c = new pg.Client({ host: '127.0.0.1', port: 5432, user: 'postgres', password: 'postgres', database: 'postgres' }); await c.connect(); await c.query(\"ALTER ROLE luuxa_api WITH LOGIN PASSWORD 'ci-api-password-0001'\"); await c.end(); })"
+      - name: Kiểm thử API
+        run: node --no-warnings scripts/test-api.mjs
+      - name: Lưu báo cáo kiểm thử
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-api-report
+          path: |
+            .local/test-api-report.json
+            .local/test-server.log
+          retention-days: 14

@@ -84,6 +84,8 @@ export interface MealsWeekDto {
   canManage: boolean;
   canRegister: boolean;
   canToggleFeature: boolean;
+  /** Tôi đã bật "Luôn ăn, trừ khi báo vắng" */
+  autoEat: boolean;
 }
 
 export interface MealFeedbackItemDto {

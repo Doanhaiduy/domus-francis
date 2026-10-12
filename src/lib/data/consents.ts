@@ -1,9 +1,11 @@
 "use client";
-// Đồng ý (consents) của chính mình: hồ sơ Công giáo, cho người quản lý xem hồ sơ Công giáo.
+// Đồng ý (consents) của chính mình: hồ sơ Công giáo, chia sẻ điểm, gắn thẻ ảnh… + Điều khoản sử dụng / Chính sách bảo mật theo phiên bản.
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
+import type { LegalConsentStatus } from "../types/consents";
 
 export const CONSENTS_KEY = "/api/v1/consents";
+export const LEGAL_CONSENT_KEY = "/api/v1/consents/legal";
 export const SELF_CONSENT_PURPOSES = [
   "catholic_profile",
   "catholic_share_leadership",
@@ -17,7 +19,7 @@ export type SelfConsentPurpose = (typeof SELF_CONSENT_PURPOSES)[number];
 
 /** Tên + giải thích ngắn từng đồng ý (khớp consent_purposes) để hiện ở Cài đặt → Bảo mật. */
 export const CONSENT_INFO: Record<SelfConsentPurpose, { title: string; text: string }> = {
-  catholic_profile: { title: "Lưu hồ sơ Công giáo", text: "Tên Thánh, giáo xứ, giáo phận, Bí tích (dữ liệu nhạy cảm về tôn giáo)." },
+  catholic_profile: { title: "Lưu hồ sơ Công giáo", text: "Tên Thánh, giáo xứ, giáo phận, Bí tích (dữ liệu nhạy cảm về tôn giáo). Rút đồng ý thì hồ sơ Công giáo của bạn bị xóa." },
   catholic_share_leadership: { title: "Cho người quản lý xem hồ sơ Công giáo", text: "Trưởng nhà, Trưởng ban Phụng vụ xem để phục vụ sinh hoạt phụng vụ." },
   academic_share_leadership: { title: "Chia sẻ bảng điểm cho người quản lý", text: "Để người quản lý xem điểm chi tiết, hỗ trợ học tập và xét học bổng." },
   academic_share_tutoring: { title: "Chia sẻ nhu cầu học tập cho người kèm", text: "Người được ghép cặp phụ đạo biết môn bạn cần hỗ trợ." },
@@ -32,10 +34,36 @@ export function useMyConsents(enabled = true) {
   return { consents: data, isLoading, mutate };
 }
 
+export interface SetConsentResult {
+  purpose: SelfConsentPurpose;
+  consented: boolean;
+  /** Rút đồng ý hồ sơ Công giáo: số dòng đã xóa */
+  deleted?: { catholicProfiles: number; sacraments: number };
+}
+
 export const consentsApi = {
   set: async (purpose: SelfConsentPurpose, granted: boolean) => {
-    const r = await api.put<{ purpose: SelfConsentPurpose; consented: boolean }>(CONSENTS_KEY, { purpose, granted });
+    const r = await api.put<SetConsentResult>(CONSENTS_KEY, { purpose, granted });
     await globalMutate(CONSENTS_KEY);
+    return r;
+  },
+};
+
+/** Trạng thái đồng ý Điều khoản sử dụng + Chính sách bảo mật phiên bản hiện hành. */
+export function useLegalConsent(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR<LegalConsentStatus>(enabled ? LEGAL_CONSENT_KEY : null, swrFetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    dedupingInterval: 60_000,
+  });
+  return { status: data, error, isLoading, mutate };
+}
+
+export const legalConsentApi = {
+  /** "Tôi đã đọc và đồng ý" ⇒ ghi 2 đồng ý phiên bản hiện hành */
+  accept: async () => {
+    const r = await api.post<LegalConsentStatus>(LEGAL_CONSENT_KEY, {});
+    await globalMutate(LEGAL_CONSENT_KEY, r, { revalidate: false });
     return r;
   },
 };

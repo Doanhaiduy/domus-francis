@@ -80,34 +80,51 @@ async function downloadFromSupabase(cfg: { url: string; key: string }, bucket: B
   return Buffer.from(arrayBuf);
 }
 
-export async function deleteFromSupabase(cfg: { url: string; key: string }, bucket: Bucket, objPaths: string[]): Promise<void> {
-  if (objPaths.length === 0) return;
-  await fetch(`${cfg.url}/storage/v1/object/${encodeURIComponent(bucket)}`, {
-    method: "DELETE",
-    headers: {
-      apikey: cfg.key,
-      Authorization: `Bearer ${cfg.key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ prefixes: objPaths }),
-  }).catch(() => {});
+/** Xóa đối tượng khỏi Supabase Storage. Trả true nếu Storage xác nhận (HTTP 2xx; đối tượng không còn cũng tính là xong). */
+export async function deleteFromSupabase(cfg: { url: string; key: string }, bucket: Bucket, objPaths: string[]): Promise<boolean> {
+  if (objPaths.length === 0) return true;
+  try {
+    const res = await fetch(`${cfg.url}/storage/v1/object/${encodeURIComponent(bucket)}`, {
+      method: "DELETE",
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prefixes: objPaths }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) console.error(`[storage] xóa trên Supabase lỗi (${bucket}): HTTP ${res.status}`);
+    return res.ok;
+  } catch (e) {
+    console.error(`[storage] xóa trên Supabase lỗi (${bucket}):`, (e as Error).message);
+    return false;
+  }
 }
 
+/**
+ * Xóa hẳn nội dung các tệp (bản gốc + biến thể) khỏi kho (Supabase Storage hoặc ổ đĩa local).
+ * Trả về `id` của các tệp đã xóa XONG — tệp nào xóa trên Supabase lỗi thì KHÔNG có trong danh sách để lượt dọn sau thử lại
+ * (trước đây lỗi bị bỏ qua sau khi CSDL đã xóa dấu ⇒ tệp mồ côi ăn dần hạn mức 1 GB).
+ */
 export async function purgeStorageFiles(
-  files: { bucket?: Bucket; object_key: string; variants?: Record<string, string> }[]
-): Promise<void> {
+  files: { id?: string; bucket?: Bucket; object_key: string; variants?: Record<string, string> }[]
+): Promise<string[]> {
   const supaCfg = getSupabaseStorageConfig();
-  const byBucket = new Map<Bucket, string[]>();
+  const byBucket = new Map<Bucket, { paths: string[]; ids: Set<string> }>();
+  const done = new Set<string>();
 
   for (const f of files) {
+    if (f.id) done.add(f.id);
     const allKeys = [f.object_key, ...Object.values(f.variants ?? {})];
     for (const key of allKeys) {
       if (supaCfg) {
         const bucket = (f.bucket || key.split("/")[0]) as Bucket;
         const { bucket: b, path: p } = splitBucketAndPath(bucket, key);
-        const list = byBucket.get(b) || [];
-        list.push(p);
-        byBucket.set(b, list);
+        const entry = byBucket.get(b) ?? { paths: [], ids: new Set<string>() };
+        entry.paths.push(p);
+        if (f.id) entry.ids.add(f.id);
+        byBucket.set(b, entry);
       }
       try {
         const p = abs(key);
@@ -119,10 +136,14 @@ export async function purgeStorageFiles(
   }
 
   if (supaCfg && byBucket.size > 0) {
-    for (const [b, paths] of byBucket) {
-      await deleteFromSupabase(supaCfg, b, paths);
+    for (const [b, entry] of byBucket) {
+      // tối đa 500 đối tượng mỗi lần gọi
+      let ok = true;
+      for (let i = 0; i < entry.paths.length; i += 500) ok = (await deleteFromSupabase(supaCfg, b, entry.paths.slice(i, i + 500))) && ok;
+      if (!ok) for (const id of entry.ids) done.delete(id);
     }
   }
+  return [...done];
 }
 
 type Kind = { mime: "image/jpeg" | "image/png" | "image/webp" | "application/pdf"; ext: string };
@@ -234,14 +255,20 @@ export async function storeUpload(ctx: Ctx, file: File, bucket: Bucket, extra: {
 
   // (1) luuxa_app: bản ghi pending_upload (RLS: uploaded_by = mình, cần quyền storage.upload) — chạy SONG SONG với xử lý ảnh
   const tIns = performance.now();
+  // Dung lượng tối đa của ẢNH lấy từ cấu hình upload.max_image_bytes (Cài đặt → Lưu trữ tệp tải lên), không vượt trần cứng 20 MB; PDF giữ 20 MB.
+  // Kiểm ngay trong câu INSERT (không thêm vòng mạng): vượt hạn mức ⇒ không ghi dòng nào ⇒ 413.
+  const isImage = kind.mime !== "application/pdf";
   const insertP = ctx
-    .db((tx) =>
-      tx.query(
+    .db(async (tx) => {
+      const r = await tx.query(
         `INSERT INTO storage_files (id, bucket, object_key, original_name, declared_mime, size_bytes, uploaded_by, status, upload_expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, app.current_user_id(), 'pending_upload', now() + interval '10 minutes')`,
-        [id, bucket, key, file.name?.slice(0, 200) || null, file.type || null, input.length]
-      )
-    )
+         SELECT $1, $2, $3, $4, $5, $6::bigint, app.current_user_id(), 'pending_upload', now() + interval '10 minutes'
+          WHERE NOT $7::boolean
+             OR $6::bigint <= LEAST(app.setting_int('upload.max_image_bytes'), $8::bigint)`,
+        [id, bucket, key, file.name?.slice(0, 200) || null, file.type || null, input.length, isImage, MAX_BYTES]
+      );
+      if (!r.rowCount) throw new ApiError(413, "FILE_TOO_LARGE", "Ảnh vượt quá dung lượng tối đa cho phép. Hãy chọn ảnh nhỏ hơn hoặc chụp lại ở chất lượng thấp hơn.");
+    })
     .then(() => lap("db_insert", tIns));
 
   let body = input;

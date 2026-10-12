@@ -1,7 +1,6 @@
 import { api } from "@/server/http";
-import { createIssue, listIssues } from "@/server/modules/facilities";
+import { createIssue, issueLink, listIssues, notifyIssue } from "@/server/modules/facilities";
 import { IssueCreateSchema } from "@/server/modules/duty-schema";
-import { notifyRoles } from "@/server/modules/duty";
 import { postZaloEvent } from "@/server/integrations/zalo";
 import { URGENCY_LABEL } from "@/lib/duty-format";
 
@@ -12,12 +11,14 @@ export const GET = api({}, (ctx) => ctx.db((tx) => listIssues(tx)));
 export const POST = api({}, async (ctx) => {
   const b = await ctx.body(IssueCreateSchema);
   const r = await ctx.db((tx) => createIssue(tx, b));
-  await notifyRoles(ctx, ["house_head"], "facility.issue_new", `Báo hỏng mới ${r.code}`, b.title, { table: "maintenance_issues", id: r.id });
+  // Báo Trưởng nhà (mở thẳng sự cố) + tin nhóm Zalo kèm liên kết
+  await notifyIssue(ctx, { roles: ["house_head"] }, "facility.issue_new", `Báo hỏng mới ${r.code}`, b.title, r.id);
   await postZaloEvent(ctx, "facility_new", {
     code: r.code,
     title: b.title,
     urgency: URGENCY_LABEL[b.urgency] ?? b.urgency,
     location: b.locationText ?? (b.roomCode ? `Phòng ${b.roomCode}` : ""),
+    link: issueLink(r.id),
   });
   return Response.json(r, { status: 201 });
 });

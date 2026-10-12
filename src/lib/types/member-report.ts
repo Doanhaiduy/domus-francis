@@ -13,6 +13,8 @@ export interface MemberReportSections {
   finance: boolean;
   donations: boolean;
   academic: boolean;
+  /** Đi lễ (check-in đi lễ các ngày bắt buộc) — cả nhà: người có liturgy.calendar.manage */
+  mass: boolean;
 }
 
 export interface MemberAttendanceStat {
@@ -32,6 +34,19 @@ export interface MemberLeaveStat {
   overnightOut: number;
   longLeave: number;
   eventAbsence: number;
+}
+/** Đi lễ trong kỳ: các ngày bắt buộc check-in (Chúa Nhật, lễ trọng, Bổn mạng, ngày đặc biệt) đã đến, trong thời gian ở nhà. */
+export interface MemberMassStat {
+  /** Số lễ phải tính = đã check-in (xác nhận + chờ duyệt) + vắng. Ngày còn trong hạn check-in mà chưa check-in chưa tính. */
+  required: number;
+  /** Check-in đã được xác nhận (người duyệt hoặc tự xác nhận) */
+  approved: number;
+  /** Check-in đang chờ duyệt */
+  pending: number;
+  /** Vắng: quá hạn chưa check-in hoặc check-in bị đánh dấu chưa hợp lệ */
+  missed: number;
+  /** (xác nhận + chờ duyệt) / phải tính; null nếu chưa có lễ nào phải tính */
+  ratePct: number | null;
 }
 export interface MemberDutyStat {
   /** Số tuần trực vệ sinh sân */
@@ -79,6 +94,8 @@ export interface MemberReportRow {
   attendance: MemberAttendanceStat | null;
   leave: MemberLeaveStat | null;
   duty: MemberDutyStat | null;
+  /** Đi lễ (null nếu không có quyền xem) */
+  mass: MemberMassStat | null;
   /** Tổng điểm thi đua cộng/trừ trong kỳ (null nếu không có quyền xem) */
   merit: { points: number; entries: number } | null;
   discipline: MemberDisciplineStat | null;
@@ -113,6 +130,8 @@ export interface MemberReportDto {
     attendance: (MemberAttendanceStat & { records: number }) | null;
     leave: MemberLeaveStat | null;
     duty: { weeks: number; avgScore: number | null } | null;
+    /** Đi lễ cả nhà: `days` = số ngày lễ bắt buộc đã đến trong kỳ; các số còn lại cộng từ từng người */
+    mass: (MemberMassStat & { days: number }) | null;
     merit: { points: number } | null;
     discipline: (MemberDisciplineStat & { people: number }) | null;
     finance: MemberFinanceStat | null;

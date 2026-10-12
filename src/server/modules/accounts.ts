@@ -154,7 +154,7 @@ export async function resetUserMfa(ctx: Ctx, target: AccountTarget) {
     if (p && !me.assign) throw new ApiError(403, "BR-AUTH-22", "Tài khoản giữ vai trò đặc quyền chỉ Trưởng nhà hoặc Admin được thao tác.");
     return uid;
   });
-  await resetMfaForUser(userId, { ip: ctx.ip, userAgent: null, requestId: ctx.requestId });
+  await resetMfaForUser(userId, { ip: ctx.ip, userAgent: null, requestId: ctx.requestId }, ctx.userId ?? undefined);
   return { ok: true };
 }
 

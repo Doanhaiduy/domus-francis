@@ -1,10 +1,14 @@
 # 🕊️ Lưu Xá Phanxicô — Hệ thống quản lý cộng đoàn sinh viên
 
 Ứng dụng web nội bộ cho lưu xá sinh viên Công giáo: thành viên & sơ đồ nhà, trực nhật & hậu cần, thu chi minh bạch,
-học tập, lịch sự kiện & điểm danh QR, thông báo, diễn đàn, phụng vụ, bếp cơm, khoảnh khắc.
+học tập, lịch sự kiện & điểm danh bằng ảnh, xin phép, kỷ luật, thông báo, diễn đàn, phụng vụ, bếp cơm, khoảnh khắc, trang công khai.
 
-**Chạy hoàn toàn trên máy (local-first):** PostgreSQL 16 portable, tệp lưu trên ổ đĩa, font tự lưu trữ — không gửi dữ liệu
-nào của nhà ra ngoài; chỉ đọc (GET) dữ liệu công khai: Lời Chúa (GitHub) và danh mục tỉnh/thành (provinces.open-api.vn) — xem mục Lịch phụng vụ.
+**Hai cách chạy:**
+- **Máy phát triển (local):** PostgreSQL 16 portable, tệp lưu trên ổ đĩa (`.local/storage`), font tự lưu trữ; mọi dịch vụ ngoài tắt hoặc
+  thay bằng máy chủ giả khi kiểm thử. Ứng dụng chỉ đọc (GET) dữ liệu công khai: Lời Chúa (GitHub) và danh mục tỉnh/thành (provinces.open-api.vn).
+- **Staging / production:** Vercel (Next.js + Vercel Cron 2 lượt/ngày) + Supabase (PostgreSQL + Storage). Dịch vụ tùy chọn: bot nhóm Zalo,
+  Web Push (VAPID), email Resend, Groq/Gemini (AI), Cloudinary (video), SePay/Casso (báo biến động số dư), Cloudflare Turnstile.
+  Chi tiết môi trường + quy trình phát hành: `CLAUDE.md`; sổ tay vận hành: `VAN_HANH.md`; việc cần làm tay ở Vercel/Supabase: `VIEC_CHUA_LAM.md`.
 
 ## Kiến trúc
 
@@ -14,8 +18,9 @@ nào của nhà ra ngoài; chỉ đọc (GET) dữ liệu công khai: Lời Chú
 | API | Next.js Route Handlers (`src/app/api/v1`) | lỗi RFC 9457 `application/problem+json`, CSRF double-submit + kiểm Origin |
 | Xác thực | Argon2id · JWT EdDSA 15 phút (cookie HttpOnly) · refresh token 30 ngày xoay vòng + phát hiện dùng lại | khóa tạm sau 5 lần sai, đổi mật khẩu thu hồi phiên khác |
 | Phân quyền | **Row-Level Security trong PostgreSQL** | mỗi request: `SET LOCAL ROLE luuxa_app` + `app.current_user_id`; quyền giao diện đọc từ `role_permissions` |
-| CSDL | PostgreSQL 16.14 — DDL thiết kế 141 bảng (`db/migrations/01…52`) + 6 bản vá kiểm định (`kiem-dinh/sql/70…75`) + phần bổ sung ứng dụng (`db/app/9x`) | |
-| Tệp | `.local/storage` | kiểm định dạng thật (magic bytes), xóa EXIF/GPS, ảnh thu nhỏ WebP, SHA-256, pHash |
+| CSDL | PostgreSQL 16 — DDL thiết kế 141 bảng (`db/migrations/01…52`) + 6 bản vá kiểm định (`kiem-dinh/sql/70…75`) + phần bổ sung ứng dụng (`db/app/90…10xx`) + dữ liệu nghiệp vụ (`db/data`) | migration tăng dần: `pnpm db:migrate` |
+| Tệp | Supabase Storage (staging/production) · `.local/storage` (local) | kiểm định dạng thật (magic bytes), xóa EXIF/GPS, ảnh thu nhỏ WebP, SHA-256, pHash; video ở Cloudinary/Supabase |
+| Giám sát | `job_runs` (lượt chạy cron), `error_events` (lỗi gộp), `/api/health?deep=1`, Cài đặt → Hệ thống / Dung lượng | Vercel Hobby chỉ giữ log ~1 giờ nên lỗi được lưu trong CSDL |
 | Dữ liệu nhạy cảm | CCCD, SĐT phụ huynh mã hóa AES-256-GCM ở tầng ứng dụng | xem CCCD đầy đủ phải nêu lý do, có ghi nhật ký kiểm toán |
 
 Tài liệu nguồn: `TAI_LIEU_THIET_KE_BACKEND_PGSQL_LUU_XA_PHANXICO.md` (thiết kế) và `KIEM_DINH_DOC_LAP_THIET_KE_BACKEND.md` (kiểm định).
@@ -35,11 +40,10 @@ Tài khoản demo (mật khẩu chung **`LuuXa@2026`**), danh sách đầy đủ
 | Email | Vai trò |
 |---|---|
 | duc.tran@luuxa.local | Trưởng nhà |
-| long.le@luuxa.local | Phó nhà |
 | bao.pham@luuxa.local | Thủ quỹ |
 | viet.vu@luuxa.local | Admin kỹ thuật |
 | phong.dang@luuxa.local · khoi.hoang@luuxa.local · khoa.ngo@luuxa.local | Trưởng ban Phụng vụ · Ẩm thực · Truyền thông |
-| tuan.nguyen@luuxa.local (và hieu.bui, kiet.do, nam.phan, phuoc.ly) | Thành viên |
+| tuan.nguyen@luuxa.local (và hieu.bui, kiet.do, nam.phan, phuoc.ly, long.le) | Thành viên |
 | an.tran@luuxa.local | Đơn đăng ký đang chờ duyệt |
 
 ## Môi trường: local · staging · production
@@ -63,7 +67,7 @@ Tài khoản demo (mật khẩu chung **`LuuXa@2026`**), danh sách đầy đủ
 | `pnpm db:start` / `db:stop` / `db:status` | điều khiển PostgreSQL local (127.0.0.1:54329, dữ liệu ở `.local/pgdata`) |
 | `pnpm db:audit` | chạy lại **toàn bộ bộ kiểm định độc lập** trên DB thử nghiệm riêng (báo cáo `.local/audit/report.md`) |
 | `pnpm db:audit:quick` | như trên, bỏ bước đối chứng DB gốc và dry-run |
-| `pnpm test:api` | kiểm thử API tích hợp trên DB + máy chủ thử nghiệm riêng (cổng 3100) |
+| `pnpm test:api` | kiểm thử API tích hợp trên DB + máy chủ thử nghiệm riêng (cổng 3100); `-- --serve` giữ máy chủ thử chạy, `-- --no-server --db luuxa_test --only <bộ>` chạy một bộ nhanh |
 | `pnpm test:e2e -- --user <email>` | mở từng trang bằng Edge/Chrome có sẵn, báo lỗi console/HTTP/request ra ngoài, chụp ảnh `.local/e2e/` |
 | `pnpm db:sql -d luuxa <file.sql>` | chạy một file SQL (tương đương `psql -f`, bản portable không kèm psql) |
 | `pnpm typecheck` · `pnpm build` | kiểm tra kiểu · build production |
@@ -98,11 +102,13 @@ src/lib/data/          hook SWR theo phân hệ · src/lib/types/ DTO dùng chun
   nên không có quyền gì nếu quên `SET ROLE`. Bước hệ thống tin cậy (xác lập thuộc tính tệp, dọn dẹp hằng giờ) dùng `luuxa_worker`.
 - Thông tin tầng 2 (ngày sinh, quê quán, phụ huynh) chỉ chính chủ/người quản lý; tầng 3 (tôn giáo) cần đồng ý chia sẻ.
 - Tệp chỉ xem được khi người xem có quyền với thực thể chứa tệp (RLS `storage_files`).
-- `DATABASE_URL` bắt buộc trỏ tới localhost; trình kiểm thử e2e báo lỗi nếu trang gửi request ra ngoài.
+- Máy dev: `DATABASE_URL` phải trỏ localhost trừ khi đặt `ALLOW_REMOTE_DB=true`; trình kiểm thử e2e báo lỗi nếu trang gửi request ra ngoài.
+- API chặn tài khoản dùng mật khẩu tạm / vai trò bắt buộc 2FA chưa bật (chỉ còn gọi được `/api/v1/auth/*`); lỗi 5xx không lộ thông điệp kỹ thuật;
+  tự đăng ký có giới hạn tần suất lưu trong CSDL và công tắc `auth.registration_open`.
 
 ## Trợ lý AI (tùy chọn)
 
-Mặc định **tắt**. Mặc định dùng **Groq**, nếu lỗi/hết hạn mức thì tự chuyển **Gemini**.
+Mặc định **tắt** trên DB mới (production hiện chỉ bật tác vụ trợ lý viết bài — `db/data/2026-10-07-01_ai_enable.sql`). Dùng **Groq**, nếu lỗi/hết hạn mức thì tự chuyển **Gemini**.
 
 1. Thêm `GROQ_API_KEY` (và tùy chọn `GEMINI_API_KEY`) vào `.env.local`, khởi động lại `pnpm dev`. Khóa chỉ nằm ở file này.
 2. Đăng nhập Trưởng nhà/Admin → Cài đặt → **Trợ lý AI** → bật công tắc tổng và từng tác vụ.
@@ -137,7 +143,11 @@ Mỗi câu SQL gửi tới DB ở xa tốn một vòng mạng (vài chục tới
 - **Chạy bản production**: `pnpm build` rồi `pnpm start`. `pnpm dev` biên dịch lại từng trang ở lần mở đầu nên bấm tab nào cũng dừng vài giây. `pnpm dev`/`pnpm start` tự bỏ qua PostgreSQL local khi `DATABASE_URL` trỏ ra ngoài.
 - **Mỗi request một vòng mạng mở đầu**: `BEGIN; SET LOCAL ROLE; set_config(...); kiểm tra phiên` được ghép vào câu SQL đầu tiên; request GET chạy transaction `READ ONLY` và không chờ `COMMIT`.
 - **Gộp truy vấn độc lập**: `batch(tx, [[sql, params], ...])` (src/server/db.ts) gửi nhiều câu trong một vòng mạng; các API nặng đã dùng.
-- **Pool kết nối**: giữ kết nối nhàn rỗi 5 phút và mở sẵn 3 kết nối khi khởi động (tránh bắt tay TLS lại). Chỉnh bằng `DB_POOL_MAX`, `DB_IDLE_TIMEOUT_MS`, `DB_POOL_WARM`.
+- **Pool kết nối**: máy chủ chạy lâu (local / tự host) giữ kết nối nhàn rỗi 5 phút và mở sẵn 3 kết nối khi khởi động (tránh bắt tay TLS lại);
+  trên Vercel (serverless) mỗi instance tối đa 3 kết nối, đóng sau 10 giây nhàn rỗi. Chỉnh bằng `DB_POOL_MAX`, `DB_IDLE_TIMEOUT_MS`, `DB_POOL_WARM`.
+- **Cùng vùng với DB**: hàm Vercel chạy ở `icn1` (Seoul — `vercel.json`) cùng vùng với Supabase `ap-northeast-2`; mỗi vòng DB vài ms thay vì ~70 ms
+  khi chạy ở Singapore. Đổi vùng Supabase thì đổi `regions` theo.
+- **TLS tới DB**: đặt `DB_SSL_CA` (PEM hoặc đường dẫn tệp CA của Supabase) để kiểm chứng chỉ máy chủ DB.
 - **Trình duyệt**: thông tin phiên được nạp sẵn khi render HTML (không chờ `/api/v1/auth/me` rồi mới gọi API của trang); form đóng ngay sau khi lưu, danh sách tự làm mới ở nền; rê chuột/chạm vào tab là tải trước dữ liệu của tab đó.
 
 Đo đạc:

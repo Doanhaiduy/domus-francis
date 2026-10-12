@@ -2,7 +2,7 @@
 // Hook dữ liệu + thao tác Vi phạm & kỷ luật (SWR)
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
-import type { DisciplineListDto, DisciplineQuery, DisciplineRuleDto, PenaltyKind } from "../types/discipline";
+import type { DisciplineListDto, DisciplineQuery, DisciplineRepeatDto, DisciplineRuleDto, PenaltyKind } from "../types/discipline";
 
 export const DISCIPLINE_KEY = "/api/v1/discipline";
 const refresh = () => globalMutate((k) => typeof k === "string" && k.startsWith(DISCIPLINE_KEY));
@@ -29,6 +29,19 @@ export function useDisciplineRules(enabled = true) {
   return { canManage: data?.canManage ?? false, rules: data?.rules ?? [], error, isLoading: isLoading && !data };
 }
 
+/** "Lần thứ N trong 12 tháng" của thành viên với cùng điều luật (Trưởng nhà, Admin) — hiện khi ghi / sửa vi phạm. */
+export function useDisciplineRepeat(p: { memberId: string; ruleId: string; ruleTitle: string; occurredOn: string; excludeId?: string }) {
+  const title = p.ruleTitle.trim();
+  const enabled = !!p.memberId && (!!p.ruleId || title.length >= 2);
+  const q = new URLSearchParams({ memberId: p.memberId });
+  if (p.ruleId) q.set("ruleId", p.ruleId);
+  else if (title) q.set("ruleTitle", title);
+  if (p.occurredOn) q.set("occurredOn", p.occurredOn);
+  if (p.excludeId) q.set("excludeId", p.excludeId);
+  const { data } = useSWR<DisciplineRepeatDto>(enabled ? `${DISCIPLINE_KEY}/repeat?${q.toString()}` : null, swrFetcher, { keepPreviousData: false, revalidateOnFocus: false });
+  return enabled ? data : undefined;
+}
+
 export interface RecordPayload {
   memberId?: string;
   ruleId?: string | null;
@@ -49,6 +62,8 @@ export interface RulePayload {
   defaultPenaltyKind: PenaltyKind;
   defaultPenaltyQty?: number | null;
   defaultPenaltyNote?: string | null;
+  isRed?: boolean;
+  repeatBecomesRed?: boolean;
   sortOrder?: number;
   isActive?: boolean;
 }

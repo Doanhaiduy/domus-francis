@@ -1,5 +1,5 @@
-// Tiện ích định dạng dùng chung (client + server) cho phân hệ Hậu cần & Trực nhật.
-import type { DutyAssignmentDto, DutyRosterDto, DutyWeekEntryDto, DutyStatus, IssueStatus, IssueUrgency, SwapStatus } from "./types/duty";
+// Tiện ích định dạng dùng chung (client + server) cho phân hệ Hậu cần (trực vệ sinh theo tuần, báo hỏng).
+import type { DutyWeekEntryDto, IssueStatus, IssueUrgency } from "./types/duty";
 
 // ---------------------------------------------------------------------
 // Ngày (chuỗi 'YYYY-MM-DD', không phụ thuộc múi giờ máy)
@@ -57,63 +57,6 @@ export const relativeHours = (isoTs: string, now = Date.now()) => {
   if (Math.abs(h) < 48) return `${Math.round(h)} giờ`;
   return `${Math.round(h / 24)} ngày`;
 };
-
-// ---------------------------------------------------------------------
-// Trực nhật
-// ---------------------------------------------------------------------
-export const DUTY_STATUS_LABEL: Record<DutyStatus, string> = {
-  scheduled: "⏳ Chờ trực",
-  checked_in: "🕒 Chờ nghiệm thu",
-  approved: "✅ Đạt chuẩn",
-  rework_required: "⚠️ Cần dọn lại",
-  missed: "❌ Bỏ ca",
-  cancelled: "🚫 Đã hủy ca",
-  excused: "📝 Vắng có phép",
-};
-export const DUTY_STATUS_PLAIN: Record<DutyStatus, string> = {
-  scheduled: "Chưa trực",
-  checked_in: "Đã dọn - Chờ duyệt",
-  approved: "Đã nghiệm thu Đạt",
-  rework_required: "Cần dọn lại",
-  missed: "Bỏ ca",
-  cancelled: "Đã hủy",
-  excused: "Vắng có phép",
-};
-export const SWAP_STATUS_LABEL: Record<SwapStatus, string> = {
-  pending_peer: "Chờ người nhận xác nhận",
-  pending_admin: "Chờ người quản lý duyệt",
-  approved: "Đã duyệt đổi ca",
-  rejected: "Bị từ chối",
-  cancelled: "Đã rút đơn",
-  expired: "Hết hạn",
-};
-
-/** Bản tin Zalo lịch trực tuần (sao chép clipboard — không gọi mạng) */
-export function buildDutyZaloText(roster: DutyRosterDto, today = vnToday()): string {
-  const lines = [
-    "🧹 BẢNG PHÂN CÔNG & CHECK-IN TRỰC NHẬT TUẦN · LƯU XÁ PHANXICÔ",
-    `📅 Tuần ${dm(roster.weekStart)} – ${dmy(roster.weekEnd)} · cập nhật ${dmy(today)}`,
-    "------------------------------------",
-  ];
-  const byDay = new Map<string, DutyAssignmentDto[]>();
-  for (const a of roster.assignments) {
-    if (a.status === "cancelled") continue;
-    byDay.set(a.date, [...(byDay.get(a.date) ?? []), a]);
-  }
-  for (const [date, list] of [...byDay.entries()].sort(([x], [y]) => x.localeCompare(y))) {
-    lines.push(`📌 ${weekdayLabel(date)} ${dm(date)}${date === today ? " (Hôm nay)" : ""}`);
-    for (const a of list) {
-      const icon = a.status === "approved" ? "✅" : a.status === "checked_in" ? "🕒" : a.status === "rework_required" ? "⚠️" : a.status === "missed" ? "❌" : "⏳";
-      lines.push(`• [${a.shift.label}] ${a.area.icon} ${a.area.name}${a.roomName ? ` (${a.roomName})` : ""}`);
-      lines.push(`  Người trực: ${a.members.map((m) => m.fullName).join(", ") || "—"} 👉 ${icon} ${DUTY_STATUS_PLAIN[a.status]}`);
-    }
-  }
-  if (byDay.size === 0) lines.push("(Tuần này chưa có ca trực nào)");
-  lines.push("------------------------------------");
-  lines.push("🔔 Nhắc nhở: Anh em hoàn thành ca trực vui lòng chụp ảnh nghiệm thu và bấm Check-in trên web Lưu Xá đúng giờ.");
-  lines.push("Nguyện chúc bình an và tinh thần phục vụ huynh đệ! ✝️");
-  return lines.join("\n");
-}
 
 // ---------------------------------------------------------------------
 // Báo hỏng

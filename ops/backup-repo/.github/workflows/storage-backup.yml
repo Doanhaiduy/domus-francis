@@ -1,0 +1,116 @@
+name: Sao lưu tệp Storage hằng tuần
+
+# Chạy mỗi Chủ nhật 02:47 giờ Việt Nam (19:47 UTC thứ Bảy) + bấm tay được (Actions → Run workflow).
+# 1) liệt kê + tải MỌI tệp của 9 bucket Supabase Storage (avatars, receipts, cleaning-evidence, academic-evidence, maintenance, moments,
+#    attachments, documents, videos) bằng REST Storage — scripts/storage-backup.mjs, khóa service_role →
+# 2) nén tar.gz → 3) mã hóa AES-256 (gpg, CÙNG mật khẩu BACKUP_PASSPHRASE với bản CSDL) →
+# 4) kiểm tra: giải mã thử, so mã băm, đếm số tệp trong bản nén khớp MANIFEST →
+# 5) lưu Artifacts 30 ngày (đổi bằng biến repo STORAGE_RETENTION_DAYS) →
+# 6) bước cuối (CHẠY CẢ KHI LỖI): nhịp tim "backup:storage" về ứng dụng (Cài đặt → Hệ thống; báo Admin khi thất bại hoặc > 8 ngày).
+# Video lưu ở Cloudinary KHÔNG nằm trong bản này (xem README).
+# Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BACKUP_PASSPHRASE, OPS_HEARTBEAT_SECRET; biến (Variables): APP_URL.
+
+on:
+  schedule:
+    - cron: "47 19 * * 6"
+  workflow_dispatch:
+
+concurrency:
+  group: storage-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kiểm tra cấu hình
+        id: config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -n "$SUPABASE_URL" ] || { echo "::error::Thiếu secret SUPABASE_URL (https://<mã dự án>.supabase.co)"; exit 1; }
+          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] || { echo "::error::Thiếu secret SUPABASE_SERVICE_ROLE_KEY"; exit 1; }
+          [ "${#BACKUP_PASSPHRASE}" -ge 24 ] || { echo "::error::Thiếu secret BACKUP_PASSPHRASE hoặc quá ngắn (cần ≥ 24 ký tự)"; exit 1; }
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" != "true" ]; then echo "::error::Repo này không riêng tư — dừng, không lưu dữ liệu cá nhân ở repo công khai"; exit 1; fi
+          echo "STAMP=$(TZ=Asia/Ho_Chi_Minh date +%Y%m%d-%H%M)" >> "$GITHUB_ENV"
+          node --version
+          df -h . | tail -1
+
+      - name: Tải mọi tệp từ Supabase Storage
+        id: download
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/storage-backup.mjs --out out/storage --concurrency 6
+
+      - name: Nén + mã hóa (AES-256) + kiểm tra
+        id: pack
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          T="out/luuxa-storage-$STAMP.tar.gz"
+          N_MAN=$(( $(wc -l < out/storage/MANIFEST.tsv) - 1 ))
+          cp out/storage/MANIFEST.tsv "out/luuxa-storage-$STAMP.manifest.tsv"
+          tar -C out -czf "$T" storage
+          rm -rf out/storage
+          sha256sum "$T" | cut -d' ' -f1 > out/tar.sha256
+          # Ảnh / PDF / video đã nén sẵn ⇒ gpg không nén thêm (--compress-algo none)
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --s2k-mode 3 --s2k-digest-algo SHA512 --s2k-count 65011712 --compress-algo none \
+            --output "$T.gpg" "$T"
+          rm -f "$T"
+          # Giải mã thử: mã băm phải khớp, số tệp trong bản nén phải khớp MANIFEST
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --output out/check.tar.gz --decrypt "$T.gpg"
+          [ "$(sha256sum out/check.tar.gz | cut -d' ' -f1)" = "$(cat out/tar.sha256)" ] || { echo "::error::Giải mã thử không khớp mã băm"; exit 1; }
+          N_TAR=$(tar -tzf out/check.tar.gz | grep -v '/$' | grep -c -v -E '/(MANIFEST\.tsv|SUMMARY\.json)$' || true)
+          rm -f out/check.tar.gz out/tar.sha256
+          echo "Số tệp trong bản nén: $N_TAR · trong MANIFEST: $N_MAN"
+          [ "$N_TAR" -eq "$N_MAN" ] || { echo "::error::Số tệp trong bản nén ($N_TAR) khác MANIFEST ($N_MAN)"; exit 1; }
+          ls -l out
+
+      # Bản tệp có thể vài trăm MB: giữ 30 ngày (≈ 4–5 bản) — chỉnh STORAGE_RETENTION_DAYS cho vừa hạn mức Artifacts 500 MB (xem README).
+      - name: Lưu vào Artifacts (30 ngày)
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luuxa-storage-${{ env.STAMP }}
+          path: |
+            out/*.gpg
+            out/*.manifest.tsv
+          retention-days: ${{ vars.STORAGE_RETENTION_DAYS || 30 }}
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Sao lưu tệp Storage ${STAMP:-}"
+            echo "- ${STORAGE_LINE:-chưa tải được tệp nào}"
+            ls out/*.gpg 2>/dev/null | sed 's/^/- tệp: /' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Bước CUỐI, chạy cả khi các bước trước lỗi/bị hủy: báo kết quả về ứng dụng. Lỗi gửi không làm hỏng job.
+      - name: Gửi nhịp tim về ứng dụng
+        if: always()
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          OPS_HEARTBEAT_SECRET: ${{ secrets.OPS_HEARTBEAT_SECRET }}
+          HEARTBEAT_KIND: "backup:storage"
+          JOB_STATUS: ${{ job.status }}
+          STEPS_JSON: ${{ toJSON(steps) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OUT_DIR: out
+          SUMMARY_EXTRA: ${{ env.STORAGE_LINE }}
+        run: |
+          if command -v node >/dev/null 2>&1 && [ -f scripts/heartbeat.mjs ]; then node scripts/heartbeat.mjs; else echo "::warning::Thiếu Node hoặc scripts/heartbeat.mjs — bỏ qua nhịp tim"; fi

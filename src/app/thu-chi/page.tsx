@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   TrendingUp,
   TrendingDown,
@@ -48,7 +49,10 @@ import {
   type PeriodQuery,
 } from "@/lib/data/finance";
 import {
+  FINANCE_TAB_ALIASES,
+  FINANCE_TABS,
   PERIOD_STATUS_LABEL,
+  type FinanceTab,
   type ContributionCellDto,
   type ContributionClaimDto,
   type ContributionPlanDto,
@@ -73,6 +77,10 @@ import { OpeningBalanceBanner, OpeningBalanceButton } from "./_components/Openin
 import { AdjustButton } from "./_components/LedgerAdjust";
 import { BulkPayDialog } from "./_components/BulkPayDialog";
 import BankLinesCard from "./_components/BankLinesCard";
+import PeriodsPanel from "./_components/PeriodsPanel";
+import MyDuesCard, { useMyDues } from "./_components/MyDuesCard";
+import SplitAlertsCard from "./_components/SplitAlertsCard";
+import { OneTimePlanModal, SyncMembersDialog } from "./_components/PlanMembersDialogs";
 
 const STATUS_FILTERS: { label: string; statuses: ExpenseStatus[] | null }[] = [
   { label: "Tất cả", statuses: null },
@@ -87,16 +95,38 @@ const NOT_COUNTED: ExpenseStatus[] = ["cancelled", "rejected", "reversed"];
 const CATEGORY_EMOJI: Record<string, string> = { FOOD: "🛒", UTILITY: "⚡", CLEAN: "🧴", REPAIR: "🔧", LITURGY: "✝", GUEST: "🤝", OTHER: "📦" };
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 
-type Tab = "tong-quan" | "danh-sach" | "dong-quy" | "ung-ho" | "bao-cao" | "thong-ke";
+type Tab = FinanceTab;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** ?tab=… (tên ổn định không dấu hoặc tên gọi khác) ⇒ tab; null nếu không hợp lệ */
+const tabOf = (t: string | null): Tab | null => (!t ? null : (FINANCE_TABS as string[]).includes(t) ? (t as Tab) : FINANCE_TAB_ALIASES[t] ?? null);
 
+/**
+ * Trang Thu chi. Liên kết thẳng (thông báo, hộp "Việc cần xử lý", trang khác):
+ *   ?tab=tong-quan|chi|dong-quy|ung-ho|so-quy|bao-cao|thong-ke  (tên cũ "danh-sach" = chi)
+ *   &plan=<kế hoạch thu>   chọn khoản thu ở thẻ "Các khoản thu"
+ *   &pay=<khoản phải thu>  mở ngay mã QR nộp khoản của CHÍNH người xem
+ *   &expense=<phiếu chi>   mở chi tiết phiếu chi
+ *   &month=YYYY-MM         (tab so-quy) mở tháng cần chốt / xem sổ quỹ
+ */
 export default function ThuChiPage() {
+  return (
+    <Suspense fallback={<ThuChiLoading />}>
+      <ThuChiContent />
+    </Suspense>
+  );
+}
+
+function ThuChiContent() {
   const { openModal, showToast, currentRole, isLoadingSkeleton } = useApp();
   const { canSend: canZaloSend, sending: zaloSending, send: zaloSend } = useZaloSend();
-  const { can, session } = useSession();
+  const { can, session, isLoading: sessionLoading } = useSession();
+  const searchParams = useSearchParams();
+  const sp = searchParams.toString();
   const today = useMemo(() => vnToday(), []);
   const current = today.slice(0, 7);
 
-  const [activeTab, setActiveTab] = useState<Tab>("tong-quan");
+  // Tab ban đầu đọc ngay từ địa chỉ (không nháy tab Tổng quan trước khi chuyển)
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabOf(searchParams.get("tab")) ?? (searchParams.get("expense") ? "chi" : "tong-quan"));
 
   // PERIOD CONTROLS (THEO THÁNG HOẶC KHOẢNG NGÀY)
   const [periodMode, setPeriodMode] = useState<"month" | "range">("month");
@@ -121,6 +151,10 @@ export default function ThuChiPage() {
   const [duesOpen, setDuesOpen] = useState(false);
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [cancelPlanFor, setCancelPlanFor] = useState<ContributionPlanDto | null>(null);
+  const [oneTimeOpen, setOneTimeOpen] = useState(false);
+  const [syncFor, setSyncFor] = useState<ContributionPlanDto | null>(null);
+  const [pendingPay, setPendingPay] = useState<string | null>(null);
+  const [periodsMonth, setPeriodsMonth] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   // Thu quỹ nhanh: đã đóng / tôi đã đóng / hoàn tác / nhắc nợ / xác nhận báo đóng
@@ -140,6 +174,62 @@ export default function ThuChiPage() {
   const canWaive = can("finance.contribution.waive");
   const canPlan = can("finance.contribution.plan.manage");
   const canRemind = canRecord || canPlan;
+  // Sổ quỹ & chốt sổ: người xem sổ quỹ hoặc có một trong các quyền chốt / xác nhận / mở lại / đối soát
+  const canSeeBooks = can(["finance.ledger.read", "finance.period.close", "finance.period.confirm", "finance.period.reopen", "finance.reconcile"]);
+  const myMemberId = session?.member?.id ?? null;
+  const myDues = useMyDues(myMemberId, current);
+
+  /** Đổi tab + ghi ?tab= vào địa chỉ (tải lại / chia sẻ giữ đúng tab). */
+  const changeTab = useCallback((k: Tab) => {
+    setActiveTab(k);
+    try {
+      const q = new URLSearchParams();
+      if (k !== "tong-quan") q.set("tab", k);
+      window.history.replaceState(null, "", `${window.location.pathname}${q.toString() ? `?${q}` : ""}`);
+    } catch {
+      /* trình duyệt chặn history — bỏ qua */
+    }
+  }, []);
+
+  // Liên kết thẳng: đọc ?tab / plan / pay / expense / month; tham số dùng một lần (pay, expense) được gỡ khỏi địa chỉ sau khi mở
+  useEffect(() => {
+    const q = new URLSearchParams(sp);
+    const tab = tabOf(q.get("tab"));
+    const planId = q.get("plan");
+    const pay = q.get("pay");
+    const exp = q.get("expense");
+    const month = q.get("month");
+    if (tab) setActiveTab(tab);
+    if (planId && UUID_RE.test(planId)) {
+      setSelectedPlanId(planId);
+      if (!tab) setActiveTab("tong-quan");
+      setTimeout(() => document.getElementById("khoan-thu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+    }
+    if (exp && UUID_RE.test(exp)) {
+      setDetailId(exp);
+      if (!tab) setActiveTab("chi");
+    }
+    if (pay && UUID_RE.test(pay)) setPendingPay(pay);
+    if (month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)) setPeriodsMonth(month);
+    if (pay || exp) {
+      q.delete("pay");
+      q.delete("expense");
+      try {
+        window.history.replaceState(null, "", `${window.location.pathname}${q.toString() ? `?${q}` : ""}`);
+      } catch {
+        /* bỏ qua */
+      }
+    }
+  }, [sp]);
+
+  // ?pay=<khoản>: mở mã QR khi đã tải xong các khoản của chính mình
+  useEffect(() => {
+    if (!pendingPay || sessionLoading || (myMemberId && !myDues.loaded)) return;
+    const cell = myDues.items.find((c) => c.contributionId === pendingPay);
+    if (cell && myDues.row) setPayQrFor({ row: myDues.row, cell });
+    else showToast("info", "Khoản này đã đóng đủ (hoặc không phải khoản của bạn) — không cần nộp thêm.");
+    setPendingPay(null);
+  }, [pendingPay, sessionLoading, myMemberId, myDues.loaded, myDues.items, myDues.row, showToast]);
 
   // KỲ ĐANG XEM → tham số truy vấn
   const monthOptions = useMemo(() => Array.from({ length: 12 }, (_, i) => shiftMonth(current, -i)), [current]);
@@ -171,6 +261,13 @@ export default function ThuChiPage() {
   const { matrix: planMatrix, isLoading: planRowsLoading } = useContributionMatrix({ plan: plan?.id }, !!plan);
   const planRows = useMemo(() => (plan && planMatrix ? planMatrix.rows.filter((r) => r.cells[plan.id]) : []), [plan, planMatrix]);
   const { claims: planClaims } = usePendingClaims(plan?.id, !!plan);
+  // Mọi yêu cầu "Tôi đã đóng" đang chờ (người ghi thu) ⇒ số trên chip từng khoản thu
+  const { claims: allClaims } = usePendingClaims(null, canRecord);
+  const claimCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of allClaims) m[c.planId] = (m[c.planId] ?? 0) + 1;
+    return m;
+  }, [allClaims]);
   const owingInPlan = useMemo(() => planRows.filter((r) => r.cells[plan!.id] && (r.cells[plan!.id].status === "unpaid" || r.cells[plan!.id].status === "partial")).length, [planRows, plan]);
 
   // PERIOD LABEL
@@ -381,19 +478,25 @@ export default function ThuChiPage() {
             <span>Kỳ: {periodLabel}</span>
           </div>
           {periodStatus && (
-            <div
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold ${
+            <button
+              type="button"
+              onClick={() => {
+                if (!canSeeBooks) return;
+                setPeriodsMonth(selectedMonth);
+                changeTab("so-quy");
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold ${canSeeBooks ? "cursor-pointer hover:opacity-90" : "cursor-default"} ${
                 periodStatus === "closed"
                   ? "bg-gray-900 text-white"
                   : periodStatus === "pending_confirmation"
                     ? "bg-amber-100 text-amber-800"
                     : "bg-emerald-50 text-emerald-700"
               }`}
-              title="Trạng thái sổ quỹ tháng: đã chốt thì không ghi thêm bút toán vào tháng này"
+              title={`Trạng thái sổ quỹ tháng: đã chốt thì không ghi thêm / ghi lùi ngày vào tháng này${canSeeBooks ? " — bấm để mở Sổ quỹ & chốt sổ" : ""}`}
             >
               {periodStatus !== "open" && <Lock className="w-3 h-3" />}
               {PERIOD_STATUS_LABEL[periodStatus]}
-            </div>
+            </button>
           )}
         </div>
 
@@ -474,8 +577,8 @@ export default function ThuChiPage() {
             <Eye className="w-4 h-4 text-primary shrink-0" />
             <span>
               <b>Chế độ xem tài chính công khai (Vai trò: {currentRole})</b>: Mọi thành viên giám sát được tồn quỹ, tổng thu – chi, cơ cấu chi tiêu và tỷ lệ thu
-              quỹ của cả nhà; phiếu chi và khoản đóng quỹ thì bạn xem được của chính mình. Duyệt chi, ghi thu và xuất quỹ chỉ áp dụng cho Thủ quỹ và Ban điều
-              hành.
+              quỹ của cả nhà; phiếu chi và khoản đóng quỹ thì bạn xem được của chính mình. Duyệt chi, ghi thu và xuất quỹ chỉ áp dụng cho Thủ quỹ và người quản
+              lý.
             </span>
           </div>
         </div>
@@ -496,7 +599,7 @@ export default function ThuChiPage() {
               setPeriodMode("month");
               setSelectedMonth("all");
               setExpenseStatusFilter("Chờ duyệt");
-              setActiveTab("danh-sach");
+              changeTab("chi");
             }}
             className="px-3 py-1.5 rounded-xl bg-white border border-amber-200 font-bold hover:bg-amber-100"
           >
@@ -506,20 +609,23 @@ export default function ThuChiPage() {
       )}
 
       {/* TABS */}
-      <div className="flex gap-2 border-b border-purple-50 pb-2 overflow-x-auto">
+      <div className="flex gap-2 border-b border-purple-50 pb-2 overflow-x-auto" role="tablist" aria-label="Các mục Thu chi">
         {(
           [
             ["tong-quan", "Tổng quan"],
-            ["danh-sach", `Danh sách chi tiêu (${expenses.length})`],
+            ["chi", `Danh sách chi tiêu (${expenses.length})`],
             ["dong-quy", "Ma trận đóng quỹ"],
             ["ung-ho", "Ủng hộ"],
+            ...(canSeeBooks ? ([["so-quy", "Sổ quỹ & chốt sổ"]] as [Tab, string][]) : []),
             ["bao-cao", "Báo cáo & Biểu đồ"],
             ["thong-ke", "Thống kê & Xuất file"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <button
             key={k}
-            onClick={() => setActiveTab(k)}
+            role="tab"
+            aria-selected={activeTab === k}
+            onClick={() => changeTab(k)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === k ? "bg-primary text-white shadow-xs" : "text-gray-600 hover:bg-surface-container-low"
             }`}
@@ -536,6 +642,18 @@ export default function ThuChiPage() {
         <>
           {/* Mới triển khai (sổ quỹ còn trống): nhắc Trưởng nhà nhập số dư quỹ khởi đầu */}
           <OpeningBalanceBanner />
+
+          {/* MỌI khoản người xem còn phải đóng — Nộp qua QR / Tôi đã đóng cho từng khoản (không chỉ khoản đang chọn) */}
+          <MyDuesCard
+            memberId={myMemberId}
+            currentMonth={current}
+            canRecord={canRecord}
+            onPayQr={(row, cell) => setPayQrFor({ row, cell })}
+            onClaim={(row, cell) => setClaimFor({ row, cell })}
+            onQuickPay={(row, cell) => setQuickPayFor({ row, cell })}
+            onOpenCell={(row, cell) => setCellFor({ row, cell })}
+            onCancelClaim={cancelClaim}
+          />
 
           {/* AI nhận xét thu chi tháng đang xem so với tháng trước (tự ẩn khi tác vụ tắt hoặc không đủ quyền) */}
           {periodMode === "month" && selectedMonth !== "all" && <AiFinanceInsight month={selectedMonth} />}
@@ -646,7 +764,7 @@ export default function ThuChiPage() {
           {/* ROW 3: CONTRIBUTIONS & RECENT EXPENSES */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* LEFT: CÁC KHOẢN THU (7 COLS) */}
-            <div className="lg:col-span-7 flex flex-col gap-6">
+            <div id="khoan-thu" className="lg:col-span-7 flex flex-col gap-6 scroll-mt-24">
               <BankLinesCard />
               <CollectionsCard
                 plans={recentPlans}
@@ -657,7 +775,7 @@ export default function ThuChiPage() {
                 canRecord={canRecord}
                 canWaive={canWaive}
                 canPlan={canPlan}
-                myMemberId={session?.member?.id ?? null}
+                myMemberId={myMemberId}
                 currentMonth={current}
                 onSelectPlan={setSelectedPlanId}
                 onRecord={(memberId, contributionId) => setPayFor({ memberId, contributionId })}
@@ -665,8 +783,11 @@ export default function ThuChiPage() {
                 onPayQr={(row, cell) => setPayQrFor({ row, cell })}
                 onCreateDues={() => setDuesOpen(true)}
                 onCreateUtility={() => setUtilityOpen(true)}
+                onCreateOneTime={() => setOneTimeOpen(true)}
+                onSyncMembers={setSyncFor}
                 onCancelPlan={setCancelPlanFor}
                 claims={planClaims}
+                claimCounts={canRecord ? claimCounts : undefined}
                 canRemind={canRemind}
                 onQuickPay={(row, cell) => setQuickPayFor({ row, cell })}
                 onBulkPay={() => setBulkPayOpen(true)}
@@ -681,11 +802,12 @@ export default function ThuChiPage() {
 
             {/* RIGHT: TÀI KHOẢN NHẬN QUỸ (QR) + CHI TIÊU GẦN ĐÂY (5 COLS) */}
             <div className="lg:col-span-5 flex flex-col gap-6">
+              <SplitAlertsCard enabled={canApprove} compact onOpenExpense={setDetailId} />
               <ReceivingAccountCard />
               <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                   <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Chi tiêu gần đây" : "Phiếu chi của tôi"}</h2>
-                  <button onClick={() => setActiveTab("danh-sach")} className="text-xs font-bold text-primary hover:underline">
+                  <button onClick={() => changeTab("chi")} className="text-xs font-bold text-primary hover:underline">
                     Xem tất cả →
                   </button>
                 </div>
@@ -731,8 +853,9 @@ export default function ThuChiPage() {
       {/* ========================================================================= */}
       {/* TAB 2: DANH SÁCH CHI TIÊU TOÀN DIỆN */}
       {/* ========================================================================= */}
-      {activeTab === "danh-sach" && (
-        <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-5">
+      {activeTab === "chi" && <SplitAlertsCard enabled={canApprove} onOpenExpense={setDetailId} />}
+      {activeTab === "chi" && (
+        <div className="bg-white rounded-3xl p-4 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
             <div>
               <h2 className="text-base font-bold text-gray-900">{canSeeAllExpenses ? "Sổ phiếu chi sinh hoạt" : "Phiếu chi & đề xuất chi của tôi"}</h2>
@@ -940,6 +1063,7 @@ export default function ThuChiPage() {
           onOpenCell={(row, cell) => setCellFor({ row, cell })}
           onCreateDues={() => setDuesOpen(true)}
           onCreateUtility={() => setUtilityOpen(true)}
+          onCreateOneTime={() => setOneTimeOpen(true)}
         />
       )}
 
@@ -1041,6 +1165,15 @@ export default function ThuChiPage() {
       {/* TAB: THỐNG KÊ THEO THÁNG / QUÝ / NĂM + XUẤT EXCEL / PDF */}
       {/* ========================================================================= */}
       {activeTab === "ung-ho" && <DonationsPanel />}
+
+      {activeTab === "so-quy" &&
+        (canSeeBooks ? (
+          <PeriodsPanel initialMonth={periodsMonth} />
+        ) : (
+          <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 text-xs text-purple-900">
+            Sổ quỹ chi tiết và chốt sổ dành cho Thủ quỹ và người quản lý. Trạng thái sổ quỹ từng tháng hiện ở thanh chọn kỳ phía trên.
+          </div>
+        ))}
 
       {activeTab === "thong-ke" && <StatsPanel />}
 
@@ -1151,6 +1284,8 @@ export default function ThuChiPage() {
         }}
       />
       <DuesCycleModal open={duesOpen} onClose={() => setDuesOpen(false)} />
+      <OneTimePlanModal open={oneTimeOpen} onClose={() => setOneTimeOpen(false)} onCreated={(id) => setSelectedPlanId(id)} />
+      <SyncMembersDialog plan={syncFor} existingIds={syncFor && plan && syncFor.id === plan.id ? planRows.map((r) => r.memberId) : []} onClose={() => setSyncFor(null)} />
       <UtilityModal open={utilityOpen} onClose={() => setUtilityOpen(false)} />
       <ReasonDialog
         open={!!cancelPlanFor}

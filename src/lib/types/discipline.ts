@@ -50,6 +50,8 @@ export interface DisciplineRuleDto {
   defaultPenaltyNote: string | null;
   /** Lỗi đỏ: vi phạm nghiêm trọng — giao diện làm nổi bật */
   isRed: boolean;
+  /** Tái phạm điều này thì chuyển thành Lỗi đỏ (luật nhà L04–L09) — giao diện cảnh báo khi ghi vi phạm lặp lại */
+  repeatBecomesRed: boolean;
   sortOrder: number;
   isActive: boolean;
   /** Số lần điều luật này đã được dùng để ghi nhận */
@@ -111,4 +113,20 @@ export interface DisciplineQuery {
   q?: string;
   /** true = chỉ của chính mình (tab "Của tôi") */
   mine?: boolean;
+}
+
+/** Số lần thành viên đã vi phạm cùng điều luật trong 12 tháng (tính đến ngày ghi) — hiện khi ghi vi phạm mới. */
+export interface DisciplineRepeatDto {
+  /** Lần thứ mấy nếu ghi thêm bản này (số lần trước đó + 1) */
+  nth: number;
+  /** Số lần đã ghi nhận trước đó cho CÙNG điều luật trong 12 tháng (không tính bản được miễn) */
+  sameRuleBefore: number;
+  /** Tổng số vi phạm (mọi điều) đã ghi nhận trước đó trong 12 tháng (không tính bản được miễn) */
+  totalBefore: number;
+  /** Các ngày vi phạm trước đó của cùng điều luật (mới nhất trước, tối đa 5) */
+  previousDates: string[];
+  ruleIsRed: boolean;
+  repeatBecomesRed: boolean;
+  /** Tái phạm điều có quy định "tái phạm ⇒ Lỗi đỏ" — cảnh báo đỏ */
+  escalatesToRed: boolean;
 }

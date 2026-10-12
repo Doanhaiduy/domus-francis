@@ -1,7 +1,8 @@
 "use client";
 
-// Trực vệ sinh sân nhà THEO TUẦN: mỗi tuần 1–2 người. Trưởng nhà/Admin xếp lịch (người được xếp nhận thông báo), hết tuần chấm điểm 0–10,
-// nhận xét và có thể yêu cầu trực lại. Không còn khu vực/ca/check-in/nghiệm thu từng ca.
+// Trực vệ sinh sân nhà THEO TUẦN: mỗi tuần 1–2 người. Trưởng nhà/Admin xếp lịch (từng tuần, hoặc XẾP TỰ ĐỘNG 4–8 tuần theo thứ tự công bằng —
+// DutyPlanDialogs.tsx), người được xếp nhận thông báo (và được nhắc lại sáng Thứ Hai); hết tuần chấm điểm 0–10, nhận xét và có thể yêu cầu trực lại.
+// Xuất Excel lịch trực + kết quả đánh giá. Không còn khu vực/ca/check-in/nghiệm thu từng ca.
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -9,7 +10,7 @@ import {
   CalendarCheck2,
   ChevronLeft,
   ChevronRight,
-  Copy,
+  FileSpreadsheet,
   RotateCcw,
   Search,
   Send,
@@ -17,15 +18,16 @@ import {
   Star,
   Trash2,
   UserPlus,
+  Wand2,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage, fileUrl } from "@/lib/api";
 import { copyTextToClipboard } from "@/lib/zaloShare";
 import { addDays, weekRangeLabel } from "@/lib/duty-format";
 import { dutyWeeksApi, refreshDuty, useDutyBoard } from "@/lib/data/duty";
-import { useOrgSettings } from "@/lib/data/settings";
-import { DUTY_WEEK_MAX_MEMBERS, type DutyWeekEntryDto, type DutyWeekMemberDto } from "@/lib/types/duty";
-import { CustomInput, CustomTextarea } from "@/components/ui/FormControls";
+import { DUTY_PLAN_MAX_WEEKS, DUTY_PLAN_MIN_WEEKS, DUTY_WEEK_MAX_MEMBERS, type DutyWeekEntryDto, type DutyWeekMemberDto } from "@/lib/types/duty";
+import { CustomInput, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
+import { AutoPlanModal, DutyExportModal } from "./DutyPlanDialogs";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
@@ -195,14 +197,8 @@ function AssignModal({
       }
     >
       <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm tên, số phòng..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-surface-container-low border border-transparent focus:border-primary focus:bg-white text-xs font-medium focus:outline-none transition"
-          />
+        <div className="flex-1 min-w-0">
+          <CustomInput aria-label="Tìm thành viên" leftIcon={<Search className="w-3.5 h-3.5" />} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm tên, số phòng..." />
         </div>
         <button type="button" onClick={suggest} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold" title="Chọn 2 người trực ít nhất / lâu nhất chưa trực">
           <Sparkles className="w-3.5 h-3.5" /> Gợi ý luân phiên
@@ -233,12 +229,7 @@ function AssignModal({
         {list.length === 0 && <p className="py-6 text-center text-xs text-gray-400">Không có thành viên phù hợp.</p>}
       </div>
       <CustomTextarea label="Ghi chú cho người trực (tùy chọn)" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Quét sân, nhổ cỏ góc vườn, đổ rác trước 7h sáng…" maxLength={500} />
-      <label className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer">
-        <input type="checkbox" checked={zalo} onChange={(e) => setZalo(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#5f3add]" />
-        <span>
-          Gửi lịch trực vào nhóm Zalo của nhà <span className="text-gray-400">(chỉ gửi khi đã bật tích hợp ở Cài đặt → Tích hợp Zalo)</span>
-        </span>
-      </label>
+      <CustomToggle checked={zalo} onChange={setZalo} label="Gửi lịch trực vào nhóm Zalo của nhà" description="Chỉ gửi khi đã bật tích hợp ở Cài đặt → Tích hợp Zalo" />
       <ErrorBox error={error} />
     </DialogShell>
   );
@@ -409,13 +400,7 @@ function ReviewCard({
             </div>
 
             <div className={cn("rounded-2xl border p-3.5 transition", redo ? "bg-rose-50/70 border-rose-200" : "bg-gray-50/60 border-gray-100")}>
-              <label className="flex items-center justify-between gap-3 cursor-pointer">
-                <span>
-                  <span className="block text-xs font-bold text-gray-900">Yêu cầu trực lại</span>
-                  <span className="block text-[11px] text-gray-500">Bật nếu kết quả chưa đạt, hai bạn cần trực bù.</span>
-                </span>
-                <input type="checkbox" checked={redo} onChange={(e) => setRedo(e.target.checked)} className="w-5 h-5 accent-[#e11d48] shrink-0" />
-              </label>
+              <CustomToggle checked={redo} onChange={setRedo} label="Yêu cầu trực lại" description="Bật nếu kết quả chưa đạt, hai bạn cần trực bù." />
               {redo && <div className="mt-3"><CustomInput placeholder="Việc cần làm lại (tùy chọn)" value={redoNote} onChange={(e) => setRedoNote(e.target.value)} maxLength={500} /></div>}
             </div>
 
@@ -449,9 +434,10 @@ function ReviewCard({
 // ---------------------------------------------------------------------
 export default function DutyWeekTab({ week, onWeekChange }: { week: string; onWeekChange: (w: string) => void }) {
   const { showToast } = useApp();
-  const { org } = useOrgSettings();
   const { board, isLoading, error } = useDutyBoard(week || null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [preselect, setPreselect] = useState<string[] | null>(null);
   const [assignWeek, setAssignWeek] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -502,11 +488,27 @@ export default function DutyWeekTab({ week, onWeekChange }: { week: string; onWe
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-        {w.weekStart !== thisWeekStart && (
-          <button onClick={() => onWeekChange(thisWeekStart)} className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold">
-            <CalendarCheck2 className="w-3.5 h-3.5" /> Về tuần này
+        <div className="flex flex-wrap items-center gap-2">
+          {w.weekStart !== thisWeekStart && (
+            <button onClick={() => onWeekChange(thisWeekStart)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-primary text-xs font-bold">
+              <CalendarCheck2 className="w-3.5 h-3.5" /> Về tuần này
+            </button>
+          )}
+          {canManage && (
+            <button
+              onClick={() => setPlanOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-container text-white text-xs font-bold shadow-md shadow-primary/20 transition active:scale-95"
+            >
+              <Wand2 className="w-3.5 h-3.5" /> Xếp tự động {DUTY_PLAN_MIN_WEEKS}–{DUTY_PLAN_MAX_WEEKS} tuần
+            </button>
+          )}
+          <button
+            onClick={() => setExportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 text-xs font-bold transition"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Xuất Excel
           </button>
-        )}
+        </div>
       </div>
 
       {/* Người trực */}
@@ -645,6 +647,8 @@ export default function DutyWeekTab({ week, onWeekChange }: { week: string; onWe
           preselect={preselect}
         />
       )}
+      {canManage && <AutoPlanModal open={planOpen} onClose={() => setPlanOpen(false)} thisWeekStart={thisWeekStart} timeline={board.timeline} />}
+      <DutyExportModal open={exportOpen} onClose={() => setExportOpen(false)} thisWeekStart={thisWeekStart} />
       <ConfirmDialog
         isOpen={confirmDelete}
         onClose={() => setConfirmDelete(false)}

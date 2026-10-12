@@ -2,6 +2,7 @@ import { api } from "@/server/http";
 import { badRequest } from "@/server/errors";
 import { createExpense, getExpense, listExpenses } from "@/server/modules/finance-expenses";
 import { CreateExpenseSchema, RangeQuery } from "@/server/modules/finance-schema";
+import { notifyExpense } from "@/server/modules/finance-notify";
 
 /** Danh sách phiếu chi theo ngày chi (?from&to). RLS: thành viên thấy phiếu mình lập/mình ứng tiền. */
 export const GET = api({}, (ctx) => {
@@ -10,9 +11,10 @@ export const GET = api({}, (ctx) => {
   return ctx.db((tx) => listExpenses(tx, parsed.data));
 });
 
-/** Lập phiếu chi (nháp) + gắn hóa đơn + (tùy chọn) nộp duyệt ngay. */
+/** Lập phiếu chi (nháp) + gắn hóa đơn + (tùy chọn) nộp duyệt ngay — gửi duyệt thì báo những người còn ký được. */
 export const POST = api({}, async (ctx) => {
   const b = await ctx.body(CreateExpenseSchema);
   const out = await ctx.db(async (tx) => getExpense(tx, await createExpense(tx, b)));
+  if (out.status === "pending_approval") await notifyExpense(ctx, out.id, "submitted");
   return Response.json(out, { status: 201 });
 });

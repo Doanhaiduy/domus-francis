@@ -4,8 +4,8 @@ import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight, Newspaper, Search, Sparkles } from "lucide-react";
 import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
 import { featuredArticle, listPublished } from "@/server/modules/articles";
-import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
-import { getOrgInfo, getSiteInfo, publicDb, siteOrigin } from "@/server/public";
+import { OG_DEFAULT_IMAGES, SITE_KIND } from "@/lib/public-site";
+import { getOrgInfo, getSiteInfo, publicDb } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { ArticleCard, ArticleMeta, CategoryChip, Cover } from "@/components/public/ArticleCard";
 import { JoinCta } from "@/components/public/JoinCta";
@@ -22,11 +22,22 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   const org = await getOrgInfo();
   const cat = categoryOf(searchParams.muc);
   const tag = tagOf(searchParams.tag);
-  const title = tag ? `#${tag} — ${org.houseName}` : cat ? `${articleCategoryLabel(cat)} — ${org.houseName}` : `Bản tin — ${org.houseName}`;
+  const q = (searchParams.q ?? "").trim().slice(0, 80);
+  const page = Math.max(1, Math.min(500, Number.parseInt(searchParams.page ?? "1", 10) || 1));
+  const title = q ? `Tìm “${q}”` : tag ? `#${tag}` : cat ? articleCategoryLabel(cat) : `Bản tin ${SITE_KIND}`;
   const description = org.motto
-    ? `${org.motto}. Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName}.`
-    : `Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName} — cộng đoàn sinh viên Công giáo.`;
-  return { metadataBase: new URL(siteOrigin()), title, description, alternates: { types: { "application/rss+xml": "/tin-tuc/rss.xml" } }, openGraph: { title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES } };
+    ? `${org.motto}. Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName} — ${SITE_KIND}.`
+    : `Tin tức, thông tin tuyển sinh và hoạt động của ${org.houseName} — ${SITE_KIND}.`;
+  // Trang kết quả tìm kiếm / lọc theo thẻ: không lập chỉ mục (nội dung trùng các trang khác, vô hạn biến thể) nhưng vẫn cho đi theo liên kết.
+  const filtered = !!q || !!tag;
+  const canonical = filtered ? undefined : pageHref({ muc: cat, page });
+  return {
+    title,
+    description,
+    robots: filtered ? { index: false, follow: true } : undefined,
+    alternates: { canonical, types: { "application/rss+xml": "/tin-tuc/rss.xml" } },
+    openGraph: { title: cat ? `${articleCategoryLabel(cat)} — ${org.houseName}` : `Bản tin — ${org.houseName}`, description, url: canonical, type: "website", locale: "vi_VN", siteName: org.houseName, images: OG_DEFAULT_IMAGES },
+  };
 }
 
 function pageHref(p: { muc?: string; q?: string; tag?: string; page?: number }) {
@@ -63,17 +74,17 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
 
       {/* HERO */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#4d2dbf] via-[#5f3add] to-[#7857f8] text-white">
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/10 blur-3xl" aria-hidden />
-        <div className="absolute -bottom-28 -left-16 w-72 h-72 rounded-full bg-indigo-300/20 blur-3xl" aria-hidden />
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-[#ffffff]/10 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-28 -left-16 w-72 h-72 rounded-full bg-[#a5b4fc]/20 blur-3xl" aria-hidden />
         <div className={`relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 ${featured ? "pb-28 sm:pb-32" : "pb-12 sm:pb-16"}`}>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-[11px] font-extrabold uppercase tracking-wider">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ffffff]/15 text-[11px] font-extrabold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" aria-hidden />
             {catInfo ? catInfo.label : "Bản tin cộng đoàn"}
           </span>
           <h1 className="mt-4 text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight max-w-3xl">
             {catInfo ? catInfo.label : org.houseName}
           </h1>
-          <p className="mt-3 text-base sm:text-lg text-purple-100 max-w-2xl leading-relaxed">
+          <p className="mt-3 text-base sm:text-lg text-[#ede9fe] max-w-2xl leading-relaxed">
             {catInfo
               ? catInfo.description
               : org.motto
@@ -94,7 +105,7 @@ export default async function PublicHomePage({ searchParams }: { searchParams: S
                 className="w-full h-11 pl-10 pr-3 rounded-2xl bg-white text-gray-900 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30"
               />
             </label>
-            <button type="submit" className="h-11 px-5 rounded-2xl bg-white/15 hover:bg-white/25 text-white text-sm font-bold border border-white/30 transition active:scale-95">
+            <button type="submit" className="h-11 px-5 rounded-2xl bg-[#ffffff]/15 hover:bg-[#ffffff]/25 text-white text-sm font-bold border border-[#ffffff]/30 transition active:scale-95">
               Tìm
             </button>
           </form>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Building, MessageCircle, BellRing, Save, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User, ScrollText, HardDrive } from "lucide-react";
+import { Settings, Building, MessageCircle, BellRing, Save, FolderTree, ShieldCheck, AlertCircle, Undo2, Sparkles, LayoutPanelLeft, UserCog, GraduationCap, User, ScrollText, HardDrive, ServerCog } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
@@ -16,6 +16,7 @@ import NotificationsTab from "./_components/NotificationsTab";
 import GeneralTab, { isGeneralKey } from "./_components/GeneralTab";
 import CategoriesTab from "./_components/CategoriesTab";
 import RolesTab from "./_components/RolesTab";
+import DelegationsPanel from "@/components/members/DelegationsPanel";
 import ZaloTab from "./_components/ZaloTab";
 import RemindersTab from "./_components/RemindersTab";
 import AiTab from "./_components/AiTab";
@@ -24,10 +25,12 @@ import AccountsTab from "./_components/AccountsTab";
 import AcademicConfigTab from "./_components/AcademicConfigTab";
 import ActivityTab from "./_components/ActivityTab";
 import StorageTab from "./_components/StorageTab";
+import SystemTab from "./_components/SystemTab";
 import { useAiStatus } from "@/lib/data/ai";
+import { SETTINGS_TAB_EVENT, useOpsSummary } from "@/lib/data/system";
 
-type ActiveTab = "profile" | "security" | "notifications" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules" | "activity" | "storage";
-const TABS: readonly ActiveTab[] = ["profile", "security", "notifications", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules", "activity", "storage"];
+type ActiveTab = "profile" | "security" | "notifications" | "general" | "categories" | "academic" | "roles" | "accounts" | "zalo" | "reminders" | "ai" | "modules" | "activity" | "storage" | "system";
+const TABS: readonly ActiveTab[] = ["profile", "security", "notifications", "general", "categories", "academic", "roles", "accounts", "zalo", "reminders", "ai", "modules", "activity", "storage", "system"];
 
 export default function CaiDatPage() {
   const { showToast, isLoadingSkeleton } = useApp();
@@ -36,15 +39,37 @@ export default function CaiDatPage() {
   // Điện thoại: thanh tab cuộn ngang ⇒ đưa tab đang chọn vào tầm nhìn
   const tabsRef = useRef<HTMLDivElement>(null);
   // Mở thẳng một tab: /cai-dat?tab=modules (vd. từ dải nhắc "phân hệ đang ẩn")
+  const tabFromUrl = useRef(false);
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab") as ActiveTab | null;
-    if (t && TABS.includes(t)) setActiveTab(t);
+    if (t && TABS.includes(t)) {
+      tabFromUrl.current = true;
+      setActiveTab(t);
+    }
+  }, []);
+  // Chuyển tab khi đang ở trang này (liên kết từ dải cảnh báo vận hành / tab Hệ thống — xem openSettingsTab)
+  useEffect(() => {
+    const h = (e: Event) => {
+      const t = (e as CustomEvent<string>).detail as ActiveTab;
+      if (TABS.includes(t)) setActiveTab(t);
+    };
+    window.addEventListener(SETTINGS_TAB_EVENT, h);
+    return () => window.removeEventListener(SETTINGS_TAB_EVENT, h);
   }, []);
   const { status: aiStatus } = useAiStatus();
+  // Chấm đỏ/vàng trên tab "Hệ thống" (dùng chung dữ liệu với dải cảnh báo — không gọi thêm API)
+  const { summary: ops } = useOpsSummary(!!session && can("system.monitor"));
 
   const { matrix, isLoading: rbacLoading, error: rbacError } = useRbacMatrix();
   const roleCodes = useMemo(() => (matrix?.roles ?? []).map((r) => r.code), [matrix]);
   const draft = useSettingsDraft(roleCodes);
+  // Người KHÔNG có quyền sửa cấu hình nào mở Cài đặt (không chỉ định tab) ⇒ vào thẳng Hồ sơ cá nhân thay vì "Cấu hình chung" chỉ đọc
+  const defaulted = useRef(false);
+  useEffect(() => {
+    if (defaulted.current || draft.isLoading || !session) return;
+    defaulted.current = true;
+    if (!tabFromUrl.current && !draft.anyWritable) setActiveTab("profile");
+  }, [draft.isLoading, draft.anyWritable, session]);
   const { categories } = useCategories();
 
   // Cảnh báo khi rời trang còn thay đổi chưa lưu
@@ -241,6 +266,13 @@ export default function CaiDatPage() {
             <span>Dung lượng</span>
           </button>
         )}
+        {session && can("system.monitor") && (
+          <button onClick={() => setActiveTab("system")} className={tabBtn("system")}>
+            <ServerCog className="w-4 h-4" />
+            <span>Hệ thống</span>
+            {ops && ops.level !== "ok" && <span className={cn("w-1.5 h-1.5 rounded-full", ops.level === "error" ? "bg-rose-500" : "bg-amber-500")} />}
+          </button>
+        )}
         {aiStatus?.canManage && (
           <button onClick={() => setActiveTab("ai")} className={tabBtn("ai")}>
             <Sparkles className="w-4 h-4" />
@@ -255,7 +287,12 @@ export default function CaiDatPage() {
       {activeTab === "notifications" && <NotificationsTab />}
       {activeTab === "general" && (settingsLoading ? <FormCardsSkeleton cards={4} /> : <GeneralTab draft={draft} roles={matrix?.roles ?? []} />)}
       {activeTab === "categories" && <CategoriesTab />}
-      {activeTab === "roles" && <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />}
+      {activeTab === "roles" && (
+        <>
+          <DelegationsPanel />
+          <RolesTab matrix={matrix} isLoading={rbacLoading} error={rbacError} />
+        </>
+      )}
       {activeTab === "zalo" && (settingsLoading ? <FormCardsSkeleton cards={2} /> : <ZaloTab draft={draft} />)}
       {activeTab === "reminders" && <RemindersTab />}
       {activeTab === "ai" && <AiTab />}
@@ -264,6 +301,7 @@ export default function CaiDatPage() {
       {activeTab === "activity" && session && can("activity.log.read") && <ActivityTab />}
       {activeTab === "academic" && <AcademicConfigTab />}
       {activeTab === "storage" && session && can("system.monitor") && <StorageTab />}
+      {activeTab === "system" && session && can("system.monitor") && <SystemTab />}
 
       {/* Điện thoại: form dài, nút Lưu ở đầu trang ⇒ thanh lưu cố định phía trên thanh điều hướng dưới khi có thay đổi */}
       {!readOnly && dirtyCount > 0 && (

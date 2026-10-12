@@ -1,13 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
   Bell,
-  Clock,
   Plus,
-  Menu,
   Sparkles,
   Shield,
   Crown,
@@ -25,6 +23,7 @@ import { fileUrl } from "@/lib/api";
 import { useUnreadCount } from "@/lib/data/dashboard";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/lib/theme";
+import { syncAppBadge } from "@/lib/push";
 
 const ROLE_CONFIGS: Record<
   string,
@@ -39,7 +38,7 @@ const ROLE_CONFIGS: Record<
   },
   "Thủ quỹ": {
     label: "Thủ quỹ",
-    desc: "Quản lý ngân quỹ: Lập phiếu chi, thu quỹ 600k/kỳ, xuất báo cáo tài chính minh bạch",
+    desc: "Quản lý ngân quỹ: lập phiếu chi, thu các khoản quỹ, đối soát và xuất báo cáo tài chính minh bạch",
     icon: Wallet,
     color: "from-emerald-600 to-teal-600 text-white",
     badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -90,10 +89,15 @@ const CUSTOM_ROLE_CONFIG = {
 };
 
 export const Header: React.FC = () => {
-  const { openModal, currentRole, toggleMobileMenu, toggleCommandPalette } = useApp();
+  const { openModal, currentRole, toggleCommandPalette } = useApp();
   const { session, can } = useSession();
   const unread = useUnreadCount(!!session?.member);
   const unreadCount = (unread?.announcementsUnread ?? 0) + (unread?.notificationsUnread ?? 0);
+  // Số chưa đọc trên biểu tượng ứng dụng đã cài (Badging API — trình duyệt không hỗ trợ thì bỏ qua); rời khung ứng dụng (đăng xuất) ⇒ xóa số
+  useEffect(() => {
+    if (unread) syncAppBadge(unreadCount);
+  }, [unread, unreadCount]);
+  useEffect(() => () => syncAppBadge(0), []);
   // Vai trò tự tạo do Admin thêm (không có cấu hình riêng): biểu tượng chung, mô tả theo tên vai trò
   const roleCfg =
     ROLE_CONFIGS[currentRole] ||
@@ -111,19 +115,10 @@ export const Header: React.FC = () => {
     <div className="w-full z-20 sticky top-0 flex flex-col">
       {/* 1. TOP MAIN NAV BAR */}
       <header className="h-16 w-full bg-surface-container-lowest/95 backdrop-blur-xl flex items-center justify-between px-3.5 sm:px-6 lg:px-8 shadow-[0_1px_6px_rgba(0,0,0,0.02)] border-b border-purple-50">
-        {/* LEFT: HAMBURGER (MOBILE ONLY) & SEARCH */}
+        {/* TRÁI: biểu tượng về Tổng quan (điện thoại) + ô tìm kiếm nhanh */}
         <div className="flex items-center gap-2.5 flex-1 max-w-md">
-          {/* Mobile Hamburger Toggle */}
-          <button
-            onClick={toggleMobileMenu}
-            className="md:hidden p-2 rounded-xl text-gray-600 hover:bg-purple-50 hover:text-primary transition"
-            title="Mở menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          {/* Mobile Mini Brand Icon */}
-          <Link href="/" className="md:hidden flex items-center gap-1.5 shrink-0">
+          {/* Điện thoại: menu đầy đủ mở bằng nút "Thêm" ở thanh điều hướng dưới (MobileBottomNav) — đầu trang chỉ còn biểu tượng về Tổng quan */}
+          <Link href="/" aria-label="Lưu Xá Phanxicô — về Tổng quan" className="md:hidden flex items-center gap-1.5 shrink-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#5f3add] to-[#7857f8] flex items-center justify-center text-white font-bold text-sm shadow-xs">
               ✝
             </div>
@@ -131,10 +126,13 @@ export const Header: React.FC = () => {
 
           {/* Search Bar / Command Palette Trigger */}
           <button
+            type="button"
             onClick={toggleCommandPalette}
-            className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-xl w-full text-on-surface-variant hover:bg-white hover:ring-2 hover:ring-purple-200 transition-all border border-transparent hover:border-purple-200 text-left cursor-pointer"
+            aria-label="Tìm kiếm nhanh trang, thao tác, thành viên (Ctrl K)"
+            aria-keyshortcuts="Control+K Meta+K"
+            className="flex items-center gap-2 bg-surface-container-low px-3 py-2 rounded-xl w-full text-on-surface-variant hover:bg-white hover:ring-2 hover:ring-purple-200 transition-all border border-transparent hover:border-purple-200 text-left cursor-pointer"
           >
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <Search className="w-4 h-4 text-gray-400 shrink-0" aria-hidden />
             <span className="text-xs text-gray-400 flex-1 truncate">Tìm kiếm nhanh...</span>
             <kbd className="hidden sm:inline-block text-[10px] font-mono bg-white px-1.5 py-0.5 rounded shadow-2xs text-gray-500 border border-gray-100 shrink-0">
               ⌘K
@@ -147,18 +145,21 @@ export const Header: React.FC = () => {
           {/* ROLE-BASED QUICK ACTION BUTTON */}
           {canCreateExpense ? (
             <button
+              type="button"
               onClick={() => openModal("addExpense")}
-              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-semibold shadow-xs transition shadow-primary/20 active:scale-95"
+              aria-label="Ghi chi tiêu"
+              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-semibold shadow-xs transition shadow-primary/20 active:scale-95"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" aria-hidden />
               <span className="hidden sm:inline">Ghi chi tiêu</span>
             </button>
           ) : (
             <Link
               href="/hau-can"
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 text-xs font-semibold shadow-xs transition active:scale-95"
+              aria-label="Trực nhật & Hậu cần"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 text-xs font-semibold shadow-xs transition active:scale-95"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" aria-hidden />
               <span className="hidden sm:inline">Trực nhật &amp; Hậu cần</span>
             </Link>
           )}
@@ -168,13 +169,16 @@ export const Header: React.FC = () => {
 
           {/* NOTIFICATION BELL */}
           <button
+            type="button"
             onClick={() => openModal("notifications")}
-            className="relative p-2 rounded-full hover:bg-surface-container-low text-gray-600 transition-colors"
+            aria-label={unreadCount > 0 ? `Thông báo — ${unreadCount} chưa đọc` : "Thông báo"}
+            aria-haspopup="dialog"
+            className="relative p-2.5 sm:p-2 rounded-full hover:bg-surface-container-low text-gray-600 transition-colors"
             title="Thông báo"
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-4 h-4" aria-hidden />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-white" />
+              <span className="absolute top-2 right-2 sm:top-1.5 sm:right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-white" aria-hidden />
             )}
           </button>
 
@@ -183,8 +187,9 @@ export const Header: React.FC = () => {
           {/* ACTIVE ROLE PILL / PROFILE LINK */}
           <Link
             href="/cai-dat?tab=profile"
+            aria-label={`Hồ sơ cá nhân — ${displayName}`}
             className="hidden sm:flex items-center gap-2 pl-1 p-1 rounded-2xl hover:bg-purple-50/80 transition-all cursor-pointer group select-none active:scale-95"
-            title="Xem &amp; sửa hồ sơ cá nhân của bạn"
+            title="Xem & sửa hồ sơ cá nhân của bạn"
           >
             {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -10,11 +10,16 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    public errors?: { field: string; message: string }[]
+    public errors?: { field: string; message: string }[],
+    /** Chi tiết kỹ thuật (lỗi gốc của CSDL/thư viện) — KHÔNG gửi cho trình duyệt; chỉ ghi log + nhật ký lỗi (error_events). */
+    public internal?: string
   ) {
     super(message);
   }
 }
+
+/** Câu chữ cho lỗi hệ thống không lường trước — không lộ thông điệp kỹ thuật (tên bảng/cột, SQL, lỗi kết nối…) ra ngoài. */
+export const INTERNAL_MESSAGE = "Đã có lỗi hệ thống. Vui lòng thử lại sau; nếu vẫn lỗi, hãy báo người quản lý kèm mã lỗi.";
 
 export const badRequest = (msg: string, errors?: ApiError["errors"]) => new ApiError(400, "VALIDATION_FAILED", msg, errors);
 export const unauthorized = (msg = "Bạn cần đăng nhập.") => new ApiError(401, "UNAUTHENTICATED", msg);
@@ -89,43 +94,54 @@ export function toApiError(e: unknown): ApiError {
       case "22008":
       case "22003": return new ApiError(400, "INVALID_VALUE", "Giá trị không hợp lệ.");
       case "42501": {
-        if (/row-level security|permission denied/i.test(msg)) return new ApiError(403, br ?? "FORBIDDEN", br ? msg : "Bạn không có quyền thực hiện thao tác này.");
-        return new ApiError(403, br ?? "FORBIDDEN", msg);
+        // Thông điệp tiếng Việt do hàm/trigger nghiệp vụ RAISE (insufficient_privilege) dành cho người dùng ⇒ giữ; lỗi quyền kỹ thuật
+        // của PostgreSQL (permission denied for table…, row-level security…) ⇒ câu chung, chi tiết chỉ ghi log.
+        if (br || (raised && !/row-level security|permission denied|must be owner/i.test(msg))) return new ApiError(403, br ?? "FORBIDDEN", msg);
+        return new ApiError(403, "FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.", undefined, msg);
       }
       case "P0002": return new ApiError(404, br ?? "NOT_FOUND", msg);
       case "40001":
       case "40P01":
       case "55P03": return new ApiError(409, "RETRY", "Dữ liệu đang được người khác cập nhật, vui lòng thử lại.");
-      case "57014": return new ApiError(503, "TIMEOUT", "Thao tác mất quá nhiều thời gian, vui lòng thử lại.");
+      case "57014": return new ApiError(503, "TIMEOUT", "Thao tác mất quá nhiều thời gian, vui lòng thử lại.", undefined, msg);
       case "P0001":
       case "22023":
       case "22000":
       case "23000": return new ApiError(422, br ?? "BUSINESS_RULE", msg);
     }
-    if (e.code === "53300") return new ApiError(503, "BUSY", "Cơ sở dữ liệu đang quá tải kết nối. Vui lòng thử lại sau ít phút.");
+    if (e.code === "53300") return new ApiError(503, "BUSY", "Cơ sở dữ liệu đang quá tải kết nối. Vui lòng thử lại sau ít phút.", undefined, msg);
     if (e.code?.startsWith("22") || e.code?.startsWith("23")) return new ApiError(422, br ?? "BUSINESS_RULE", msg);
   }
+  // Pooler báo hết kết nối (Supavisor) cũng là "hệ thống bận", không phải lỗi lập trình
+  const rawMsg = String((e as { message?: string })?.message ?? "");
+  if (/EMAXCONNSESSION|max clients reached|too many clients|remaining connection slots|Connection terminated due to connection timeout|timeout exceeded when trying to connect/i.test(rawMsg)) {
+    return new ApiError(503, "BUSY", "Cơ sở dữ liệu đang quá tải kết nối. Vui lòng thử lại sau ít phút.", undefined, rawMsg);
+  }
   console.error("[api] lỗi không mong đợi:", e);
-  const errMsg =
+  const internal =
     (e as { detail?: string; message?: string })?.detail ||
     (e as Error)?.message ||
-    String(e ?? "Đã có lỗi hệ thống. Vui lòng thử lại sau.");
-  return new ApiError(500, "INTERNAL", errMsg);
+    String(e ?? "(không rõ)");
+  return new ApiError(500, "INTERNAL", INTERNAL_MESSAGE, undefined, internal);
 }
 
+/** Lộ chi tiết kỹ thuật trong phản hồi lỗi 5xx: chỉ khi chạy dev/thử nghiệm (không bao giờ trên Vercel/production). */
+const EXPOSE_DEBUG = process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+
 export function problemResponse(err: ApiError, requestId: string, instance?: string): Response {
-  const isInternal = err.status === 500;
+  const isServer = err.status >= 500;
   const body = {
     type: `https://luuxa.local/problems/${err.code.toLowerCase()}`,
     title: TITLES[err.status] ?? "Lỗi",
     status: err.status,
-    // Với lỗi 500 hệ thống, giữ nguyên thông điệp kỹ thuật/chẩn đoán; với lỗi khác, làm sạch câu chữ
-    detail: isInternal ? err.message : humanizeErrorMessage(err.message),
+    // Lỗi 5xx: câu chung + mã lỗi ngắn (khớp với nhật ký lỗi ở Cài đặt → Hệ thống); lỗi khác: làm sạch câu chữ
+    detail: isServer ? `${err.message} (mã lỗi: ${requestId.slice(0, 8)})` : humanizeErrorMessage(err.message),
     code: err.code,
     instance,
     // errors[] giữ nguyên: có nơi dùng làm dữ liệu máy đọc (vd. mã BR-AI-03 cho client AI); câu chữ theo ô đã là tiếng Việt
     errors: err.errors,
     request_id: requestId,
+    ...(EXPOSE_DEBUG && err.internal ? { debug: err.internal.slice(0, 2000) } : {}),
   };
   return new Response(JSON.stringify(body), {
     status: err.status,

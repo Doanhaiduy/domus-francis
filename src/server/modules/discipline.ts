@@ -5,7 +5,7 @@ import type { Tx } from "../db";
 import { zDate, zUuid } from "../http";
 import { badRequest, forbidden, notFound } from "../errors";
 import { denyOrMissing, permissions, personCols, personJoin, toPerson, iso, isoOrNull } from "./community-shared";
-import type { DisciplineListDto, DisciplineQuery, DisciplineRecordDto, DisciplineRuleDto, DisciplineSummary, PenaltyKind } from "@/lib/types/discipline";
+import type { DisciplineListDto, DisciplineQuery, DisciplineRepeatDto, DisciplineRecordDto, DisciplineRuleDto, DisciplineSummary, PenaltyKind } from "@/lib/types/discipline";
 import { PENALTY_KINDS, penaltyText } from "@/lib/types/discipline";
 
 // Vi phạm & kỷ luật. Quyền nằm ở CSDL (RLS): thành viên chỉ đọc vi phạm của chính mình; discipline.read xem cả nhà; discipline.manage ghi/sửa/xóa.
@@ -32,6 +32,7 @@ export const RuleSchema = z.object({
   defaultPenaltyQty: optQty,
   defaultPenaltyNote: optText(200),
   isRed: z.boolean().default(false),
+  repeatBecomesRed: z.boolean().default(false),
   sortOrder: z.number().int().min(0).max(100000).default(0),
   isActive: z.boolean().default(true),
 });
@@ -44,6 +45,7 @@ export const RulePatchSchema = z.object({
   defaultPenaltyQty: pQty,
   defaultPenaltyNote: pText(200),
   isRed: z.boolean().optional(),
+  repeatBecomesRed: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
   isActive: z.boolean().optional(),
 });
@@ -61,6 +63,7 @@ const toRule = (r: Row, withUsage: boolean): DisciplineRuleDto => ({
   defaultPenaltyQty: r.default_penalty_qty,
   defaultPenaltyNote: r.default_penalty_note,
   isRed: !!r.is_red,
+  repeatBecomesRed: !!r.repeat_becomes_red,
   sortOrder: r.sort_order,
   isActive: r.is_active,
   usageCount: withUsage ? Number(r.usage_count ?? 0) : 0,
@@ -80,9 +83,9 @@ export async function listRules(tx: Tx): Promise<{ canManage: boolean; rules: Di
 export async function createRule(tx: Tx, b: RuleInput): Promise<string> {
   checkPenaltyDefaults(b.defaultPenaltyKind, b.defaultPenaltyQty);
   const r = await tx.query<{ id: string }>(
-    `INSERT INTO discipline_rules (code, title, description, default_penalty_kind, default_penalty_qty, default_penalty_note, is_red, sort_order, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [b.code, b.title, b.description, b.defaultPenaltyKind, b.defaultPenaltyKind === "none" ? null : b.defaultPenaltyQty, b.defaultPenaltyNote, b.isRed, b.sortOrder, b.isActive]
+    `INSERT INTO discipline_rules (code, title, description, default_penalty_kind, default_penalty_qty, default_penalty_note, is_red, repeat_becomes_red, sort_order, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+    [b.code, b.title, b.description, b.defaultPenaltyKind, b.defaultPenaltyKind === "none" ? null : b.defaultPenaltyQty, b.defaultPenaltyNote, b.isRed, b.repeatBecomesRed && !b.isRed, b.sortOrder, b.isActive]
   );
   return r.rows[0].id;
 }
@@ -96,6 +99,7 @@ export async function updateRule(tx: Tx, id: string, b: z.infer<typeof RulePatch
     defaultPenaltyQty: "default_penalty_qty",
     defaultPenaltyNote: "default_penalty_note",
     isRed: "is_red",
+    repeatBecomesRed: "repeat_becomes_red",
     sortOrder: "sort_order",
     isActive: "is_active",
   };
@@ -155,6 +159,55 @@ export async function importFromHouseRules(tx: Tx): Promise<{ created: number; s
     }
   }
   return { created, skipped };
+}
+
+// ---------------------------------------------------------------------
+// Tái phạm: "Lần thứ N trong 12 tháng" khi ghi vi phạm
+// ---------------------------------------------------------------------
+export const RepeatQuerySchema = z.object({
+  memberId: zUuid,
+  ruleId: zUuid.nullable().optional().transform((v) => v ?? null),
+  ruleTitle: optText(200),
+  occurredOn: zDate.optional(),
+  /** Đang sửa một bản ghi: không tính chính nó */
+  excludeId: zUuid.nullable().optional().transform((v) => v ?? null),
+});
+export type RepeatQuery = z.infer<typeof RepeatQuerySchema>;
+
+/** Đếm vi phạm trước đó của thành viên (12 tháng tính đến ngày ghi): cùng điều luật + tổng; cảnh báo đỏ khi tái phạm điều "tái phạm ⇒ Lỗi đỏ". */
+export async function repeatInfo(tx: Tx, q: RepeatQuery): Promise<DisciplineRepeatDto> {
+  const p = await permissions(tx, ["discipline.manage"] as const);
+  if (!p["discipline.manage"]) throw forbidden("Chỉ Trưởng nhà hoặc Admin được xem thống kê tái phạm.");
+  const rule = q.ruleId ? (await tx.query<Row>("SELECT is_red, repeat_becomes_red FROM discipline_rules WHERE id = $1", [q.ruleId])).rows[0] : undefined;
+  const title = (q.ruleTitle ?? "").trim().toLowerCase();
+  // Cùng điều luật = cùng rule_id; ghi tay (không có rule_id) thì so tên không phân biệt hoa thường
+  const r = (
+    await tx.query<Row>(
+      `WITH base AS (
+         SELECT occurred_on,
+                (($2::uuid IS NOT NULL AND rule_id = $2::uuid)
+                 OR ($2::uuid IS NULL AND $3::text <> '' AND rule_id IS NULL AND lower(btrim(rule_title)) = $3::text)) AS same
+           FROM discipline_records
+          WHERE member_id = $1 AND status <> 'waived' AND ($5::uuid IS NULL OR id <> $5::uuid)
+            AND occurred_on <= COALESCE($4::date, app.local_today())
+            AND occurred_on > (COALESCE($4::date, app.local_today()) - interval '12 months')::date)
+       SELECT count(*) FILTER (WHERE same)::int AS same_n, count(*)::int AS total_n,
+              COALESCE((SELECT array_agg(x.d::text) FROM (SELECT b.occurred_on AS d FROM base b WHERE b.same ORDER BY b.occurred_on DESC LIMIT 5) x), '{}') AS dates
+         FROM base`,
+      [q.memberId, q.ruleId, title, q.occurredOn ?? null, q.excludeId]
+    )
+  ).rows[0];
+  const same = Number(r?.same_n ?? 0);
+  const repeatBecomesRed = !!rule?.repeat_becomes_red;
+  return {
+    nth: same + 1,
+    sameRuleBefore: same,
+    totalBefore: Number(r?.total_n ?? 0),
+    previousDates: (r?.dates ?? []) as string[],
+    ruleIsRed: !!rule?.is_red,
+    repeatBecomesRed,
+    escalatesToRed: repeatBecomesRed && same >= 1,
+  };
 }
 
 // ---------------------------------------------------------------------

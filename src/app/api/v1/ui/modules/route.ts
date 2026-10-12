@@ -4,6 +4,7 @@ import { batch } from "@/server/db";
 import { ApiError, forbidden } from "@/server/errors";
 import { MODULE_SETTING_KEY, TOGGLEABLE_MODULES, type DisabledModules, type ModulesStateDto } from "@/lib/modules";
 
+const MEALS_FEATURE_KEY = "feature.meals.enabled";
 const HREFS = new Set(TOGGLEABLE_MODULES.map((m) => m.href));
 
 /** Phân hệ đang ẩn (bảo trì) — mọi thành viên đọc được để thanh bên/trang hiển thị đúng. */
@@ -45,6 +46,11 @@ export const PUT = api({}, async (ctx) => {
     await tx.query(
       "UPDATE settings SET value = $2::jsonb, updated_by = app.current_user_id(), updated_at = now(), version = version + 1 WHERE key = $1",
       [MODULE_SETTING_KEY, JSON.stringify(next)],
+    );
+    // Bếp & Cơm: tab Phân hệ là NGUỒN DUY NHẤT bật/tắt — cờ feature.meals.enabled (khóa việc đăng ký ở máy chủ) đồng bộ theo.
+    await tx.query(
+      "UPDATE settings SET value = $1::jsonb, updated_by = app.current_user_id(), updated_at = now(), version = version + 1 WHERE key = $2 AND value IS DISTINCT FROM $1::jsonb",
+      [JSON.stringify(!next["/bep-com"]), MEALS_FEATURE_KEY],
     );
     return { disabled: next };
   });

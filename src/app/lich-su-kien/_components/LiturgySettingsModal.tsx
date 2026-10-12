@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { BellRing, BookOpen, CalendarHeart, Loader2, Pencil, Plus, Settings2, Star, Trash2, X } from "lucide-react";
+import { BellRing, BookOpen, CalendarHeart, Info, Loader2, Pencil, Plus, Settings2, Star, Trash2, X } from "lucide-react";
 import { Portal } from "@/components/ui/Portal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { CustomInput, CustomSelect, CustomTextarea, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
+import { CustomInput, CustomSelect, CustomTextarea, CustomTimeInput, CustomToggle } from "@/components/ui/FormControls";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -260,7 +260,11 @@ const PATRON_KEYS = [
   "liturgy.checkin_solemnity",
   "liturgy.checkin_grace_days",
   "liturgy.checkin_reminder_time",
+  "liturgy.auto_approve_no_photo",
 ] as const;
+
+/** Lượt cron buổi tối trên máy chủ (Vercel Cron) chạy trong khoảng 19:00–20:00 giờ Việt Nam. */
+const EVENING_RUN_START = "19:00";
 
 function PatronTab() {
   const { showToast } = useApp();
@@ -341,10 +345,29 @@ function PatronTab() {
             />
             {lockNote("liturgy.notify_days_before")}
           </div>
-          <div className={cn(!can("liturgy.checkin_reminder_time") && "pointer-events-none opacity-60")}>
-            <span className="block text-xs font-bold text-gray-700 mb-1.5">Giờ nhắc người chưa check-in</span>
-            <CustomTimePicker value={String(val<string>("liturgy.checkin_reminder_time") ?? "19:00")} onChange={(t) => set("liturgy.checkin_reminder_time", t.slice(0, 5))} />
+          <div>
+            <CustomTimeInput
+              label="Giờ nhắc người chưa check-in"
+              value={String(val<string>("liturgy.checkin_reminder_time") ?? "19:00")}
+              onChange={(t) => set("liturgy.checkin_reminder_time", t.slice(0, 5))}
+              disabled={!can("liturgy.checkin_reminder_time")}
+            />
+            {lockNote("liturgy.checkin_reminder_time")}
           </div>
+        </div>
+        <div
+          className={cn(
+            "p-3 rounded-xl border text-[11px] leading-relaxed flex items-start gap-2",
+            String(val<string>("liturgy.checkin_reminder_time") ?? "19:00") > EVENING_RUN_START
+              ? "bg-amber-50 border-amber-200 text-amber-900"
+              : "bg-surface-container-low/60 border-purple-50 text-gray-600"
+          )}
+        >
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>
+            Trên máy chủ, lượt nhắc buổi tối chạy khoảng <b>19:00–20:00</b> mỗi ngày, nên tin nhắc check-in được gửi trong lượt đó kể cả khi giờ đặt
+            muộn hơn. Nên đặt <b>không muộn hơn 19:00</b> để giờ hiển thị khớp với lúc anh em nhận tin.
+          </span>
         </div>
         <CustomToggle
           checked={val<boolean>("liturgy.notify_day_before") !== false}
@@ -370,6 +393,14 @@ function PatronTab() {
           label="Lễ trọng và lễ Bổn mạng: bắt buộc check-in kèm ảnh minh chứng"
           description="Lễ trọng rơi vào Chúa Nhật thì không cần ảnh"
         />
+        <CustomToggle
+          checked={val<boolean>("liturgy.auto_approve_no_photo") !== false}
+          onChange={(v) => set("liturgy.auto_approve_no_photo", v)}
+          disabled={!can("liturgy.auto_approve_no_photo")}
+          label="Tự xác nhận check-in không cần ảnh"
+          description="Chúa Nhật (và ngày đặc biệt không cần ảnh): check-in được xác nhận ngay khi gửi. Ngày cần ảnh, ảnh trùng / chụp sai ngày hoặc gửi lại sau khi bị từ chối vẫn chờ Ban Phụng vụ duyệt."
+        />
+        {lockNote("liturgy.auto_approve_no_photo")}
         <div className="sm:w-1/2">
           <CustomInput
             type="number"

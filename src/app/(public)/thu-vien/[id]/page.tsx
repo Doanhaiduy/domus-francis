@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { OG_DEFAULT_IMAGES } from "@/lib/public-site";
 import { getPublicAlbum } from "@/server/modules/public-site";
-import { getSiteInfo, publicDb, siteOrigin } from "@/server/public";
+import { getSiteInfo, publicDb } from "@/server/public";
 import { PublicHeader } from "@/components/public/PublicHeader";
 import { PageHero } from "@/components/public/PageHero";
 import { JoinCta } from "@/components/public/JoinCta";
@@ -19,15 +19,14 @@ const load = (id: string) => (UUID.test(id) ? publicDb((tx) => getPublicAlbum(tx
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const [album, { org }] = await Promise.all([load(params.id), getSiteInfo()]);
-  if (!album) return { title: "Không tìm thấy album" };
+  if (!album) return { title: "Không tìm thấy album", robots: { index: false } };
   const description = album.description || `${album.photosCount} ảnh — ${album.title}, ${org.houseName}.`;
   const cover = publicFileUrl(album.coverFileId, "medium");
   return {
-    metadataBase: new URL(siteOrigin()),
-    title: `${album.title} — ${org.houseName}`,
+    title: album.title,
     description,
     alternates: { canonical: `/thu-vien/${album.id}` },
-    openGraph: { title: album.title, description, type: "website", locale: "vi_VN", siteName: org.houseName, images: cover ? [{ url: cover }] : OG_DEFAULT_IMAGES },
+    openGraph: { title: album.title, description, url: `/thu-vien/${album.id}`, type: "website", locale: "vi_VN", siteName: org.houseName, images: cover ? [{ url: cover }] : OG_DEFAULT_IMAGES },
   };
 }
 
