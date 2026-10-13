@@ -1,12 +1,13 @@
 import "server-only";
 import { batch, type Tx } from "../db";
 import { badRequest, conflict, forbidden, notFound } from "../errors";
-import { providerConfigs } from "../ai/config";
+import { providerConfigs, providerIdOrder } from "../ai/config";
 import { breakerState } from "../ai/providers";
 import { writeConsent } from "./consents";
 import {
   AI_CONSENT_PURPOSES,
   AI_TASK_CODES,
+  AI_TASK_NEEDS,
   type AiConsentPurpose,
   type AiProviderDto,
   type AiStatusDto,
@@ -19,7 +20,7 @@ const IMPLEMENTED = new Set<string>(AI_TASK_CODES);
 
 export function providerList(): AiProviderDto[] {
   const cfg = providerConfigs();
-  return (["groq", "gemini"] as const).map((id) => ({
+  return providerIdOrder().map((id) => ({
     id,
     label: cfg[id].label,
     model: cfg[id].model,
@@ -57,6 +58,14 @@ export async function getStatus(tx: Tx): Promise<AiStatusDto> {
   const consented = consentRow.ok;
   const consents: Record<AiConsentPurpose, boolean> = { ai_processing: consentRow.ok, ai_academic_summary: consentRow.academic };
   const rows = tasksR.rows;
+  const providers = providerList();
+  const configured = providers.some((x) => x.configured);
+  const cloudflareOk = providers.find((x) => x.id === "cloudflare")?.configured ?? false;
+  // Tác vụ cần đúng nhà cung cấp của nó: văn bản = ít nhất một nhà; ảnh/chú thích = Cloudflare; tra cứu = không cần khóa
+  const taskConfigured = (code: string) => {
+    const need = (AI_TASK_NEEDS as Record<string, "cloudflare" | "none" | undefined>)[code];
+    return need === "none" ? true : need === "cloudflare" ? cloudflareOk : configured;
+  };
   const tasks: AiTaskDto[] = rows.map((r) => ({
     code: r.code,
     name: r.name_vi,
@@ -68,10 +77,9 @@ export async function getStatus(tx: Tx): Promise<AiStatusDto> {
     requiredConsent: r.required_consent_purpose,
     monthlyBudgetVnd: r.monthly_budget_vnd === null ? null : Number(r.monthly_budget_vnd),
     implemented: IMPLEMENTED.has(r.code),
+    configured: taskConfigured(r.code),
   }));
-  const providers = providerList();
-  const configured = providers.some((x) => x.configured);
-  const available = master && configured && p.use ? tasks.filter((t) => t.implemented && t.enabled).map((t) => t.code) : [];
+  const available = master && p.use ? tasks.filter((t) => t.implemented && t.enabled && t.configured).map((t) => t.code) : [];
   return { masterEnabled: master, configured, providers, consented, consents, canUse: p.use, canReview: p.review, canManage: p.manage, available, tasks };
 }
 

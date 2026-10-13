@@ -4,9 +4,10 @@ import type { Ctx } from "../http";
 import { batch, type Tx } from "../db";
 import { ApiError, forbidden } from "../errors";
 import { inBackground, notifyAdminsOnce } from "../ops";
-import type { AiOutputMap, AiResultDto, AiTaskCode } from "@/lib/types/ai";
-import { AI_LIMITS, providerOrder } from "./config";
-import { NoProviderError, ProviderError, generate } from "./providers";
+import { AI_TASK_NEEDS, type AiOutputMap, type AiResultDto, type AiTaskCode } from "@/lib/types/ai";
+import { AI_LIMITS, cloudflareAccess, providerOrder } from "./config";
+import { IMAGE_QUOTA_MESSAGE, NoProviderError, ProviderError, QuotaError, generate, imageQuotaPausedUntil } from "./providers";
+import type { ExecResult } from "./shared";
 import { PROMPT_VERSION, TASKS, extractJson, parseInput, type Prepared } from "./tasks";
 
 // ---------------------------------------------------------------------
@@ -96,14 +97,48 @@ interface CachedRow {
   created_at: Date;
 }
 
+/**
+ * Hạn mức theo GIỜ cho từng người, tính riêng theo nhóm tác vụ: Trợ lý hỏi đáp (chat nhiều lượt), tạo ảnh (tốn hạn mức neuron Cloudflare),
+ * chú thích ảnh, tra cứu; mọi tác vụ còn lại dùng chung hạn mức mặc định. Nhóm này không chiếm phần của nhóm kia.
+ */
+const RATE_GROUPS: { codes: AiTaskCode[]; limit: number }[] = [
+  { codes: ["community.policy_rag"], limit: AI_LIMITS.assistantPerHour },
+  { codes: ["content.article_image"], limit: AI_LIMITS.imagePerHour },
+  { codes: ["content.image_caption"], limit: AI_LIMITS.captionPerHour },
+  { codes: ["content.article_research"], limit: AI_LIMITS.researchPerHour },
+];
+const RATE_SPECIAL: string[] = RATE_GROUPS.flatMap((g) => g.codes);
+function rateScope(code: AiTaskCode): { codes: string[]; inGroup: boolean; limit: number } {
+  const g = RATE_GROUPS.find((x) => x.codes.includes(code));
+  return g ? { codes: g.codes, inGroup: true, limit: g.limit } : { codes: RATE_SPECIAL, inGroup: false, limit: AI_LIMITS.perUserPerHour };
+}
+
+/** Số ảnh AI cả nhà đã tạo từ 00:00 UTC (= 07:00 giờ VN, lúc Cloudflare làm mới 10.000 neuron/ngày). Chạy bằng vai trò worker (RLS ai_jobs chỉ cho xem việc của mình). */
+async function imagesToday(ctx: Ctx): Promise<number> {
+  return ctx.dbAs("luuxa_worker", async (tx) =>
+    (
+      await tx.query<{ n: number }>(
+        `SELECT COALESCE(sum(COALESCE((input_ref->>'images')::int, 1)), 0)::int AS n FROM ai_jobs
+          WHERE task_code = 'content.article_image' AND status IN ('running', 'succeeded')
+            AND created_at >= (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')`,
+      )
+    ).rows[0].n,
+  );
+}
+
 /** `force`: bỏ qua cache (nút "Tạo lại") — vẫn chịu giới hạn tốc độ và ngân sách. */
 export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInput: unknown, opts: { force?: boolean } = {}): Promise<AiResultDto<C>> {
   const def = TASKS[code];
   const input = parseInput(code, rawInput);
 
-  if (!providerOrder().length) {
-    throw new ApiError(503, "AI_NOT_CONFIGURED", "Chưa cấu hình khóa API cho AI (GROQ_API_KEY hoặc GEMINI_API_KEY trong .env.local). Bạn vẫn có thể làm thủ công như bình thường.");
+  const need = AI_TASK_NEEDS[code] ?? "text";
+  if (need === "text" && !providerOrder().length) {
+    throw new ApiError(503, "AI_NOT_CONFIGURED", "Chưa cấu hình khóa API cho AI (GROQ_API_KEY, CLOUDFLARE_API_TOKEN hoặc GEMINI_API_KEY). Bạn vẫn có thể làm thủ công như bình thường.");
   }
+  if (need === "cloudflare" && !cloudflareAccess()) {
+    throw new ApiError(503, "AI_NOT_CONFIGURED", "Chưa cấu hình Cloudflare Workers AI (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN). Bạn vẫn tải ảnh lên như bình thường.");
+  }
+  const rscope = rateScope(code);
 
   // 1–2. Chuẩn bị, giới hạn tốc độ, cache — một transaction đọc dưới quyền người gọi.
   const prep = await ctx.db(async (tx) => {
@@ -117,12 +152,13 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     // Gộp 3 truy vấn độc lập (giới hạn tốc độ, cache, mã thành viên + còn đồng ý không): 1 vòng mạng thay vì 3.
     // Cache chỉ dùng khi người gọi vẫn còn đồng ý mục đích tác vụ yêu cầu (rút đồng ý ⇒ không trả lại kết quả cũ, đi qua cổng DB).
     const [rateR, cachedR, whoR] = await batch(tx, [
-      // Trợ lý hỏi đáp (chat) tính hạn mức riêng — không chiếm phần của các tác vụ khác và ngược lại
+      // Hạn mức giờ tính riêng theo nhóm tác vụ (xem RATE_GROUPS) — nhóm này không chiếm phần của nhóm kia
       [
-        "SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour' AND (task_code = 'community.policy_rag') = $1::boolean",
-        [code === "community.policy_rag"],
+        "SELECT count(*)::int AS n FROM ai_jobs WHERE requested_by = app.current_user_id() AND created_at > now() - interval '1 hour' AND (task_code = ANY($1::text[])) = $2::boolean",
+        [rscope.codes, rscope.inGroup],
       ],
-      opts.force
+      // Ảnh AI KHÔNG dùng lại kết quả cũ: ảnh chưa được chọn bị dọn sau 24 giờ (tệp mồ côi) nên bản cache có thể trỏ tới ảnh đã mất
+      opts.force || code === "content.article_image"
         ? ["SELECT NULL::uuid AS suggestion_id WHERE false"]
         : [
             `SELECT s.id AS suggestion_id, s.job_id, s.payload, j.provider, j.model, s.created_at
@@ -164,15 +200,22 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
       createdAt: prep.cached.created_at.toISOString(),
     };
   }
-  const rateLimit = code === "community.policy_rag" ? AI_LIMITS.assistantPerHour : AI_LIMITS.perUserPerHour;
+  const rateLimit = rscope.limit;
   if (prep.rate >= rateLimit) {
     throw new ApiError(429, "RATE_LIMITED", `Bạn đã dùng AI ${rateLimit} lần trong giờ qua — thử lại sau ít phút hoặc làm thủ công.`);
+  }
+  // Tạo ảnh: trần cả nhà theo ngày (giữ phần neuron cho văn bản dự phòng/chú thích) + đang tạm dừng vì Cloudflare báo hết hạn mức
+  if (code === "content.article_image") {
+    const wanted = Number((prep.p.inputRef as { images?: number }).images ?? 1);
+    const used = await imagesToday(ctx);
+    if (used + wanted > AI_LIMITS.imageDailyCap || (await imageQuotaPausedUntil())) throw new ApiError(429, "AI_QUOTA", IMAGE_QUOTA_MESSAGE);
   }
 
   await ensureBudgetRow(ctx);
 
   // 3. Tạo job: trigger cổng AI có thể chuyển sang 'blocked' kèm lý do tiếng Việt (commit trước rồi mới báo lỗi).
-  const first = providerOrder()[0];
+  const firstText = providerOrder()[0];
+  const first = { id: prep.p.job?.provider ?? firstText?.id ?? null, model: prep.p.job?.model ?? firstText?.model ?? null };
   const entity = prep.p.entity;
   const job = await ctx.db(async (tx) => {
     const r = await tx.query<{ id: string; status: string; blocked_reason: string | null }>(
@@ -202,14 +245,20 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
   await ctx.dbAs("luuxa_worker", (tx) => tx.query("UPDATE ai_jobs SET status = 'running', started_at = now() WHERE id = $1", [job.id]));
 
   // 4. Gọi nhà cung cấp; đầu ra sai lược đồ ⇒ thử nhà cung cấp kế (hoặc báo lỗi, người dùng làm thủ công).
-  let llm: Awaited<ReturnType<typeof generate<AiOutputMap[C]>>>;
+  //    Tác vụ tự chạy (tra cứu, tạo ảnh, chú thích) có `execute` riêng — vẫn nằm sau cổng DB, hạn mức và nhật ký ở trên.
+  let llm: ExecResult<C>;
   try {
-    llm = await generate({ system: prep.p.system, user: prep.p.user, temperature: prep.p.temperature, maxOutputTokens: prep.p.maxOutputTokens, timeoutMs: prep.p.timeoutMs }, (text) => prep.p.parse(extractJson(text)));
+    llm = prep.p.execute
+      ? await prep.p.execute(ctx)
+      : await generate({ system: prep.p.system, user: prep.p.user, temperature: prep.p.temperature, maxOutputTokens: prep.p.maxOutputTokens, timeoutMs: prep.p.timeoutMs }, (text) => prep.p.parse(extractJson(text)));
   } catch (e) {
-    const msg = e instanceof NoProviderError || e instanceof ProviderError ? e.message : "Lỗi không xác định khi gọi AI";
+    const known = e instanceof ApiError || e instanceof NoProviderError || e instanceof ProviderError || e instanceof QuotaError;
+    const msg = known ? e.message : "Lỗi không xác định khi gọi AI";
     await ctx.dbAs("luuxa_worker", (tx) =>
       tx.query("UPDATE ai_jobs SET status = 'failed', error_message = $2, finished_at = now() WHERE id = $1", [job.id, msg.slice(0, 300)]),
     );
+    if (e instanceof ApiError) throw e; // thông báo tiếng Việt do tác vụ đặt (vd. hết lượt tạo ảnh trong ngày)
+    if (e instanceof QuotaError) throw new ApiError(429, "AI_QUOTA", IMAGE_QUOTA_MESSAGE);
     throw new ApiError(503, "AI_UNAVAILABLE", "Dịch vụ AI đang không phản hồi hoặc trả kết quả không hợp lệ. Bạn hãy làm thủ công như bình thường.");
   }
   const output = llm.value;
@@ -230,7 +279,16 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
             SET status = 'succeeded', provider = $2, model = $3, tokens_in = $4, tokens_out = $5, cost_vnd = $6, latency_ms = $7,
                 input_ref = input_ref || $8::jsonb, finished_at = now()
           WHERE id = $1`,
-        [job.id, llm.provider, llm.model, llm.tokensIn, llm.tokensOut, llm.costVnd, llm.latencyMs, JSON.stringify(llm.failedBefore.length ? { fallbackFrom: llm.failedBefore } : {})],
+        [
+          job.id,
+          llm.provider,
+          llm.model,
+          llm.tokensIn,
+          llm.tokensOut,
+          llm.costVnd,
+          llm.latencyMs,
+          JSON.stringify({ ...(llm.failedBefore.length ? { fallbackFrom: llm.failedBefore } : {}), ...(llm.extra ?? {}) }),
+        ],
       ],
       [BUDGET_SQL],
     ]);

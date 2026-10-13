@@ -302,7 +302,7 @@ export default function AiAssistantModal() {
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
-                  {t.provider ? <AiLabel result={{ provider: t.provider as "groq" | "gemini", model: null, cached: false }} className="self-start" /> : <span />}
+                  {t.provider ? <AiLabel result={{ provider: t.provider as "groq" | "gemini" | "cloudflare", model: null, cached: false }} className="self-start" /> : <span />}
                   <button onClick={() => copy(t)} className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400 hover:text-primary" title="Sao chép câu trả lời">
                     {copied === t.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />} {copied === t.id ? "Đã chép" : "Sao chép"}
                   </button>

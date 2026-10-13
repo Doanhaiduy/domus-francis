@@ -120,7 +120,7 @@ export async function getSetupStatus(ctx: Pick<Ctx, "db" | "dbAs">): Promise<Set
       done: n("managers_mfa") > 0,
       detail: n("managers") ? `${n("managers_mfa")}/${n("managers")} tài khoản quản lý đã bật` : undefined,
     },
-    { key: "ai", group: "security", title: "Trợ lý AI", description: "Bật AI và đặt ngân sách tháng (cần khóa Groq/Gemini trên máy chủ).", href: "/cai-dat?tab=ai", done: s.ai_on === true && aiConfigured, optional: true, detail: !aiConfigured ? "Chưa có khóa API" : undefined },
+    { key: "ai", group: "security", title: "Trợ lý AI", description: "Bật AI và đặt ngân sách tháng (cần khóa Groq, Cloudflare hoặc Gemini trên máy chủ).", href: "/cai-dat?tab=ai", done: s.ai_on === true && aiConfigured, optional: true, detail: !aiConfigured ? "Chưa có khóa API" : undefined },
     {
       key: "about",
       group: "public",

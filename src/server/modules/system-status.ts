@@ -308,7 +308,7 @@ export function envFlags(): EnvFlagDto[] {
 // ---------------------------------------------------------------------
 // Bản đầy đủ (Cài đặt → Hệ thống)
 // ---------------------------------------------------------------------
-const AI_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini" };
+const AI_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini", cloudflare: "Cloudflare" };
 
 const STATUS_SQL: [string, unknown[]?][] = [
   // 0. tác vụ được theo dõi
@@ -399,17 +399,20 @@ export async function getSystemStatus(ctx: Pick<Ctx, "db" | "dbAs">): Promise<Sy
   const budget = r[11].rows[0] as { month: string; limit_vnd: number; used_vnd: number; alert_threshold_pct: number; hard_stop: boolean } | undefined;
   const breakers = r[12].rows as { provider: string; failures: number; open_until: Date | null; last_error: string | null; last_failure_at: Date | null }[];
   const cfg = providerConfigs();
-  const providers: AiProviderStateDto[] = (["groq", "gemini"] as const).map((id) => {
+  const providers: AiProviderStateDto[] = (["groq", "cloudflare", "gemini"] as const).map((id) => {
     const b = breakers.find((x) => x.provider === id);
-    const until = b?.open_until && new Date(b.open_until).getTime() > now ? iso(b.open_until) : null;
+    // Cloudflare còn một trạng thái riêng: hết hạn mức tạo ảnh trong ngày (tạm dừng đến 00:00 UTC) — không phải lỗi hỏng hóc
+    const q = id === "cloudflare" ? breakers.find((x) => x.provider === "cloudflare_image") : undefined;
+    const quotaOpen = !!q?.open_until && new Date(q.open_until).getTime() > now;
+    const until = b?.open_until && new Date(b.open_until).getTime() > now ? iso(b.open_until) : quotaOpen ? iso(q!.open_until) : null;
     return {
       provider: id,
       label: AI_LABEL[id] ?? id,
       configured: !!cfg[id]?.apiKey,
       failures: b?.failures ?? 0,
       pausedUntil: until,
-      lastError: b?.last_error ?? null,
-      lastFailureAt: iso(b?.last_failure_at),
+      lastError: b?.last_error ?? (quotaOpen ? q!.last_error : null),
+      lastFailureAt: iso(b?.last_failure_at ?? (quotaOpen ? q!.last_failure_at : null)),
     };
   });
   const zaloConfigured = has("ZALO_BOT_TOKEN") && settings["integration.zalo.group_enabled"] === true && typeof settings["integration.zalo.group_chat_id"] === "string" && !!String(settings["integration.zalo.group_chat_id"]).trim();

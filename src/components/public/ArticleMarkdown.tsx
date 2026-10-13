@@ -79,10 +79,18 @@ export function ArticleMarkdown({ source, className = "", compact: compactProp =
     } else if ((m = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(line))) {
       const src = m[2];
       if (SAFE_IMG.test(src)) {
+        // Ảnh do AI tạo: chú thích bắt đầu bằng "(AI) " ⇒ bỏ tiền tố và gắn nhãn "Ảnh minh họa do AI tạo"
+        const isAi = /^\(AI\)\s*/i.test(m[1]);
+        const alt = m[1].replace(/^\(AI\)\s*/i, "");
         blocks.push(
           <figure key={k} className="my-8">
-            <ZoomableImage src={src} alt={m[1]} loading="lazy" className="w-full rounded-2xl border border-purple-100 shadow-sm" />
-            {m[1] && <figcaption className="mt-2.5 text-center text-sm text-gray-500 italic">{m[1]}</figcaption>}
+            <ZoomableImage src={src} alt={alt || (isAi ? "Ảnh minh họa do AI tạo" : "")} loading="lazy" className="w-full rounded-2xl border border-purple-100 shadow-sm" />
+            {(alt || isAi) && (
+              <figcaption className="mt-2.5 text-center text-sm text-gray-500 italic">
+                {alt}
+                {isAi && <span className={`not-italic text-[11px] font-semibold text-gray-400 ${alt ? "ml-2" : ""}`}>· Ảnh minh họa do AI tạo</span>}
+              </figcaption>
+            )}
           </figure>
         );
       }

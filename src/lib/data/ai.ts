@@ -27,8 +27,10 @@ export function useAiTask(code: AiTaskCode) {
     ? "Bạn chưa có quyền dùng AI."
     : !status.masterEnabled
     ? "Tính năng AI đang tắt."
-    : !status.configured
-    ? "Chưa cấu hình khóa API cho AI."
+    : task && !task.configured
+    ? code === "content.article_image" || code === "content.image_caption"
+      ? "Chưa cấu hình Cloudflare Workers AI (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN)."
+      : "Chưa cấu hình khóa API cho AI."
     : !task?.enabled
     ? "Tác vụ này đang tắt."
     : null;

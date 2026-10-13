@@ -19,6 +19,7 @@ export const ArticleSchema = z.object({
   content: z.string().max(60000, "Nội dung tối đa 60.000 ký tự."),
   category: z.enum(categories, { message: "Chuyên mục không hợp lệ." }),
   coverFileId: zUuid.nullable().optional(),
+  coverIsAi: z.boolean().optional(),
   byline: z.string().trim().max(120, "Người viết tối đa 120 ký tự.").nullable().optional(),
   isFeatured: z.boolean().optional(),
   status: z.enum(["draft", "published"]),

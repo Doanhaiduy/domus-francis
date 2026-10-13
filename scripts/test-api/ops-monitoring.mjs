@@ -122,7 +122,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       for (const s of SECRETS) ok(!txt.includes(s), `không được lộ giá trị khóa (${s.slice(0, 12)}…)`);
       ok(typeof j.infra.audit.defaultRows === "number" && /^\d{4}-\d{2}$/.test(j.infra.audit.latestPartition ?? ""), "có thông tin phân vùng audit");
       ok(j.channels && j.channels.push && j.channels.zalo && j.channels.bank && j.channels.ai && Array.isArray(j.channels.outbox), "có số liệu kênh gửi");
-      eq(j.channels.ai.providers.length, 2, "trạng thái Groq + Gemini");
+      eq(j.channels.ai.providers.length, 3, "trạng thái Groq + Cloudflare + Gemini");
       ok(["ok", "warn", "error"].includes(j.summary.level) && Array.isArray(j.notices), "có tóm tắt + cảnh báo phụ");
     });
 

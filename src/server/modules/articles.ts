@@ -12,7 +12,7 @@ type Row = Record<string, any>;
 
 const iso = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
 
-const COLS = `a.id, a.slug, a.title, a.summary, a.category, a.cover_file_id, a.byline, a.is_featured, a.status, a.tags,
+const COLS = `a.id, a.slug, a.title, a.summary, a.category, a.cover_file_id, a.cover_is_ai, a.byline, a.is_featured, a.status, a.tags,
               a.published_at, a.updated_at, a.view_count`;
 
 // ~200 từ/phút: đếm từ bằng SQL để danh sách không phải tải toàn bộ nội dung
@@ -26,6 +26,7 @@ function toItem(r: Row): ArticleListItem {
     summary: r.summary,
     category: r.category,
     coverFileId: r.cover_file_id,
+    coverIsAi: !!r.cover_is_ai && !!r.cover_file_id,
     byline: r.byline,
     isFeatured: !!r.is_featured,
     status: r.status as ArticleStatus,
@@ -178,6 +179,8 @@ export interface ArticleInput {
   content: string;
   category: string;
   coverFileId?: string | null;
+  /** Ảnh bìa do AI tạo (hiện nhãn trên trang công khai). */
+  coverIsAi?: boolean;
   byline?: string | null;
   isFeatured?: boolean;
   status: ArticleStatus;
@@ -198,9 +201,9 @@ export async function createArticle(tx: Tx, b: ArticleInput): Promise<string> {
   try {
     return (
       await tx.query<{ id: string }>(
-        `INSERT INTO public_articles (slug, title, summary, content, category, cover_file_id, byline, status, is_featured, tags, published_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11::timestamptz) RETURNING id`,
-        [b.slug, b.title, b.summary ?? null, b.content, b.category, b.coverFileId ?? null, b.byline ?? null, b.status, !!b.isFeatured, cleanTags(b.tags), b.status === "published" ? (b.publishedAt ?? null) : null]
+        `INSERT INTO public_articles (slug, title, summary, content, category, cover_file_id, cover_is_ai, byline, status, is_featured, tags, published_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text[], $12::timestamptz) RETURNING id`,
+        [b.slug, b.title, b.summary ?? null, b.content, b.category, b.coverFileId ?? null, !!b.coverIsAi && !!b.coverFileId, b.byline ?? null, b.status, !!b.isFeatured, cleanTags(b.tags), b.status === "published" ? (b.publishedAt ?? null) : null]
       )
     ).rows[0].id;
   } catch (e) {
@@ -216,6 +219,7 @@ const COLUMN_OF: Record<keyof ArticleInput, string> = {
   content: "content",
   category: "category",
   coverFileId: "cover_file_id",
+  coverIsAi: "cover_is_ai",
   byline: "byline",
   isFeatured: "is_featured",
   status: "status",

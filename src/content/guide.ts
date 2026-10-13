@@ -785,7 +785,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               {
                 t: "steps",
                 items: [
-                  { title: "Soạn bài", path: ["Trang công khai", "Viết bài mới"], text: "Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**, thêm **thẻ** (vd. “tuyển sinh 2026”). Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; khung **Trợ lý AI** bên phải giúp gợi ý đề tài, viết nháp, chỉnh văn (khi Admin đã bật AI)." },
+                  { title: "Soạn bài", path: ["Trang công khai", "Viết bài mới"], text: "Nhập tiêu đề, tóm tắt (hiện khi chia sẻ link), chọn chuyên mục (Tuyển sinh, Tin tức, Hoạt động, Chia sẻ, Thông báo), tải **ảnh bìa**, thêm **thẻ** (vd. “tuyển sinh 2026”). Thanh công cụ giúp in đậm, tạo tiêu đề, danh sách, trích dẫn và **chèn ảnh vào bài**; khung **Trợ lý AI** bên phải giúp gợi ý đề tài (dựa trên lễ, sự kiện sắp tới của nhà), **hỏi vài câu để bạn kể điều đã xảy ra**, **tra cứu tư liệu có nguồn**, viết nháp, chỉnh văn (khi Admin đã bật AI). Bản nháp luôn kèm mục **“AI cần bạn kiểm lại”** (ngày, giờ, số, số điện thoại AI nêu mà dữ kiện không có). **Ảnh bìa** có nút **Tạo bằng AI** (2 phương án, miễn phí, có giới hạn mỗi ngày; ảnh có nhãn “do AI tạo”) hoặc **Từ Khoảnh khắc**; trên thanh công cụ có nút vẽ ảnh minh họa cho đoạn đang chọn và nút AI gợi ý chú thích ảnh." },
                   { title: "Lưu nháp, đăng hoặc hẹn giờ", text: "**Lưu nháp** thì chỉ người quản lý thấy. **Đăng công khai** thì bài lên ngay. Bật **Hẹn giờ đăng** để bài tự hiện đúng ngày giờ đã chọn (hiện nhãn “Hẹn giờ” ở danh sách; chưa đến giờ thì người ngoài chưa thấy)." },
                   { title: "Lịch sử chỉnh sửa", text: "Nút **Lịch sử** ở trình soạn giữ 25 bản gần nhất; xem lại và **Khôi phục** khi lỡ sửa nhầm." },
                   { title: "Chia sẻ", text: "Ở danh sách bài, bấm biểu tượng **chép liên kết** rồi dán vào Zalo/Facebook — hình bìa và tóm tắt hiện đẹp khi chia sẻ." },
@@ -962,7 +962,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Trợ lý AI",
             blocks: [
-              { t: "md", text: "**Cài Đặt → Trợ lý AI**: bật công tắc tổng và từng tính năng (hỏi đáp nội quy, soạn tin nhắc quỹ, phân loại sự cố, tóm tắt, soát nội dung, nhận xét thu chi, nhận xét học tập), đặt ngân sách tháng, xem nhật ký. Khóa API Groq/Gemini đặt ở biến môi trường của máy chủ (`GROQ_API_KEY`, `GEMINI_API_KEY` — trên Vercel)." },
+              { t: "md", text: "**Cài Đặt → Trợ lý AI**: bật công tắc tổng và từng tính năng (hỏi đáp nội quy, soạn tin nhắc quỹ, phân loại sự cố, tóm tắt, soát nội dung, nhận xét thu chi, nhận xét học tập), đặt ngân sách tháng, xem nhật ký. Khóa API Groq/Cloudflare/Gemini đặt ở biến môi trường của máy chủ (`GROQ_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `GEMINI_API_KEY` — trên Vercel). Cloudflare dùng cho ảnh AI, chú thích ảnh và làm dự phòng khi Groq lỗi; hạn mức miễn phí mỗi ngày làm mới lúc 07:00 sáng." },
             ],
           },
         ],

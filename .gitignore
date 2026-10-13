@@ -92,3 +92,7 @@ apply-changes*.mjs
 !/kiem-dinh/sql/
 # Công cụ phụ trợ (bộ nhớ của trợ lý lập trình)
 .serena/
+
+# Bản xuất phiên làm việc với Claude — có thể chứa khóa/token dán trong cuộc trò chuyện, KHÔNG commit
+claude-session-*.json
+claude-session-*.md

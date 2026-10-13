@@ -23,10 +23,12 @@ import {
   ListOrdered,
   Loader2,
   Minus,
+  Palette,
   Pencil,
   Quote,
   Save,
   Send,
+  Type,
   Undo2,
   X,
 } from "lucide-react";
@@ -44,10 +46,13 @@ import { ArticleMarkdown } from "@/components/public/ArticleMarkdown";
 import { TagsInput } from "../_components/TagsInput";
 import { SchedulePicker } from "../_components/SchedulePicker";
 import { RevisionsDialog } from "../_components/RevisionsDialog";
-import { AiAssistCard, DraftDialog, ImproveMenu, IdeasDialog, MetaSuggest, countPlaceholders, type DraftSeed } from "../_components/ArticleAi";
+import { AiAssistCard, DraftDialog, FlagChips, ImproveMenu, IdeasDialog, MetaSuggest, countPlaceholders, type DraftApplyExtra, type DraftSeed } from "../_components/ArticleAi";
+import { CoverAiPanel, ImageGenDialog } from "../_components/ArticleImageAi";
+import { useAiRunner } from "../_components/useAiRunner";
+import { activeFlags, type DraftFlag } from "@/lib/article-verify";
 import { cn } from "@/lib/utils";
 
-const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, byline: "", isFeatured: false, status: "draft", tags: [], publishedAt: null };
+const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, coverIsAi: false, byline: "", isFeatured: false, status: "draft", tags: [], publishedAt: null };
 
 const fromArticle = (a: ArticleDetail): ArticleFormPayload => ({
   title: a.title,
@@ -56,6 +61,7 @@ const fromArticle = (a: ArticleDetail): ArticleFormPayload => ({
   content: a.content,
   category: a.category,
   coverFileId: a.coverFileId,
+  coverIsAi: a.coverIsAi,
   byline: a.byline ?? "",
   isFeatured: a.isFeatured,
   status: a.status,
@@ -96,6 +102,11 @@ export default function ArticleEditorPage() {
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [undo, setUndo] = useState<Snapshot | null>(null);
   const [confirmGaps, setConfirmGaps] = useState(false);
+  // Các chỗ AI nêu mà dữ kiện không có (xem article-verify.ts) + hộp thoại ảnh minh họa cho đoạn văn
+  const [aiFlags, setAiFlags] = useState<DraftFlag[]>([]);
+  const [illustrate, setIllustrate] = useState<{ excerpt: string; at: number } | null>(null);
+  const captionAi = useAiRunner("content.image_caption");
+  const illustrateAi = useAiRunner("content.article_image");
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -226,17 +237,29 @@ export default function ArticleEditorPage() {
   };
 
   // ---- Trợ lý AI ----
-  const applyDraft = (out: { title: string; summary: string; content: string }, mode: "replace" | "append") => {
+  const applyDraft = (out: { title: string; summary: string; content: string; flags: DraftFlag[] }, mode: "replace" | "append", extra: DraftApplyExtra) => {
     setUndo({ content: form.content, label: "đưa bản nháp AI vào bài" });
+    // Nguồn tham khảo người soạn đã chọn ghi cuối bài (liên kết gốc để người đọc kiểm chứng)
+    const sourcesMd = extra.sources?.length
+      ? `\n\n## Nguồn tham khảo\n${extra.sources.map((s) => `- [${s.title.replace(/[[\]]/g, "")}](${s.url})`).join("\n")}`
+      : "";
+    const body = out.content + sourcesMd;
     setForm((f) =>
       mode === "append"
-        ? { ...f, content: `${f.content.trimEnd()}\n\n${out.content}` }
-        : { ...f, title: out.title, summary: out.summary, content: out.content, slug: slugTouched ? f.slug : slugify(out.title) }
+        ? { ...f, content: `${f.content.trimEnd()}\n\n${body}` }
+        : { ...f, title: out.title, summary: out.summary, content: body, slug: slugTouched ? f.slug : slugify(out.title) }
     );
+    setAiFlags((prev) => (mode === "append" ? [...prev, ...out.flags] : out.flags));
     setDraftSeed(null);
     setTab("write");
     const gaps = countPlaceholders(out.content);
-    showToast("success", gaps ? `Đã đưa bản nháp vào bài — còn ${gaps} chỗ [cần bổ sung] bạn cần điền.` : "Đã đưa bản nháp vào bài — đọc lại và chỉnh theo ý bạn nhé.");
+    const hard = out.flags.filter((f) => f.kind !== "cliche" && f.kind !== "cta").length;
+    showToast(
+      "success",
+      gaps || hard
+        ? `Đã đưa bản nháp vào bài — còn ${[gaps ? `${gaps} chỗ [cần bổ sung] cần điền` : "", hard ? `${hard} chi tiết AI nêu cần kiểm lại` : ""].filter(Boolean).join(" và ")}.`
+        : "Đã đưa bản nháp vào bài — đọc lại và chỉnh theo ý bạn nhé."
+    );
   };
 
   const getImproveTarget = () => {
@@ -253,17 +276,96 @@ export default function ArticleEditorPage() {
     return { text: content, whole: true };
   };
 
-  const applyImprove = (text: string, label: string) => {
+  const applyImprove = (text: string, label: string, flags: DraftFlag[]) => {
     const r = improveRange.current;
     if (!r) return;
     setUndo({ content: form.content, label: label.toLowerCase() });
     setForm((f) => ({ ...f, content: f.content.slice(0, r.start) + text + f.content.slice(r.end) }));
     improveRange.current = null;
+    if (flags.length) {
+      setAiFlags((prev) => [...prev, ...flags]);
+      showToast("info", `AI thêm ${flags.length} chi tiết (ngày/giờ/số) mà bản gốc không có — kiểm lại ở mục “AI cần bạn kiểm lại”.`);
+    }
+  };
+
+  // Bấm một thẻ "cần kiểm lại" ⇒ chọn đúng đoạn đó trong khung soạn
+  const focusText = (t: string) => {
+    const ta = taRef.current;
+    const i = form.content.indexOf(t);
+    if (!ta || i < 0) {
+      showToast("info", "Chi tiết này nằm ở tiêu đề hoặc tóm tắt — hãy kiểm ở ô phía trên.");
+      return;
+    }
+    setTab("write");
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(i, i + t.length);
+      ta.scrollTop = Math.max(0, (form.content.slice(0, i).split("\n").length - 3) * 28);
+    });
+  };
+
+  // AI gợi ý chú thích cho ảnh: con trỏ đang ở dòng ảnh nào thì ảnh đó; không thì ảnh còn chú thích mặc định; không thì ảnh cuối bài
+  const captionImage = async () => {
+    const v = form.content;
+    const imgs = [...v.matchAll(/!\[([^\]]*)\]\((\/api\/v1\/(?:public\/)?files\/([0-9a-f-]{36})[^)\s]*)\)/g)].map((m) => ({ start: m.index!, end: m.index! + m[0].length, alt: m[1], url: m[2], id: m[3], raw: m[0] }));
+    if (!imgs.length) return showToast("info", "Bài chưa có ảnh nào — hãy chèn ảnh trước, rồi nhờ AI gợi ý chú thích.");
+    const cur = taRef.current?.selectionStart ?? 0;
+    const target = imgs.find((i) => cur >= i.start && cur <= i.end) ?? imgs.find((i) => !i.alt.trim() || /^Chú thích ảnh$/i.test(i.alt.trim())) ?? imgs[imgs.length - 1];
+    const r = await captionAi.run({ fileId: target.id });
+    if (!r) return;
+    const cap = r.output.caption.replace(/[[\]()]/g, "").trim();
+    const alt = (/^\(AI\)\s*/i.test(target.alt) ? "(AI) " : "") + cap;
+    setUndo({ content: form.content, label: "gợi ý chú thích ảnh" });
+    setForm((f) => (f.content.includes(target.raw) ? { ...f, content: f.content.replace(target.raw, `![${alt}](${target.url})`) } : f));
+    showToast("success", "AI đã gợi ý chú thích — đọc lại, sửa nếu chưa đúng nhé.");
+  };
+
+  // Minh họa cho đoạn đang chọn (hoặc đoạn chứa con trỏ): ảnh được chèn NGAY SAU đoạn đó
+  const startIllustrate = () => {
+    if (form.title.trim().length < 3) return showToast("info", "Hãy nhập tiêu đề bài trước — AI dựa vào tiêu đề và nội dung để chọn hình.");
+    const ta = taRef.current;
+    const v = form.content;
+    const s = ta?.selectionStart ?? 0;
+    const e = ta?.selectionEnd ?? 0;
+    let excerpt: string;
+    let at: number;
+    if (e > s) {
+      excerpt = v.slice(s, e);
+      const nl = v.indexOf("\n\n", e);
+      at = nl === -1 ? v.length : nl;
+    } else {
+      const ps = v.lastIndexOf("\n\n", Math.max(0, s - 1));
+      const pe = v.indexOf("\n\n", s);
+      excerpt = v.slice(ps === -1 ? 0 : ps + 2, pe === -1 ? v.length : pe);
+      at = pe === -1 ? v.length : pe;
+    }
+    excerpt = excerpt.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/^#{1,3}\s+/gm, "").trim().slice(0, 1200);
+    setIllustrate({ excerpt, at });
+  };
+
+  const insertIllustration = (img: { fileId: string; alt: string }) => {
+    const md = `![${img.alt.replace(/[[\]]/g, "")}](/api/v1/public/files/${img.fileId})`;
+    const at = illustrate?.at ?? form.content.length;
+    setUndo({ content: form.content, label: "chèn ảnh minh họa" });
+    setForm((f) => {
+      const v = f.content;
+      const i = Math.min(at, v.length);
+      const before = v.slice(0, i).trimEnd();
+      const after = v.slice(i).replace(/^\s+/, "");
+      return { ...f, content: [before, md, after].filter(Boolean).join("\n\n") + (after ? "" : "\n") };
+    });
+    setIllustrate(null);
+    showToast("success", "Đã chèn ảnh minh họa (có nhãn “do AI tạo”) — sửa chú thích nếu muốn.");
   };
 
   // ---- Chỉ số / danh sách kiểm tra trước khi đăng ----
   const words = useMemo(() => wordCount(form.content), [form.content]);
   const gaps = useMemo(() => countPlaceholders(form.content) + countPlaceholders(form.summary ?? "") + countPlaceholders(form.title), [form.content, form.summary, form.title]);
+  // Chỗ AI nêu mà dữ kiện không có: chỉ còn hiện khi đoạn đó vẫn nằm trong bài (sửa/xóa rồi thì biến mất)
+  const activeAiFlags = useMemo(() => activeFlags(aiFlags, `${form.title}
+${form.summary ?? ""}
+${form.content}`), [aiFlags, form.title, form.summary, form.content]);
+  const hardFlags = activeAiFlags.filter((f) => f.kind !== "cliche" && f.kind !== "cta").length;
   const checks = [
     { ok: form.title.trim().length >= 3, text: "Có tiêu đề", required: true },
     { ok: isValidSlug(form.slug), text: "Đường dẫn hợp lệ", required: true },
@@ -272,6 +374,7 @@ export default function ArticleEditorPage() {
     { ok: (form.summary ?? "").trim().length >= 20, text: "Có tóm tắt 1–2 câu", required: false },
     { ok: words >= 120, text: `Đủ dài để người đọc có ích (${words}/120 từ)`, required: false },
     { ok: gaps === 0, text: gaps ? `Còn ${gaps} chỗ [cần bổ sung] chưa điền` : "Không còn chỗ trống [cần bổ sung]", required: false },
+    ...(aiFlags.length ? [{ ok: hardFlags === 0, text: hardFlags ? `Còn ${hardFlags} chi tiết AI nêu (ngày/giờ/số) chưa kiểm lại` : "Các chi tiết AI nêu đã được kiểm lại", required: false }] : []),
   ];
   const ready = checks.filter((c) => c.required).every((c) => c.ok);
 
@@ -472,6 +575,12 @@ export default function ArticleEditorPage() {
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
                 <span className="w-px h-5 bg-gray-200 mx-1" />
                 <ImproveMenu getTarget={getImproveTarget} onApply={applyImprove} />
+                <button type="button" className={toolBtn} title={illustrateAi.available ? "AI vẽ ảnh minh họa cho đoạn đang chọn (hoặc đoạn có con trỏ)" : `Tạo ảnh bằng AI chưa dùng được${illustrateAi.reason ? `: ${illustrateAi.reason}` : ""}`} disabled={!illustrateAi.available} onClick={startIllustrate}>
+                  <Palette className="w-4 h-4" />
+                </button>
+                <button type="button" className={toolBtn} title={captionAi.available ? "AI gợi ý chú thích cho ảnh (ảnh ở con trỏ, hoặc ảnh chưa có chú thích)" : `Gợi ý chú thích chưa dùng được${captionAi.reason ? `: ${captionAi.reason}` : ""}`} disabled={!captionAi.available || captionAi.busy} onClick={captionImage}>
+                  {captionAi.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Type className="w-4 h-4" />}
+                </button>
               </div>
               {/* Chuyển Soạn / Xem trước (màn hình nhỏ) */}
               <div className="inline-flex p-0.5 rounded-lg bg-gray-100 xl:hidden">
@@ -534,8 +643,23 @@ export default function ArticleEditorPage() {
             </ul>
           </div>
 
+          {activeAiFlags.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-2.5">
+              <h3 className="text-sm font-extrabold text-amber-900">AI cần bạn kiểm lại</h3>
+              <p className="text-[11px] text-amber-800 leading-relaxed">Những chi tiết này AI nêu trong bài nhưng dữ kiện bạn đưa không có (hoặc là cụm từ nghe “như văn AI”). Bấm một thẻ để tìm trong bài; sửa hoặc xóa là thẻ tự biến mất.</p>
+              <FlagChips flags={activeAiFlags} onPick={focusText} />
+            </div>
+          )}
+
           <div className={card}>
-            <ImageUploadDropzone label="Ảnh bìa" value={form.coverFileId ?? ""} onChange={(v) => set("coverFileId", v || null)} bucket="attachments" helperText="Ảnh ngang (16:10) đẹp nhất. Dùng làm hình khi chia sẻ link lên Zalo/Facebook." />
+            <ImageUploadDropzone label="Ảnh bìa" value={form.coverFileId ?? ""} onChange={(v) => setForm((f) => ({ ...f, coverFileId: v || null, coverIsAi: false }))} bucket="attachments" helperText="Ảnh ngang (16:10) đẹp nhất. Dùng làm hình khi chia sẻ link lên Zalo/Facebook." />
+            <CoverAiPanel
+              title={form.title}
+              summary={form.summary ?? ""}
+              category={form.category}
+              isAi={!!form.coverIsAi && !!form.coverFileId}
+              onCover={(fileId, isAi) => setForm((f) => ({ ...f, coverFileId: fileId, coverIsAi: isAi }))}
+            />
           </div>
 
           <div className={cn(card, "space-y-4")}>
@@ -599,6 +723,17 @@ export default function ArticleEditorPage() {
             setIdeasOpen(false);
             setDraftSeed({ topic: idea.title, keyPoints: idea.angle });
           }}
+        />
+      )}
+      {illustrate && (
+        <ImageGenDialog
+          mode="inline"
+          title={form.title}
+          summary={form.summary ?? ""}
+          category={form.category}
+          excerpt={illustrate.excerpt}
+          onClose={() => setIllustrate(null)}
+          onPick={insertIllustration}
         />
       )}
       {historyOpen && !isNew && (

@@ -487,3 +487,17 @@ export async function serveFile(ctx: Ctx, id: string, variant: string | null): P
   }
   return new Response(new Uint8Array(data), { status: 200, headers });
 }
+
+/** Đọc nội dung (bản gốc) của một tệp mà người gọi được phép xem (RLS storage_files__select) — dùng cho các tác vụ xử lý ảnh phía máy chủ. */
+export async function readStoredFile(ctx: Ctx, id: string): Promise<{ data: Buffer; mime: string; bucket: Bucket; name: string | null }> {
+  const f = await ctx.db(async (tx) =>
+    (
+      await tx.query<FileMeta>(
+        "SELECT bucket, object_key, detected_mime, variants, original_name FROM storage_files WHERE id = $1 AND status = 'ready' AND deleted_at IS NULL",
+        [id]
+      )
+    ).rows[0] ?? null
+  );
+  if (!f) throw new ApiError(404, "NOT_FOUND", "Không tìm thấy tệp.");
+  return { data: await loadObject(f.bucket, f.object_key), mime: f.detected_mime, bucket: f.bucket, name: f.original_name };
+}

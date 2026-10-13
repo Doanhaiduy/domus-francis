@@ -1,5 +1,6 @@
 // Kiểu dữ liệu dùng chung (server + client) cho phân hệ AI hỗ trợ.
 // Nguyên tắc (Phần 8): AI chỉ GỢI Ý, người dùng xác nhận; hệ thống chạy bình thường khi AI tắt.
+import type { DraftFlag } from "../article-verify";
 
 export const AI_TASK_CODES = [
   "finance.dues_message",
@@ -11,14 +12,27 @@ export const AI_TASK_CODES = [
   "academic.insight",
   "academic.house_insight",
   "content.article_assist",
+  "content.article_research",
+  "content.article_image",
+  "content.image_caption",
 ] as const;
 export type AiTaskCode = (typeof AI_TASK_CODES)[number];
+
+/**
+ * Tác vụ không dùng nhà cung cấp văn bản (Groq/Cloudflare/Gemini): "cloudflare" = cần khóa Cloudflare Workers AI,
+ * "none" = tự chạy được kể cả khi chưa có khóa nào (nguồn tin công khai). Mặc định (không có trong bảng) = cần ít nhất một nhà cung cấp văn bản.
+ */
+export const AI_TASK_NEEDS: Partial<Record<AiTaskCode, "cloudflare" | "none">> = {
+  "content.article_research": "none",
+  "content.article_image": "cloudflare",
+  "content.image_caption": "cloudflare",
+};
 
 /** Mục đích đồng ý mà người dùng tự bật/tắt được cho AI (consent_purposes). */
 export const AI_CONSENT_PURPOSES = ["ai_processing", "ai_academic_summary"] as const;
 export type AiConsentPurpose = (typeof AI_CONSENT_PURPOSES)[number];
 
-export type AiProviderId = "groq" | "gemini";
+export type AiProviderId = "groq" | "gemini" | "cloudflare";
 
 export interface AiProviderDto {
   id: AiProviderId;
@@ -42,6 +56,8 @@ export interface AiTaskDto {
   monthlyBudgetVnd: number | null;
   /** Ứng dụng đã có bộ xử lý cho tác vụ này (các tác vụ luật/OCR… thuộc thiết kế nhưng chưa nằm trong cổng LLM). */
   implemented: boolean;
+  /** Đã có khóa của nhà cung cấp mà tác vụ này cần (văn bản: ít nhất một nhà; ảnh/chú thích: Cloudflare; tra cứu: không cần). */
+  configured: boolean;
 }
 
 export interface AiStatusDto {
@@ -173,23 +189,109 @@ export interface AcademicInsightOutput {
   compare: { currentLabel: string; previousLabel: string | null; rows: AcademicInsightRow[] } | null;
 }
 
-// Trợ lý viết bài công khai (người quản lý/Truyền thông): gợi ý đề tài, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt.
+// Trợ lý viết bài công khai (người quản lý/Truyền thông): gợi ý đề tài, phỏng vấn, viết nháp, chỉnh văn, gợi ý tiêu đề + tóm tắt.
 // Chỉ gửi nội dung người soạn đang viết + thông tin giới thiệu cộng đoàn đã công khai; không có dữ liệu cá nhân của thành viên.
-export type ArticleTone = "warm" | "formal" | "lively";
+export type ArticleTone = "plain" | "warm" | "formal" | "lively";
 export type ArticleLength = "short" | "medium" | "long";
 export type ArticleImproveMode = "polish" | "shorter" | "longer" | "warmer" | "formal" | "catchy";
+/** Kết bài: không kêu gọi (mặc định) · mời nhẹ nhàng · kèm thông tin liên hệ (hotline, địa chỉ). */
+export type ArticleEnding = "none" | "soft" | "contact";
+
+/** Câu hỏi AI đặt cho người soạn (chế độ phỏng vấn) + câu trả lời thật của họ. */
+export interface ArticleQa {
+  q: string;
+  a: string;
+}
+/** Tư liệu tra cứu người soạn đã chọn đưa vào bài (kèm nguồn để họ kiểm chứng). */
+export interface ArticleResearchUse {
+  notes: string[];
+  sources: { title: string; url: string }[];
+}
 
 export type ArticleAssistInput =
   | { action: "ideas"; category: string; note?: string }
-  | { action: "draft"; topic: string; keyPoints?: string; category: string; tone?: ArticleTone; length?: ArticleLength }
+  | { action: "questions"; topic: string; category: string }
+  | {
+      action: "draft";
+      topic: string;
+      keyPoints?: string;
+      answers?: ArticleQa[];
+      research?: ArticleResearchUse;
+      category: string;
+      tone?: ArticleTone;
+      length?: ArticleLength;
+      ending?: ArticleEnding;
+    }
   | { action: "improve"; text: string; mode: ArticleImproveMode }
   | { action: "meta"; content: string; title?: string };
 
 export type ArticleAssistOutput =
-  | { action: "ideas"; ideas: { title: string; angle: string }[] }
-  | { action: "draft"; title: string; summary: string; content: string }
-  | { action: "improve"; text: string }
+  | { action: "ideas"; ideas: { title: string; angle: string; /** Cơ sở của gợi ý (lễ, sự kiện có thật) */ basis?: string }[] }
+  | { action: "questions"; questions: string[] }
+  | {
+      action: "draft";
+      title: string;
+      summary: string;
+      content: string;
+      /** Chỗ cần người soạn kiểm lại (ngày/giờ/số không có trong dữ kiện, cụm sáo rỗng, lời kêu gọi). */
+      flags: DraftFlag[];
+      /** Người soạn chưa đưa dữ kiện thật ⇒ AI chỉ viết khung ngắn có chỗ [cần bổ sung]. */
+      thin: boolean;
+    }
+  | { action: "improve"; text: string; flags: DraftFlag[] }
   | { action: "meta"; titles: string[]; summary: string };
+
+// Tra cứu tư liệu cho bài viết: Gemini + tìm kiếm Google (khi còn hạn mức) + Vatican News + Wikipedia tiếng Việt.
+export interface ArticleResearchInput {
+  topic: string;
+  category: string;
+}
+export interface ArticleResearchSource {
+  title: string;
+  url: string;
+  kind: "web" | "vatican" | "wikipedia";
+}
+export interface ArticleResearchOutput {
+  /** Các dữ kiện đã tra (mỗi dòng một ý, đã làm sạch); người soạn chọn ý nào đưa vào bài. */
+  notes: string[];
+  sources: ArticleResearchSource[];
+  /** Tìm kiếm web: ok = có dùng; unavailable = lỗi/hết hạn mức (chỉ còn nguồn Vatican News, Wikipedia); skipped = chưa cấu hình. */
+  webSearch: "ok" | "unavailable" | "skipped";
+  queries: string[];
+}
+
+// Tạo ảnh bìa / ảnh minh họa bằng AI (Cloudflare Workers AI, miễn phí trong hạn mức ngày).
+export type ArticleImageStyle = "flat" | "watercolor" | "line" | "scenic";
+export interface ArticleImageInput {
+  purpose: "cover" | "inline";
+  title: string;
+  summary?: string;
+  /** Đoạn văn cần minh họa (ảnh trong bài). */
+  excerpt?: string;
+  category: string;
+  style: ArticleImageStyle;
+  /** Gợi ý thêm của người soạn (VD: "ánh nến, cửa sổ kính màu"). */
+  hint?: string;
+  /** Số phương án (1–2). */
+  count?: 1 | 2;
+}
+export interface ArticleImageOutput {
+  /** Ảnh đã lưu (bucket attachments, thuộc về người soạn). alt đã có tiền tố "(AI) " để trang công khai gắn nhãn. */
+  images: { fileId: string; alt: string }[];
+  /** Mô tả ảnh (tiếng Anh) đã gửi cho mô hình — để người soạn biết AI hiểu gì. */
+  prompt: string;
+  model: string;
+  /** Dùng mô hình dự phòng (ảnh vuông, đã cắt). */
+  fallback: boolean;
+}
+
+// Gợi ý chú thích cho một ảnh đã tải lên (người soạn bấm thì mới gửi ảnh cho AI).
+export interface ImageCaptionInput {
+  fileId: string;
+}
+export interface ImageCaptionOutput {
+  caption: string;
+}
 
 export interface AiInputMap {
   "finance.dues_message": DuesMessageInput;
@@ -201,6 +303,9 @@ export interface AiInputMap {
   "academic.insight": AcademicInsightInput;
   "academic.house_insight": AcademicHouseInsightInput;
   "content.article_assist": ArticleAssistInput;
+  "content.article_research": ArticleResearchInput;
+  "content.article_image": ArticleImageInput;
+  "content.image_caption": ImageCaptionInput;
 }
 export interface AiOutputMap {
   "finance.dues_message": DuesMessageOutput;
@@ -212,6 +317,9 @@ export interface AiOutputMap {
   "academic.insight": AcademicInsightOutput;
   "academic.house_insight": AcademicInsightOutput;
   "content.article_assist": ArticleAssistOutput;
+  "content.article_research": ArticleResearchOutput;
+  "content.article_image": ArticleImageOutput;
+  "content.image_caption": ImageCaptionOutput;
 }
 
 export interface AiResultDto<C extends AiTaskCode = AiTaskCode> {

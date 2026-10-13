@@ -13,6 +13,8 @@ export interface ArticleFormPayload {
   content: string;
   category: string;
   coverFileId: string | null;
+  /** Ảnh bìa do AI tạo (hiện nhãn trên trang công khai). */
+  coverIsAi?: boolean;
   byline: string | null;
   isFeatured: boolean;
   status: ArticleStatus;

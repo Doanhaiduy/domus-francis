@@ -117,8 +117,11 @@ export default async function PublicArticlePage({ params }: { params: { slug: st
 
       {cover && (
         <div className="max-w-4xl mx-auto w-full px-4 sm:px-6">
-          <div className="rounded-3xl overflow-hidden border border-purple-100 shadow-md aspect-[16/9] bg-gray-100">
+          <div className="relative rounded-3xl overflow-hidden border border-purple-100 shadow-md aspect-[16/9] bg-gray-100">
             <Cover article={article} priority />
+            {article.coverIsAi && (
+              <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#111827]/70 text-[#ffffff] text-[11px] font-semibold backdrop-blur-sm">Ảnh minh họa do AI tạo</span>
+            )}
           </div>
         </div>
       )}

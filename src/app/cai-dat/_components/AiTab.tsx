@@ -64,7 +64,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   blocked: { text: "Bị chặn", cls: "text-rose-600" },
   cancelled: { text: "Đã hủy", cls: "text-gray-500" },
 };
-const PROVIDER_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini", rule_based: "Luật nội bộ", local: "Nội bộ", self_hosted: "Máy chủ riêng" };
+const PROVIDER_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini", cloudflare: "Cloudflare", rule_based: "Luật nội bộ", local: "Nội bộ", self_hosted: "Máy chủ riêng" };
 const CONSENT_LABEL: Record<string, string> = {
   ai_processing: "“Dùng AI xử lý nội dung do tôi tạo”",
   ai_academic: "“Dùng AI phân tích dữ liệu học tập”",
@@ -80,7 +80,7 @@ function humanReason(s: string): string {
     .replace(/tác vụ ([a-z][a-z0-9_]*\.[a-z0-9_.]+)/g, (_, c: string) => `tác vụ “${TASK_TEXT[c]?.name ?? c}”`)
     .replace(/\(ai_[a-z_]+\)/g, (m) => `(${CONSENT_LABEL[m.slice(1, -1)] ?? m.slice(1, -1)})`)
     .replace(/dữ liệu loại (internal_ok|mask_required|never_external)/, (_, c: AiTaskDto["dataClass"]) => `dữ liệu “${CLASS_LABEL[c].text.toLowerCase()}”`)
-    .replace(/\b(groq|gemini)\b/gi, (m) => PROVIDER_LABEL[m.toLowerCase()] ?? m)
+    .replace(/\b(groq|gemini|cloudflare)\b/gi, (m) => PROVIDER_LABEL[m.toLowerCase()] ?? m)
     .trim();
 }
 
@@ -166,7 +166,8 @@ export default function AiTab() {
             <div key={p.id} className="p-3.5 rounded-2xl bg-surface-container-low border border-purple-50 flex flex-col gap-1.5 min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <span className="font-bold text-xs text-gray-900">
-                  {p.label} <span className="font-medium text-gray-400">· {i === 0 ? "dùng mặc định" : "dự phòng khi lỗi"}</span>
+                  {p.label}{" "}
+                  <span className="font-medium text-gray-400">· {p.id === "cloudflare" ? "dự phòng văn bản · tạo ảnh · chú thích ảnh" : i === 0 ? "dùng mặc định" : "dự phòng khi lỗi"}</span>
                 </span>
                 {p.configured ? (
                   p.paused ? (
@@ -237,6 +238,9 @@ export default function AiTab() {
                       t.technique !== "llm" && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500">{TECHNIQUE_LABEL[t.technique] ?? t.technique}</span>
                       )
+                    )}
+                    {t.implemented && !t.configured && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700" title="Chưa có khóa API của nhà cung cấp mà tính năng này cần (xem các thẻ nhà cung cấp phía trên)">Chưa có khóa</span>
                     )}
                   </div>
                   <p className="text-[11px] text-gray-500 leading-relaxed">{TASK_TEXT[t.code]?.desc ?? t.description}</p>

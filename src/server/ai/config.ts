@@ -6,13 +6,15 @@ import "server-only";
 // Không có khóa nào ⇒ cổng AI báo "chưa cấu hình" và giao diện quay về nhập tay (hệ thống không phụ thuộc AI).
 // ---------------------------------------------------------------------
 
-export type ProviderId = "groq" | "gemini";
+export type ProviderId = "groq" | "gemini" | "cloudflare";
 
 export interface ProviderConfig {
   id: ProviderId;
   label: string;
   model: string;
   apiKey: string | null;
+  /** Chỉ Cloudflare: mã tài khoản (đường dẫn API có chứa mã này). Thiếu ⇒ coi như chưa cấu hình. */
+  accountId?: string | null;
   /** Đơn giá USD cho 1 triệu token (vào / ra) — dùng ước tính cost_vnd. Ghi đè bằng biến môi trường nếu giá đổi. */
   usdPerMTokIn: number;
   usdPerMTokOut: number;
@@ -48,18 +50,54 @@ export function providerConfigs(): Record<ProviderId, ProviderConfig> {
       usdPerMTokIn: num(process.env.GEMINI_USD_PER_MTOK_IN, 0.1),
       usdPerMTokOut: num(process.env.GEMINI_USD_PER_MTOK_OUT, 0.4),
     },
+    // Cloudflare Workers AI: văn bản dự phòng (cùng họ mô hình với Groq), tạo ảnh, đọc ảnh. Gói miễn phí 10.000 neuron/ngày ⇒ chi phí quy đổi = 0.
+    cloudflare: {
+      id: "cloudflare",
+      label: "Cloudflare",
+      model: process.env.CLOUDFLARE_TEXT_MODEL?.trim() || "@cf/qwen/qwen3.8-27b",
+      apiKey: cloudflareAccess()?.token ?? null,
+      accountId: cloudflareAccess()?.accountId ?? null,
+      usdPerMTokIn: 0,
+      usdPerMTokOut: 0,
+    },
   };
 }
 
-/** Thứ tự thử: mặc định groq → gemini. AI_PROVIDER_ORDER="gemini,groq" để đổi; chỉ giữ nhà cung cấp đã có khóa. */
-export function providerOrder(): ProviderConfig[] {
-  const cfg = providerConfigs();
-  const wanted = (process.env.AI_PROVIDER_ORDER ?? "groq,gemini")
+/** Khóa Cloudflare Workers AI: cần ĐỦ mã tài khoản + token (cả hai) thì mới dùng được. */
+export function cloudflareAccess(): { accountId: string; token: string } | null {
+  const accountId = key(process.env.CLOUDFLARE_ACCOUNT_ID);
+  const token = key(process.env.CLOUDFLARE_API_TOKEN);
+  return accountId && token ? { accountId, token } : null;
+}
+
+/** Mô hình Cloudflare cho từng việc (đổi bằng biến môi trường khi Cloudflare đổi/ngừng mô hình). */
+export const CF_MODELS = {
+  /** Tạo ảnh đúng kích thước tùy chọn (multipart). Đã thử: ảnh sạch, không chữ nguệch ngoạc. */
+  image: () => process.env.CLOUDFLARE_IMAGE_MODEL?.trim() || "@cf/black-forest-labs/flux-2-klein-4b",
+  /** Dự phòng khi mô hình chính lỗi: nhanh nhưng chỉ ra ảnh vuông 1024 (được cắt về đúng tỷ lệ). */
+  imageFallback: () => process.env.CLOUDFLARE_IMAGE_FALLBACK_MODEL?.trim() || "@cf/black-forest-labs/flux-1-schnell",
+  /** Đọc ảnh → chú thích tiếng Việt. */
+  vision: () => process.env.CLOUDFLARE_VISION_MODEL?.trim() || "@cf/meta/llama-4-scout-17b-16e-instruct",
+};
+
+/** Mô hình Gemini có công cụ tìm kiếm Google (gói miễn phí chỉ còn dùng được dòng 2.5; Gemini 3.x báo hết hạn mức). */
+export const searchModel = () => process.env.GEMINI_SEARCH_MODEL?.trim() || "gemini-2.5-flash";
+
+/** Thứ tự thử (chưa lọc theo khóa): mặc định groq → cloudflare → gemini. AI_PROVIDER_ORDER="gemini,groq" để đổi (nhà cung cấp không nêu được nối vào cuối). */
+export function providerIdOrder(): ProviderId[] {
+  const wanted = (process.env.AI_PROVIDER_ORDER ?? "groq,cloudflare,gemini")
     .split(",")
     .map((s) => s.trim().toLowerCase())
-    .filter((s): s is ProviderId => s === "groq" || s === "gemini");
-  const order = [...new Set<ProviderId>([...wanted, "groq", "gemini"])];
-  return order.map((id) => cfg[id]).filter((p) => !!p.apiKey);
+    .filter((s): s is ProviderId => s === "groq" || s === "gemini" || s === "cloudflare");
+  return [...new Set<ProviderId>([...wanted, "groq", "cloudflare", "gemini"])];
+}
+
+/** Nhà cung cấp văn bản theo thứ tự thử; chỉ giữ nhà đã có khóa. */
+export function providerOrder(): ProviderConfig[] {
+  const cfg = providerConfigs();
+  return providerIdOrder()
+    .map((id) => cfg[id])
+    .filter((p) => !!p.apiKey);
 }
 
 export const AI_LIMITS = {
@@ -81,6 +119,12 @@ export const AI_LIMITS = {
    *  muốn có nhận xét mới trước hạn thì bấm "Tạo lại" (force). */
   insightCacheMinutes: 60,
   maxOutputTokens: 900,
+  /** Tạo ảnh AI (Cloudflare 10.000 neuron/ngày ≈ 60–100 ảnh): mỗi người 6 lần/giờ, cả nhà tối đa N ảnh/ngày (đếm từ 07:00 sáng giờ VN = 00:00 UTC, lúc Cloudflare làm mới hạn mức). */
+  imagePerHour: 6,
+  imageDailyCap: num(process.env.AI_IMAGE_DAILY_CAP, 60),
+  /** Gợi ý chú thích ảnh / tra cứu tư liệu: hạn mức giờ riêng, không chiếm phần của tác vụ khác. */
+  captionPerHour: 20,
+  researchPerHour: 10,
 } as const;
 
 /**

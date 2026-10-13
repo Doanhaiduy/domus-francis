@@ -23,7 +23,7 @@ const CONSENT_TEXT: Record<AiConsentPurpose, { body: React.ReactNode; button: st
   ai_processing: {
     body: (
       <>
-        Để dùng AI, nội dung bạn nhập sẽ được <b>loại bỏ tên, email, số điện thoại</b> rồi gửi tới dịch vụ AI bên ngoài (Groq, dự phòng Gemini) để xử lý. Kết quả chỉ là
+        Để dùng AI, nội dung bạn nhập sẽ được <b>loại bỏ tên, email, số điện thoại</b> rồi gửi tới dịch vụ AI bên ngoài (Groq, dự phòng Cloudflare hoặc Gemini) để xử lý. Kết quả chỉ là
         <b> gợi ý</b>, bạn xem và quyết định. Bạn có thể rút lại đồng ý bất cứ lúc nào (nút “Rút đồng ý dùng AI” ở cuối cửa sổ Trợ lý AI).
       </>
     ),
@@ -33,7 +33,7 @@ const CONSENT_TEXT: Record<AiConsentPurpose, { body: React.ReactNode; button: st
     body: (
       <>
         Để AI nhận xét kết quả học tập của bạn, hệ thống chỉ gửi <b>điểm trung bình, số tín chỉ và số môn theo từng học kỳ</b> — <b>đã ẩn danh</b> (không tên, không
-        trường, không mã sinh viên, không tên môn) — tới dịch vụ AI bên ngoài (Groq, dự phòng Gemini). Nhận xét <b>chỉ hiển thị cho riêng bạn</b>, người quản lý không
+        trường, không mã sinh viên, không tên môn) — tới dịch vụ AI bên ngoài (Groq, dự phòng Cloudflare hoặc Gemini). Nhận xét <b>chỉ hiển thị cho riêng bạn</b>, người quản lý không
         xem được. Bạn có thể rút lại đồng ý bất cứ lúc nào ngay tại thẻ nhận xét.
       </>
     ),

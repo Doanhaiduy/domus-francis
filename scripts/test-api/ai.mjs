@@ -88,7 +88,8 @@ export async function run({ as, test, eq, ok, section, Client }) {
 
     // db/data/2026-10-07-01_ai_enable.sql bật công tắc tổng + tác vụ viết bài cho môi trường thật; bộ kiểm thử bắt đầu từ trạng thái "tắt hết"
     eq((await admin.patch("/api/v1/settings", { changes: [{ key: "feature.ai.enabled", value: false }] })).status, 200, "tắt công tắc tổng");
-    await admin.patch("/api/v1/ai/tasks/content.article_assist", { enabled: false });
+    // Trợ lý viết bài + 3 tác vụ phụ (tra cứu, ảnh, chú thích — db/data/2026-10-13-01) cũng bật sẵn ở DB thật: tắt hết để bắt đầu từ trạng thái "tắt hết"
+    for (const t of ["content.article_assist", "content.article_research", "content.article_image", "content.image_caption"]) await admin.patch(`/api/v1/ai/tasks/${t}`, { enabled: false });
 
     await test("Chưa đăng nhập: /ai/status → 401", async () => {
       const anon = new Client("anon");

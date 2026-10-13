@@ -28,6 +28,8 @@ export interface ArticleListItem {
   category: string;
   /** Mã tệp ảnh bìa (storage_files.id); URL công khai dựng bằng publicFileUrl() */
   coverFileId: string | null;
+  /** Ảnh bìa do AI tạo ⇒ trang công khai gắn nhãn "Ảnh minh họa do AI tạo". */
+  coverIsAi: boolean;
   byline: string | null;
   isFeatured: boolean;
   status: ArticleStatus;

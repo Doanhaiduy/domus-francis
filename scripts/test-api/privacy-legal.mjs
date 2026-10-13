@@ -17,7 +17,7 @@ const CLEANUP_SQL = `UPDATE members
         deleted_at = now()
   WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`;
 
-const LEGAL_V = 102; // "1.2" — khớp LEGAL_VERSION (src/content/legal.ts)
+const LEGAL_V = 103; // "1.3" — khớp LEGAL_VERSION (src/content/legal.ts)
 const DEMO = [
   "duc.tran@luuxa.local",
   "bao.pham@luuxa.local",
@@ -93,7 +93,7 @@ export async function run({ as, test, eq, ok, section, Client, pgConfig }) {
     eq((await sql("SELECT count(*)::int AS n FROM users WHERE email = $1", [regEmail])).rows[0].n, 0, "không được tạo tài khoản");
   });
 
-  await test("Đăng ký có tick đồng ý ⇒ 201; đơn lưu bằng chứng: phiên bản 102, thời điểm, IP, trình duyệt", async () => {
+  await test("Đăng ký có tick đồng ý ⇒ 201; đơn lưu bằng chứng: phiên bản 103, thời điểm, IP, trình duyệt", async () => {
     const anon = await new Client("pv-anon-2").init();
     const r = await anon.post("/api/v1/auth/register", { fullName: regName, email: regEmail, password: "MatKhau2026", universityName: "ĐH Nha Trang", acceptTerms: true });
     eq(r.status, 201, JSON.stringify(r.json));
@@ -138,7 +138,7 @@ export async function run({ as, test, eq, ok, section, Client, pgConfig }) {
     const c = await new Client("pv-approved").login(regEmail, "MatKhau2026");
     const st = await c.get("/api/v1/consents/legal");
     eq(st.status, 200, JSON.stringify(st.json));
-    eq(st.json.version, "1.2");
+    eq(st.json.version, "1.3");
     eq(st.json.accepted, true);
     eq(st.json.required, false, "đã đồng ý khi đăng ký ⇒ không hiện hộp thoại");
   });
@@ -174,11 +174,11 @@ export async function run({ as, test, eq, ok, section, Client, pgConfig }) {
       eq(x.method, "in_app");
       eq(x.withdrawn_at, null);
       ok(x.ip, "có IP");
-      ok(/1\.2/.test(x.evidence_note ?? ""), "ghi chú nêu phiên bản văn bản");
+      ok(/1\.3/.test(x.evidence_note ?? ""), "ghi chú nêu phiên bản văn bản");
     }
   });
 
-  await test("Chỉ có đồng ý phiên bản cũ ⇒ được hỏi lại (hadPrevious); đồng ý lại ⇒ bản cũ đánh dấu rút, bản mới 102", async () => {
+  await test("Chỉ có đồng ý phiên bản cũ ⇒ được hỏi lại (hadPrevious); đồng ý lại ⇒ bản cũ đánh dấu rút, bản mới 103", async () => {
     const old = await freshMember("old");
     await sql(
       `INSERT INTO consents (member_id, purpose_code, policy_version, method, evidence_note)
@@ -199,7 +199,7 @@ export async function run({ as, test, eq, ok, section, Client, pgConfig }) {
     eq((await old.c.get("/api/v1/consents/legal")).json.required, false);
   });
 
-  await test("Chưa đăng nhập ⇒ 401; consent_purposes đã nâng phiên bản 102 cho 2 mục đích", async () => {
+  await test("Chưa đăng nhập ⇒ 401; consent_purposes đã nâng phiên bản 103 cho 2 mục đích", async () => {
     const anon = await new Client("pv-anon-3").init();
     eq((await anon.get("/api/v1/consents/legal")).status, 401);
     const v = (await sql("SELECT code, current_version FROM consent_purposes WHERE code IN ('terms_of_use','privacy_notice_ack')")).rows;

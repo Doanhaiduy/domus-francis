@@ -67,7 +67,7 @@ export async function run({ as, test, eq, ok, section, Client, pgConfig }) {
     const me = (await member.get("/api/v1/auth/me")).json;
     eq(j.profile.fullName, me.member.fullName, "hồ sơ của chính mình");
     eq(j.account.loginEmail, "tuan.nguyen@luuxa.local");
-    ok(j.meta.format === "luuxa-personal-data/1" && j.meta.legalVersion === "1.2", "meta");
+    ok(j.meta.format === "luuxa-personal-data/1" && j.meta.legalVersion === "1.3", "meta");
     ok(Object.keys(j.meta.sections).length >= 25, "liệt kê các mục");
     if (j.privateDetails?.nationalIdMasked) ok(/^(•••• ){2}\d{4}$/.test(j.privateDetails.nationalIdMasked), "CCCD che: " + j.privateDetails.nationalIdMasked);
     for (const g of j.guardians) ok(g.phoneMasked === null || /^•••• \d{4}$/.test(g.phoneMasked), "SĐT phụ huynh che: " + g.phoneMasked);
