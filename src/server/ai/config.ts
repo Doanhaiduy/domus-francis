@@ -43,7 +43,7 @@ export function providerConfigs(): Record<ProviderId, ProviderConfig> {
     gemini: {
       id: "gemini",
       label: "Gemini",
-      model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite",
       apiKey: key(process.env.GEMINI_API_KEY),
       usdPerMTokIn: num(process.env.GEMINI_USD_PER_MTOK_IN, 0.1),
       usdPerMTokOut: num(process.env.GEMINI_USD_PER_MTOK_OUT, 0.4),
