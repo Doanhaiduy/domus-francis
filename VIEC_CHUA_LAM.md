@@ -14,12 +14,14 @@ File này liệt kê những việc bạn cần tự làm để đưa thay đổ
       CÔNG KHAI (commit `60cbdaf`). Gỡ khỏi mã (`d9d5346`) không xóa được lịch sử — chỉ đổi mật khẩu mới chặn được.
       Supabase Dashboard → Project Settings → Database → *Reset database password* → cập nhật `MIGRATE_DATABASE_URL` trong `.env.staging`
       (và mọi nơi khác dùng chuỗi đó). Nếu staging từng chứa dữ liệu thật, coi như dữ liệu đó có thể đã lộ.
-- [ ] **Tắt Data API (PostgREST) trên CẢ HAI dự án Supabase** (ứng dụng không dùng): Project Settings → Data API → tắt
+- [x] **Tắt Data API (PostgREST) trên CẢ HAI dự án Supabase** (ứng dụng không dùng): Project Settings → Data API → tắt  _(13/10/2026: đã kiểm — quyền anon/authenticated ở schema public/app = 0 trên CẢ HAI môi trường nhờ migration 1042; việc TẮT hẳn Data API vẫn nên làm tay trên Dashboard)_
       (hoặc bỏ schema `public` khỏi "Exposed schemas"). Migration `db/app/1042_supabase_api_hardening.sql` đã thu hồi quyền của
       `anon`/`authenticated` nhưng tắt hẳn là chắc nhất. Kiểm tra sau khi áp 1042:
       `SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee IN ('anon','authenticated');` ⇒ 0 dòng.
 
 ## 1. ⚠ Áp migration (staging trước, rồi production) — theo quy trình phát hành trong CLAUDE.md
+
+> 13/10/2026: **đã áp cả 15 file** (db/app 1041–1052 + 3 file db/data) lên staging rồi production (dry-run trước; sao lưu NDJSON production trước khi áp), đã push `master` (commit `8d07220`), Vercel Production build thành công, `/api/health` 200.
 
 Thứ tự: sao lưu production → `pnpm db:migrate:staging -- --dry-run` → áp thật → push nhánh `staging` → kiểm tra → `pnpm db:migrate:production -- --dry-run`
 → áp thật **trước khi** code mới lên production → push `master`.
@@ -45,6 +47,8 @@ Migration mới của đợt này (đều idempotent, mỗi file một transacti
 
 ## 2. ⚠ Biến môi trường trên Vercel (Production + Preview) — đặt TRƯỚC khi deploy
 
+> 13/10/2026: **đã đặt** `OPS_HEARTBEAT_SECRET` (Production + Preview, kiểu Sensitive; bản gốc nằm ở `.env.production` trên máy dev). `NEXT_PUBLIC_APP_URL` đã có sẵn. Các biến tùy chọn còn lại chưa đặt.
+
 | Biến | Bắt buộc? | Ghi chú |
 |---|---|---|
 | `OPS_HEARTBEAT_SECRET` | nên có | chuỗi ngẫu nhiên ≥ 32 ký tự (`openssl rand -hex 24`); đặt CÙNG giá trị làm secret của repo sao lưu (mục 4). Thiếu ⇒ `/api/v1/public/ops-heartbeat` trả 404, Cài đặt → Hệ thống không biết sao lưu còn chạy. |
@@ -58,15 +62,15 @@ tên miền riêng đã xác minh). Thiếu email thì: "Quên mật khẩu" ẩ
 
 ## 3. ⚠ Vùng chạy hàm Vercel
 
-- [ ] `vercel.json` đã đổi `regions` từ `sin1` (Singapore) sang **`icn1` (Seoul)** cho cùng vùng với Supabase `ap-northeast-2` — mỗi vòng truy vấn
+- [x] `vercel.json` đã đổi `regions` từ `sin1` (Singapore) sang **`icn1` (Seoul)** cho cùng vùng với Supabase `ap-northeast-2` — mỗi vòng truy vấn  _(13/10/2026: đã xác minh — cả staging và production đều ở aws-0-ap-northeast-2 (Seoul), khớp icn1)_
       DB từ ~70 ms xuống vài ms. **Xác minh trước khi deploy**: vùng Supabase của CẢ HAI dự án đúng là `ap-northeast-2` (Project Settings → General).
       Nếu Supabase ở vùng khác ⇒ sửa `regions` cho khớp. Sau deploy: mở DevTools → Network → một API bất kỳ → Timing → `Server-Timing` (`db;dur=…`)
       để so trước/sau.
 
 ## 4. Sao lưu (repo riêng tư `Doanhaiduy/luu-xa-backups`)
 
-- [ ] Chép mẫu workflow mới từ `ops/backup-repo/` sang repo sao lưu (nhịp tim về ứng dụng + sao lưu tệp Supabase Storage hằng tuần).
-- [ ] Thêm secrets ở repo sao lưu: `OPS_HEARTBEAT_SECRET` (trùng Vercel), `APP_URL` (URL production), `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+- [x] Chép mẫu workflow mới từ `ops/backup-repo/` sang repo sao lưu (nhịp tim về ứng dụng + sao lưu tệp Supabase Storage hằng tuần).  _(13/10/2026: đã chép workflow + scripts vào repo sao lưu và chạy thử — thành công)_
+- [x] Thêm secrets ở repo sao lưu: `OPS_HEARTBEAT_SECRET` (trùng Vercel), `APP_URL` (URL production), `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`  _(13/10/2026: đã đặt secrets OPS_HEARTBEAT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY và biến APP_URL; nhịp tim đã về ứng dụng (/api/health?deep=1 → backup ok))_
       (của production — để tải tệp Storage). Xem `ops/backup-repo/README.md`.
 - [ ] Kiểm tra dung lượng Artifacts của GitHub Free (500 MB cho repo riêng tư): bản DB giờ giữ 30 ngày.
 - [ ] Video trên Cloudinary CHƯA được sao lưu tự động (cần tài khoản lưu trữ khác) — tải tay định kỳ nếu cần giữ lâu.
