@@ -293,6 +293,9 @@ export interface ArticleImageOutput {
 // Gợi ý chú thích cho một ảnh đã tải lên (người soạn bấm thì mới gửi ảnh cho AI).
 export interface ImageCaptionInput {
   fileId: string;
+  /** Tiêu đề bài + đoạn văn gần ảnh: để chú thích gắn ảnh với nội dung bài thay vì chỉ tả ảnh. */
+  title?: string;
+  context?: string;
 }
 export interface ImageCaptionOutput {
   caption: string;

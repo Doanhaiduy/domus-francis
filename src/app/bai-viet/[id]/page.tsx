@@ -49,6 +49,7 @@ import { AiAssistCard, DraftDialog, FlagChips, ImproveMenu, IdeasDialog, MetaSug
 import { CoverAiPanel, ImageGenDialog, IllustrateMenu, SuggestIllustrationsDialog } from "../_components/ArticleImageAi";
 import { useAiRunner } from "../_components/useAiRunner";
 import { activeFlags, SOFT_FLAG_KINDS, type DraftFlag } from "@/lib/article-verify";
+import { paragraphAt, splitParagraphs } from "@/lib/article-paragraphs";
 import { cn } from "@/lib/utils";
 
 const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, coverIsAi: false, byline: "", isFeatured: false, status: "draft", tags: [], publishedAt: null };
@@ -311,7 +312,11 @@ export default function ArticleEditorPage() {
     if (!imgs.length) return showToast("info", "Bài chưa có ảnh nào — hãy chèn ảnh trước, rồi nhờ AI gợi ý chú thích.");
     const cur = taRef.current?.selectionStart ?? 0;
     const target = imgs.find((i) => cur >= i.start && cur <= i.end) ?? imgs.find((i) => !i.alt.trim() || /^Chú thích ảnh$/i.test(i.alt.trim())) ?? imgs[imgs.length - 1];
-    const r = await captionAi.run({ fileId: target.id });
+    // Gửi kèm tiêu đề + đoạn văn ngay trên ảnh (không có thì đoạn ngay dưới) để chú thích gắn ảnh với nội dung bài, không chỉ tả ảnh
+    const paras = splitParagraphs(v);
+    const at = paras.findIndex((p) => p.kind === "image" && p.start <= target.start && p.end >= target.end);
+    const near = at < 0 ? undefined : [...paras.slice(0, at)].reverse().find((p) => p.kind === "text") ?? paras.slice(at + 1).find((p) => p.kind === "text");
+    const r = await captionAi.run({ fileId: target.id, title: form.title.trim() || undefined, context: near?.text.slice(0, 700) });
     if (!r) return;
     const cap = r.output.caption.replace(/[[\]()]/g, "").trim();
     const alt = (/^\(AI\)\s*/i.test(target.alt) ? "(AI) " : "") + cap;
@@ -327,17 +332,21 @@ export default function ArticleEditorPage() {
     const v = form.content;
     const s = ta?.selectionStart ?? 0;
     const e = ta?.selectionEnd ?? 0;
+    // Ảnh nằm NGAY DƯỚI đoạn đang chọn. Đoạn = một dòng có chữ (xem article-paragraphs.ts): bài viết hay xuống dòng một lần giữa hai đoạn,
+    // không chừa dòng trống — tìm theo dòng trống thì cả bài thành một đoạn và ảnh rơi xuống cuối bài.
+    const paras = splitParagraphs(v);
     let excerpt: string;
     let at: number;
     if (e > s) {
       excerpt = v.slice(s, e);
-      const nl = v.indexOf("\n\n", e);
-      at = nl === -1 ? v.length : nl;
+      let end = e;
+      while (end > s && /\s/.test(v[end - 1])) end--; // chọn cả dấu xuống dòng ở cuối thì không tính sang đoạn kế
+      const last = paragraphAt(paras, Math.max(s, end - 1));
+      at = last ? last.end : v.length;
     } else {
-      const ps = v.lastIndexOf("\n\n", Math.max(0, s - 1));
-      const pe = v.indexOf("\n\n", s);
-      excerpt = v.slice(ps === -1 ? 0 : ps + 2, pe === -1 ? v.length : pe);
-      at = pe === -1 ? v.length : pe;
+      const p = paragraphAt(paras, s);
+      excerpt = p?.text ?? v;
+      at = p ? p.end : v.length;
     }
     excerpt = excerpt.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/^#{1,3}\s+/gm, "").trim().slice(0, 1200);
     setIllustrate({ excerpt, at });

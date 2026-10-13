@@ -1,5 +1,5 @@
-// Tách bài viết (Markdown tối giản) thành các đoạn — dùng chung máy chủ + trình duyệt để "AI đề xuất chỗ chèn ảnh" và trình soạn
-// hiểu CÙNG một cách đánh số đoạn (máy chủ chỉ trả số thứ tự đoạn, trình duyệt đổi lại thành vị trí trong văn bản).
+// Tách bài viết (Markdown tối giản) thành các đoạn — dùng chung máy chủ + trình duyệt để "AI đề xuất chỗ chèn ảnh", nút "Vẽ cho đoạn đang chọn"
+// và trình soạn hiểu CÙNG một cách đánh số/định vị đoạn (máy chủ chỉ trả số thứ tự đoạn, trình duyệt đổi lại thành vị trí trong văn bản).
 
 export type ParaKind = "text" | "heading" | "image" | "quote" | "list" | "rule";
 
@@ -22,23 +22,50 @@ const kindOf = (t: string): ParaKind => {
   return "text";
 };
 
-/** Các khối cách nhau bằng dòng trống. Bỏ khối rỗng. */
+/**
+ * Mỗi DÒNG có chữ là một đoạn — người soạn hay xuống dòng một lần giữa hai đoạn (không chừa dòng trống), trình hiển thị cũng coi mỗi dòng là một khối.
+ * Các dòng liền nhau cùng là danh sách ("- ", "1. ") hoặc cùng là trích dẫn ("> ") được gộp thành MỘT khối để ảnh không chen vào giữa danh sách.
+ */
 export function splitParagraphs(content: string): Para[] {
   const out: Para[] = [];
-  const push = (raw: string, offset: number) => {
-    const lead = raw.length - raw.trimStart().length;
-    const text = raw.trim();
-    if (!text) return;
-    const start = offset + lead;
-    out.push({ index: out.length, start, end: start + text.length, text, kind: kindOf(text) });
+  let cur: { start: number; end: number; kind: ParaKind } | null = null;
+  const flush = () => {
+    if (!cur) return;
+    out.push({ index: out.length, start: cur.start, end: cur.end, text: content.slice(cur.start, cur.end), kind: cur.kind });
+    cur = null;
   };
-  let last = 0;
-  for (const m of content.matchAll(/\n[ \t]*\n+/g)) {
-    push(content.slice(last, m.index), last);
-    last = m.index! + m[0].length;
+  let offset = 0;
+  for (const rawLine of content.split("\n")) {
+    const lineStart = offset;
+    offset += rawLine.length + 1;
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      flush();
+      continue;
+    }
+    const start = lineStart + (rawLine.length - rawLine.trimStart().length);
+    const end = start + trimmed.length;
+    const kind = kindOf(trimmed);
+    if (cur && cur.kind === kind && (kind === "list" || kind === "quote")) {
+      cur.end = end;
+      continue;
+    }
+    flush();
+    cur = { start, end, kind };
   }
-  push(content.slice(last), last);
+  flush();
   return out;
+}
+
+/** Đoạn chứa vị trí `pos` (con trỏ / cuối vùng bôi đen); đang ở khoảng trống giữa hai đoạn thì lấy đoạn ngay phía trên. */
+export function paragraphAt(paras: Para[], pos: number): Para | null {
+  if (!paras.length) return null;
+  let best: Para | null = null;
+  for (const p of paras) {
+    if (p.start <= pos) best = p;
+    else break;
+  }
+  return best ?? paras[0];
 }
 
 /** Đoạn văn thường đủ dài để minh họa và chưa có ảnh liền kề — ứng viên cho "AI đề xuất chỗ chèn ảnh". */
