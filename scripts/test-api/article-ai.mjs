@@ -19,6 +19,8 @@ async function jpeg(w, h, color) {
 
 const RSS = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Vatican News</title>
 <item><title><![CDATA[Tháng Mân Côi: Đức Thánh Cha kêu gọi lần chuỗi cầu cho hòa bình]]></title><link>https://www.vaticannews.va/vi/thanh-pho-vatican/news/2026-10/man-coi.html</link><description><![CDATA[<p>Nhân tháng Mân Côi, ĐTC mời gọi mọi người lần chuỗi.</p>]]></description><pubDate>Mon, 12 Oct 2026 08:00:00 +0000</pubDate></item>
+<item><title>Tháng Mân Côi: các gia đình cùng lần chuỗi mỗi tối</title><link>https://www.vaticannews.va/vi/church/news/2026-10/man-coi-gia-dinh.html</link><description>Nhiều giáo xứ mời gọi lần chuỗi Mân Côi tại gia đình.</description><pubDate>Sat, 10 Oct 2026 08:00:00 +0000</pubDate></item>
+<item><title>Kinh Mân Côi và hòa bình thế giới</title><link>https://www.vaticannews.va/vi/church/news/2026-10/man-coi-hoa-binh.html</link><description>Đức Thánh Cha mời gọi lần chuỗi Mân Côi cầu cho hòa bình.</description><pubDate>Fri, 09 Oct 2026 08:00:00 +0000</pubDate></item>
 <item><title>Tin khác không liên quan</title><link>https://www.vaticannews.va/vi/khac.html</link><description>Nội dung khác</description><pubDate>Sun, 11 Oct 2026 08:00:00 +0000</pubDate></item>
 </channel></rss>`;
 
@@ -80,7 +82,7 @@ export async function startMock() {
           return send(200, {
             candidates: [
               {
-                content: { parts: [{ text: "Dưới đây là kết quả:\n- Tháng 10 là tháng kính Đức Mẹ Mân Côi theo truyền thống Giáo hội.\n- Lễ Mân Côi được mừng ngày 7/10 hằng năm.\n**Lưu ý** không có bằng chứng khác." }] },
+                content: { parts: [{ text: "Dưới đây là kết quả:\n- Tháng 10 là tháng kính Đức Mẹ Mân Côi theo truyền thống Giáo hội.\n- Lễ Mân Côi được mừng ngày 7/10 hằng năm.\n- Kinh Mân Côi gồm bốn bộ mầu nhiệm: Vui, Sáng, Thương, Mừng.\n- Tháng Mân Côi gắn với chiến thắng Lepanto năm 1571 theo truyền thống.\n- Đức Giáo hoàng Lêô XIII đã khuyến khích việc lần chuỗi trong tháng Mười.\n- Nhiều giáo xứ tổ chức lần chuỗi chung mỗi tối trong tháng này.\n- Việc lần chuỗi giúp người tín hữu suy niệm đời sống Chúa Giêsu cùng Đức Mẹ.\n- Chuỗi Mân Côi truyền thống gồm năm chục kinh Kính Mừng chia theo mầu nhiệm.\n**Lưu ý** không có bằng chứng khác." }] },
                 groundingMetadata: {
                   webSearchQueries: ["tháng mân côi 2026"],
                   groundingChunks: [{ web: { uri: "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc123", title: "vaticannews.va" } }, { web: { uri: "http://khong-https.example/x", title: "bỏ" } }],
@@ -119,8 +121,13 @@ export async function startMock() {
       }
       // ---- Vatican News + Wikipedia
       if (url.startsWith("/vaticannews/")) return send(200, RSS, "application/xml");
-      if (url.startsWith("/wikipedia/w/rest.php/v1/search/page")) return send(200, { pages: [{ key: "Kinh_Mân_Côi", title: "Kinh Mân Côi", description: "Kinh nguyện" }] });
-      if (url.startsWith("/wikipedia/api/rest_v1/page/summary/")) return send(200, { title: "Kinh Mân Côi", extract: "Kinh Mân Côi là một hình thức cầu nguyện của người Công giáo, lần chuỗi hạt để suy niệm các mầu nhiệm." });
+      // Tìm kiếm Wikipedia hay trả trang lạc đề ("Hoa Kỳ") đứng đầu — hệ thống phải loại trang không có từ khóa của đề tài
+      if (url.startsWith("/wikipedia/w/rest.php/v1/search/page")) return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Kinh_Mân_Côi", title: "Kinh Mân Côi" }, { key: "Tháng_Mân_Côi", title: "Tháng Mân Côi" }] });
+      if (url.startsWith("/wikipedia/api/rest_v1/page/summary/")) {
+        const key = decodeURIComponent(url.split("/summary/")[1].split("?")[0]);
+        if (key === "Hoa_Kỳ") return send(200, { title: "Hoa Kỳ", extract: "Hợp chúng quốc Hoa Kỳ là một quốc gia ở châu Mỹ, nằm tại Tây Bán cầu, gồm 50 tiểu bang và một đặc khu liên bang." });
+        return send(200, { title: key.replace(/_/g, " "), extract: `${key.replace(/_/g, " ")} là một hình thức cầu nguyện của người Công giáo, lần chuỗi hạt Mân Côi để suy niệm các mầu nhiệm.` });
+      }
       return send(404, { error: "không có" });
     });
   });
@@ -280,11 +287,24 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       ok(o.sources.some((s) => s.kind === "web" && s.url.startsWith("https://vertexaisearch.cloud.google.com/")), "thiếu nguồn web (https)");
       ok(!o.sources.some((s) => s.url.startsWith("http://")), "nguồn http phải bị bỏ");
       ok(o.sources.some((s) => s.kind === "vatican") && o.sources.some((s) => s.kind === "wikipedia"));
+      // Lỗi người dùng gặp: tra cứu trả > 12 ghi chú rồi bản nháp bị từ chối "Dữ liệu không hợp lệ" ⇒ luôn ≤ 12; trang Wikipedia lạc đề bị loại
+      eq(o.notes.length, 12, "8 ý Gemini + 3 tin Vatican + 2 trang Wikipedia đúng chủ đề = 13 ⇒ phải bị chặn ở 12");
+      ok(o.sources.length <= 12, "nguồn ≤ 12");
+      ok(!o.notes.some((n) => /Hoa Kỳ/.test(n)) && !o.sources.some((s) => /Hoa_K/.test(decodeURIComponent(s.url))), "trang Wikipedia lạc đề (Hoa Kỳ) phải bị loại");
       const s = mock.calls.find((c) => c.kind === "search");
       ok(s && /gemini-2\.5-flash/.test(s.url), "phải gọi mô hình tìm kiếm gemini-2.5-flash");
       const job = (await sql("SELECT provider, cost_vnd FROM ai_jobs WHERE id = $1", [r.json.jobId])).rows[0];
       eq(job.provider, "gemini");
       eq(Number(job.cost_vnd), 0);
+    });
+
+    await test("Viết nháp nhận được toàn bộ kết quả tra cứu (kể cả 14–20 ghi chú) — không còn lỗi 'Dữ liệu gửi cho AI không hợp lệ'", async () => {
+      reset();
+      const notes = Array.from({ length: 14 }, (_, i) => `Ghi chú tư liệu số ${i + 1} về Lễ Các Đẳng ${suffix}.`);
+      const sources = Array.from({ length: 14 }, (_, i) => ({ title: `Nguồn ${i + 1}`, url: `https://example.com/nguon-${i + 1}` }));
+      const r = await assist(head, { action: "draft", topic: `Cầu nguyện cho các đẳng ${suffix}`, keyPoints: "Chia sẻ ý nghĩa của Thánh lễ cầu nguyện cho các linh hồn.", research: { notes, sources }, category: "chia-se", tone: "plain", length: "long", ending: "none" });
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq((await assist(head, { action: "draft", topic: "Chủ đề thử quá nhiều ghi chú", research: { notes: Array.from({ length: 21 }, () => "x ghi chú"), sources: [] }, category: "chia-se" })).status, 400, "quá 20 ghi chú vẫn bị chặn");
     });
 
     await test("Tra cứu khi Gemini hết lượt (429) ⇒ webSearch 'unavailable' nhưng vẫn có Vatican News + Wikipedia", async () => {

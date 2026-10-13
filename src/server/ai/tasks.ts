@@ -946,8 +946,9 @@ const articleIn = z.discriminatedUnion("action", [
     answers: z.array(z.object({ q: z.string().trim().max(240), a: z.string().trim().max(1200) })).max(6).optional(),
     research: z
       .object({
-        notes: z.array(z.string().trim().max(320)).max(12),
-        sources: z.array(z.object({ title: z.string().trim().max(200), url: z.string().trim().max(600) })).max(12),
+        // Rộng hơn mức tra cứu trả về (tối đa 12) để không bao giờ bị từ chối chỉ vì đếm lệch; thân yêu cầu vẫn bị chặn ở mức hợp lý
+        notes: z.array(z.string().trim().max(400)).max(20),
+        sources: z.array(z.object({ title: z.string().trim().max(240), url: z.string().trim().max(700) })).max(20),
       })
       .optional(),
     category: z.enum(ARTICLE_CATS),

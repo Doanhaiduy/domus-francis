@@ -79,7 +79,7 @@ export const articleResearchTask: TaskDef<"content.article_research"> = {
         const [web, vat, wiki] = await Promise.allSettled([
           hasGemini ? geminiSearch(prompt) : Promise.reject(new NoProviderError("không có khóa Gemini")),
           vaticanNews(topic, 3),
-          wikipediaVi(topic, 2),
+          wikipediaVi(topic, 3),
         ]);
 
         const notes: string[] = [];
@@ -106,7 +106,7 @@ export const articleResearchTask: TaskDef<"content.article_research"> = {
           }
         }
         return {
-          value: { notes: notes.slice(0, 14), sources: sources.slice(0, 12), webSearch, queries },
+          value: { notes: notes.slice(0, 12), sources: sources.slice(0, 12), webSearch, queries },
           provider: "gemini",
           model: web.status === "fulfilled" ? web.value.model : searchModel(),
           tokensIn: 0,

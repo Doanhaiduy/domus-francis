@@ -61,6 +61,8 @@ export const fold = (s: string) =>
     .toLowerCase();
 
 const STOP = new Set(["bai", "viet", "ve", "cua", "cho", "cac", "nhung", "mot", "nay", "thang", "nam", "ngay", "trong", "tai", "luu", "xa", "voi", "cac", "khi", "dang", "duoc", "den", "sinh", "vien", "nha", "thong", "bao", "hoat", "dong"]);
+/** Tập các từ (đã bỏ dấu, chữ thường) của một đoạn văn — để so khớp từ khóa theo từ nguyên vẹn. */
+const tokenSet = (s: string): Set<string> => new Set(fold(s).split(/[^a-z0-9]+/).filter(Boolean));
 export const keywordsOf = (q: string): string[] => [...new Set(fold(q).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w)))].slice(0, 10);
 
 const feedCache = (globalThis as unknown as { __luuxaFeedCache?: { at: number; items: SourceItem[] } });
@@ -101,10 +103,11 @@ export async function vaticanNews(query: string, limit = 3): Promise<SourceItem[
   const need = Math.min(2, kw.length);
   return items
     .map((it) => {
-      const t = fold(it.title);
-      const s = fold(it.summary);
-      const score = kw.reduce((a, w) => a + (t.includes(w) ? 2 : s.includes(w) ? 1 : 0), 0);
-      return { it, score, hits: kw.filter((w) => t.includes(w) || s.includes(w)).length };
+      // So khớp theo TỪ nguyên vẹn (không phải chuỗi con: "man" không được khớp "mang", "nguyen" không khớp "nguyên thủ")
+      const t = tokenSet(it.title);
+      const s = tokenSet(it.summary);
+      const score = kw.reduce((a, w) => a + (t.has(w) ? 2 : s.has(w) ? 1 : 0), 0);
+      return { it, score, hits: kw.filter((w) => t.has(w) || s.has(w)).length };
     })
     .filter((x) => x.hits >= need)
     .sort((a, b) => b.score - a.score || (b.it.date ?? "").localeCompare(a.it.date ?? ""))
@@ -145,7 +148,16 @@ export async function wikipediaVi(query: string, limit = 2): Promise<SourceItem[
         }
       }),
     );
-    return keys.map((k) => out.find((o) => o.url.endsWith(encodeURIComponent(k)))).filter((x): x is SourceItem => !!x);
+    // Công cụ tìm kiếm của Wikipedia hay trả về trang lạc đề (vd. tìm "cầu nguyện cho các đẳng" ra "Hoa Kỳ") ⇒ chỉ giữ trang có từ khóa của đề tài ở tiêu đề/tóm tắt
+    const kw = keywordsOf(query);
+    return keys
+      .map((k) => out.find((o) => o.url.endsWith(encodeURIComponent(k))))
+      .filter((x): x is SourceItem => !!x)
+      .filter((x) => {
+        if (!kw.length) return true;
+        const tokens = tokenSet(`${x.title} ${x.summary}`);
+        return kw.some((w) => tokens.has(w));
+      });
   } catch {
     return [];
   }
