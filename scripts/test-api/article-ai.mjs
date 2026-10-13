@@ -2,6 +2,9 @@
 // Groq, Gemini (kể cả công cụ tìm kiếm Google), Cloudflare Workers AI (văn bản, tạo ảnh, đọc ảnh), Vatican News (RSS) và Wikipedia tiếng Việt.
 //   • bảng THÔNG TIN THẬT trong prompt (ngày Bổn mạng cấu hình, "hôm nay không phải ngày Bổn mạng"); không tự đưa hotline/lời kêu gọi khi kết bài "không kêu gọi"
 //   • dò đầu ra: ngày Bổn mạng sai, giờ/số/SĐT không có trong dữ kiện, cụm sáo rỗng, lời kêu gọi; bản nháp thiếu dữ kiện ⇒ chỉ viết khung (thin)
+//   • văn AI: "không … mà …" lặp, cụm lặp ≥ 5 lần, lời chứng chung chung (claim) bị đánh dấu — trừ khi người soạn tự ghi trong dữ kiện
+//   • "AI đề xuất chỗ chèn ảnh" (action illustrations): lọc số đoạn lạ/đoạn sát nhau/đoạn kề ảnh, bài không có đoạn hợp ⇒ rỗng không gọi mô hình
+//   • không còn giới hạn lượt vẽ ảnh theo GIỜ (chỉ còn trần theo ngày của cả nhà)
 //   • phỏng vấn (questions), tra cứu (Gemini + Vatican News + Wikipedia; hết hạn mức tìm kiếm ⇒ vẫn còn nguồn công khai)
 //   • chỉnh văn: đoạn dài được cấp đủ token đầu ra; thêm ngày/số mới ⇒ bị đánh dấu; quá 8.000 ký tự ⇒ 400
 //   • tạo ảnh bìa/minh họa: lưu như ảnh người dùng tải lên, nhãn (AI), mô tả không an toàn ⇒ dùng mô tả dựng sẵn, mô hình dự phòng, hết hạn mức Cloudflare
@@ -38,8 +41,13 @@ export async function startMock() {
       return {
         title: "Tối thứ Sáu lần chuỗi ở sân nhà",
         summary: "Một buổi tối yên tĩnh của anh em.",
-        content: "Hôm nay 17/03 là ngày Bổn mạng của nhà. Hãy cùng nhau lần chuỗi. Có 120 người tham dự lúc 19h45. Gọi hotline 0912 345 678 ngay.\n\n> “Ngày nào cũng học, cũng đi làm thêm, tối về lần chuỗi thấy lòng nhẹ đi.” - Một anh em chia sẻ.\n\nCuối bài [cần bổ sung: tên cha hướng dẫn].",
+        content: "Hôm nay 17/03 là ngày Bổn mạng của nhà. Hãy cùng nhau lần chuỗi. Có 120 người tham dự lúc 19h45. Gọi hotline 0912 345 678 ngay.\n\n> “Ngày nào cũng học, cũng đi làm thêm, tối về lần chuỗi thấy lòng nhẹ đi.” - Một anh em chia sẻ.\n\nNhiều anh em kể rằng mỗi tối đều thấy lòng nhẹ đi. Đây không chỉ là một buổi lần chuỗi, mà là một mối dây liên kết. Đó không phải là thói quen, mà còn là nhịp sống. Ánh nến chiếu lên tường. Ánh nến tỏa ra sân. Ánh nến rọi qua cửa. Ánh nến cháy suốt buổi. Ánh nến lay trong gió.\n\nCuối bài [cần bổ sung: tên cha hướng dẫn].",
       };
+    // Biên tập viên ảnh: cố tình trả cả số đoạn không có, đoạn sát nhau và đoạn trùng để kiểm tra việc lọc ở máy chủ
+    if (user.includes("Bạn là biên tập viên ảnh")) {
+      const nums = [...user.matchAll(/^\[(\d+)\] /gm)].map((m) => Number(m[1]));
+      return { picks: [{ n: nums[0], reason: "Tả cảnh có nến và sân nhà" }, { n: nums[0] + 1, reason: "Sát đoạn trên" }, { n: 999, reason: "Số đoạn không có" }, { n: nums[nums.length - 1], reason: "Cảnh cuối buổi" }] };
+    }
     if (user.includes("Nhiệm vụ:")) return { text: "Đoạn đã chỉnh, thêm 50 người tham dự vào 22/09." };
     if (user.includes("Đọc bài viết dưới đây")) return { titles: ["Tiêu đề một", "Tiêu đề hai", "Tiêu đề ba", "Tiêu đề bốn"], summary: "Tóm tắt ngắn gọn." };
     if (user.includes("Write the image prompt")) {
@@ -69,7 +77,7 @@ export async function startMock() {
       // ---- Groq
       if (url.startsWith("/groq/")) {
         const user = body.messages?.find((m) => m.role === "user")?.content ?? "";
-        state.calls.push({ kind: "text", provider: "groq", user, max: body.max_tokens });
+        state.calls.push({ kind: "text", provider: "groq", user, system: body.messages?.find((m) => m.role === "system")?.content, max: body.max_tokens });
         if (state.groq === "down") return send(503, { error: "down" });
         return send(200, { choices: [{ message: { content: JSON.stringify(answer(user)) } }], usage: { prompt_tokens: 800, completion_tokens: 200 } });
       }
@@ -122,10 +130,14 @@ export async function startMock() {
       // ---- Vatican News + Wikipedia
       if (url.startsWith("/vaticannews/")) return send(200, RSS, "application/xml");
       // Tìm kiếm Wikipedia hay trả trang lạc đề ("Hoa Kỳ") đứng đầu — hệ thống phải loại trang không có từ khóa của đề tài
-      if (url.startsWith("/wikipedia/w/rest.php/v1/search/page")) return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Kinh_Mân_Côi", title: "Kinh Mân Côi" }, { key: "Tháng_Mân_Côi", title: "Tháng Mân Côi" }] });
+      if (url.startsWith("/wikipedia/w/rest.php/v1/search/page")) {
+        if (decodeURIComponent(url).includes("Đẳng")) return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Lễ_Các_Đẳng", title: "Lễ Các Đẳng" }] });
+        return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Kinh_Mân_Côi", title: "Kinh Mân Côi" }, { key: "Tháng_Mân_Côi", title: "Tháng Mân Côi" }] });
+      }
       if (url.startsWith("/wikipedia/api/rest_v1/page/summary/")) {
         const key = decodeURIComponent(url.split("/summary/")[1].split("?")[0]);
         if (key === "Hoa_Kỳ") return send(200, { title: "Hoa Kỳ", extract: "Hợp chúng quốc Hoa Kỳ là một quốc gia ở châu Mỹ, nằm tại Tây Bán cầu, gồm 50 tiểu bang và một đặc khu liên bang." });
+        if (key === "Lễ_Các_Đẳng") return send(200, { title: "Lễ Các Đẳng", extract: "Lễ Các Đẳng là ngày Giáo hội Công giáo cầu nguyện cho các linh hồn đã qua đời." });
         return send(200, { title: key.replace(/_/g, " "), extract: `${key.replace(/_/g, " ")} là một hình thức cầu nguyện của người Công giáo, lần chuỗi hạt Mân Côi để suy niệm các mầu nhiệm.` });
       }
       return send(404, { error: "không có" });
@@ -227,7 +239,11 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       ok(!p.includes("THÔNG TIN LIÊN HỆ") && !/Hotline:/.test(p), "kết bài 'không kêu gọi' thì không đưa thông tin liên hệ vào prompt");
       ok(p.includes("KẾT BÀI: khép bài tự nhiên") && p.includes("KHÔNG kêu gọi"), "prompt phải nêu kiểu kết bài");
       const kinds = new Set(o.flags.map((f) => f.kind));
-      for (const k of ["patron", "time", "number", "phone", "cliche", "cta", "quote"]) ok(kinds.has(k), `thiếu cờ ${k}: ${JSON.stringify(o.flags)}`);
+      for (const k of ["patron", "time", "number", "phone", "cliche", "cta", "quote", "claim", "repeat"]) ok(kinds.has(k), `thiếu cờ ${k}: ${JSON.stringify(o.flags)}`);
+      // Văn AI: "không … mà …" lặp hai lần ⇒ cả hai câu bị đánh dấu sáo rỗng; "Ánh nến" lặp 5 lần ⇒ cờ repeat; lời chứng chung chung ⇒ claim
+      ok(o.flags.filter((f) => f.kind === "cliche" && /không/i.test(f.text) && /mà/i.test(f.text)).length >= 2, "thiếu cờ cho cấu trúc 'không … mà …' lặp lại: " + JSON.stringify(o.flags));
+      ok(o.flags.some((f) => f.kind === "repeat" && /ánh nến/i.test(f.text)), "thiếu cờ repeat cho 'ánh nến'");
+      ok(o.flags.some((f) => f.kind === "claim" && /Nhiều anh em kể/i.test(f.text)), "thiếu cờ claim cho lời chứng chung chung");
       ok(o.flags.some((f) => f.kind === "patron" && /17\/03/.test(f.text) && /08\/12/.test(f.note ?? "")), "cờ patron phải nêu ngày đúng 08/12");
       ok(o.flags.some((f) => f.kind === "phone" && f.text.includes("0912")), "cờ SĐT");
       ok(!/\[.*\]\(/.test(o.content), "bản nháp không được có liên kết/ảnh");
@@ -238,7 +254,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const r = await assist(head, {
         action: "draft",
         topic: `Buổi lần chuỗi ${suffix}`,
-        keyPoints: "Tối thứ Sáu 9/10, 20 anh em lần chuỗi ở sân nhà, cha linh hướng nhắc lòng tin cậy vào Đức Mẹ.",
+        keyPoints: "Tối thứ Sáu 9/10, 20 anh em lần chuỗi ở sân nhà, cha linh hướng nhắc lòng tin cậy vào Đức Mẹ. Nhiều anh em kể rằng mỗi tối đều thấy lòng nhẹ đi.",
         answers: [{ q: "Ai hướng dẫn?", a: "Cha linh hướng" }],
         research: { notes: ["Lễ Mân Côi được mừng ngày 7/10 hằng năm."], sources: [{ title: "vaticannews.va", url: "https://www.vaticannews.va/vi/x.html" }] },
         category: "hoat-dong",
@@ -253,6 +269,10 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       ok(p.includes("Tư liệu đã tra cứu") && p.includes("Lễ Mân Côi được mừng ngày 7/10"), "thiếu tư liệu đã chọn");
       ok(p.includes("Đáp: Cha linh hướng"), "thiếu câu trả lời phỏng vấn");
       ok(!r.json.output.flags.some((f) => f.kind === "cta"), "đã chọn kết bài kèm liên hệ thì không đánh dấu cta");
+      ok(!r.json.output.flags.some((f) => f.kind === "claim"), "lời chứng mà người soạn tự ghi trong dữ kiện thì không bị coi là bịa");
+      ok(r.json.output.flags.some((f) => f.kind === "repeat"), "cụm lặp vẫn bị đánh dấu");
+      const sys = lastText("groq").system ?? "";
+      ok(/NGÔI KỂ/.test(sys) && /MỖI ĐOẠN MỘT Ý/.test(sys) && /THÔNG TIN THIẾT THỰC LÊN TRƯỚC/.test(sys), "prompt hệ thống phải có các luật giọng văn mới");
     });
 
     await test("Chỉnh văn: > 8.000 ký tự ⇒ 400; đoạn ~6.000 ký tự được cấp đủ token đầu ra; thêm ngày/số mới ⇒ bị đánh dấu", async () => {
@@ -272,6 +292,46 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const r = await assist(head, { action: "meta", content: `Nội dung bài viết thử đủ dài để AI gợi ý tiêu đề và tóm tắt ${suffix}.`, title: "Tiêu đề" });
       eq(r.status, 200, JSON.stringify(r.json));
       eq(r.json.output.titles.length, 4);
+    });
+
+    // ------------------------------------------------------------------ AI đề xuất chỗ chèn ảnh
+    const artParas = [
+      "Sân nhà buổi tối có những ngọn nến nhỏ đặt dọc lối đi, gió thổi nhẹ làm ánh lửa lay động trên nền gạch cũ.", // 0
+      "Anh em ngồi thành vòng tròn trên ghế gỗ, mỗi người cầm một chuỗi hạt và lần theo giọng đọc của người đứng đầu.", // 1
+      "## Sau buổi lần chuỗi", // 2 (tiêu đề mục — không được đề xuất)
+      "Bàn ăn chung được dọn ra ngay sau đó với nồi cháo nóng và đĩa dưa muối, ai cũng ngồi lại thêm một lúc.", // 3
+      "Cuối buổi, mọi người dọn ghế vào và tắt từng ngọn nến rồi ai về phòng nấy chuẩn bị cho ngày mai đi học.", // 4
+    ];
+    await test("Đề xuất chỗ chèn ảnh: chỉ nhận đoạn hợp lệ (bỏ số lạ + đoạn sát nhau + tiêu đề mục), trả theo thứ tự bài; đoạn kề ảnh có sẵn không được chọn", async () => {
+      reset();
+      const title = `Tối lần chuỗi ${suffix}`;
+      const r = await assist(head, { action: "illustrations", title, content: artParas.join("\n\n"), category: "hoat-dong", max: 3 });
+      eq(r.status, 200, JSON.stringify(r.json));
+      const spots = r.json.output.spots;
+      eq(spots.map((s) => s.index).join(","), "0,4", "đoạn 1 sát đoạn 0 và số 999 phải bị loại: " + JSON.stringify(spots));
+      ok(spots.every((s) => s.reason.length > 0 && s.reason.length <= 120), "mỗi chỗ phải kèm lý do ngắn");
+      const p = lastText("groq").user;
+      ok(p.includes("Các đoạn (đánh số)") && /^\[0\] Sân nhà/m.test(p) && /^\[3\] Bàn ăn/m.test(p), "prompt phải đánh số các đoạn");
+      ok(!/^\[2\] /m.test(p), "tiêu đề mục không được đưa vào danh sách đoạn để minh họa");
+      // đoạn 1 đã được thay bằng ảnh ⇒ đoạn 0 (kề ảnh) và chính ảnh không còn là ứng viên
+      reset();
+      const withImg = [artParas[0], "![(AI) Nến](/api/v1/public/files/00000000-0000-4000-8000-000000000001)", artParas[2], artParas[3], artParas[4]].join("\n\n");
+      const r2 = await assist(head, { action: "illustrations", title: `${title} (có ảnh)`, content: withImg, category: "hoat-dong", max: 3 });
+      eq(r2.status, 200, JSON.stringify(r2.json));
+      const p2 = lastText("groq").user;
+      ok(!/^\[0\] /m.test(p2) && !/^\[1\] /m.test(p2), "đoạn kề ảnh và ảnh không được liệt kê: " + p2.slice(-500));
+      eq(r2.json.output.spots.map((s) => s.index).join(","), "3", JSON.stringify(r2.json.output.spots));
+    });
+
+    await test("Đề xuất chỗ chèn ảnh: bài chỉ có dòng ngắn (giờ giấc, địa chỉ) ⇒ trả danh sách rỗng NGAY, không gọi mô hình; nội dung < 80 ký tự ⇒ 400; người thường ⇒ 403", async () => {
+      reset();
+      const flat = ["Giờ lễ: 19h.", "Địa điểm: sân nhà.", "Mang theo chuỗi hạt.", "Mặc áo ấm.", "Đến đúng giờ nhé.", "Xin cảm ơn."].join("\n\n");
+      const r = await assist(head, { action: "illustrations", title: `Thông báo ngắn ${suffix}`, content: flat, category: "tin-tuc" });
+      eq(r.status, 200, JSON.stringify(r.json));
+      eq(r.json.output.spots.length, 0);
+      eq(mock.calls.length, 0, "không có đoạn hợp ⇒ không được gọi mô hình");
+      eq((await assist(head, { action: "illustrations", title: `Quá ngắn ${suffix}`, content: "Một đoạn quá ngắn.", category: "tin-tuc" })).status, 400);
+      eq((await assist(member, { action: "illustrations", title: `Người thường ${suffix}`, content: artParas.join("\n\n"), category: "tin-tuc" })).status, 403);
     });
 
     // ------------------------------------------------------------------ tra cứu
@@ -296,6 +356,19 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const job = (await sql("SELECT provider, cost_vnd FROM ai_jobs WHERE id = $1", [r.json.jobId])).rows[0];
       eq(job.provider, "gemini");
       eq(Number(job.cost_vnd), 0);
+    });
+
+    await test("Tra cứu đúng chủ đề: đề tài 'Cầu nguyện cho các Đẳng' ⇒ giữ 'Lễ Các Đẳng', bỏ trang lạc đề (Hoa Kỳ) và tin Vatican về Mân Côi; mỗi tin gắn với một ý (noteIndex)", async () => {
+      reset();
+      const r = await ai(head, "content.article_research", { topic: "Cầu nguyện cho các Đẳng", category: "chia-se" }, true);
+      eq(r.status, 200, JSON.stringify(r.json));
+      const o = r.json.output;
+      ok(o.notes.some((n) => n.startsWith("Wikipedia") && /Lễ Các Đẳng/.test(n)), "thiếu trang Wikipedia đúng chủ đề: " + JSON.stringify(o.notes));
+      ok(!o.notes.some((n) => /Hoa Kỳ/.test(n)), "trang lạc đề phải bị loại");
+      ok(!o.notes.some((n) => n.startsWith("Vatican News")), "tin Vatican về Mân Côi không liên quan đến đề tài này: " + JSON.stringify(o.notes));
+      const wiki = o.sources.find((s) => s.kind === "wikipedia");
+      ok(wiki && typeof wiki.noteIndex === "number" && /Lễ Các Đẳng/.test(o.notes[wiki.noteIndex]), "nguồn Wikipedia phải gắn đúng ý của nó: " + JSON.stringify(o.sources));
+      ok(o.sources.filter((s) => s.kind === "web").every((s) => s.noteIndex === undefined), "nguồn web của Google không gắn với ý cụ thể");
     });
 
     await test("Viết nháp nhận được toàn bộ kết quả tra cứu (kể cả 14–20 ghi chú) — không còn lỗi 'Dữ liệu gửi cho AI không hợp lệ'", async () => {
@@ -380,6 +453,22 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const st = (await sql("SELECT open_until > now() AS paused FROM ai_provider_state WHERE provider = 'cloudflare_image'")).rows[0];
       ok(st?.paused === true, "phải ghi trạng thái tạm dừng vào ai_provider_state");
       await sql("DELETE FROM ai_provider_state WHERE provider = 'cloudflare_image'");
+    });
+
+    await test("Không còn giới hạn số lượt vẽ ảnh mỗi GIỜ (chỉ còn trần theo ngày): ≥ 8 lượt trong một giờ vẫn không bị RATE_LIMITED", async () => {
+      reset();
+      for (let i = 0; i < 4; i++) {
+        // mỗi vòng: bỏ trạng thái tạm dừng để lượt sau vẫn đi tới nhà cung cấp ⇒ tạo thêm một job (thất bại, không tính vào trần ảnh)
+        await sql("DELETE FROM ai_provider_state WHERE provider = 'cloudflare_image'");
+        mock.cf = "quota";
+        const r = await ai(head, "content.article_image", { ...baseImg, title: `Bài thử không giới hạn giờ ${i} ${suffix}`, count: 1 });
+        eq(r.status, 429, JSON.stringify(r.json));
+        eq(code(r), "AI_QUOTA", `lượt ${i + 1} phải hết hạn mức Cloudflare chứ không phải RATE_LIMITED`);
+      }
+      const n = Number((await sql("SELECT count(*)::int AS n FROM ai_jobs WHERE task_code = 'content.article_image' AND created_at > now() - interval '1 hour'")).rows[0].n);
+      ok(n >= 7, `phải có ≥ 7 lượt vẽ ảnh trong giờ qua để phép thử có nghĩa (có ${n})`);
+      await sql("DELETE FROM ai_provider_state WHERE provider = 'cloudflare_image'");
+      mock.cf = "ok";
     });
 
     await test("Trần ảnh AI mỗi ngày của cả nhà (6 ảnh trong bộ thử): đủ ⇒ 429 AI_QUOTA, không gọi Cloudflare", async () => {

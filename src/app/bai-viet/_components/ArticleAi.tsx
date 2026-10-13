@@ -5,7 +5,7 @@
 // Chống "AI tự biên tự diễn": máy chủ đưa cho AI bảng THÔNG TIN THẬT (ngày phụng vụ, Bổn mạng, sự kiện), rồi dò ngày/giờ/số/SĐT trong bài mà
 // dữ kiện không có — các chỗ đó hiện thành thẻ "cần kiểm lại" (xem src/lib/article-verify.ts).
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, FileText, HelpCircle, Lightbulb, Loader2, RefreshCw, Search, Sparkles, Wand2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ExternalLink, FileText, HelpCircle, Lightbulb, Loader2, RefreshCw, Search, Sparkles, Wand2, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { errorMessage } from "@/lib/api";
 import { aiApi, useAiTask } from "@/lib/data/ai";
@@ -21,7 +21,7 @@ import type {
   ArticleTone,
 } from "@/lib/types/ai";
 import { ARTICLE_CATEGORIES, articleCategoryLabel } from "@/lib/types/articles";
-import { FLAG_LABEL, type DraftFlag, type DraftFlagKind } from "@/lib/article-verify";
+import { FLAG_LABEL, SOFT_FLAG_KINDS, type DraftFlag, type DraftFlagKind } from "@/lib/article-verify";
 import { Portal } from "@/components/ui/Portal";
 import { FloatingPanel } from "@/components/ui/FloatingPanel";
 import { CustomInput, CustomSelect, CustomTextarea } from "@/components/ui/FormControls";
@@ -136,7 +136,7 @@ export function Thinking({ text }: { text: string }) {
   );
 }
 
-const FLAG_ORDER: DraftFlagKind[] = ["patron", "quote", "date", "time", "phone", "number", "cta", "cliche"];
+const FLAG_ORDER: DraftFlagKind[] = ["patron", "quote", "claim", "date", "time", "phone", "number", "cta", "repeat", "cliche"];
 
 /** Các chỗ AI viết mà dữ kiện không có (hoặc cụm sáo rỗng): nhóm theo loại; bấm một thẻ để chọn đúng đoạn đó trong khung soạn. */
 export function FlagChips({ flags, onPick }: { flags: DraftFlag[]; onPick?: (text: string) => void }) {
@@ -145,7 +145,7 @@ export function FlagChips({ flags, onPick }: { flags: DraftFlag[]; onPick?: (tex
   return (
     <div className="flex flex-col gap-2.5">
       {groups.map((g) => {
-        const soft = g.kind === "cliche" || g.kind === "cta";
+        const soft = SOFT_FLAG_KINDS.has(g.kind);
         return (
           <div key={g.kind}>
             <p className={cn("text-[11px] font-bold", soft ? "text-gray-500" : "text-amber-800")}>{FLAG_LABEL[g.kind]}</p>
@@ -245,6 +245,8 @@ export function DraftDialog({
   const [qa, setQa] = useState<ArticleQa[] | null>(null);
   const [research, setResearch] = useState<ArticleResearchOutput | null>(null);
   const [picked, setPicked] = useState<boolean[]>([]);
+  // Nguồn nào được ghi cuối bài: mặc định chỉ nguồn gắn với ý đã chọn (Vatican News/Wikipedia); nguồn web của Google không biết ứng với ý nào ⇒ người soạn tự tick
+  const [pickedSrc, setPickedSrc] = useState<boolean[]>([]);
   const [cite, setCite] = useState(true);
   const [result, setResult] = useState<(AiResultDto<"content.article_assist"> & { output: Output<"draft"> }) | null>(null);
   const [step, setStep] = useState<null | "ask" | "write">(null);
@@ -252,7 +254,7 @@ export function DraftDialog({
 
   const answers = (qa ?? []).filter((x) => x.a.trim()).map((x) => ({ q: x.q, a: x.a.trim() }));
   const notes = research ? research.notes.filter((_, i) => picked[i]) : [];
-  const sources = research && notes.length ? research.sources.map((s) => ({ title: s.title, url: s.url })) : [];
+  const sources = research && notes.length ? research.sources.filter((_, i) => pickedSrc[i]).map((s) => ({ title: s.title, url: s.url })) : [];
   // Khớp ngưỡng của máy chủ: dưới ~40 ký tự dữ kiện thật ⇒ AI chỉ viết khung ngắn
   const material = keyPoints.trim().length + answers.reduce((n, a) => n + a.a.length, 0) + notes.join(" ").length;
 
@@ -291,6 +293,7 @@ export function DraftDialog({
     if (r) {
       setResearch(r.output);
       setPicked(r.output.notes.map(() => true));
+      setPickedSrc(r.output.sources.map((s) => s.noteIndex !== undefined));
     }
   };
 
@@ -465,22 +468,40 @@ export function DraftDialog({
                   <ul className="flex flex-col gap-1.5">
                     {research.notes.map((n, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-700 leading-relaxed">
-                        <Tick on={!!picked[i]} onClick={() => setPicked((p) => p.map((v, j) => (j === i ? !v : v)))} label={`Dùng ý ${i + 1}`} />
+                        <Tick
+                          on={!!picked[i]}
+                          onClick={() => {
+                            const next = !picked[i];
+                            setPicked((p) => p.map((v, j) => (j === i ? next : v)));
+                            // bỏ ý nào thì bỏ luôn nguồn gắn với ý đó (và ngược lại)
+                            setPickedSrc((ps) => ps.map((v, k) => (research.sources[k]?.noteIndex === i ? next : v)));
+                          }}
+                          label={`Dùng ý ${i + 1}`}
+                        />
                         <span>{n}</span>
                       </li>
                     ))}
                   </ul>
                 )}
                 {research.sources.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {research.sources.map((s) => (
-                      <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="max-w-full truncate px-2 py-0.5 rounded-full bg-white border border-violet-100 text-[11px] font-semibold text-violet-700 hover:bg-violet-50" title={s.title}>
-                        {s.title}
-                      </a>
-                    ))}
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <p className="text-[11px] font-bold text-gray-600">Nguồn — tick nguồn bạn đã mở và đối chiếu, nguồn được tick sẽ ghi cuối bài</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {research.sources.map((s, i) => (
+                        <span key={s.url} className={cn("inline-flex max-w-full items-center rounded-full border text-[11px] font-semibold", pickedSrc[i] ? "bg-violet-50 border-violet-300 text-violet-800" : "bg-white border-gray-200 text-gray-500")}>
+                          <button type="button" role="checkbox" aria-checked={!!pickedSrc[i]} onClick={() => setPickedSrc((ps) => ps.map((v, k) => (k === i ? !v : v)))} className="inline-flex min-w-0 items-center gap-1 pl-2 pr-1 py-0.5" title={s.title}>
+                            {pickedSrc[i] && <Check className="w-3 h-3 shrink-0" />}
+                            <span className="truncate">{s.title}</span>
+                          </button>
+                          <a href={s.url} target="_blank" rel="noopener noreferrer" aria-label="Mở nguồn trong tab mới" className="pr-1.5 py-0.5 text-gray-400 hover:text-violet-700">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <p className="text-[11px] text-gray-500">Tư liệu chỉ để bạn tham khảo — AI diễn đạt lại bằng lời của nhà, bạn nên mở nguồn để kiểm chứng.</p>
+                <p className="text-[11px] text-gray-500">Tư liệu chỉ để bạn tham khảo, có thể sai hoặc lạc đề — bỏ tick ý không liên quan; AI diễn đạt lại bằng lời của nhà, hãy mở nguồn để kiểm chứng.</p>
               </div>
             )}
           </div>

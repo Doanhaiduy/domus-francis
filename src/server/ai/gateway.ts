@@ -201,7 +201,7 @@ export async function runAiTask<C extends AiTaskCode>(ctx: Ctx, code: C, rawInpu
     };
   }
   const rateLimit = rscope.limit;
-  if (prep.rate >= rateLimit) {
+  if (rateLimit > 0 && prep.rate >= rateLimit) {
     throw new ApiError(429, "RATE_LIMITED", `Bạn đã dùng AI ${rateLimit} lần trong giờ qua — thử lại sau ít phút hoặc làm thủ công.`);
   }
   // Tạo ảnh: trần cả nhà theo ngày (giữ phần neuron cho văn bản dự phòng/chú thích) + đang tạm dừng vì Cloudflare báo hết hạn mức

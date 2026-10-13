@@ -119,8 +119,9 @@ export const AI_LIMITS = {
    *  muốn có nhận xét mới trước hạn thì bấm "Tạo lại" (force). */
   insightCacheMinutes: 60,
   maxOutputTokens: 900,
-  /** Tạo ảnh AI (Cloudflare 10.000 neuron/ngày ≈ 60–100 ảnh): mỗi người 6 lần/giờ, cả nhà tối đa N ảnh/ngày (đếm từ 07:00 sáng giờ VN = 00:00 UTC, lúc Cloudflare làm mới hạn mức). */
-  imagePerHour: 6,
+  /** Tạo ảnh AI (Cloudflare 10.000 neuron/ngày ≈ 60–100 ảnh): KHÔNG giới hạn theo giờ cho từng người (0 = không giới hạn; người dùng yêu cầu bỏ ngưỡng 6 lượt/giờ);
+   *  chỉ còn trần cả nhà N ảnh/ngày (đếm từ 07:00 sáng giờ VN = 00:00 UTC, lúc Cloudflare làm mới hạn mức) để chừa neuron cho văn bản dự phòng + chú thích. */
+  imagePerHour: 0,
   imageDailyCap: num(process.env.AI_IMAGE_DAILY_CAP, 60),
   /** Gợi ý chú thích ảnh / tra cứu tư liệu: hạn mức giờ riêng, không chiếm phần của tác vụ khác. */
   captionPerHour: 20,

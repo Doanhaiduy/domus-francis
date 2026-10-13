@@ -11,6 +11,7 @@ import { BASE_SYSTEM, assertArticleManager, block, clean, str, type Prepared, ty
 import { articleImageTask, articleResearchTask, imageCaptionTask } from "./article-media";
 import { buildArticleFacts } from "./article-facts";
 import { findClichesIn, findUnsupported, type DraftFlag } from "@/lib/article-verify";
+import { illustratableParagraphs, splitParagraphs } from "@/lib/article-paragraphs";
 
 // ---------------------------------------------------------------------
 // Bộ xử lý từng tác vụ LLM: kiểm đầu vào → ẩn danh hóa → dựng prompt → kiểm lược đồ đầu ra.
@@ -939,6 +940,14 @@ const ARTICLE_CATS = ARTICLE_CATEGORIES.map((c) => c.code) as [string, ...string
 const articleIn = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ideas"), category: z.enum(ARTICLE_CATS), note: z.string().trim().max(300).optional() }),
   z.object({ action: z.literal("questions"), topic: z.string().trim().min(5).max(400), category: z.enum(ARTICLE_CATS) }),
+  // Giữ nguyên nội dung (không trim) — trình duyệt đổi số thứ tự đoạn thành vị trí trong văn bản theo cùng cách tách đoạn
+  z.object({
+    action: z.literal("illustrations"),
+    title: z.string().trim().min(3).max(200),
+    content: z.string().min(80).max(30000),
+    category: z.enum(ARTICLE_CATS),
+    max: z.number().int().min(1).max(5).default(3),
+  }),
   z.object({
     action: z.literal("draft"),
     topic: z.string().trim().min(5).max(400),
@@ -966,13 +975,18 @@ const articleIn = z.discriminatedUnion("action", [
 type ArticleIn = z.infer<typeof articleIn>;
 
 /** Phiên bản prompt riêng của trợ lý viết bài (đổi ⇒ bỏ kết quả cache cũ của riêng tác vụ này, không ảnh hưởng tác vụ khác). */
-const ARTICLE_PV = "a3";
+const ARTICLE_PV = "a4";
 
 const ARTICLE_SYSTEM = [
   BASE_SYSTEM,
   "Vai trò: người trong nhà kể lại chuyện của chính cộng đoàn cho NGƯỜI NGOÀI đọc (sinh viên, phụ huynh, giáo dân) trên trang tin công khai.",
   "GIỌNG VĂN: mộc mạc, cụ thể, như người trong nhà kể lại — KHÔNG phải văn quảng cáo hay văn mẫu. Câu ngắn, đoạn ngắn. Ưu tiên chi tiết thật (ai, ở đâu, lúc nào, chuyện gì đã xảy ra, một câu nói, một hình ảnh) lấy từ dữ kiện. Không tâng bốc, không cảm thán liên tiếp, không khẩu hiệu.",
-  "TRÁNH các cụm sáo rỗng: 'trong nhịp sống hối hả', 'không chỉ là … mà còn là …', 'hãy cùng', 'hành trình', 'tỏa sáng', 'chắp cánh', 'ngập tràn', 'lan tỏa', 'khoảnh khắc đáng nhớ', 'góp phần xây dựng', 'minh chứng cho', 'điểm tựa', 'ngôi nhà thứ hai', 'hơn bao giờ hết'.",
+  "NGÔI KỂ: chọn MỘT ngôi và giữ nhất quán — nói về chính cộng đoàn bằng 'chúng ta' hoặc 'lưu xá mình'; đừng viết 'cộng đoàn …' ở ngôi thứ ba rồi chuyển sang 'chúng tôi', rồi 'chúng ta'.",
+  "TRÁNH các cụm sáo rỗng: 'trong nhịp sống hối hả', 'hãy cùng', 'hành trình', 'tỏa sáng', 'chắp cánh', 'ngập tràn', 'lan tỏa', 'khoảnh khắc đáng nhớ', 'góp phần xây dựng', 'minh chứng cho', 'điểm tựa', 'ngôi nhà thứ hai', 'hơn bao giờ hết'.",
+  "TRÁNH CÁC DẤU HIỆU 'LỘ AI': (1) cấu trúc 'không chỉ/không phải … mà là/mà còn …' — dùng tối đa MỘT lần cả bài, tốt nhất không dùng; (2) lời chứng chung chung không ai cụ thể ('nhiều anh chị em kể lại rằng…', 'chúng tôi thường chia sẻ…', 'họ cảm thấy nhẹ lòng hơn') — chỉ viết khi dữ kiện có chuyện thật; (3) câu đại ngôn không mang thông tin ('vượt qua ranh giới giữa sự sống và cái chết', 'sẽ là điểm nhấn', 'đức tin được sống cụ thể trong đời sống hằng ngày'); (4) lặp một từ hay cụm quá 3 lần (vd. 'hiệp thông', 'cầu nguyện') — hãy đổi cách nói; (5) khối trích dẫn '>' chỉ để nhắc lại ý vừa nói; (6) đoạn kết nhắc lại điều đã nêu hoặc câu tổng kết kiểu khẩu hiệu — kết bằng một câu ngắn, hoặc dừng đúng chỗ hết ý.",
+  "THÔNG TIN THIẾT THỰC LÊN TRƯỚC: bài thông báo/mời tham dự thì nêu ngay ở 1–2 đoạn đầu: việc gì, ngày giờ, ở đâu, ai tham dự được, đến/đăng ký bằng cách nào — rồi mới đến suy niệm. Thứ nào dữ kiện không có (tên nhà thờ, địa chỉ, cách gửi ý lễ…) thì ghi [cần bổ sung: …], đừng bỏ qua.",
+  "Diễn đạt lại thông tin lịch trong bảng THÔNG TIN THẬT bằng lời thường: đừng chép nguyên nhãn viết hoa hay phần trong ngoặc đơn (vd. 'Theo lịch sinh hoạt nội bộ … (Cầu Cho Các Tín Hữu Đã Qua Đời)'), và đừng nhắc đến 'lịch nội bộ'.",
+  "MỖI ĐOẠN MỘT Ý. Chỉ dùng tư liệu tra cứu khi nó phục vụ ý chính của bài — bỏ tư liệu lạc đề, đừng ghép ý rời rạc (vd. quy định riêng của linh mục) cho đủ dài. Thà ngắn mà thật còn hơn dài mà độn: dữ kiện ít thì viết ngắn. Người đọc là sinh viên: giải thích giáo lý bằng 1–2 câu gần gũi, tránh định nghĩa kiểu sách vở.",
   "SỰ THẬT: chỉ nêu ngày, giờ, địa điểm, con số, tên người, sự kiện, ngày lễ có trong khối <du_lieu> (mục THÔNG TIN THẬT hoặc dữ kiện của người soạn). KHÔNG tự nói 'hôm nay là ngày lễ / ngày Bổn mạng …' trừ khi mục THÔNG TIN THẬT ghi đúng như vậy. Chỗ cần dữ kiện mà chưa có thì viết đúng dạng [cần bổ sung: mô tả ngắn thứ còn thiếu].",
   "KHÔNG bịa lời nói hay trích dẫn của người thật (chỉ dùng câu trích khi dữ kiện có ĐÚNG câu đó); KHÔNG thêm chi tiết cảnh (đồ vật, thời tiết, tiếng động, cảm xúc, hành động của người cụ thể) mà dữ kiện không nêu — thiếu chi tiết thì viết ngắn lại hoặc ghi [cần bổ sung: …], đừng tô vẽ cho đủ dài.",
   "KHÔNG tự thêm số điện thoại, địa chỉ hay lời kêu gọi kiểu 'liên hệ ngay / đăng ký ngay' — chỉ làm đúng theo phần KẾT BÀI được yêu cầu.",
@@ -985,7 +999,8 @@ const TONE_TXT = {
   formal: "trang trọng, lịch sự, chững chạc",
   lively: "tươi trẻ, năng động, truyền cảm hứng",
 } as const;
-const LEN_TXT = { short: "khoảng 250 từ, 3–4 đoạn", medium: "khoảng 450 từ, có 2–3 tiêu đề mục", long: "khoảng 750 từ, có 3–5 tiêu đề mục" } as const;
+// Ngắn hơn bản đầu ~25% (bài đánh giá: văn AI hay độn); đây là mức TỐI ĐA, dữ kiện ít thì viết ngắn hơn nữa
+const LEN_TXT = { short: "tối đa khoảng 180 từ, 2–3 đoạn", medium: "tối đa khoảng 320 từ, có 2 tiêu đề mục", long: "tối đa khoảng 520 từ, có 3–4 tiêu đề mục" } as const;
 const LEN_TOKENS = { short: 1300, medium: 2200, long: 3400 } as const;
 const ENDING_TXT = {
   none: "khép bài tự nhiên bằng một câu cuối gắn với nội dung. KHÔNG kêu gọi, KHÔNG ghi số điện thoại hay địa chỉ liên hệ.",
@@ -1004,6 +1019,7 @@ const IMPROVE_TXT = {
 const articleOut = z.object({
   ideas: z.array(z.object({ title: str(120, 3), angle: str(200, 3), basis: str(110).optional() })).max(8).optional(),
   questions: z.array(str(160, 5)).max(8).optional(),
+  picks: z.array(z.object({ n: z.coerce.number(), reason: str(120).optional() })).max(10).optional(),
   title: str(200, 3).optional(),
   summary: str(400, 3).optional(),
   content: str(14000, 10).optional(),
@@ -1086,6 +1102,42 @@ const articleTask: TaskDef<"content.article_assist"> = {
       };
     }
 
+    if (input.action === "illustrations") {
+      const paras = splitParagraphs(input.content);
+      const eligible = illustratableParagraphs(paras);
+      if (!eligible.length) {
+        // Không có đoạn nào hợp để minh họa ⇒ trả lời ngay, không gọi mô hình
+        return { ...common("illustrations|none", { action: "illustrations" }), user: "", shortCircuit: { action: "illustrations" as const, spots: [] }, parse: () => ({ action: "illustrations" as const, spots: [] }) };
+      }
+      const max = Math.min(input.max, eligible.length);
+      const valid = new Set(eligible.map((p) => p.index));
+      const list = eligible.map((p) => `[${p.index}] ${p.text.replace(/\s+/g, " ").slice(0, 280)}`).join("\n");
+      const user = [
+        `Bạn là biên tập viên ảnh của trang tin. Chọn từ ${Math.min(2, max)} đến ${max} đoạn trong bài nên có ảnh minh họa nhất.`,
+        "Ưu tiên đoạn tả cảnh, đồ vật, không khí, hoạt động (ảnh vẽ được: nến, nhà thờ, bàn ăn, sân, hoa…). Tránh đoạn chỉ có giờ giấc/địa chỉ/số liệu và đoạn kết; đừng chọn hai đoạn đứng liền nhau; trải đều trong bài.",
+        'Mỗi lựa chọn gồm n (số trong ngoặc vuông của đoạn) và reason (một câu tiếng Việt ≤ 90 ký tự nói vì sao đoạn đó hợp để minh họa). Lược đồ: {"picks":[{"n":3,"reason":"…"}]}',
+        block(`Tiêu đề bài: ${input.title}\nChuyên mục: ${articleCategoryLabel(input.category)}\nCác đoạn (đánh số):\n${list}`),
+      ].join("\n");
+      return {
+        ...common(`illustrations|${input.title}|${input.content}`, { action: "illustrations" }),
+        user,
+        temperature: 0.3,
+        maxOutputTokens: 600,
+        parse(raw) {
+          const o = articleOut.parse(raw);
+          const spots: { index: number; reason: string }[] = [];
+          for (const p of o.picks ?? []) {
+            const n = Math.round(p.n);
+            if (!valid.has(n) || spots.some((x) => Math.abs(x.index - n) < 2)) continue; // đoạn lạ hoặc sát đoạn đã chọn
+            spots.push({ index: n, reason: sanitizeOutput(p.reason ?? "", 120) });
+            if (spots.length >= max) break;
+          }
+          if (!spots.length) throw new Error("thiếu picks");
+          return { action: "illustrations", spots: spots.sort((a, b) => a.index - b.index) };
+        },
+      };
+    }
+
     if (input.action === "draft") {
       const answers = (input.answers ?? []).filter((a) => a.a.trim());
       const notes = input.research?.notes ?? [];
@@ -1094,7 +1146,7 @@ const articleTask: TaskDef<"content.article_assist"> = {
       const length = thin ? "short" : input.length;
       const contactBlock = input.ending === "contact" ? `\nTHÔNG TIN LIÊN HỆ:\n${facts!.contact || "(chưa có thông tin liên hệ — ghi [cần bổ sung: thông tin liên hệ])"}` : "";
       const researchBlock = notes.length
-        ? `\nTư liệu đã tra cứu (người soạn đã chọn; chỉ dùng làm bối cảnh, diễn đạt lại bằng lời của nhà, không chép nguyên văn):\n${notes.map((n) => `- ${n}`).join("\n")}`
+        ? `\nTư liệu đã tra cứu (người soạn đã chọn; chỉ dùng khi LIÊN QUAN TRỰC TIẾP đến chủ đề, diễn đạt lại bằng lời của nhà, không chép nguyên văn; mục nào lạc đề thì bỏ qua):\n${notes.map((n) => `- ${n}`).join("\n")}`
         : "";
       const answersBlock = answers.length ? `\nTrả lời của người soạn cho các câu hỏi:\n${answers.map((a) => `- Hỏi: ${a.q}\n  Đáp: ${a.a}`).join("\n")}` : "";
       const voiceBlock = facts!.voice.length
@@ -1134,7 +1186,7 @@ const articleTask: TaskDef<"content.article_assist"> = {
           const content = cleanMd(o.content, 14000, true);
           const flags: DraftFlag[] = [
             ...findUnsupported(`${title}\n${summary}\n${content}`, sourceText, { patronFeast }),
-            ...findClichesIn(`${title}\n${summary}\n${content}`, { allowContact: input.ending === "contact" }),
+            ...findClichesIn(`${title}\n${summary}\n${content}`, { allowContact: input.ending === "contact", source: sourceText }),
           ].slice(0, 30);
           return { action: "draft", title, summary, content, flags, thin };
         },

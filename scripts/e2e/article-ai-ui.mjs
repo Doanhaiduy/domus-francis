@@ -151,17 +151,45 @@ try {
       if (!sel.includes("0912")) problems.push(`[${width}/thẻ kiểm lại] bấm thẻ không chọn đúng đoạn (đang chọn "${sel}")`);
     } else problems.push(`[${width}/thẻ kiểm lại] không thấy thẻ SĐT`);
 
+    // ---- AI đề xuất chỗ chèn ảnh (làm TRƯỚC khi chèn ảnh tay để các đoạn của bản nháp còn nguyên)
+    current = "đề xuất chỗ chèn ảnh";
+    const aiImgCount = () => page.evaluate(() => (document.querySelector("textarea[aria-label='Nội dung bài viết']")?.value.match(/!\[\(AI\) /g) ?? []).length);
+    const imgsBefore = await aiImgCount();
+    const menuBtn = page.locator("button:visible", { hasText: /Ảnh minh họa AI|Ảnh AI/ }).first();
+    await menuBtn.waitFor({ timeout: 10000 });
+    await menuBtn.click();
+    await page.getByRole("button", { name: /AI đề xuất chỗ chèn ảnh/ }).waitFor({ timeout: 10000 });
+    await shot(page, "08a-menu-anh-ai");
+    await page.getByRole("button", { name: /AI đề xuất chỗ chèn ảnh/ }).click();
+    const sdlg = page.getByRole("dialog", { name: /AI đề xuất chỗ chèn ảnh/ });
+    await sdlg.waitFor({ timeout: 10000 });
+    await sdlg.getByRole("checkbox").first().waitFor({ timeout: 30000 });
+    const spotCount = await sdlg.getByRole("checkbox").count();
+    if (spotCount < 2) problems.push(`[${width}/đề xuất ảnh] mong đợi ≥ 2 chỗ được đề xuất, có ${spotCount}`);
+    await shot(page, "08b-de-xuat-cho-chen");
+    await sdlg.getByRole("button", { name: /^Vẽ \d+ ảnh/ }).click();
+    await page.waitForFunction(() => { const imgs = [...document.querySelectorAll('[role="dialog"] img')]; return imgs.length >= 2 && imgs.every((i) => i.complete && i.naturalWidth > 0); }, null, { timeout: 60000 });
+    await shot(page, "08c-de-xuat-ve-xong");
+    const ddlg = page.getByRole("dialog", { name: /Vẽ ảnh minh họa cho bài/ }); // sang bước vẽ thì tiêu đề hộp thoại đổi
+    await ddlg.getByRole("button", { name: /^Chèn \d+ ảnh vào bài/ }).click();
+    await ddlg.waitFor({ state: "detached", timeout: 10000 });
+    const imgsAfter = await aiImgCount();
+    if (imgsAfter < imgsBefore + 2) problems.push(`[${width}/đề xuất ảnh] sau khi chèn phải thêm ≥ 2 ảnh vào bài (trước ${imgsBefore}, sau ${imgsAfter})`);
+    await shot(page, "08d-da-chen-nhieu-anh");
+    step(`đề xuất chỗ chèn ảnh (${spotCount} chỗ) ⇒ vẽ ⇒ chèn`);
+
     // ---- Minh họa cho đoạn + chú thích
     current = "minh họa";
     await page.locator("textarea[aria-label='Nội dung bài viết']").click();
-    await page.locator('button[title^="AI vẽ ảnh minh họa"]').click();
+    await menuBtn.click();
+    await page.getByRole("button", { name: /Vẽ cho đoạn đang chọn/ }).click();
     const idlg = page.getByRole("dialog", { name: /Tạo ảnh minh họa bằng AI/ });
     await idlg.waitFor({ timeout: 10000 });
     await shot(page, "08-minh-hoa-form");
     await idlg.getByRole("button", { name: /Tạo 2 ảnh/ }).click();
     await page.getByRole("dialog", { name: /Chọn một ảnh/ }).waitFor({ timeout: 60000 });
     await page.getByRole("button", { name: /Dùng ảnh này/ }).click();
-    await page.waitForFunction(() => /\(AI\)/.test(document.querySelector("textarea[aria-label='Nội dung bài viết']")?.value ?? ""), null, { timeout: 10000 });
+    await page.waitForFunction((n) => (document.querySelector("textarea[aria-label='Nội dung bài viết']")?.value.match(/!\[\(AI\) /g) ?? []).length > n, imgsAfter, { timeout: 10000 });
     current = "chú thích";
     await page.locator('button[title^="AI gợi ý chú thích"]').click();
     await page.waitForFunction(() => /Sân trong có đài phun nước/.test(document.querySelector("textarea[aria-label='Nội dung bài viết']")?.value ?? ""), null, { timeout: 30000 });

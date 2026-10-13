@@ -211,6 +211,8 @@ export interface ArticleResearchUse {
 export type ArticleAssistInput =
   | { action: "ideas"; category: string; note?: string }
   | { action: "questions"; topic: string; category: string }
+  /** AI đọc cả bài và chọn vài đoạn nên có ảnh minh họa (trả số thứ tự đoạn theo src/lib/article-paragraphs.ts). */
+  | { action: "illustrations"; title: string; content: string; category: string; max?: number }
   | {
       action: "draft";
       topic: string;
@@ -228,6 +230,7 @@ export type ArticleAssistInput =
 export type ArticleAssistOutput =
   | { action: "ideas"; ideas: { title: string; angle: string; /** Cơ sở của gợi ý (lễ, sự kiện có thật) */ basis?: string }[] }
   | { action: "questions"; questions: string[] }
+  | { action: "illustrations"; spots: { index: number; reason: string }[] }
   | {
       action: "draft";
       title: string;
@@ -250,6 +253,8 @@ export interface ArticleResearchSource {
   title: string;
   url: string;
   kind: "web" | "vatican" | "wikipedia";
+  /** Nguồn Vatican News/Wikipedia gắn với MỘT ghi chú (chỉ số trong `notes`); nguồn web của Google thì không biết ghi chú nào. */
+  noteIndex?: number;
 }
 export interface ArticleResearchOutput {
   /** Các dữ kiện đã tra (mỗi dòng một ý, đã làm sạch); người soạn chọn ý nào đưa vào bài. */

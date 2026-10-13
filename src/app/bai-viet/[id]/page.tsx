@@ -23,7 +23,6 @@ import {
   ListOrdered,
   Loader2,
   Minus,
-  Palette,
   Pencil,
   Quote,
   Save,
@@ -47,9 +46,9 @@ import { TagsInput } from "../_components/TagsInput";
 import { SchedulePicker } from "../_components/SchedulePicker";
 import { RevisionsDialog } from "../_components/RevisionsDialog";
 import { AiAssistCard, DraftDialog, FlagChips, ImproveMenu, IdeasDialog, MetaSuggest, countPlaceholders, type DraftApplyExtra, type DraftSeed } from "../_components/ArticleAi";
-import { CoverAiPanel, ImageGenDialog } from "../_components/ArticleImageAi";
+import { CoverAiPanel, ImageGenDialog, IllustrateMenu, SuggestIllustrationsDialog } from "../_components/ArticleImageAi";
 import { useAiRunner } from "../_components/useAiRunner";
-import { activeFlags, type DraftFlag } from "@/lib/article-verify";
+import { activeFlags, SOFT_FLAG_KINDS, type DraftFlag } from "@/lib/article-verify";
 import { cn } from "@/lib/utils";
 
 const EMPTY: ArticleFormPayload = { title: "", slug: "", summary: "", content: "", category: "tin-tuc", coverFileId: null, coverIsAi: false, byline: "", isFeatured: false, status: "draft", tags: [], publishedAt: null };
@@ -105,6 +104,7 @@ export default function ArticleEditorPage() {
   // Các chỗ AI nêu mà dữ kiện không có (xem article-verify.ts) + hộp thoại ảnh minh họa cho đoạn văn
   const [aiFlags, setAiFlags] = useState<DraftFlag[]>([]);
   const [illustrate, setIllustrate] = useState<{ excerpt: string; at: number } | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const captionAi = useAiRunner("content.image_caption");
   const illustrateAi = useAiRunner("content.article_image");
   const [origin, setOrigin] = useState("");
@@ -253,7 +253,7 @@ export default function ArticleEditorPage() {
     setDraftSeed(null);
     setTab("write");
     const gaps = countPlaceholders(out.content);
-    const hard = out.flags.filter((f) => f.kind !== "cliche" && f.kind !== "cta").length;
+    const hard = out.flags.filter((f) => !SOFT_FLAG_KINDS.has(f.kind)).length;
     showToast(
       "success",
       gaps || hard
@@ -343,6 +343,32 @@ export default function ArticleEditorPage() {
     setIllustrate({ excerpt, at });
   };
 
+  // "AI đề xuất chỗ chèn ảnh": cần có bài để AI đọc
+  const startSuggest = () => {
+    if (form.title.trim().length < 3) return showToast("info", "Hãy nhập tiêu đề bài trước — AI dựa vào tiêu đề và nội dung để chọn chỗ chèn ảnh.");
+    if (form.content.trim().length < 80) return showToast("info", "Bài còn quá ngắn để AI đề xuất chỗ chèn ảnh — hãy viết thêm vài đoạn rồi thử lại.");
+    setSuggestOpen(true);
+  };
+
+  // Chèn nhiều ảnh cùng lúc: đi từ cuối bài lên đầu để vị trí các ảnh phía trên không bị lệch
+  const insertIllustrations = (items: { at: number; fileId: string; alt: string }[]) => {
+    if (!items.length) return;
+    setUndo({ content: form.content, label: "chèn ảnh minh họa" });
+    setForm((f) => {
+      let v = f.content;
+      for (const it of [...items].sort((a, b) => b.at - a.at)) {
+        const md = `![${it.alt.replace(/[[\]]/g, "")}](/api/v1/public/files/${it.fileId})`;
+        const i = Math.min(it.at, v.length);
+        const before = v.slice(0, i).trimEnd();
+        const after = v.slice(i).replace(/^\s+/, "");
+        v = `${before}\n\n${md}${after ? `\n\n${after}` : "\n"}`;
+      }
+      return { ...f, content: v };
+    });
+    setSuggestOpen(false);
+    showToast("success", `Đã chèn ${items.length} ảnh minh họa (có nhãn “do AI tạo”) — sửa chú thích nếu muốn.`);
+  };
+
   const insertIllustration = (img: { fileId: string; alt: string }) => {
     const md = `![${img.alt.replace(/[[\]]/g, "")}](/api/v1/public/files/${img.fileId})`;
     const at = illustrate?.at ?? form.content.length;
@@ -365,7 +391,7 @@ export default function ArticleEditorPage() {
   const activeAiFlags = useMemo(() => activeFlags(aiFlags, `${form.title}
 ${form.summary ?? ""}
 ${form.content}`), [aiFlags, form.title, form.summary, form.content]);
-  const hardFlags = activeAiFlags.filter((f) => f.kind !== "cliche" && f.kind !== "cta").length;
+  const hardFlags = activeAiFlags.filter((f) => !SOFT_FLAG_KINDS.has(f.kind)).length;
   const checks = [
     { ok: form.title.trim().length >= 3, text: "Có tiêu đề", required: true },
     { ok: isValidSlug(form.slug), text: "Đường dẫn hợp lệ", required: true },
@@ -575,9 +601,7 @@ ${form.content}`), [aiFlags, form.title, form.summary, form.content]);
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onPickImage(e.target.files?.[0])} />
                 <span className="w-px h-5 bg-gray-200 mx-1" />
                 <ImproveMenu getTarget={getImproveTarget} onApply={applyImprove} />
-                <button type="button" className={toolBtn} title={illustrateAi.available ? "AI vẽ ảnh minh họa cho đoạn đang chọn (hoặc đoạn có con trỏ)" : `Tạo ảnh bằng AI chưa dùng được${illustrateAi.reason ? `: ${illustrateAi.reason}` : ""}`} disabled={!illustrateAi.available} onClick={startIllustrate}>
-                  <Palette className="w-4 h-4" />
-                </button>
+                <IllustrateMenu available={illustrateAi.available} reason={illustrateAi.reason} onSingle={startIllustrate} onSuggest={startSuggest} />
                 <button type="button" className={toolBtn} title={captionAi.available ? "AI gợi ý chú thích cho ảnh (ảnh ở con trỏ, hoặc ảnh chưa có chú thích)" : `Gợi ý chú thích chưa dùng được${captionAi.reason ? `: ${captionAi.reason}` : ""}`} disabled={!captionAi.available || captionAi.busy} onClick={captionImage}>
                   {captionAi.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Type className="w-4 h-4" />}
                 </button>
@@ -734,6 +758,16 @@ ${form.content}`), [aiFlags, form.title, form.summary, form.content]);
           excerpt={illustrate.excerpt}
           onClose={() => setIllustrate(null)}
           onPick={insertIllustration}
+        />
+      )}
+      {suggestOpen && (
+        <SuggestIllustrationsDialog
+          title={form.title}
+          summary={form.summary ?? ""}
+          category={form.category}
+          content={form.content}
+          onClose={() => setSuggestOpen(false)}
+          onInsert={insertIllustrations}
         />
       )}
       {historyOpen && !isNew && (

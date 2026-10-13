@@ -2,15 +2,17 @@
 
 // Ảnh bìa / ảnh minh họa cho bài viết: tạo bằng AI (Cloudflare Workers AI — miễn phí trong hạn mức ngày) hoặc chọn từ Khoảnh khắc.
 // Ảnh AI luôn gắn nhãn "Ảnh minh họa do AI tạo" ở trang công khai; AI không vẽ người, hình tượng thánh hay chữ.
-import React, { useEffect, useState } from "react";
-import { ArrowLeft, Check, ImageIcon, Images, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Check, ChevronDown, ImageIcon, Images, Loader2, Palette, RefreshCw, Sparkles } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { api, errorMessage } from "@/lib/api";
 import { useMomentAlbum, useMoments } from "@/lib/data/moments";
 import type { ArticleImageOutput, ArticleImageStyle } from "@/lib/types/ai";
 import { CustomInput, CustomSelect } from "@/components/ui/FormControls";
+import { FloatingPanel } from "@/components/ui/FloatingPanel";
+import { splitParagraphs, type Para } from "@/lib/article-paragraphs";
 import { cn } from "@/lib/utils";
-import { Shell, Thinking, btnGhost, btnPrimary, btnSoft } from "./ArticleAi";
+import { Shell, Thinking, btnGhost, btnPrimary, btnSoft, useArticleAi } from "./ArticleAi";
 import { useAiRunner } from "./useAiRunner";
 
 const STYLES: { value: ArticleImageStyle; label: string; subLabel: string }[] = [
@@ -338,5 +340,253 @@ export function CoverAiPanel({
         />
       )}
     </div>
+  );
+}
+
+/** Nút "Ảnh minh họa AI" trên thanh công cụ (có chữ, không chỉ biểu tượng): vẽ cho một đoạn, hoặc nhờ AI đề xuất chỗ chèn ảnh cho cả bài. */
+export function IllustrateMenu({ available, reason, onSingle, onSuggest }: { available: boolean; reason: string | null; onSingle: () => void; onSuggest: () => void }) {
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={!available}
+        title={available ? "Nhờ AI vẽ ảnh minh họa cho bài" : `Tạo ảnh bằng AI chưa dùng được${reason ? `: ${reason}` : ""}`}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 border border-violet-100 text-violet-700 text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Palette className="w-3.5 h-3.5" />
+        <span className="sm:hidden">Ảnh AI</span>
+        <span className="hidden sm:inline">Ảnh minh họa AI</span>
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      <FloatingPanel open={open} onClose={() => setOpen(false)} anchorRef={btn} width={310} className="p-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onSingle();
+          }}
+          className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-violet-50 transition"
+        >
+          <span className="block text-xs font-bold text-gray-900">Vẽ cho đoạn đang chọn</span>
+          <span className="block text-[11px] text-gray-500">Đặt con trỏ vào một đoạn (hoặc bôi đen vài câu) — AI vẽ 2 phương án để bạn chọn</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onSuggest();
+          }}
+          className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-violet-50 transition"
+        >
+          <span className="block text-xs font-bold text-gray-900">AI đề xuất chỗ chèn ảnh</span>
+          <span className="block text-[11px] text-gray-500">AI đọc cả bài, chỉ ra 2–4 đoạn nên có ảnh; bạn tick đoạn nào thì AI vẽ đoạn đó</span>
+        </button>
+      </FloatingPanel>
+    </>
+  );
+}
+
+interface Spot {
+  index: number;
+  reason: string;
+  para: Para;
+}
+type Slot = { status: "busy" } | { status: "error" } | { status: "done"; fileId: string; alt: string; use: boolean };
+
+function SpotTick({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onClick}
+      className={cn("mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center transition", on ? "bg-violet-600 border-violet-600 text-white" : "bg-white border-gray-300")}
+    >
+      {on && <Check className="w-3 h-3" />}
+    </button>
+  );
+}
+
+/**
+ * "AI đề xuất chỗ chèn ảnh": AI đọc cả bài và chọn vài đoạn nên có ảnh → người soạn tick → các ảnh được vẽ SONG SONG (mỗi đoạn 1 ảnh) →
+ * xem lại, vẽ lại từng ảnh nếu chưa ưng → chèn tất cả ngay sau đoạn tương ứng. Vị trí lấy từ cách tách đoạn dùng chung (src/lib/article-paragraphs.ts).
+ */
+export function SuggestIllustrationsDialog({
+  title,
+  summary,
+  category,
+  content,
+  onClose,
+  onInsert,
+}: {
+  title: string;
+  summary: string;
+  category: string;
+  content: string;
+  onClose: () => void;
+  onInsert: (items: { at: number; fileId: string; alt: string }[]) => void;
+}) {
+  const { run: runAssist, available } = useArticleAi();
+  const { run: runImage } = useAiRunner("content.article_image");
+  const paras = useMemo(() => splitParagraphs(content), [content]);
+  const [spots, setSpots] = useState<Spot[] | null>(null);
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [style, setStyle] = useState<ArticleImageStyle>("flat");
+  const [stage, setStage] = useState<"pick" | "draw">("pick");
+  const [slots, setSlots] = useState<Record<number, Slot>>({});
+  const first = useRef(true);
+
+  const load = useCallback(async () => {
+    const r = await runAssist<"illustrations">({ action: "illustrations", title: title.trim(), content: content.slice(0, 30000), category, max: 3 });
+    const list: Spot[] = (r?.output.spots ?? []).map((s) => ({ index: s.index, reason: s.reason, para: paras[s.index] })).filter((s) => !!s.para);
+    setSpots(list);
+    setSel(new Set(list.map((s) => s.index)));
+  }, [runAssist, title, content, category, paras]);
+
+  // Mở hộp thoại là hỏi AI ngay (không bắt bấm thêm một lần)
+  useEffect(() => {
+    if (!first.current) return;
+    first.current = false;
+    void load();
+  }, [load]);
+
+  const drawOne = useCallback(
+    async (spot: Spot) => {
+      setSlots((s) => ({ ...s, [spot.index]: { status: "busy" } }));
+      const r = await runImage({ purpose: "inline", title: title.trim(), summary: summary.trim() || undefined, excerpt: spot.para.text.slice(0, 1200), category, style, count: 1 }, true);
+      const img = r?.output.images[0];
+      setSlots((s) => ({ ...s, [spot.index]: img ? { status: "done", fileId: img.fileId, alt: img.alt, use: true } : { status: "error" } }));
+    },
+    [runImage, title, summary, category, style]
+  );
+
+  const chosen = (spots ?? []).filter((s) => sel.has(s.index));
+  const busy = Object.values(slots).some((s) => s.status === "busy");
+  const ready = chosen.filter((s) => slots[s.index]?.status === "done" && (slots[s.index] as Extract<Slot, { status: "done" }>).use);
+
+  const startDraw = async () => {
+    setStage("draw");
+    // Quay lại chọn đoạn rồi vẽ tiếp: đoạn nào đã có ảnh thì giữ, không vẽ (và tốn hạn mức) lại
+    await Promise.all(chosen.filter((s) => slots[s.index]?.status !== "done").map((s) => drawOne(s)));
+  };
+
+  const insert = () =>
+    onInsert(
+      ready.map((s) => {
+        const d = slots[s.index] as Extract<Slot, { status: "done" }>;
+        return { at: s.para.end, fileId: d.fileId, alt: d.alt };
+      })
+    );
+
+  const snippet = (p: Para, n = 150) => (p.text.length > n ? `${p.text.slice(0, n).trimEnd()}…` : p.text);
+
+  return (
+    <Shell
+      wide
+      noVeil
+      title={stage === "pick" ? "AI đề xuất chỗ chèn ảnh" : "Vẽ ảnh minh họa cho bài"}
+      subtitle={
+        stage === "pick"
+          ? "AI đã đọc cả bài và chọn vài đoạn nên có ảnh. Tick đoạn bạn muốn, chọn phong cách rồi để AI vẽ (mỗi đoạn một ảnh, vẽ cùng lúc)."
+          : "Xem lại từng ảnh; chưa ưng thì bấm “Vẽ lại”. Ảnh sẽ được chèn ngay sau đoạn tương ứng và có nhãn “Ảnh minh họa do AI tạo”."
+      }
+      onClose={onClose}
+      footer={
+        stage === "pick" ? (
+          <>
+            <button type="button" className={btnGhost} onClick={onClose}>Hủy</button>
+            <button type="button" className={btnPrimary} onClick={startDraw} disabled={!spots || chosen.length === 0}>
+              <Sparkles className="w-3.5 h-3.5" /> Vẽ {chosen.length || ""} ảnh
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className={btnGhost} onClick={() => setStage("pick")} disabled={busy}>
+              <ArrowLeft className="w-3.5 h-3.5 inline mr-1" />Chọn lại đoạn
+            </button>
+            <button type="button" className={btnPrimary} onClick={insert} disabled={busy || ready.length === 0}>
+              <Check className="w-3.5 h-3.5" /> Chèn {ready.length} ảnh vào bài
+            </button>
+          </>
+        )
+      }
+    >
+      {stage === "pick" ? (
+        !spots ? (
+          <Thinking text="AI đang đọc bài để chọn chỗ chèn ảnh…" />
+        ) : spots.length === 0 ? (
+          <p className="text-sm text-gray-500 leading-relaxed">
+            {available ? "AI chưa tìm được đoạn nào phù hợp (bài ngắn, hoặc các đoạn đã có ảnh / chỉ là giờ giấc, số liệu)." : "AI viết bài chưa dùng được."} Bạn vẫn có thể đặt con trỏ vào một đoạn rồi chọn “Vẽ cho đoạn đang chọn”.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <CustomSelect label="Phong cách" value={style} onChange={setStyle} options={STYLES} />
+            <ul className="flex flex-col gap-2.5">
+              {spots.map((s) => (
+                <li key={s.index} className={cn("rounded-2xl border p-3.5 flex items-start gap-3 transition", sel.has(s.index) ? "border-violet-300 bg-violet-50/50" : "border-gray-200 bg-white")}>
+                  <SpotTick
+                    on={sel.has(s.index)}
+                    label={`Vẽ ảnh cho đoạn ${s.index + 1}`}
+                    onClick={() =>
+                      setSel((cur) => {
+                        const n = new Set(cur);
+                        if (n.has(s.index)) n.delete(s.index);
+                        else n.add(s.index);
+                        return n;
+                      })
+                    }
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm text-gray-800 leading-relaxed">{snippet(s.para)}</span>
+                    {s.reason && <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full bg-white border border-violet-100 text-[11px] font-semibold text-violet-700">AI: {s.reason}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-gray-500 leading-relaxed">Mỗi ảnh mất khoảng 15–40 giây (vẽ cùng lúc). Ảnh AI chỉ để minh họa chung — không vẽ người, hình tượng thánh hay chữ.</p>
+          </div>
+        )
+      ) : (
+        <div className="flex flex-col gap-3" {...(busy ? { "data-uploading": "1" } : {})}>
+          {chosen.map((s) => {
+            const slot = slots[s.index];
+            return (
+              <div key={s.index} className="rounded-2xl border border-purple-100 p-3 flex items-start gap-3">
+                <div className="w-36 sm:w-44 shrink-0">
+                  {!slot || slot.status === "busy" ? (
+                    <div className="shimmer-box aspect-[3/2] rounded-xl flex items-center justify-center text-violet-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    </div>
+                  ) : slot.status === "error" ? (
+                    <div className="aspect-[3/2] rounded-xl bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-[11px] text-gray-500 text-center px-2">Chưa vẽ được</div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={fileSrc(slot.fileId)} alt={slot.alt} className="w-full aspect-[3/2] object-cover rounded-xl bg-gray-100" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 flex flex-col gap-2">
+                  <p className="text-xs text-gray-700 leading-relaxed">{snippet(s.para, 130)}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {slot?.status === "done" && (
+                      <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-700 cursor-pointer">
+                        <SpotTick on={slot.use} label="Chèn ảnh này" onClick={() => setSlots((cur) => ({ ...cur, [s.index]: { ...slot, use: !slot.use } }))} /> Chèn ảnh này
+                      </label>
+                    )}
+                    <button type="button" className={cn(btnSoft, "!px-3 !py-1.5")} onClick={() => drawOne(s)} disabled={slot?.status === "busy"}>
+                      <RefreshCw className="w-3.5 h-3.5" /> Vẽ lại
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Shell>
   );
 }

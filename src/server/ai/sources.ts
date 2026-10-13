@@ -60,10 +60,20 @@ export const fold = (s: string) =>
     .replace(/đ/gi, "d")
     .toLowerCase();
 
-const STOP = new Set(["bai", "viet", "ve", "cua", "cho", "cac", "nhung", "mot", "nay", "thang", "nam", "ngay", "trong", "tai", "luu", "xa", "voi", "cac", "khi", "dang", "duoc", "den", "sinh", "vien", "nha", "thong", "bao", "hoat", "dong"]);
+/** Từ thông dụng của câu chủ đề — so theo dạng CÓ DẤU ("đang" ≠ "đẳng"; bỏ dấu rồi mới so thì từ khóa "Đẳng" bị nuốt mất). */
+const STOP_VI = new Set(["bài", "viết", "về", "của", "cho", "các", "những", "một", "này", "tháng", "năm", "ngày", "trong", "tại", "lưu", "xá", "với", "khi", "đang", "được", "đến", "sinh", "viên", "nhà", "thông", "báo", "hoạt", "động", "và", "là", "có", "để", "từ"]);
+/**
+ * Từ quá chung của chủ đề Công giáo (đã bỏ dấu): trùng mỗi từ này KHÔNG đủ coi một tin là liên quan — "cầu nguyện" có ở vô số tin
+ * (vd. "cầu nguyện cho Đức Thánh Cha" không liên quan bài "cầu cho các Đẳng"). Tin phải trùng ít nhất một từ ĐẶC TRƯNG của đề tài.
+ */
+const GENERIC = new Set(["cau", "nguyen", "cong", "giao", "hoi", "duc", "thanh", "chua", "thien", "cha", "giam", "muc", "tin", "huu", "kinh", "gia", "dinh", "tam", "long", "dieu", "viec"]);
 /** Tập các từ (đã bỏ dấu, chữ thường) của một đoạn văn — để so khớp từ khóa theo từ nguyên vẹn. */
 const tokenSet = (s: string): Set<string> => new Set(fold(s).split(/[^a-z0-9]+/).filter(Boolean));
-export const keywordsOf = (q: string): string[] => [...new Set(fold(q).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w)))].slice(0, 10);
+export const keywordsOf = (q: string): string[] => {
+  const words = q.normalize("NFC").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3 && !STOP_VI.has(w));
+  return [...new Set(words.map((w) => fold(w)))].slice(0, 10);
+};
+const distinctive = (kw: string[]) => kw.filter((w) => !GENERIC.has(w));
 
 const feedCache = (globalThis as unknown as { __luuxaFeedCache?: { at: number; items: SourceItem[] } });
 
@@ -101,15 +111,18 @@ export async function vaticanNews(query: string, limit = 3): Promise<SourceItem[
     return [];
   }
   const need = Math.min(2, kw.length);
+  const special = distinctive(kw);
   return items
     .map((it) => {
       // So khớp theo TỪ nguyên vẹn (không phải chuỗi con: "man" không được khớp "mang", "nguyen" không khớp "nguyên thủ")
       const t = tokenSet(it.title);
       const s = tokenSet(it.summary);
       const score = kw.reduce((a, w) => a + (t.has(w) ? 2 : s.has(w) ? 1 : 0), 0);
-      return { it, score, hits: kw.filter((w) => t.has(w) || s.has(w)).length };
+      const hitSpecial = special.some((w) => t.has(w) || s.has(w));
+      return { it, score, hits: kw.filter((w) => t.has(w) || s.has(w)).length, hitSpecial };
     })
-    .filter((x) => x.hits >= need)
+    // đủ số từ khóa VÀ (nếu đề tài có từ đặc trưng) phải trùng ít nhất một từ đặc trưng
+    .filter((x) => x.hits >= need && (!special.length || x.hitSpecial))
     .sort((a, b) => b.score - a.score || (b.it.date ?? "").localeCompare(a.it.date ?? ""))
     .slice(0, limit)
     .map((x) => x.it);
@@ -150,13 +163,14 @@ export async function wikipediaVi(query: string, limit = 2): Promise<SourceItem[
     );
     // Công cụ tìm kiếm của Wikipedia hay trả về trang lạc đề (vd. tìm "cầu nguyện cho các đẳng" ra "Hoa Kỳ") ⇒ chỉ giữ trang có từ khóa của đề tài ở tiêu đề/tóm tắt
     const kw = keywordsOf(query);
+    const special = distinctive(kw);
     return keys
       .map((k) => out.find((o) => o.url.endsWith(encodeURIComponent(k))))
       .filter((x): x is SourceItem => !!x)
       .filter((x) => {
         if (!kw.length) return true;
         const tokens = tokenSet(`${x.title} ${x.summary}`);
-        return kw.some((w) => tokens.has(w));
+        return (special.length ? special : kw).some((w) => tokens.has(w));
       });
   } catch {
     return [];

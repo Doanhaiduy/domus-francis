@@ -96,17 +96,18 @@ export const articleResearchTask: TaskDef<"content.article_research"> = {
         if (vat.status === "fulfilled") {
           for (const it of vat.value) {
             notes.push(`Vatican News${dmy(it.date)}: ${it.title}${it.summary ? ` — ${clip(it.summary, 160)}` : ""}`.slice(0, 320));
-            sources.push({ title: `Vatican News: ${it.title}`.slice(0, 200), url: it.url, kind: "vatican" });
+            sources.push({ title: `Vatican News: ${it.title}`.slice(0, 200), url: it.url, kind: "vatican", noteIndex: notes.length - 1 });
           }
         }
         if (wiki.status === "fulfilled") {
           for (const it of wiki.value) {
             notes.push(`Wikipedia — ${it.title}: ${clip(it.summary, 220)}`.slice(0, 320));
-            sources.push({ title: `Wikipedia: ${it.title}`.slice(0, 200), url: it.url, kind: "wikipedia" });
+            sources.push({ title: `Wikipedia: ${it.title}`.slice(0, 200), url: it.url, kind: "wikipedia", noteIndex: notes.length - 1 });
           }
         }
         return {
-          value: { notes: notes.slice(0, 12), sources: sources.slice(0, 12), webSearch, queries },
+          // Ghi chú bị cắt (> 12) thì nguồn gắn với nó cũng bỏ; nguồn web của Google (không gắn ghi chú nào) giữ nguyên
+          value: { notes: notes.slice(0, 12), sources: sources.filter((s) => s.noteIndex === undefined || s.noteIndex < 12).slice(0, 12), webSearch, queries },
           provider: "gemini",
           model: web.status === "fulfilled" ? web.value.model : searchModel(),
           tokensIn: 0,

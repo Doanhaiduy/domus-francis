@@ -3,7 +3,10 @@
 // bảng thông tin thật của hệ thống). Cái nào AI tự thêm vào mà dữ kiện không có thì bị đánh dấu để người soạn kiểm lại trước khi đăng.
 // Ngoài ra: ngày Bổn mạng nêu sai so với cấu hình, và các cụm từ sáo rỗng thường gặp ở văn do AI viết.
 
-export type DraftFlagKind = "date" | "time" | "phone" | "number" | "quote" | "patron" | "cliche" | "cta";
+export type DraftFlagKind = "date" | "time" | "phone" | "number" | "quote" | "claim" | "patron" | "repeat" | "cliche" | "cta";
+
+/** Cờ "mềm" (gợi ý văn phong) — không tính là chi tiết sai sự thật cần kiểm chứng. */
+export const SOFT_FLAG_KINDS: ReadonlySet<DraftFlagKind> = new Set<DraftFlagKind>(["cliche", "cta", "repeat"]);
 
 export interface DraftFlag {
   kind: DraftFlagKind;
@@ -19,6 +22,8 @@ export const FLAG_LABEL: Record<DraftFlagKind, string> = {
   phone: "Số điện thoại chưa có trong dữ kiện",
   number: "Con số chưa có trong dữ kiện",
   quote: "Lời trích dẫn chưa có trong dữ kiện",
+  claim: "Lời chứng chung chung về cộng đoàn (chưa có trong dữ kiện)",
+  repeat: "Từ/cụm lặp quá nhiều lần",
   patron: "Ngày Bổn mạng khác cấu hình",
   cliche: "Cụm từ sáo rỗng hay gặp ở văn AI",
   cta: "Lời kêu gọi / thông tin liên hệ",
@@ -231,22 +236,82 @@ const CLICHES = [
   "thật sự ý nghĩa",
   "hơn bao giờ hết",
   "tình yêu thương",
+  // Câu đại ngôn không mang thông tin (rút từ bản đánh giá một bài do AI viết)
+  "vượt qua ranh giới",
+  "điểm nhấn",
+  "đức tin được sống cụ thể",
+  "mối dây liên kết",
+  "mốc thời gian trên lịch",
+  "giữ gìn truyền thống",
+  "ý nghĩa sâu sắc",
+  "dịp để chúng ta nhìn lại",
+  "thắp lên",
+  "ươm mầm",
+  "gắn kết yêu thương",
 ];
+
+/** Cấu trúc "không (chỉ/phải) … mà (là/còn) …" — dấu hiệu rất đặc trưng của văn AI; một lần thì được, từ hai lần thì lộ. */
+const CONTRAST_RES = [
+  // Không dùng \b: nó chỉ hiểu chữ ASCII nên sau "là" (có dấu) không bao giờ coi là biên từ
+  /không\s+(?:chỉ\s+|phải\s+)?(?:là\s+)?[^.;!?\n]{2,80}?,?\s+mà\s+(?:là|còn)(?![\p{L}])[^.;!?\n]{0,50}/giu,
+  /không\s+phải\s+là[^.!?\n]{3,80}[.!?]\s*(?:Nó|Đó|Đây)\s+là(?![\p{L}])[^.;!?\n]{0,40}/giu,
+];
+
+/** Lời chứng chung chung không ai cụ thể ("nhiều anh chị em kể rằng…", "chúng tôi thường chia sẻ…") — chỉ chấp nhận khi dữ kiện của người soạn có nói. */
+const CLAIM_RES = [
+  /(?:nhiều|một số|không ít|rất nhiều)\s+(?:anh\s*chị\s*em|anh\s*em|chị\s*em|bạn(?:\s+sinh\s+viên)?|thành\s+viên|người)[^.;!?\n]{0,50}?(?:kể|chia\s+sẻ|cho\s+biết|cảm\s+thấy|nhận\s+ra|tâm\s+sự)[^.;!?\n]{0,60}/giu,
+  /(?:chúng\s+tôi|cộng\s+đoàn|lưu\s+xá|mọi\s+người)\s+thường\s+(?:chia\s+sẻ|nói|nhắc|cầu\s+nguyện|trao\s+đổi)[^.;!?\n]{0,60}/giu,
+];
+
+/** Từ nối/hư từ — không tính vào cụm lặp. */
+const REPEAT_STOP = new Set(["của", "và", "là", "các", "những", "một", "có", "trong", "cho", "với", "được", "này", "đó", "để", "khi", "từ", "đã", "sẽ", "cũng", "như", "không", "người", "chúng", "tôi", "ta", "hay", "thì", "mà", "nên", "rất", "còn", "bạn", "anh", "chị", "em", "nhà", "đây", "ngày", "tháng", "cùng", "nhau", "về", "ở", "tại", "vào", "ra", "lên", "đến", "sau", "trước"]);
+
+/** Cụm hai chữ xuất hiện ≥ 5 lần trong bài mà người soạn không hề dùng (vd. "hiệp thông" ×5): đọc thấy đều đều, nên đổi cách nói. */
+function repeatHits(text: string, source: string): DraftFlag[] {
+  const words = text.toLowerCase().match(/[\p{L}]+/gu) ?? [];
+  const counts = new Map<string, number>();
+  for (let i = 0; i < words.length - 1; i++) {
+    const a = words[i];
+    const b = words[i + 1];
+    if (a.length < 2 || b.length < 2 || REPEAT_STOP.has(a) || REPEAT_STOP.has(b)) continue;
+    const k = `${a} ${b}`;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const src = source.toLowerCase();
+  return [...counts.entries()]
+    .filter(([k, n]) => n >= 5 && !src.includes(k))
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 3)
+    .map(([k, n]) => ({ kind: "repeat" as const, text: k, note: `“${k}” xuất hiện ${n} lần` }));
+}
 const CTA_RE = /(liên hệ (?:ngay|với chúng tôi|qua)|hotline|đăng ký ngay|nhanh tay|đừng bỏ lỡ|gọi (?:ngay )?số)/giu;
 
 export const CLICHE_LIST = CLICHES;
 
 /** Cụm sáo rỗng + lời kêu gọi/liên hệ trong bài. `allowContact`: người soạn đã chọn kết bài kèm thông tin liên hệ ⇒ không đánh dấu CTA. */
-export function findClichesIn(textRaw: string, opts: { allowContact?: boolean } = {}): DraftFlag[] {
+export function findClichesIn(textRaw: string, opts: { allowContact?: boolean; source?: string } = {}): DraftFlag[] {
   const text = textRaw.normalize("NFC");
+  const source = (opts.source ?? "").normalize("NFC");
   const flags: DraftFlag[] = [];
   const lower = text.toLowerCase();
   for (const c of CLICHES) {
     const i = lower.indexOf(c);
     if (i >= 0) flags.push({ kind: "cliche", text: text.slice(i, i + c.length) });
   }
+  // "không … mà …": chỉ đánh dấu khi lặp từ hai lần trở lên (một lần là bình thường)
+  const contrasts = CONTRAST_RES.flatMap((re) => [...text.matchAll(re)].map((m) => m[0].trim().slice(0, 90)));
+  if (contrasts.length >= 2) for (const c of contrasts.slice(0, 4)) flags.push({ kind: "cliche", text: c });
+  // Lời chứng chung chung: bỏ qua nếu người soạn tự viết câu đó trong dữ kiện
+  const srcNorm = normQuote(source);
+  for (const re of CLAIM_RES) {
+    for (const m of text.matchAll(re)) {
+      const phrase = m[0].trim();
+      if (!srcNorm || !srcNorm.includes(normQuote(phrase).split(" ").slice(0, 6).join(" "))) flags.push({ kind: "claim", text: phrase.slice(0, 100) });
+    }
+  }
+  flags.push(...repeatHits(text, source));
   if (!opts.allowContact) for (const m of text.matchAll(CTA_RE)) flags.push({ kind: "cta", text: m[0] });
-  return uniq(flags).slice(0, 14);
+  return uniq(flags).slice(0, 18);
 }
 
 /** Cờ còn hiệu lực với nội dung hiện tại (người soạn đã sửa/xóa đoạn bị đánh dấu thì cờ biến mất). */
