@@ -67,12 +67,12 @@ export default function ArticlesAdminPage() {
             Bài viết, hỏi đáp và đăng ký tìm hiểu của người ngoài. Bài đã đăng có <b>đường link công khai</b> — ai cũng xem được, không cần đăng nhập.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/tin-tuc" target="_blank" className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-100 bg-white text-xs font-bold text-gray-700 hover:text-primary transition">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/tin-tuc" target="_blank" className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-100 bg-white text-xs font-bold text-gray-700 hover:text-primary transition whitespace-nowrap">
             <ExternalLink className="w-3.5 h-3.5" /> Xem trang công khai
           </Link>
           {tab === "articles" && (
-            <Link href="/bai-viet/moi" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95">
+            <Link href="/bai-viet/moi" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-bold shadow-sm shadow-primary/20 transition active:scale-95 whitespace-nowrap">
               <Plus className="w-4 h-4" /> Viết bài mới
             </Link>
           )}
@@ -151,25 +151,25 @@ function ArticlesTab() {
     <div className="space-y-5">
       {/* BỘ LỌC */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex p-1 rounded-xl bg-gray-100 gap-1">
+        <div className="inline-flex max-w-full overflow-x-auto p-1 rounded-xl bg-gray-100 gap-1">
           {FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
-              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition", filter === f.value ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-800")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap", filter === f.value ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-800")}
             >
               {f.label} <span className="text-[10px] opacity-70">{counts[f.value]}</span>
             </button>
           ))}
         </div>
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <CustomSelect
             value={category}
             onChange={setCategory}
             options={[{ value: "", label: "Mọi chuyên mục" }, ...ARTICLE_CATEGORIES.map((c) => ({ value: c.code, label: c.label }))]}
           />
         </div>
-        <div className="flex-1 min-w-[180px] max-w-xs">
+        <div className="w-full sm:flex-1 sm:min-w-[180px] sm:max-w-xs">
           <CustomInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề…" leftIcon={<Search className="w-3.5 h-3.5" />} aria-label="Tìm bài viết" />
         </div>
       </div>
@@ -190,7 +190,8 @@ function ArticlesTab() {
             const published = a.status === "published";
             const scheduled = isScheduled(a);
             return (
-              <li key={a.id} className={cn("bg-white border border-purple-100 rounded-2xl p-3.5 flex gap-4 items-center shadow-xs", busy === a.id && "opacity-60 pointer-events-none")}>
+              <li key={a.id} className={cn("bg-white border border-purple-100 rounded-2xl p-3.5 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center shadow-xs", busy === a.id && "opacity-60 pointer-events-none")}>
+                <div className="flex gap-3 sm:gap-4 items-center min-w-0 sm:flex-1">
                 <Link href={`/bai-viet/${a.id}`} aria-label={`Sửa bài: ${a.title}`} className="shrink-0 w-24 h-[68px] sm:w-32 sm:h-[84px] rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -207,14 +208,15 @@ function ArticlesTab() {
                     <CategoryChip code={a.category} className="!text-[10px] !py-0.5" />
                     {a.isFeatured && <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">★ Nổi bật</span>}
                   </div>
-                  <Link href={`/bai-viet/${a.id}`} className="block font-bold text-gray-900 hover:text-primary transition truncate">{a.title}</Link>
-                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                  <Link href={`/bai-viet/${a.id}`} className="block font-bold text-gray-900 hover:text-primary transition line-clamp-2 sm:line-clamp-1 break-words">{a.title}</Link>
+                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 sm:line-clamp-1 break-all sm:break-normal">
                     {scheduled ? `Sẽ đăng ${new Date(a.publishedAt!).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })}` : published ? `Đăng ${formatArticleDate(a.publishedAt)} · ${a.views.toLocaleString("vi-VN")} lượt xem` : `Cập nhật ${formatArticleDate(a.updatedAt)}`}
                     {" · "}/tin-tuc/{a.slug}
                     {a.tags.length > 0 && <span className="text-primary/70"> · {a.tags.map((t) => `#${t}`).join(" ")}</span>}
                   </p>
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
+                </div>
+                <div className="flex items-center justify-end gap-0.5 shrink-0 border-t border-gray-100 pt-2 sm:border-0 sm:pt-0">
                   {published && !scheduled && (
                     <>
                       <IconBtn title="Chép liên kết công khai" onClick={() => copyLink(a)}>

@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Download,
   BedDouble,
+  ShieldAlert,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { MobileDetailSheet } from "@/components/ui/MobileDetailSheet";
@@ -152,7 +153,7 @@ export default function ThanhVienPage() {
       />
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -167,7 +168,7 @@ export default function ThanhVienPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* VIEW TOGGLE */}
           <div className="flex items-center bg-surface-container-low p-1 rounded-xl">
             <button
@@ -194,6 +195,7 @@ export default function ThanhVienPage() {
             onClick={() => void exportMemberDirectory(activeMembers).catch((e) => showToast("error", e instanceof Error ? e.message : "Không xuất được danh bạ."))}
             className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-50 text-primary font-bold text-xs transition active:scale-95"
             title="Tải danh bạ thành viên đang ở (Excel) — chỉ gồm thông tin bạn được phép xem"
+            aria-label="Xuất danh bạ (Excel)"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Xuất danh bạ</span>
@@ -203,8 +205,9 @@ export default function ThanhVienPage() {
               onClick={() => setResidenceOpen(true)}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs transition active:scale-95"
               title="Danh sách tạm trú kèm CCCD đầy đủ (cần nhập lý do, ghi nhật ký kiểm toán)"
+              aria-label="Xuất danh sách tạm trú (CCCD đầy đủ)"
             >
-              <Download className="w-4 h-4" />
+              <ShieldAlert className="w-4 h-4" />
               <span className="hidden sm:inline">Danh sách tạm trú</span>
             </button>
           )}
@@ -358,10 +361,10 @@ export default function ThanhVienPage() {
       </div>
 
       {/* 2 COLUMNS: MEMBER CARDS & MEMBER DETAIL PANE */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         
         {/* MEMBERS GRID/LIST (8 COLS) */}
-        <div className="lg:col-span-8">
+        <div className="xl:col-span-8">
           {viewMode === "grid" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {filteredMembers.map((m) => {
@@ -508,12 +511,12 @@ export default function ThanhVienPage() {
 
         {/* MEMBER DETAIL VIEW (4 COLS) */}
         {selectedMember && (
-          <MobileDetailSheet open={mobileOpen} onClose={() => setMobileOpen(false)} title={selectedMember.fullName} className="lg:col-span-4">
+          <MobileDetailSheet open={mobileOpen} onClose={() => setMobileOpen(false)} title={selectedMember.fullName} className="xl:col-span-4">
             <SelectedDetail member={selectedMember} onOpenCV={handleOpenCV} onCopyZalo={handleCopyZalo} onEdit={() => setEditId(selectedMember.id)} />
           </MobileDetailSheet>
         )}
         {filteredMembers.length === 0 && (
-          <div className="lg:col-span-12 text-center text-sm text-gray-400 py-10">Không có thành viên phù hợp.</div>
+          <div className="xl:col-span-12 text-center text-sm text-gray-400 py-10">Không có thành viên phù hợp.</div>
         )}
 
       </div>

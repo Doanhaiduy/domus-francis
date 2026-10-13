@@ -599,7 +599,7 @@ function LedgerViewer({ periods, month, onMonth, anchorRef }: { periods: Periods
   if (!periods.access.ledger) return null;
   return (
     <div ref={anchorRef} className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-50 shadow-xs flex flex-col gap-4 scroll-mt-24">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-primary" /> Sổ quỹ chi tiết
@@ -731,7 +731,7 @@ export default function PeriodsPanel({ initialMonth }: { initialMonth?: string |
   return (
     <div className="flex flex-col gap-5">
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900">Sổ quỹ &amp; chốt sổ tháng</h2>
             <p className="text-xs text-gray-500 leading-relaxed mt-0.5">

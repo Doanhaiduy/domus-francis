@@ -244,3 +244,31 @@ button, a, [role="button"], summary, label, select { touch-action: manipulation;
   /* thẻ có vùng cuộn riêng (thân hộp thoại) thì thẻ không tự cuộn */
   [data-sheet-card].overflow-hidden { overflow: hidden; }
 }
+
+/* ===== Đầu trang (tiêu đề + cụm nút thao tác) =====
+   Khối tiêu đề giãn ra lấp chỗ trống; cụm nút giữ NGUYÊN chiều rộng tự nhiên — không đủ chỗ thì cả cụm rớt xuống một hàng riêng
+   (không bị ép co làm nhãn nút xuống dòng hoặc một nút lẻ rớt xuống hàng thứ hai). */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.page-head > :first-child {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+.page-head > :last-child:not(:first-child) {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.page-head button,
+.page-head a[href] {
+  white-space: nowrap;
+}
+
+/* Nút / liên kết dạng nút (inline-flex): nhãn ngắn không xuống dòng — hàng nút phải để flex-wrap để cả nút rớt xuống hàng sau */
+:where(button.inline-flex, a.inline-flex) {
+  white-space: nowrap; /* :where() = độ ưu tiên 0 — nút có nhãn dài thêm lớp whitespace-normal để được xuống dòng */
+}

@@ -62,7 +62,7 @@ export function VideoSection({ videos, count, loading, canAdd, canModerate, onAd
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
           {Array.from({ length: Math.min(3, Math.max(1, count)) }, (_, i) => (
             <div key={i} className="aspect-video rounded-2xl bg-gray-100" />
           ))}
@@ -72,7 +72,7 @@ export function VideoSection({ videos, count, loading, canAdd, canModerate, onAd
           Chưa có video nào trong album. {canAdd ? "Bấm “Thêm video” để chia sẻ khoảnh khắc đầu tiên." : ""}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {videos.map((v) => (
             <div key={v.id} className={`group bg-white rounded-2xl overflow-hidden border border-purple-50 shadow-2xs hover:shadow-lg transition ${busy === v.id ? "opacity-60 pointer-events-none" : ""}`}>
               <button type="button" onClick={() => setPlaying(v)} className="relative block w-full aspect-video bg-gray-900 text-left" aria-label={`Xem video${v.caption ? `: ${v.caption}` : ""}`}>

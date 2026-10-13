@@ -79,7 +79,7 @@ export default function LichSuKienPage() {
   /** Chọn một ngày trên lưới; điện thoại/màn hẹp (panel ngày nằm dưới lưới) ⇒ tự cuộn xuống panel ngày */
   const pickDay = (d: number) => {
     setSelectedDay(d);
-    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1279px)").matches) {
       requestAnimationFrame(() => dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
   };
@@ -251,7 +251,7 @@ export default function LichSuKienPage() {
   return (
     <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
             <CalendarCheck className="w-4 h-4" />
@@ -376,9 +376,9 @@ export default function LichSuKienPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* LEFT: MONTH CALENDAR */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+            <div className="xl:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-black text-gray-900 tracking-tight">
@@ -559,7 +559,7 @@ export default function LichSuKienPage() {
             </div>
 
             {/* RIGHT: DAY DETAILS */}
-            <div ref={dayPanelRef} className="lg:col-span-5 flex flex-col gap-4 scroll-mt-24">
+            <div ref={dayPanelRef} className="xl:col-span-5 flex flex-col gap-4 scroll-mt-24">
               <LiturgyDayPanel date={selectedIso} onOpenSettings={canManageLiturgy ? () => setLiturgySettingsOpen(true) : undefined} />
               <div className="bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">

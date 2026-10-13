@@ -98,7 +98,7 @@ export function MemberReportPanel({ scope }: { scope: MemberReportScope }) {
 
       {error && !report && <p className="text-sm text-rose-600">{errorMessage(error)}</p>}
       {isLoading && !report ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer-box h-28 rounded-2xl" />)}</div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer-box h-28 rounded-2xl" />)}</div>
       ) : report ? (
         scope === "me" ? <PersonalView r={report} /> : (
           <>

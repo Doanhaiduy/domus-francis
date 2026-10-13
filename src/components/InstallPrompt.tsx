@@ -166,7 +166,7 @@ export function InstallPrompt() {
   // 1. Trình duyệt nhúng (Zalo, Facebook…): cảnh báo + cách mở bằng trình duyệt thật
   if (app.inApp && !inAppHidden) {
     return (
-      <div className="fixed z-[45] left-3 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:left-auto md:right-6 md:bottom-6 md:w-[24rem] animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="fixed z-[45] left-3 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:w-[24rem] animate-in fade-in slide-in-from-bottom-2 duration-200">
         <InAppBrowserNotice
           info={app.inApp}
           ios={app.ios}
@@ -203,7 +203,7 @@ export function InstallPrompt() {
     <div
       role="region"
       aria-label={canInstallTip ? "Gợi ý cài ứng dụng" : "Gợi ý bật thông báo"}
-      className="fixed z-[45] left-3 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:left-auto md:right-6 md:bottom-6 md:w-[22rem] animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="fixed z-[45] left-3 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:w-[22rem] animate-in fade-in slide-in-from-bottom-2 duration-200"
     >
       <div className="rounded-2xl border border-purple-100 bg-white p-3.5 shadow-xl shadow-purple-900/10">
         <div className="flex items-start gap-3">

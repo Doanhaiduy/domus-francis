@@ -86,7 +86,7 @@ export default function MassReportExport() {
           </button>
         ))}
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
         <CustomDateRangePicker
           label="Khoảng ngày"
           startDate={from}
@@ -95,7 +95,7 @@ export default function MassReportExport() {
             setFrom(a);
             setTo(b);
           }}
-          className="flex-1"
+          className="flex-1 sm:min-w-[16rem]"
         />
         <button
           onClick={download}

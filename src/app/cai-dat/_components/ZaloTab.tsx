@@ -105,7 +105,7 @@ function TemplateRow({ draft, k }: { draft: SettingsDraft; k: ZaloEventKey }) {
         </span>
       </button>
       {open && (
-        <div className="px-4 pb-4 pt-1 grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-50">
+        <div className="px-4 pb-4 pt-1 grid grid-cols-1 xl:grid-cols-2 gap-4 border-t border-gray-50">
           <div className="flex flex-col gap-2">
             <label className="text-[11px] font-bold text-gray-700">Mẫu tin</label>
             <textarea

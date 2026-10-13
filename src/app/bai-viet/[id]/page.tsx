@@ -415,11 +415,11 @@ export default function ArticleEditorPage() {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px] items-start">
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px] items-start">
         {/* CỘT CHÍNH */}
         <div className="space-y-4 min-w-0">
           {/* Điện thoại: Trợ lý AI nằm ngay đầu trang soạn (cột phụ bị đẩy xuống cuối) */}
-          <div className="lg:hidden">
+          <div className="xl:hidden">
             <AiAssistCard empty={!form.content.trim()} onDraft={() => setDraftSeed({ topic: form.title.trim().length >= 5 ? form.title.trim() : "" })} onIdeas={() => setIdeasOpen(true)} />
           </div>
           <div className={cn(card, "space-y-4")}>
@@ -474,7 +474,7 @@ export default function ArticleEditorPage() {
                 <ImproveMenu getTarget={getImproveTarget} onApply={applyImprove} />
               </div>
               {/* Chuyển Soạn / Xem trước (màn hình nhỏ) */}
-              <div className="inline-flex p-0.5 rounded-lg bg-gray-100 lg:hidden">
+              <div className="inline-flex p-0.5 rounded-lg bg-gray-100 xl:hidden">
                 <button type="button" onClick={() => setTab("write")} className={cn("px-2.5 py-1 rounded-md text-xs font-semibold inline-flex items-center gap-1", tab === "write" ? "bg-white text-primary shadow-sm" : "text-gray-500")}><Pencil className="w-3 h-3" /> Soạn</button>
                 <button type="button" onClick={() => setTab("preview")} className={cn("px-2.5 py-1 rounded-md text-xs font-semibold inline-flex items-center gap-1", tab === "preview" ? "bg-white text-primary shadow-sm" : "text-gray-500")}><Eye className="w-3 h-3" /> Xem trước</button>
               </div>
@@ -485,15 +485,15 @@ export default function ArticleEditorPage() {
                 <UploadProgress state={imageUpload.state} onCancel={imageUpload.cancel} />
               </div>
             )}
-            <div className="grid lg:grid-cols-2 lg:divide-x divide-purple-50">
-              <div className={cn("p-3", tab === "preview" && "hidden lg:block")}>
+            <div className="grid xl:grid-cols-2 xl:divide-x divide-purple-50">
+              <div className={cn("p-3", tab === "preview" && "hidden xl:block")}>
                 <CustomTextarea
                   ref={taRef}
                   value={form.content}
                   onChange={(e) => set("content", e.target.value)}
                   rows={22}
                   placeholder={"Viết nội dung bài ở đây…\n\n## Tiêu đề mục\nĐoạn văn. Dùng thanh công cụ phía trên để in đậm, chèn ảnh (hoặc dán ảnh bằng Ctrl+V), tạo danh sách — hoặc nhờ Trợ lý AI viết nháp giúp bạn."}
-                  className="!text-sm !leading-7 min-h-[420px] lg:min-h-[540px] resize-y"
+                  className="!text-sm !leading-7 min-h-[420px] xl:min-h-[540px] resize-y"
                   spellCheck
                   aria-label="Nội dung bài viết"
                   onPaste={onPasteEditor}
@@ -501,7 +501,7 @@ export default function ArticleEditorPage() {
                   onDrop={onDropEditor}
                 />
               </div>
-              <div className={cn("p-5 min-h-[420px] lg:min-h-[540px] overflow-auto bg-surface/40", tab === "write" && "hidden lg:block")} aria-label="Xem trước">
+              <div className={cn("p-5 min-h-[420px] xl:min-h-[540px] overflow-auto bg-surface/40", tab === "write" && "hidden xl:block")} aria-label="Xem trước">
                 {form.content.trim() ? (
                   <ArticleMarkdown source={previewSource} compact className="!text-[15px] !leading-7" />
                 ) : (
@@ -518,7 +518,7 @@ export default function ArticleEditorPage() {
 
         {/* CỘT PHỤ */}
         <aside className="space-y-4 min-w-0">
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <AiAssistCard empty={!form.content.trim()} onDraft={() => setDraftSeed({ topic: form.title.trim().length >= 5 ? form.title.trim() : "" })} onIdeas={() => setIdeasOpen(true)} />
           </div>
 

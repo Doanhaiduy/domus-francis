@@ -136,7 +136,7 @@ function DienDanContent() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Diễn Đàn</h1>
@@ -235,9 +235,9 @@ function DienDanContent() {
       </div>
 
       {/* 2 COLUMNS: THREAD LIST (7 COLS) & DETAIL VIEW (5 COLS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* THREAD LIST (7 COLS) */}
-        <div className="lg:col-span-7 flex flex-col gap-3">
+        <div className="xl:col-span-7 flex flex-col gap-3">
           {filteredThreads.map((t) => {
             const isSelected = t.id === selectedThread?.id;
             return (
@@ -322,7 +322,7 @@ function DienDanContent() {
 
         {/* THREAD DETAIL & QUICK REPLY (5 COLS) */}
         {view && (
-          <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+          <div className="xl:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <span className="px-2.5 py-1 bg-purple-100 text-primary text-xs font-bold rounded-lg">{view.category}</span>
               <span className="text-xs text-gray-400">

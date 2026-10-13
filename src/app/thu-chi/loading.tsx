@@ -5,7 +5,7 @@ export default function Loading() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div className="space-y-2">
           <Skeleton className="w-48 h-8 rounded-xl" />
           <Skeleton className="w-72 h-4 rounded-lg" />
@@ -24,7 +24,7 @@ export default function Loading() {
       </div>
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between h-36">
             <div className="flex justify-between items-center">
@@ -40,14 +40,14 @@ export default function Loading() {
       </div>
 
       {/* 2 Columns: Table & Recent Expenses */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
           <div className="flex justify-between items-center pb-2 border-b border-gray-100">
             <div className="space-y-1">
               <Skeleton className="w-36 h-5" />
               <Skeleton className="w-48 h-3.5" />
             </div>
-            <Skeleton className="w-48 h-8 rounded-xl" />
+            <Skeleton className="w-24 sm:w-48 h-8 rounded-xl" />
           </div>
 
           <table className="w-full">
@@ -59,7 +59,7 @@ export default function Loading() {
           </table>
         </div>
 
-        <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
+        <div className="xl:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
           <div className="flex justify-between items-center pb-2 border-b border-gray-100">
             <Skeleton className="w-32 h-5" />
             <Skeleton className="w-16 h-4" />

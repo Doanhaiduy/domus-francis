@@ -38,10 +38,10 @@ export const TableRowSkeleton: React.FC = () => {
           </div>
         </div>
       </td>
-      <td className="py-3">
+      <td className="py-3 hidden sm:table-cell">
         <Skeleton className="w-16 h-4" />
       </td>
-      <td className="py-3">
+      <td className="py-3 hidden sm:table-cell">
         <Skeleton className="w-20 h-3.5" />
       </td>
       <td className="py-3 text-center">
@@ -113,7 +113,7 @@ export const DashboardSkeleton: React.FC = () => {
   return (
     <div className="flex flex-col w-full gap-6 animate-pulseSubtle">
       {/* Top Header Skeleton */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Skeleton className="w-36 h-8 rounded-xl" />
@@ -132,9 +132,9 @@ export const DashboardSkeleton: React.FC = () => {
       </div>
 
       {/* 2 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Modules Grid (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-3">
+        <div className="xl:col-span-7 flex flex-col gap-3">
           <div className="space-y-1">
             <Skeleton className="w-32 h-5 rounded-lg" />
             <Skeleton className="w-48 h-3.5 rounded-lg" />
@@ -159,7 +159,7 @@ export const DashboardSkeleton: React.FC = () => {
         </div>
 
         {/* Feed (5 cols) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
+        <div className="xl:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">
             <div className="space-y-1">
               <Skeleton className="w-28 h-5" />

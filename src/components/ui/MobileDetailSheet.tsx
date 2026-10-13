@@ -23,7 +23,7 @@ export function MobileDetailSheet({
   return (
     <>
       {/* Desktop view: rendered in-place */}
-      <div className={cn("hidden lg:block", className)}>
+      <div className={cn("hidden xl:block", className)}>
         {children}
       </div>
 
@@ -31,7 +31,7 @@ export function MobileDetailSheet({
       {open && (
         <Portal>
           {/* Lớp phủ = nền mờ bấm để đóng; SheetEnhancer thêm thanh nắm + kéo xuống để đóng */}
-          <div className="fixed inset-0 z-50 flex items-end lg:hidden bg-black/50 backdrop-blur-xs" onClick={onClose}>
+          <div className="fixed inset-0 z-50 flex items-end xl:hidden bg-black/50 backdrop-blur-xs" onClick={onClose}>
             {/* Sheet modal */}
             <div onClick={(e) => e.stopPropagation()} className="relative w-full max-h-[92dvh] flex flex-col bg-surface rounded-t-3xl shadow-2xl border-t border-outline-variant/30 overflow-hidden">
               {/* Header */}

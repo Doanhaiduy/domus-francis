@@ -128,7 +128,7 @@ export function Blocks({ blocks }: { blocks: GuideBlock[] }) {
             return <div key={i} className="my-2.5"><PathCrumbs items={b.items} label={b.label} /></div>;
           case "cards":
             return (
-              <div key={i} className={cn("my-3 grid grid-cols-1 gap-3 sm:grid-cols-2", b.cols === 3 && "lg:grid-cols-3")}>
+              <div key={i} className={cn("my-3 grid grid-cols-1 gap-3 sm:grid-cols-2", b.cols === 3 && "xl:grid-cols-3")}>
                 {b.items.map((c) => {
                   const Icon = ICONS[c.icon];
                   return (

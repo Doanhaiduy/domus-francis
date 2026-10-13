@@ -29,7 +29,7 @@ const slug = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/
 function StatsSkeleton() {
   return (
     <div className="flex flex-col gap-5" aria-busy="true" aria-label="Đang tải thống kê">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="bg-white rounded-2xl p-4 border border-purple-50 space-y-2">
             <Skeleton className="w-24 h-3.5" />
@@ -165,7 +165,7 @@ export default function StatsPanel() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-50 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-50 shadow-xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-bold text-gray-900">Thống kê thu chi</h2>
           <p className="text-xs text-gray-500">So sánh thu – chi theo từng {unit}; xuất file để lưu trữ và báo cáo cho cộng đoàn</p>
@@ -195,7 +195,7 @@ export default function StatsPanel() {
 
       {stats && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
               { icon: <TrendingUp className="w-4 h-4" />, label: "Tổng thu", value: stats.totals.incomeVnd, tone: "text-emerald-700 bg-emerald-50" },
               { icon: <TrendingDown className="w-4 h-4" />, label: "Tổng chi", value: stats.totals.expenseVnd, tone: "text-rose-700 bg-rose-50" },
@@ -214,11 +214,11 @@ export default function StatsPanel() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+            <div className="xl:col-span-7 bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs">
               <FinancialBarChart data={chart} height={240} title={`Thu – chi theo ${unit}`} subtitle={`${stats.periods.length} ${unit} gần nhất`} />
             </div>
-            <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-3">
+            <div className="xl:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs flex flex-col gap-3">
               {donut.length > 0 ? (
                 <ExpenseDonutChart data={donut} size={150} title="Cơ cấu chi theo hạng mục" subtitle="Tổng các kỳ đang xem" />
               ) : (

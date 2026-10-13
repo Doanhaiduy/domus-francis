@@ -5,7 +5,7 @@ export default function CaiDatLoading() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div className="space-y-2">
           <Skeleton className="w-56 h-8 rounded-xl" />
           <Skeleton className="w-80 h-4 rounded-lg" />

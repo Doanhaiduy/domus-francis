@@ -118,7 +118,7 @@ export const Sidebar: React.FC = () => {
           {/* Close button on mobile */}
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="md:hidden p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+            className="lg:hidden p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"
             title="Đóng menu"
           >
             <X className="w-5 h-5" />
@@ -298,13 +298,13 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* 1. DESKTOP SIDEBAR (FIXED, VISIBLE FROM md UP) */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-surface-container-lowest z-30 flex-col justify-between shadow-[1px_0_12px_rgba(0,0,0,0.02)] border-r border-purple-50">
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-64 bg-surface-container-lowest z-30 flex-col justify-between shadow-[1px_0_12px_rgba(0,0,0,0.02)] border-r border-purple-50">
         {NavContent}
       </aside>
 
       {/* 2. MOBILE DRAWER (OVERLAY + SLIDE-OVER) */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-50 lg:hidden flex">
           {/* Backdrop blur */}
           <div
             onClick={() => setMobileMenuOpen(false)}

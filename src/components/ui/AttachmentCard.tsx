@@ -52,9 +52,9 @@ export function AttachmentCard({ file, className, onDownload }: { file: Attachme
             <ZoomIn className="w-3 h-3" /> Phóng to
           </span>
         </button>
-        <figcaption className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-900 truncate">{file.name}</p>
+        <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3.5 py-2.5">
+          <div className="min-w-0 flex-1 basis-40">
+            <p className="text-xs font-bold text-gray-900 break-all line-clamp-2">{file.name}</p>
             <p className="text-[10px] text-gray-400">{meta}</p>
           </div>
           <a href={downloadUrl} download={file.name} onClick={onDownload} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800 transition shrink-0">
@@ -68,17 +68,17 @@ export function AttachmentCard({ file, className, onDownload }: { file: Attachme
   const { icon: Icon, tone } = KIND_STYLE[broken ? "other" : kind];
   const viewable = kind === "pdf" || kind === "text" || kind === "video" || kind === "audio";
   return (
-    <div className={cn("p-3.5 rounded-2xl bg-purple-50/60 border border-purple-100 flex items-center justify-between gap-3", className)}>
-      <div className="flex items-center gap-3 min-w-0">
+    <div className={cn("p-3.5 rounded-2xl bg-purple-50/60 border border-purple-100 flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5", className)}>
+      <div className="flex items-center gap-3 min-w-0 flex-1 basis-48">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", tone)}>
           <Icon className="w-5 h-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-bold text-gray-900 truncate">{file.name}</p>
+          <p className="text-xs font-bold text-gray-900 break-all line-clamp-2">{file.name}</p>
           <p className="text-[10px] text-gray-400">{meta}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 max-w-full">
         {viewable && (
           <a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary hover:bg-primary-container text-white text-xs font-bold transition">
             <ExternalLink className="w-3.5 h-3.5" /> Xem

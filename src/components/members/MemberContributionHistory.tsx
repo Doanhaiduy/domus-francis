@@ -25,12 +25,12 @@ export default function MemberContributionHistory({ memberId, months = 3 }: { me
         {data?.map((c) => (
           <div
             key={c.planId}
-            className={`flex items-center justify-between gap-2 p-2 rounded-xl font-medium ${
+            className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 p-2 rounded-xl font-medium ${
               c.status === "paid" ? "bg-emerald-50 text-emerald-900" : c.status === "waived" ? "bg-sky-50 text-sky-900" : c.status === "partial" ? "bg-amber-50 text-amber-900" : "bg-rose-50 text-rose-900"
             }`}
           >
-            <span className="min-w-0 truncate">{c.periodLabel}</span>
-            <span className="font-bold shrink-0 text-right">
+            <span className="min-w-0 flex-1 basis-28 break-words">{c.periodLabel}</span>
+            <span className="font-bold text-right">
               {c.status === "paid" && `${fmt(c.amountPaidVnd)} ✓ Đã đóng`}
               {c.status === "partial" && `${fmt(c.amountPaidVnd)}/${fmt(c.amountDueVnd)} · Còn thiếu`}
               {c.status === "unpaid" && `${fmt(c.amountDueVnd)} · Chưa đóng (hạn ${dmy(c.dueDate)})`}

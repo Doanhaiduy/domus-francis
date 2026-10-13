@@ -118,7 +118,7 @@ export const Header: React.FC = () => {
         {/* TRÁI: biểu tượng về Tổng quan (điện thoại) + ô tìm kiếm nhanh */}
         <div className="flex items-center gap-2.5 flex-1 max-w-md">
           {/* Điện thoại: menu đầy đủ mở bằng nút "Thêm" ở thanh điều hướng dưới (MobileBottomNav) — đầu trang chỉ còn biểu tượng về Tổng quan */}
-          <Link href="/" aria-label="Lưu Xá Phanxicô — về Tổng quan" className="md:hidden flex items-center gap-1.5 shrink-0">
+          <Link href="/" aria-label="Lưu Xá Phanxicô — về Tổng quan" className="lg:hidden flex items-center gap-1.5 shrink-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#5f3add] to-[#7857f8] flex items-center justify-center text-white font-bold text-sm shadow-xs">
               ✝
             </div>

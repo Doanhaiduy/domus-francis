@@ -570,11 +570,11 @@ export default function ActivityTab() {
             { label: "Thao tác", value: totals.total, icon: <Activity className="w-4 h-4" />, cls: "text-sky-700 bg-sky-50" },
             { label: "Bị lỗi / từ chối", value: totals.errors, icon: <AlertTriangle className="w-4 h-4" />, cls: totals.errors ? "text-rose-700 bg-rose-50" : "text-gray-500 bg-gray-50" },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 min-w-0">
+            <div key={s.label} className="rounded-2xl border border-gray-100 p-3 flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-2.5 min-w-0">
               <span className={cn("w-8 h-8 shrink-0 rounded-lg flex items-center justify-center", s.cls)}>{s.icon}</span>
               <div className="min-w-0">
                 <p className="text-base font-black text-gray-900 leading-none tabular-nums">{users ? s.value : "…"}</p>
-                <p className="text-[10px] text-gray-500 mt-1 truncate">{s.label}</p>
+                <p className="text-[10px] text-gray-500 mt-1 leading-tight sm:truncate">{s.label}</p>
               </div>
             </div>
           ))}
@@ -595,7 +595,7 @@ export default function ActivityTab() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <CustomSelect value={userId} onChange={setUserId} options={userOptions} placeholder="Người dùng" />
           <CustomSelect value={range} onChange={(v) => setRange(v as Range)} options={RANGES} />
           {sub === "actions" ? (

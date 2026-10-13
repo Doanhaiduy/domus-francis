@@ -237,7 +237,7 @@ export default function LiturgySchedule({ week, canManage, members, onNavigate, 
   };
 
   return (
-    <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+    <div className="xl:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
         <div>
           <h2 className="text-base font-bold text-gray-900">

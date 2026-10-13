@@ -353,7 +353,7 @@ export default function KhoanhKhacPage() {
   return (
     <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER & KPI STATS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
@@ -510,7 +510,7 @@ export default function KhoanhKhacPage() {
               </div>
 
               {/* Description, Tags, Participants & Action Buttons */}
-              <div className="p-6 flex flex-col lg:flex-row lg:items-start justify-between gap-6 bg-white">
+              <div className="p-6 flex flex-col xl:flex-row xl:items-start justify-between gap-6 bg-white">
                 <div className="space-y-4 max-w-3xl flex-1">
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Ý nghĩa &amp; Câu chuyện kỷ niệm</h3>
@@ -605,7 +605,7 @@ export default function KhoanhKhacPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row lg:flex-col flex-wrap gap-2.5 shrink-0 w-full lg:w-60 pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-100">
+                <div className="flex flex-col sm:flex-row xl:flex-col flex-wrap gap-2.5 shrink-0 w-full xl:w-60 pt-4 xl:pt-0 border-t xl:border-t-0 border-gray-100">
                   <button
                     onClick={() => setLightboxIndex(0)}
                     disabled={!albumDetail || photos.length === 0}
@@ -721,13 +721,13 @@ export default function KhoanhKhacPage() {
 
             {/* Photo Gallery Grid */}
             {!albumDetail ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-pulse">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
                 {Array.from({ length: Math.min(8, Math.max(1, activeAlbum.photosCount)) }, (_, i) => (
                   <div key={i} className="aspect-[4/3] rounded-2xl bg-gray-100" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                 {photos.map((photo, index) => (
                   <div
                     key={photo.id}
@@ -1044,8 +1044,8 @@ export default function KhoanhKhacPage() {
               </div>
             </div>
 
-            {/* Row 2: Category chips & Search & Month select */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            {/* Row 2: Category chips & Search & Month select — xếp chồng tới khổ xl để hàng chủ đề không bị ép thành một cột hẹp */}
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
               {/* Category Chips */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
@@ -1083,7 +1083,7 @@ export default function KhoanhKhacPage() {
               </div>
 
               {/* Month selector, Date filter & Search Input */}
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-2.5 xl:shrink-0">
                 <div className="w-36">
                   <CustomSelect value={selectedMonth} onChange={setSelectedMonth} options={monthSelectOptions} />
                 </div>
@@ -1160,7 +1160,7 @@ export default function KhoanhKhacPage() {
             </div>
           ) : viewMode === "grid" ? (
             /* GRID VIEW */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in duration-200">
               {filteredMoments.map((album) => {
                 const meta = categoryStyle(album.categoryCode);
 
@@ -1231,7 +1231,7 @@ export default function KhoanhKhacPage() {
                       </div>
 
                       {/* Participants & Like Action */}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pt-3 border-t border-gray-100 mt-2">
                         <div className="flex items-center gap-2">
                           <div className="flex -space-x-2 overflow-hidden">
                             {album.participants.slice(0, 3).map((p) => (
@@ -1244,7 +1244,7 @@ export default function KhoanhKhacPage() {
                               </div>
                             ))}
                           </div>
-                          <span className="text-[10px] text-gray-400 font-medium">{album.participants.length} anh em</span>
+                          <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">{album.participants.length} anh em</span>
                         </div>
 
                         <div className="flex items-center gap-1.5">

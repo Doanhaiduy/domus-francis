@@ -788,7 +788,7 @@ function InfraCard({ inf }: { inf: InfraDto }) {
   const missingRequired = inf.envFlags.filter((f) => f.required && !f.set).length;
   return (
     <Card title="Hạ tầng & cấu hình" icon={<ServerCog className="w-4 h-4 text-primary" />}>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+      <dl className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
         {rows.map((r) => (
           <div key={r.label} className="rounded-xl bg-surface/50 border border-purple-50 px-3 py-2.5 min-w-0">
             <dt className="text-[10.5px] text-gray-400">{r.label}</dt>

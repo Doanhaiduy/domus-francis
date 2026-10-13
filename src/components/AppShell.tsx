@@ -75,7 +75,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <Sidebar />
 
       {/* MAIN APPLICATION AREA */}
-      <div className="md:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-64 flex flex-col min-h-screen">
         <Header />
         {/* Cảnh báo vận hành cho Admin (cron ngừng/lỗi, sao lưu quá hạn…) */}
         <OpsBanner />
@@ -104,7 +104,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <button
           onClick={() => openModal("aiAssistant")}
           title="Hỏi trợ lý AI"
-          className="fixed z-40 right-4 bottom-20 md:bottom-6 md:right-6 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 text-white text-xs font-bold shadow-lg shadow-violet-300/50 hover:scale-105 active:scale-95 transition"
+          className="fixed z-40 right-4 bottom-20 lg:bottom-6 lg:right-6 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 text-white text-xs font-bold shadow-lg shadow-violet-300/50 hover:scale-105 active:scale-95 transition"
         >
           <Sparkles className="w-4 h-4" />
           <span className="hidden sm:inline">Trợ lý AI</span>

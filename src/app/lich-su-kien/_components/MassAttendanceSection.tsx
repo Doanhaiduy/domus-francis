@@ -103,7 +103,7 @@ export default function MassAttendanceSection({ month, canManage, onPickDay }: P
       {days.length === 0 ? (
         <p className="text-xs text-gray-500 py-4 text-center">Tháng này không có ngày bắt buộc check-in đi lễ.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
           {days.map((d) => {
             const mine = d.myCheckin;
             const overdue = !mine && d.requirement && today > d.requirement.deadline;

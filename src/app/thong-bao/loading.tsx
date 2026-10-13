@@ -18,8 +18,8 @@ export default function Loading() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5 bg-white rounded-3xl p-4 border border-purple-50 shadow-xs space-y-3">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="xl:col-span-5 bg-white rounded-3xl p-4 border border-purple-50 shadow-xs space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="p-3.5 rounded-2xl bg-surface-container-low/50 space-y-2">
               <div className="flex justify-between">
@@ -32,7 +32,7 @@ export default function Loading() {
           ))}
         </div>
 
-        <div className="lg:col-span-7 bg-white rounded-3xl p-8 border border-purple-50 shadow-xs space-y-4">
+        <div className="xl:col-span-7 bg-white rounded-3xl p-8 border border-purple-50 shadow-xs space-y-4">
           <div className="flex justify-between">
             <Skeleton className="w-20 h-5 rounded-md" />
             <Skeleton className="w-28 h-4" />

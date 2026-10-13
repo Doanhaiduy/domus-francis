@@ -71,9 +71,9 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
   const iAmLead = !!lead && lead.memberId === me;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
       {/* ISSUE LIST (7 COLS) */}
-      <div className="lg:col-span-7 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-3">
+      <div className="xl:col-span-7 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col gap-3">
         <div className="flex items-center justify-between pb-2 border-b border-gray-100 gap-2">
           <h2 className="text-base font-bold text-gray-900">Danh sách sự cố &amp; sửa chữa</h2>
           <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function IssuesTab({ issues, loadedAt, loading }: { issues: Issue
 
       {/* ISSUE DETAIL VIEW (5 COLS) */}
       {selected && (
-        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+        <div className="xl:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${ISSUE_STATUS_CLASS[selected.status]}`}>
               {ISSUE_STATUS_LABEL[selected.status]} #{selected.code}

@@ -96,7 +96,7 @@ export default function PantryTab({ pantryCountChange }: { pantryCountChange?: (
         </div>
 
         {items.length === 0 && <p className="text-xs text-gray-400">Kho bếp chưa có mặt hàng nào{canManage ? " — bấm “Thêm mặt hàng” để bắt đầu theo dõi." : "."}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {items.map((item) => {
             const pending = item.openRequestId || item.onShoppingList;
             return (
@@ -167,7 +167,7 @@ export default function PantryTab({ pantryCountChange }: { pantryCountChange?: (
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         {/* YÊU CẦU MUA THÊM */}
         <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-3">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">

@@ -111,7 +111,7 @@ export default function ZaloScheduleCard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-4 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-4 items-start">
         <div className="bg-white rounded-2xl border border-gray-100 p-3">
           <div className="flex items-center justify-between mb-2">
             <button onClick={() => go(-1)} aria-label="Tháng trước" className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500"><ChevronLeft className="w-4 h-4" /></button>

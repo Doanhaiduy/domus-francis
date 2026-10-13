@@ -113,7 +113,7 @@ export default function DelegationsPanel() {
       {items.length === 0 ? (
         <p className="text-xs text-gray-400 py-2">Chưa có ủy quyền nào trong 90 ngày qua.</p>
       ) : (
-        <ul className="grid gap-2.5 lg:grid-cols-2">
+        <ul className="grid gap-2.5 xl:grid-cols-2">
           {items.map((d) => (
             <li key={d.id} className="rounded-2xl border border-gray-100 p-3.5 space-y-1.5">
               <div className="flex items-start justify-between gap-2">

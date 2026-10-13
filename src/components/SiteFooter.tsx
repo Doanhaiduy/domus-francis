@@ -58,8 +58,8 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
 
   if (variant === "compact") {
     return (
-      <footer className={cn("px-3.5 sm:px-5 lg:px-6 pb-24 md:pb-6 pt-2 no-print", className)}>
-        <div className="border-t border-purple-50 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-gray-500">
+      <footer className={cn("px-3.5 sm:px-5 lg:px-6 pb-24 lg:pb-6 pt-2 no-print", className)}>
+        <div className="border-t border-purple-50 pt-4 flex flex-col xl:flex-row xl:items-center justify-between gap-2 text-[11px] text-gray-500">
           <div className="flex items-center gap-2 min-w-0">
             <Brand name={o.houseName} size="sm" />
             {o.motto && <span className="hidden md:inline text-gray-400 truncate">· {o.motto}</span>}

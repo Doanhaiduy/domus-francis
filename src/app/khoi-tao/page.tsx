@@ -60,7 +60,7 @@ export default function SetupPage() {
             <span className="text-[11px] font-bold text-gray-400">{items.filter((i) => i.done).length}/{items.length}</span>
           </div>
           {GROUP_NOTE[g] && <p className="text-xs text-gray-500 -mt-1 leading-relaxed">{GROUP_NOTE[g]}</p>}
-          <div className="grid gap-2.5 lg:grid-cols-2">
+          <div className="grid gap-2.5 xl:grid-cols-2">
             {items.map((it) => (
               <Link
                 key={it.key}

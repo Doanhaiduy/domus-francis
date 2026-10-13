@@ -95,7 +95,7 @@ function TypePrefs({ prefs, onToggle, busy }: { prefs: NotificationPrefsDto; onT
         ))}
       </div>
       {!term && hiddenCount > 0 && (
-        <button type="button" onClick={() => setAll((v) => !v)} aria-expanded={all} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline">
+        <button type="button" onClick={() => setAll((v) => !v)} aria-expanded={all} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline whitespace-normal text-left">
           <Filter className="w-3.5 h-3.5" aria-hidden />
           {all ? "Chỉ hiện loại bạn hay nhận" : `Hiện tất cả ${prefs.types.length} loại (thêm ${hiddenCount} loại của người quản lý / ít gặp)`}
         </button>

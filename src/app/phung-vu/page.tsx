@@ -56,7 +56,7 @@ export default function PhungVuPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Phụng Vụ</h1>
           <p className="text-sm text-gray-500 mt-1">Lịch kinh nguyện, check-in đi lễ, ý hiệp thông cầu nguyện, suy niệm Lời Chúa hàng tuần và kho tài liệu phụng vụ</p>
@@ -155,13 +155,13 @@ export default function PhungVuPage() {
       </div>
 
       {/* 2 COLUMNS: SCHEDULE & PRAYER INTENTIONS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {week && (
           <LiturgySchedule week={week} canManage={can("liturgy.manage")} members={memberOptions} onNavigate={setFrom} showToast={showToast} />
         )}
 
         {/* PRAYER INTENTIONS & SCRIPTURE (5 COLS) */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+        <div className="xl:col-span-5 flex flex-col gap-4">
           <PrayerBox
             data={prayers}
             canModerate={can("prayer.moderate")}

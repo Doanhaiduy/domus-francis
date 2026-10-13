@@ -478,8 +478,8 @@ export default function LiturgyDocuments({ showToast }: { showToast: Toast }) {
       </div>
 
       {/* Danh sách + chi tiết */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        <div className="lg:col-span-5 flex flex-col gap-2 lg:max-h-[640px] lg:overflow-y-auto lg:pr-1">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        <div className="xl:col-span-5 flex flex-col gap-2 xl:max-h-[640px] xl:overflow-y-auto xl:pr-1">
           {error && !data && <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-xs text-rose-700">Không tải được thư viện: {errorMessage(error)}</div>}
           {isLoading && !data && (
             <div className="space-y-2">
@@ -513,7 +513,7 @@ export default function LiturgyDocuments({ showToast }: { showToast: Toast }) {
                   </p>
                   {d.excerpt && <p className="text-[11px] text-gray-400 truncate mt-0.5">{d.excerpt}</p>}
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0 self-center lg:hidden" />
+                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0 self-center xl:hidden" />
               </button>
             );
           })}
@@ -543,7 +543,7 @@ export default function LiturgyDocuments({ showToast }: { showToast: Toast }) {
           open={!!selectedId}
           onClose={() => setSelectedId(null)}
           title={selected?.title ?? "Tài liệu phụng vụ"}
-          className="lg:col-span-7 lg:sticky lg:top-4"
+          className="xl:col-span-7 xl:sticky xl:top-4"
         >
           <div className="rounded-3xl border border-purple-50 bg-white p-4 sm:p-5 min-h-[220px]">
             {selectedId ? (

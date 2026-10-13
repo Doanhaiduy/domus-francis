@@ -193,7 +193,7 @@ export default function HuongDanPage() {
       {/* BẮT ĐẦU NHANH + VAI TRÒ */}
       {!q && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             {quick.map((c) => {
               const Icon = ICONS[c.icon];
               return (
@@ -225,7 +225,7 @@ export default function HuongDanPage() {
       )}
 
       {/* MỤC LỤC (điện thoại): thanh chip cuộn ngang, dính đầu trang */}
-      <nav aria-label="Mục lục" className="lg:hidden sticky top-14 z-20 -mx-1 px-1 py-2 bg-surface/90 backdrop-blur overflow-x-auto flex gap-2 print:hidden">
+      <nav aria-label="Mục lục" className="xl:hidden sticky top-14 z-20 -mx-1 px-1 py-2 bg-surface/90 backdrop-blur overflow-x-auto flex gap-2 print:hidden">
         {sections.map((s) => (
           <button key={s.id} onClick={() => go(s.id)} className={cn("shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition", active === s.id ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-200")}>
             {s.title.split(":")[0]}
@@ -233,9 +233,9 @@ export default function HuongDanPage() {
         ))}
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
         {/* MỤC LỤC (máy tính) */}
-        <aside className="hidden lg:block sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto print:hidden">
+        <aside className="hidden xl:block sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto print:hidden">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 px-2">Mục lục</p>
           <nav className="flex flex-col gap-0.5 border-l border-gray-100">
             {sections.map((s) => {

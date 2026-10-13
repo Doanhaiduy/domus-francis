@@ -198,7 +198,7 @@ function ThongBaoContent() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Thông Báo</h1>
           <p className="text-sm text-gray-500 mt-1">Cập nhật mới nhất từ Ban Đại Diện và các ban sinh hoạt nhà</p>
@@ -253,9 +253,9 @@ function ThongBaoContent() {
       </div>
 
       {/* 2-COLUMN SPLIT VIEW (LEFT: LIST, RIGHT: ARTICLE PREVIEW) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: LIST (5 COLS) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-4 border border-purple-50 shadow-xs flex flex-col gap-2">
+        <div className="xl:col-span-5 bg-white rounded-3xl p-4 border border-purple-50 shadow-xs flex flex-col gap-2">
           <div className="px-2 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">
             Hộp tin lưu xá ({filteredAnnouncements.length})
           </div>
@@ -311,7 +311,7 @@ function ThongBaoContent() {
 
         {/* RIGHT COLUMN: DETAIL VIEW (7 COLS) */}
         {selectedAnn && (
-          <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-purple-50 shadow-xs flex flex-col gap-6">
+          <div className="xl:col-span-7 bg-white rounded-3xl p-6 sm:p-8 border border-purple-50 shadow-xs flex flex-col gap-6">
             <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-100">
               <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-lg">{selectedAnn.category}</span>
               <div className="flex items-center gap-3 flex-wrap justify-end">

@@ -372,9 +372,9 @@ export default function HouseRules() {
       )}
 
       {visible.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* MỤC LỤC + GIỜ GIẤC (cột trái, dính khi cuộn) */}
-          <aside className="lg:col-span-4 flex flex-col gap-5 lg:sticky lg:top-20">
+          <aside className="xl:col-span-4 flex flex-col gap-5 xl:sticky xl:top-20">
             <nav className="bg-white rounded-3xl border border-purple-50 shadow-xs p-4">
               <h2 className="px-2 pb-2 text-[11px] font-black uppercase tracking-wider text-gray-400">Mục lục</h2>
               <ol className="flex flex-col gap-0.5">
@@ -424,7 +424,7 @@ export default function HouseRules() {
           </aside>
 
           {/* CÁC MỤC */}
-          <div className="lg:col-span-8 flex flex-col gap-5">
+          <div className="xl:col-span-8 flex flex-col gap-5">
             {redCount > 0 && (
               <div role="note" className="flex gap-3.5 rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-5">
                 <span className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">

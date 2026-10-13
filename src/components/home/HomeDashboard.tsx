@@ -212,7 +212,7 @@ export default function HomeDashboard() {
       <LiturgyTodayCard />
 
       {/* 3 THẺ SỐ LIỆU */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
         {/* 1. Trực vệ sinh sân nhà tuần này */}
         <Link
           href="/hau-can?tab=truc-nhat"
@@ -257,15 +257,15 @@ export default function HomeDashboard() {
         >
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-100/60 rounded-full blur-2xl group-hover:bg-emerald-200/80 transition-all pointer-events-none" />
           <div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="w-10 h-10 rounded-2xl bg-secondary-fixed flex items-center justify-center text-secondary shadow-xs">
                 <Wallet className="w-5 h-5" aria-hidden />
               </div>
               {finLoading && <Skeleton className="w-28 h-5 rounded-md" />}
               {finance?.month && (
-                <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/50 px-2 py-0.5 rounded-md flex items-center gap-1 min-w-0">
+                <span className="text-[11px] text-secondary font-bold bg-secondary-fixed/50 px-2 py-0.5 rounded-md flex items-center gap-1 whitespace-nowrap">
                   <TrendingUp className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">
+                  <span>
                     {finance.month.label}: {finance.month.incomeVnd - finance.month.expenseVnd >= 0 ? "+" : "−"}
                     {formatVND(Math.abs(finance.month.incomeVnd - finance.month.expenseVnd))}
                   </span>
@@ -301,12 +301,12 @@ export default function HomeDashboard() {
         >
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-100/60 rounded-full blur-2xl group-hover:bg-purple-200/80 transition-all pointer-events-none" />
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="w-10 h-10 rounded-2xl bg-primary-fixed flex items-center justify-center text-primary shadow-xs">
                 <CalendarDays className="w-5 h-5" aria-hidden />
               </div>
               {nextEvent?.hasCheckIn && (
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">Có điểm danh</span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md whitespace-nowrap">Có điểm danh</span>
               )}
             </div>
             <div className="mt-4">
@@ -357,8 +357,8 @@ export default function HomeDashboard() {
         </button>
       )}
       {showCharts && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-7 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+          <div className="xl:col-span-7 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
             {finLoading ? (
               <div className="space-y-3">
                 <Skeleton className="w-64 h-5" />
@@ -383,7 +383,7 @@ export default function HomeDashboard() {
             </div>
           </div>
 
-          <div className="lg:col-span-5 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
+          <div className="xl:col-span-5 bg-white rounded-3xl p-5 md:p-6 border border-purple-50 shadow-xs flex flex-col justify-between">
             {finLoading ? (
               <div className="space-y-3">
                 <Skeleton className="w-48 h-5" />
@@ -413,8 +413,8 @@ export default function HomeDashboard() {
       )}
 
       {/* LỐI TẮT CÁC PHÂN HỆ + HOẠT ĐỘNG GẦN ĐÂY */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-7 flex flex-col gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7 flex flex-col gap-3">
           <div className="flex items-center justify-between px-1">
             <div>
               <h2 className="text-base font-bold text-gray-900">Các mục trong nhà</h2>
@@ -524,7 +524,7 @@ export default function HomeDashboard() {
         </div>
 
         {/* HOẠT ĐỘNG GẦN ĐÂY */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
+        <div className="xl:col-span-5 bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100">
             <div>
               <h2 className="text-base font-bold text-gray-900">Hoạt động gần đây</h2>

@@ -399,7 +399,7 @@ function ThuChiContent() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* HEADER BAR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Thu Chi &amp; Tài Chính</h1>
           <p className="text-sm text-gray-500 mt-1">Quản lý dòng tiền quỹ sinh hoạt chung Lưu Xá Phanxicô minh bạch &amp; chuẩn xác</p>
@@ -659,7 +659,7 @@ function ThuChiContent() {
           {periodMode === "month" && selectedMonth !== "all" && <AiFinanceInsight month={selectedMonth} />}
 
           {/* ROW 1: 4 STAT CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 font-medium">Tồn quỹ kỳ này ({periodLabel})</span>
@@ -735,8 +735,8 @@ function ThuChiContent() {
           </div>
 
           {/* VISUAL CHARTS ROW IN OVERVIEW */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-7 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+            <div className="xl:col-span-7 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs">
               <FinancialBarChart
                 data={barData}
                 height={220}
@@ -744,7 +744,7 @@ function ThuChiContent() {
                 subtitle="Thu quỹ thực nhận so với thực chi (số thuần, đã trừ bút toán đảo)"
               />
             </div>
-            <div className="lg:col-span-5 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
+            <div className="xl:col-span-5 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs flex flex-col justify-between">
               <AreaTrendChart data={trendData} height={190} title="Tăng Trưởng Số Dư Quỹ Lưu Xá" subtitle="Số dư cuối mỗi tháng theo sổ cái" />
               {o.funds && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -762,9 +762,9 @@ function ThuChiContent() {
           </div>
 
           {/* ROW 3: CONTRIBUTIONS & RECENT EXPENSES */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* LEFT: CÁC KHOẢN THU (7 COLS) */}
-            <div id="khoan-thu" className="lg:col-span-7 flex flex-col gap-6 scroll-mt-24">
+            <div id="khoan-thu" className="xl:col-span-7 flex flex-col gap-6 scroll-mt-24">
               <BankLinesCard />
               <CollectionsCard
                 plans={recentPlans}
@@ -801,7 +801,7 @@ function ThuChiContent() {
             </div>
 
             {/* RIGHT: TÀI KHOẢN NHẬN QUỸ (QR) + CHI TIÊU GẦN ĐÂY (5 COLS) */}
-            <div className="lg:col-span-5 flex flex-col gap-6">
+            <div className="xl:col-span-5 flex flex-col gap-6">
               <SplitAlertsCard enabled={canApprove} compact onOpenExpense={setDetailId} />
               <ReceivingAccountCard />
               <div className="bg-white rounded-2xl p-5 border border-purple-50 shadow-xs flex flex-col gap-4">
@@ -1140,8 +1140,8 @@ function ThuChiContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div className="xl:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
               <ExpenseDonutChart
                 data={dynamicExpenseDonut}
                 size={170}
@@ -1149,7 +1149,7 @@ function ThuChiContent() {
                 subtitle="Tỷ trọng các phiếu đã chi giữa các danh mục sinh hoạt"
               />
             </div>
-            <div className="lg:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
+            <div className="xl:col-span-6 border border-purple-100 rounded-3xl p-5 bg-white shadow-2xs">
               <FinancialBarChart
                 data={barData}
                 height={210}

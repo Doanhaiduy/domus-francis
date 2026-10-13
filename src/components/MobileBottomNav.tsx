@@ -56,7 +56,7 @@ export const MobileBottomNav: React.FC = () => {
   return (
     <nav
       aria-label="Điều hướng chính"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-purple-100 grid grid-cols-5 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] px-1 shadow-[0_-4px_20px_rgba(95,58,221,0.06)]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-purple-100 grid grid-cols-5 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] px-1 shadow-[0_-4px_20px_rgba(95,58,221,0.06)]"
     >
       {tabs.map((tab) => {
         const active = activeOf(tab);

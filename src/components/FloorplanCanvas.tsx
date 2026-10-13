@@ -338,7 +338,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
       {/* ========================================================================= */}
       {/* 2. MAIN WORKSPACE AREA: BLUEPRINT CANVAS + MEMBER DOCK                     */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-h-[560px]">
+      <div className="flex-1 flex flex-col xl:flex-row overflow-hidden relative min-h-[560px]">
         {/* BLUEPRINT CANVAS */}
         <div className="flex-1 bg-stone-50/70 overflow-auto p-4 sm:p-6 flex flex-col items-center justify-center relative">
           {/* Subtle architectural grid pattern */}
@@ -1719,7 +1719,7 @@ export const FloorplanCanvas: React.FC<FloorplanCanvasProps> = ({
         {/* 3. COLLAPSIBLE MEMBER DOCK & DRAG PALETTE                                 */}
         {/* ========================================================================= */}
         {isMemberDockOpen && (
-          <aside className="w-full lg:w-80 bg-stone-50/90 border-t lg:border-t-0 lg:border-l border-purple-100 flex flex-col h-[320px] lg:h-auto overflow-hidden">
+          <aside className="w-full xl:w-80 bg-stone-50/90 border-t xl:border-t-0 xl:border-l border-purple-100 flex flex-col h-[320px] xl:h-auto overflow-hidden">
             <div className="p-3.5 bg-white border-b border-stone-200">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">

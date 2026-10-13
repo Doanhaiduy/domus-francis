@@ -53,8 +53,9 @@ export const FinancialBarChart: React.FC<BarChartProps> = ({
         </div>
       )}
 
-      {/* SVG Bar Canvas */}
-      <div className="relative w-full" style={{ height: `${height}px` }}>
+      {/* SVG Bar Canvas — nhiều cột (12 tháng) trên điện thoại: khung cuộn ngang thay vì làm tràn cả trang */}
+      <div className="overflow-x-auto -mx-1 px-1 pt-14 -mt-14 custom-scroll">
+      <div className="relative w-full" style={{ height: `${height}px`, minWidth: data.length > 6 ? `${data.length * 40 + 80}px` : undefined }}>
         {/* Background Grid Lines */}
         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
           {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
@@ -79,7 +80,7 @@ export const FinancialBarChart: React.FC<BarChartProps> = ({
                 key={d.label}
                 onMouseEnter={() => setHoveredIdx(idx)}
                 onMouseLeave={() => setHoveredIdx(null)}
-                className="flex-1 flex flex-col items-center justify-end h-full relative cursor-pointer group"
+                className="flex-1 min-w-0 flex flex-col items-center justify-end h-full relative cursor-pointer group"
               >
                 {/* Hover Tooltip */}
                 {isHovered && (
@@ -126,6 +127,7 @@ export const FinancialBarChart: React.FC<BarChartProps> = ({
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );

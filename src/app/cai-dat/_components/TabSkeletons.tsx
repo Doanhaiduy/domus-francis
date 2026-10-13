@@ -59,7 +59,7 @@ export function ProfileSkeleton() {
           <Skeleton className="w-32 h-9 rounded-xl" />
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader />
@@ -133,8 +133,8 @@ export function CardGridSkeleton({ cards = 6 }: { cards?: number }) {
 /** Phân quyền: cột vai trò + lưới quyền. */
 export function RolesSkeleton() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5" aria-busy="true" aria-label="Đang tải phân quyền">
-      <div className="lg:col-span-4 space-y-2.5">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5" aria-busy="true" aria-label="Đang tải phân quyền">
+      <div className="xl:col-span-4 space-y-2.5">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-white rounded-2xl p-3.5 border border-purple-50 flex items-center gap-3">
             <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
@@ -145,7 +145,7 @@ export function RolesSkeleton() {
           </div>
         ))}
       </div>
-      <div className="lg:col-span-8 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs space-y-3">
+      <div className="xl:col-span-8 bg-white rounded-3xl p-5 border border-purple-50 shadow-xs space-y-3">
         <Skeleton className="w-48 h-5" />
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex items-center justify-between gap-3 py-1.5">

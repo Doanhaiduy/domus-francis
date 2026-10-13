@@ -801,7 +801,7 @@ export default function SoDoNhaPage() {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {floorRooms.map((room) => {
                     const occupants = roomOccupantsMap[room.id] || [];
                     const typeConfig = ROOM_TYPE_LABELS[room.type] || ROOM_TYPE_LABELS.other;

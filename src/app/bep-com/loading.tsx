@@ -12,9 +12,9 @@ export default function Loading() {
       </div>
 
       {/* Hero & Meal Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        <Skeleton className="lg:col-span-5 h-64 rounded-3xl" />
-        <Skeleton className="lg:col-span-7 h-64 rounded-3xl" />
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        <Skeleton className="xl:col-span-5 h-64 rounded-3xl" />
+        <Skeleton className="xl:col-span-7 h-64 rounded-3xl" />
       </div>
 
       {/* Attendance Check-in Grid */}

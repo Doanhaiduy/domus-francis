@@ -24,14 +24,14 @@ export default function Loading() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-7 flex flex-col gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7 flex flex-col gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <ThreadCardSkeleton key={i} />
           ))}
         </div>
 
-        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs space-y-4">
+        <div className="xl:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs space-y-4">
           <div className="flex justify-between pb-3 border-b border-gray-100">
             <Skeleton className="w-20 h-5" />
             <Skeleton className="w-16 h-4" />

@@ -202,7 +202,7 @@ export default function BepComPage() {
               ? "Chưa đăng ký — bấm để đăng ký ăn"
               : `${on ? "Đang đăng ký ăn — bấm để báo nghỉ" : "Đang báo nghỉ — bấm để đăng ký ăn"}${st.registeredBy ? ` (${st.registeredBy} ghi hộ)` : ""}`
         }
-        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+        className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 flex-1 sm:flex-none ${
           on
             ? `${color} text-white shadow-2xs`
             : st === null
@@ -307,7 +307,7 @@ export default function BepComPage() {
       )}
 
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1">Sinh Hoạt Cộng Đoàn › Bếp Ăn &amp; Phục Vụ</div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Bếp &amp; Cơm</h1>
@@ -430,9 +430,9 @@ export default function BepComPage() {
       {/* ========================================================================= */}
       {activeTab === "diem-danh" && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
             {/* HERO DATE BOX */}
-            <div className="lg:col-span-5 rounded-3xl p-6 bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white shadow-lg shadow-purple-300/40 flex flex-col justify-between relative overflow-hidden">
+            <div className="xl:col-span-5 rounded-3xl p-6 bg-gradient-to-tr from-[#5f3add] to-[#7857f8] text-white shadow-lg shadow-purple-300/40 flex flex-col justify-between relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md">{week.academicYear ?? "Năm học hiện tại"}</span>
                 <UtensilsCrossed className="w-5 h-5 text-[#e9d5ff]" />
@@ -459,7 +459,7 @@ export default function BepComPage() {
             </div>
 
             {/* MEAL SERVICE STATUS */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col justify-between gap-5">
+            <div className="xl:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col justify-between gap-5">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-bold text-gray-900">Kế hoạch phục vụ {selLabel}</h2>
@@ -543,14 +543,14 @@ export default function BepComPage() {
             </div>
 
             {week.roster.length === 0 && <p className="text-xs text-gray-400">Tài khoản của bạn chưa gắn hồ sơ thành viên nên không có suất ăn để đăng ký.</p>}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
               {week.roster.map((m) => {
                 const phone = phoneOf.get(m.memberId);
                 const note = rowNote(m);
                 return (
                   <div
                     key={m.memberId}
-                    className={`p-3.5 rounded-2xl bg-surface-container-low/60 hover:bg-surface-container-low transition border flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl bg-surface-container-low/60 hover:bg-surface-container-low transition border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       m.memberId === week.meId ? "border-primary/40" : "border-purple-50"
                     }`}
                   >
@@ -576,7 +576,7 @@ export default function BepComPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 sm:shrink-0">
                       {regButton(m, "lunch")}
                       {regButton(m, "dinner")}
                     </div>
@@ -587,8 +587,8 @@ export default function BepComPage() {
           </div>
 
           {/* MENU OF SELECTED DAY & WEEKLY DENSITY */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+            <div className="xl:col-span-7 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100 gap-2">
                 <div>
                   <h2 className="text-base font-bold text-gray-900">Thực đơn {selLabel}</h2>
@@ -632,7 +632,7 @@ export default function BepComPage() {
               </div>
             </div>
 
-            <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
+            <div className="xl:col-span-5 bg-white rounded-3xl p-6 border border-purple-50 shadow-xs flex flex-col gap-4">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                 <div>
                   <h2 className="text-base font-bold text-gray-900">Mật độ đăng ký ăn trong tuần</h2>
@@ -704,7 +704,7 @@ export default function BepComPage() {
 
           <SurveyPanel canManage={canManage} canRegister={canRegister} createOpen={surveyCreate} setCreateOpen={setSurveyCreate} weekStart={week.weekStart} />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {week.days.map((d) => {
               const team = dayCookTeam(d);
               const rated = [d.lunch.rating, d.dinner.rating].filter(Boolean) as { avg: number; count: number }[];

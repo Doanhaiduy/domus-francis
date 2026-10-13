@@ -46,7 +46,7 @@ export default function HauCanPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-purple-50 shadow-xs">
+      <div className="page-head bg-white p-6 rounded-3xl border border-purple-50 shadow-xs">
         <div>
           <div className="text-xs text-primary font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-primary" />

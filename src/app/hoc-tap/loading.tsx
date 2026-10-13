@@ -4,7 +4,7 @@ export default function HocTapLoading() {
   return (
     <div className="flex flex-col w-full gap-6 animate-pulse pb-16">
       {/* Header skeleton */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div className="space-y-2">
           <div className="w-48 h-4 bg-purple-100 rounded-lg" />
           <div className="w-72 h-8 bg-gray-200 rounded-2xl" />

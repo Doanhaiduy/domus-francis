@@ -114,7 +114,7 @@ export default function DonationsPanel() {
       </div>
 
       {s && canRecord && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           <Stat icon={<Check className="w-4 h-4" />} tone="text-emerald-700 bg-emerald-50" label="Đã nhận" value={formatVND(s.confirmedVnd)} note={`${s.confirmedCount} khoản`} />
           <Stat icon={<Users className="w-4 h-4" />} tone="text-purple-700 bg-purple-50" label="Người ủng hộ" value={String(s.donorCount)} note={`${s.memberDonorCount} trong nhà · ${s.donorCount - s.memberDonorCount} người ngoài`} />
           <Stat icon={<Clock className="w-4 h-4" />} tone="text-amber-700 bg-amber-50" label="Chờ xác nhận" value={String(s.pendingCount)} note={formatVND(s.pendingVnd)} />

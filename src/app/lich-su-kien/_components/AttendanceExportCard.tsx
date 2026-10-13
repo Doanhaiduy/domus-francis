@@ -56,8 +56,8 @@ export default function AttendanceExportCard({ year, month, readAll }: Props) {
   };
 
   return (
-    <div className="bg-white rounded-3xl p-5 border border-emerald-100 shadow-xs flex flex-col lg:flex-row lg:items-end gap-4">
-      <div className="flex items-start gap-3 lg:flex-1 min-w-0">
+    <div className="bg-white rounded-3xl p-5 border border-emerald-100 shadow-xs flex flex-col xl:flex-row xl:items-end gap-4">
+      <div className="flex items-start gap-3 xl:flex-1 min-w-0">
         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
           <FileSpreadsheet className="w-5 h-5" />
         </div>
@@ -69,7 +69,7 @@ export default function AttendanceExportCard({ year, month, readAll }: Props) {
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 lg:w-[22rem]">
+      <div className="grid grid-cols-2 gap-2 xl:w-[22rem]">
         <CustomDatePicker label="Từ ngày" value={from} onChange={setFrom} />
         <CustomDatePicker label="Đến ngày" value={to} onChange={setTo} />
       </div>

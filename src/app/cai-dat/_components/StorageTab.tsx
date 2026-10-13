@@ -275,7 +275,7 @@ export default function StorageTab() {
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-3">
         <Gauge
           icon={<Database className="w-5 h-5" />}
           title="CSDL"

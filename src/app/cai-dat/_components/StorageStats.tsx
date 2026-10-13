@@ -221,7 +221,7 @@ export function UploadsSection({ data, days, onDays }: { data: StorageOverviewDt
         <DailyChart daily={daily} />
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid xl:grid-cols-2 gap-4">
         <Card title="Theo tháng (12 tháng)" icon={<FileText className="w-4 h-4 text-primary" />}>
           <ul className="space-y-2">
             {[...monthly].reverse().map((m) => {
@@ -269,7 +269,7 @@ export function UploadsSection({ data, days, onDays }: { data: StorageOverviewDt
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid xl:grid-cols-2 gap-4">
         <Card title="Người tải lên nhiều nhất (30 ngày)" icon={<Users className="w-4 h-4 text-primary" />}>
           {topUploaders.length ? (
             <ul className="space-y-2.5">

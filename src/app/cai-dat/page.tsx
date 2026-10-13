@@ -111,7 +111,7 @@ export default function CaiDatPage() {
   return (
     <div className="flex flex-col w-full gap-6 pb-16">
       {/* 1. HEADER & QUICK ACTIONS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-purple-100 text-primary flex items-center justify-center shadow-xs">
@@ -305,7 +305,7 @@ export default function CaiDatPage() {
 
       {/* Điện thoại: form dài, nút Lưu ở đầu trang ⇒ thanh lưu cố định phía trên thanh điều hướng dưới khi có thay đổi */}
       {!readOnly && dirtyCount > 0 && (
-        <div className="md:hidden fixed left-3 right-3 bottom-[76px] z-40 flex items-center gap-2 p-2 pl-3.5 rounded-2xl bg-gray-900/95 backdrop-blur text-white shadow-xl animate-in slide-in-from-bottom-2 duration-150">
+        <div className="lg:hidden fixed left-3 right-3 bottom-[76px] z-40 flex items-center gap-2 p-2 pl-3.5 rounded-2xl bg-gray-900/95 backdrop-blur text-white shadow-xl animate-in slide-in-from-bottom-2 duration-150">
           <span className="text-xs font-semibold flex-1 min-w-0 truncate">{dirtyCount} thay đổi chưa lưu</span>
           <button onClick={() => draft.discard()} disabled={draft.saving} className="px-3 py-2 rounded-xl text-xs font-bold text-gray-300 active:bg-white/10">
             Hủy

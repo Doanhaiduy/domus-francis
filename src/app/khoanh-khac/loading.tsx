@@ -4,7 +4,7 @@ export default function KhoanhKhacLoading() {
   return (
     <div className="flex flex-col w-full gap-6 animate-pulse">
       {/* HEADER SKELETON */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="page-head">
         <div className="space-y-2">
           <div className="h-8 w-64 bg-gray-200 rounded-xl" />
           <div className="h-4 w-96 bg-gray-200 rounded-xl" />
@@ -29,7 +29,7 @@ export default function KhoanhKhacLoading() {
       <div className="h-16 bg-white rounded-3xl p-4 border border-purple-50 shadow-xs" />
 
       {/* ALBUM CARDS GRID SKELETON */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="h-80 bg-white rounded-3xl overflow-hidden border border-purple-50 shadow-xs flex flex-col">
             <div className="h-48 bg-gray-200" />

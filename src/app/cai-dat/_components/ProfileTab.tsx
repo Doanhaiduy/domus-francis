@@ -360,7 +360,7 @@ export default function ProfileTab() {
       <AppearanceCard />
 
       {/* 2. MAIN FORMS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* CARD 1: THÔNG TIN CƠ BẢN & LIÊN HỆ */}
         <div className="bg-white rounded-3xl p-6 border border-purple-50 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-2 border-b border-gray-100">
