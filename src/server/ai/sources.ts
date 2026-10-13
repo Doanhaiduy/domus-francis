@@ -118,11 +118,11 @@ export async function vaticanNews(query: string, limit = 3): Promise<SourceItem[
       const t = tokenSet(it.title);
       const s = tokenSet(it.summary);
       const score = kw.reduce((a, w) => a + (t.has(w) ? 2 : s.has(w) ? 1 : 0), 0);
-      const hitSpecial = special.some((w) => t.has(w) || s.has(w));
-      return { it, score, hits: kw.filter((w) => t.has(w) || s.has(w)).length, hitSpecial };
+      const specialHits = special.filter((w) => t.has(w) || s.has(w)).length;
+      return { it, score, hits: kw.filter((w) => t.has(w) || s.has(w)).length, specialHits };
     })
-    // đủ số từ khóa VÀ (nếu đề tài có từ đặc trưng) phải trùng ít nhất một từ đặc trưng
-    .filter((x) => x.hits >= need && (!special.length || x.hitSpecial))
+    // đủ số từ khóa VÀ (nếu đề tài có từ đặc trưng) phải trùng từ đặc trưng — đề tài có ≥ 2 từ đặc trưng thì trùng ≥ 2 (một từ riêng lẻ như "Tòa" hay "Hồng" dễ khớp nhầm tin khác)
+    .filter((x) => x.hits >= need && (!special.length || x.specialHits >= Math.min(2, special.length)))
     .sort((a, b) => b.score - a.score || (b.it.date ?? "").localeCompare(a.it.date ?? ""))
     .slice(0, limit)
     .map((x) => x.it);
@@ -137,41 +137,62 @@ interface WikiSummary {
   description?: string;
 }
 
-/** Tóm tắt Wikipedia tiếng Việt cho `query` (tối đa `limit` trang đầu của tìm kiếm). Lỗi mạng ⇒ mảng rỗng. */
+/**
+ * Dấu hiệu một trang Wikipedia nói về đạo Công giáo (đã bỏ dấu, tìm trong tiêu đề + mô tả + tóm tắt). Nhà là cộng đoàn Công giáo nên chỉ
+ * lấy trang có một trong các dấu hiệu này — tìm theo cả câu chủ đề hay ra trang đạo khác dùng chung chữ "Hội Thánh", "Tòa Thánh" (vd. Cao Đài).
+ */
+const CATHOLIC_MARKERS = ["cong giao", "kito", "ki-to", "giao hoang", "vatican", "giesu", "gie-su", "duc me", "giao phan", "giao xu", "linh muc", "giam muc", "hong y", "thanh le", "tong do", "man coi", "giao hoi cong giao"];
+/** Tôn giáo/đạo khác: nếu phần ĐỊNH NGHĨA của trang (tiêu đề + mô tả + ~200 ký tự đầu tóm tắt) nêu thì loại, dù có chữ trùng với đề tài. */
+const OTHER_FAITHS = ["cao dai", "phat giao", "hoa hao", "hoi giao", "islam", "tin lanh", "ba ha", "bao son", "tu an hieu nghia", "dao mau", "do thai", "an do giao", "hindu", "khong giao", "dao giao", "mormon", "chung nhan jehovah", "nhan chung giehova"];
+const hasAny = (haystack: string, needles: string[]) => needles.some((n) => haystack.includes(n));
+
+/** Tóm tắt Wikipedia tiếng Việt cho `query` (tối đa `limit` trang). Chỉ giữ trang đúng đề tài VÀ thuộc Công giáo. Lỗi mạng ⇒ mảng rỗng. */
 export async function wikipediaVi(query: string, limit = 2): Promise<SourceItem[]> {
   const q = query.replace(/\s+/g, " ").trim().slice(0, 80);
   if (q.length < 3) return [];
+  const searchKeys = async (text: string): Promise<string[]> => {
+    const r = JSON.parse(await getText(`${wikiBase()}/w/rest.php/v1/search/page?q=${encodeURIComponent(text)}&limit=3`, "application/json")) as WikiSearch;
+    return (r.pages ?? []).map((p) => p.key).filter((k): k is string => !!k && /^[^/?#]{1,200}$/.test(k));
+  };
   try {
-    let search = JSON.parse(await getText(`${wikiBase()}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=3`, "application/json")) as WikiSearch;
-    if (!search.pages?.length && q.split(" ").length > 3) {
-      const short = q.split(" ").slice(0, 3).join(" ");
-      search = JSON.parse(await getText(`${wikiBase()}/w/rest.php/v1/search/page?q=${encodeURIComponent(short)}&limit=3`, "application/json")) as WikiSearch;
-    }
-    const keys = (search.pages ?? []).map((p) => p.key).filter((k): k is string => !!k && /^[^/?#]{1,200}$/.test(k)).slice(0, limit);
-    const out: SourceItem[] = [];
+    // Tìm 2 lượt song song: đúng câu chủ đề, và kèm "Công giáo" để công cụ tìm kiếm ưu tiên trang của đạo mình (một lượt lỗi không làm hỏng lượt kia)
+    const withFaith = fold(q).includes("cong giao") ? q : `${q} Công giáo`.slice(0, 80);
+    const searches = await Promise.allSettled(withFaith === q ? [searchKeys(q)] : [searchKeys(q), searchKeys(withFaith)]);
+    let keys = [...new Set(searches.flatMap((s) => (s.status === "fulfilled" ? s.value : [])))].slice(0, 5);
+    if (!keys.length && q.split(" ").length > 3) keys = (await searchKeys(q.split(" ").slice(0, 3).join(" "))).slice(0, 3);
+    const out: (SourceItem & { description: string })[] = [];
     await Promise.all(
       keys.map(async (key) => {
         try {
           const j = JSON.parse(await getText(`${wikiBase()}/api/rest_v1/page/summary/${encodeURIComponent(key)}`, "application/json")) as WikiSummary;
           const extract = decode(j.extract ?? "").slice(0, 400);
           if (!extract) return;
-          out.push({ kind: "wikipedia", title: decode(j.title ?? key.replace(/_/g, " ")).slice(0, 200), url: `https://vi.wikipedia.org/wiki/${encodeURIComponent(key)}`, summary: extract });
+          out.push({ kind: "wikipedia", title: decode(j.title ?? key.replace(/_/g, " ")).slice(0, 200), url: `https://vi.wikipedia.org/wiki/${encodeURIComponent(key)}`, summary: extract, description: decode(j.description ?? "") });
         } catch {
           /* bỏ qua trang lỗi */
         }
       }),
     );
-    // Công cụ tìm kiếm của Wikipedia hay trả về trang lạc đề (vd. tìm "cầu nguyện cho các đẳng" ra "Hoa Kỳ") ⇒ chỉ giữ trang có từ khóa của đề tài ở tiêu đề/tóm tắt
+    // Công cụ tìm kiếm của Wikipedia hay trả về trang lạc đề (vd. tìm "cầu nguyện cho các đẳng" ra "Hoa Kỳ", tìm "Tòa Thánh" ra "Cao Đài")
+    // ⇒ giữ trang (1) có từ khóa ĐẶC TRƯNG của đề tài, (2) thuộc Công giáo, (3) không phải trang của đạo khác. Trang trùng từ đặc trưng ở tiêu đề từ 2 lần trở lên
+    // (tên riêng đúng đề tài) được miễn điều kiện (2) nhưng vẫn phải qua (3).
     const kw = keywordsOf(query);
     const special = distinctive(kw);
     return keys
       .map((k) => out.find((o) => o.url.endsWith(encodeURIComponent(k))))
-      .filter((x): x is SourceItem => !!x)
+      .filter((x): x is SourceItem & { description: string } => !!x)
       .filter((x) => {
-        if (!kw.length) return true;
+        const definition = fold(`${x.title} ${x.description} ${x.summary.slice(0, 200)}`);
+        if (hasAny(definition, OTHER_FAITHS)) return false;
+        if (!kw.length) return hasAny(fold(`${x.title} ${x.description} ${x.summary}`), CATHOLIC_MARKERS);
         const tokens = tokenSet(`${x.title} ${x.summary}`);
-        return (special.length ? special : kw).some((w) => tokens.has(w));
-      });
+        const need = special.length ? special : kw;
+        if (!need.some((w) => tokens.has(w))) return false;
+        const titleHits = need.filter((w) => tokenSet(x.title).has(w)).length;
+        return titleHits >= 2 || hasAny(fold(`${x.title} ${x.description} ${x.summary}`), CATHOLIC_MARKERS);
+      })
+      .slice(0, limit)
+      .map(({ description: _d, ...item }) => item);
   } catch {
     return [];
   }

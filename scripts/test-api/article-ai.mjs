@@ -131,12 +131,17 @@ export async function startMock() {
       if (url.startsWith("/vaticannews/")) return send(200, RSS, "application/xml");
       // Tìm kiếm Wikipedia hay trả trang lạc đề ("Hoa Kỳ") đứng đầu — hệ thống phải loại trang không có từ khóa của đề tài
       if (url.startsWith("/wikipedia/w/rest.php/v1/search/page")) {
+        state.calls.push({ kind: "wikisearch", q: new URL(url, "http://x").searchParams.get("q") ?? "" });
         if (decodeURIComponent(url).includes("Đẳng")) return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Lễ_Các_Đẳng", title: "Lễ Các Đẳng" }] });
+        // "Tòa Thánh" / "Hội Thánh" cũng là chữ của đạo khác: Wikipedia thật trả trang Cao Đài đứng đầu
+        if (decodeURIComponent(url).includes("Tòa Thánh")) return send(200, { pages: [{ key: "Hội_Thánh_Cao_Đài_Tòa_Thánh_Tây_Ninh", title: "Hội Thánh Cao Đài Tòa Thánh Tây Ninh" }, { key: "Tòa_Thánh", title: "Tòa Thánh" }] });
         return send(200, { pages: [{ key: "Hoa_Kỳ", title: "Hoa Kỳ" }, { key: "Kinh_Mân_Côi", title: "Kinh Mân Côi" }, { key: "Tháng_Mân_Côi", title: "Tháng Mân Côi" }] });
       }
       if (url.startsWith("/wikipedia/api/rest_v1/page/summary/")) {
         const key = decodeURIComponent(url.split("/summary/")[1].split("?")[0]);
         if (key === "Hoa_Kỳ") return send(200, { title: "Hoa Kỳ", extract: "Hợp chúng quốc Hoa Kỳ là một quốc gia ở châu Mỹ, nằm tại Tây Bán cầu, gồm 50 tiểu bang và một đặc khu liên bang." });
+        if (key === "Hội_Thánh_Cao_Đài_Tòa_Thánh_Tây_Ninh") return send(200, { title: "Hội Thánh Cao Đài Tòa Thánh Tây Ninh", description: "Tổ chức tôn giáo", extract: "Hội Thánh Đại Đạo Tam Kỳ Phổ Độ Tòa Thánh Tây Ninh, còn được gọi tắt là Hội Thánh Cao Đài Tòa Thánh Tây Ninh, là tổ chức Hội Thánh nguyên thủy của đạo Cao Đài, được lập thành sau Đại lễ Khai Đạo Rằm tháng 10 năm 1926." });
+        if (key === "Tòa_Thánh") return send(200, { title: "Tòa Thánh", extract: "Tòa Thánh là cơ quan trung ương điều hành Giáo hội Công giáo, đặt tại Vatican, do Giáo hoàng đứng đầu." });
         if (key === "Lễ_Các_Đẳng") return send(200, { title: "Lễ Các Đẳng", extract: "Lễ Các Đẳng là ngày Giáo hội Công giáo cầu nguyện cho các linh hồn đã qua đời." });
         return send(200, { title: key.replace(/_/g, " "), extract: `${key.replace(/_/g, " ")} là một hình thức cầu nguyện của người Công giáo, lần chuỗi hạt Mân Côi để suy niệm các mầu nhiệm.` });
       }
@@ -278,7 +283,8 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
     await test("Chỉnh văn: > 8.000 ký tự ⇒ 400; đoạn ~6.000 ký tự được cấp đủ token đầu ra; thêm ngày/số mới ⇒ bị đánh dấu", async () => {
       reset();
       eq((await assist(head, { action: "improve", text: "a".repeat(8001), mode: "polish" })).status, 400);
-      const text = ("Anh em trong nhà cùng nhau dọn dẹp sân và chuẩn bị bữa cơm chung. ".repeat(90)).slice(0, 6000) + suffix;
+      // hậu tố ngẫu nhiên không được chứa chữ số (có thể ra "50"/"22" làm con số do AI thêm trông như đã có trong dữ kiện ⇒ test chập chờn)
+      const text = ("Anh em trong nhà cùng nhau dọn dẹp sân và chuẩn bị bữa cơm chung. ".repeat(90)).slice(0, 6000) + suffix.replace(/\d/g, "x");
       const r = await assist(head, { action: "improve", text, mode: "longer" });
       eq(r.status, 200, JSON.stringify(r.json));
       const call = lastText("groq");
@@ -369,6 +375,18 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const wiki = o.sources.find((s) => s.kind === "wikipedia");
       ok(wiki && typeof wiki.noteIndex === "number" && /Lễ Các Đẳng/.test(o.notes[wiki.noteIndex]), "nguồn Wikipedia phải gắn đúng ý của nó: " + JSON.stringify(o.sources));
       ok(o.sources.filter((s) => s.kind === "web").every((s) => s.noteIndex === undefined), "nguồn web của Google không gắn với ý cụ thể");
+    });
+
+    await test("Tra cứu chỉ lấy Wikipedia thuộc Công giáo: tìm 'Tòa Thánh' ra cả trang Cao Đài (đạo khác) ⇒ bị loại, trang Tòa Thánh (Công giáo) được giữ", async () => {
+      reset();
+      const r = await ai(head, "content.article_research", { topic: "Tòa Thánh và Hội Thánh ở Việt Nam", category: "chia-se" }, true);
+      eq(r.status, 200, JSON.stringify(r.json));
+      const o = r.json.output;
+      ok(!o.notes.some((n) => /Cao Đài/.test(n)) && !o.sources.some((s) => /Cao_%C4%90%C3%A0i|Cao_Đài/.test(s.url)), "trang đạo Cao Đài không được lọt vào tư liệu: " + JSON.stringify(o.notes));
+      ok(o.notes.some((n) => n.startsWith("Wikipedia") && /Tòa Thánh là cơ quan trung ương/.test(n)), "trang Tòa Thánh của Công giáo phải được giữ: " + JSON.stringify(o.notes));
+      // mỗi lượt tìm kiếm Wikipedia gửi 2 truy vấn: đúng chủ đề + kèm "Công giáo"
+      const searches = mock.calls.filter((c) => c.kind === "wikisearch");
+      ok(searches.length >= 2 && searches.some((c) => /Công giáo/.test(c.q)), "phải có lượt tìm kèm 'Công giáo': " + JSON.stringify(searches));
     });
 
     await test("Viết nháp nhận được toàn bộ kết quả tra cứu (kể cả 14–20 ghi chú) — không còn lỗi 'Dữ liệu gửi cho AI không hợp lệ'", async () => {
