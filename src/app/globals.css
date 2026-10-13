@@ -272,3 +272,10 @@ button, a, [role="button"], summary, label, select { touch-action: manipulation;
 :where(button.inline-flex, a.inline-flex) {
   white-space: nowrap; /* :where() = độ ưu tiên 0 — nút có nhãn dài thêm lớp whitespace-normal để được xuống dòng */
 }
+
+/* Lưới chỉ khai báo cột ở màn hình lớn (vd. "grid sm:grid-cols-2") thì ở màn hình hẹp chỉ có MỘT cột ngầm định rộng theo nội dung:
+   tên tệp / tên người dài đẩy cả thẻ ra ngoài mép phải. Gán sẵn một cột co được (minmax(0, 1fr)) cho các lưới thiếu cột nền.
+   :where() = độ ưu tiên 0 nên lớp grid-cols-* và sm:/xl:grid-cols-* vẫn ghi đè bình thường. */
+:where(.grid[class*=":grid-cols-"]:not([class^="grid-cols-"]):not([class*=" grid-cols-"])) {
+  grid-template-columns: minmax(0, 1fr);
+}

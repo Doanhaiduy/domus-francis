@@ -41,7 +41,7 @@ const monthLabel = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 
 export function Card({ title, icon, right, children, className }: { title: string; icon?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs space-y-4", className)}>
+    <section className={cn("bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-xs space-y-4 min-w-0", className)}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-sm font-extrabold text-gray-900 inline-flex items-center gap-2">
           {icon}
@@ -86,7 +86,7 @@ export function TrendCard({ history, limits }: { history: SnapshotPoint[]; limit
   const span = history.length ? `${dm(history[0].day)} → ${dm(history[history.length - 1].day)}` : "";
   return (
     <Card title="Xu hướng theo ngày" icon={<HardDrive className="w-4 h-4 text-primary" />} right={span ? <span className="text-[11px] text-gray-400">{span} · {history.length} điểm</span> : null}>
-      <div className="grid sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <p className="text-xs font-bold text-gray-700 mb-1">CSDL <span className="font-medium text-gray-400">(đường đỏ nét đứt = hạn mức {formatBytes(limits.dbLimitBytes, 0)})</span></p>
           <Sparkline points={db} limit={limits.dbLimitBytes} label="Xu hướng dung lượng CSDL" />
@@ -151,7 +151,7 @@ export function UploadsSection({ data, days, onDays }: { data: StorageOverviewDt
   return (
     <>
       <Card title="Tệp đã tải lên" icon={<ImageIcon className="w-4 h-4 text-primary" />} right={<span className="text-xs text-gray-500"><b className="text-gray-900">{n(files.totals.count)}</b> tệp · <b className="text-gray-900">{formatBytes(files.totals.bytes)}</b></span>}>
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {kinds.map((k) => {
             const M = KIND_META[k.kind];
             return (
@@ -221,7 +221,7 @@ export function UploadsSection({ data, days, onDays }: { data: StorageOverviewDt
         <DailyChart daily={daily} />
       </Card>
 
-      <div className="grid xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card title="Theo tháng (12 tháng)" icon={<FileText className="w-4 h-4 text-primary" />}>
           <ul className="space-y-2">
             {[...monthly].reverse().map((m) => {
@@ -269,7 +269,7 @@ export function UploadsSection({ data, days, onDays }: { data: StorageOverviewDt
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card title="Người tải lên nhiều nhất (30 ngày)" icon={<Users className="w-4 h-4 text-primary" />}>
           {topUploaders.length ? (
             <ul className="space-y-2.5">

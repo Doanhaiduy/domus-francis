@@ -134,7 +134,7 @@ function LimitsCard() {
       <p className="text-xs text-gray-500 leading-relaxed">
         Mặc định theo gói miễn phí của Supabase (CSDL 500 MB, Storage 1 GB). Khi nâng gói, đổi hạn mức ở đây để % đã dùng luôn đúng. Hạn mức Cloudinary lấy thẳng từ Cloudinary.
       </p>
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {LIMIT_FIELDS.map((f) => {
           const m = byKey.get(f.key);
           return (
@@ -275,7 +275,7 @@ export default function StorageTab() {
         </p>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Gauge
           icon={<Database className="w-5 h-5" />}
           title="CSDL"
