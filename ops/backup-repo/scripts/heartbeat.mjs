@@ -135,8 +135,9 @@ async function main() {
       continue;
     }
     const ms = timings?.byName.get(displayName.get(id) ?? "");
+    // Bước `uses:` không đặt id (actions/checkout) được GitHub gán mã hex ngẫu nhiên 32 ký tự — đừng hiện mã đó làm tên bước
     steps.push({
-      name: (LABEL[id] ?? id).slice(0, 80),
+      name: (LABEL[id] ?? (/^[0-9a-f]{32}$/.test(id) ? "Tải mã nguồn (checkout)" : id)).slice(0, 80),
       ok: outcome === "success",
       ...(ms ? { ms: Math.round(ms) } : {}),
       ...(outcome !== "success" ? { error: `kết quả: ${outcome}` } : {}),
