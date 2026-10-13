@@ -79,15 +79,21 @@ interface JobRunRow {
   request_id: string | null;
 }
 
-function normSteps(raw: unknown): JobStepDto[] {
+/**
+ * Lượt sao lưu do repo sao lưu báo về SAU khi chạy xong: nơi gửi không phải lúc nào cũng đo được thời gian, và các lượt cũ lưu `ms: 0`
+ * thay cho "không biết" — với loại này 0 nghĩa là chưa đo (một bước sao lưu không thể mất 0 ms) ⇒ hiện "—" thay vì "0 ms".
+ */
+const isReportedRun = (kind: string) => kind === "backup" || kind === "backup:storage";
+
+function normSteps(raw: unknown, zeroMeansUnknown = false): JobStepDto[] {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 60).map((s) => {
     const o = (s && typeof s === "object" ? s : {}) as Record<string, unknown>;
-    const ms = Number(o.ms);
+    const ms = o.ms === null || o.ms === undefined ? NaN : Number(o.ms);
     return {
       name: String(o.name ?? "?").slice(0, 80),
       ok: o.ok !== false,
-      ms: Number.isFinite(ms) && ms >= 0 ? Math.round(ms) : null,
+      ms: Number.isFinite(ms) && ms >= 0 && !(zeroMeansUnknown && ms === 0) ? Math.round(ms) : null,
       error: typeof o.error === "string" && o.error ? o.error.slice(0, 500) : null,
       info: Array.isArray(o.info) ? o.info.filter((x): x is string => typeof x === "string").slice(0, 30) : [],
     };
@@ -95,7 +101,8 @@ function normSteps(raw: unknown): JobStepDto[] {
 }
 
 export function toJobRun(r: JobRunRow, now = Date.now()): JobRunDto {
-  const steps = normSteps(r.steps);
+  const reported = isReportedRun(r.kind);
+  const steps = normSteps(r.steps, reported);
   const started = new Date(r.started_at).getTime();
   const finished = r.finished_at ? new Date(r.finished_at).getTime() : null;
   return {
@@ -106,7 +113,7 @@ export function toJobRun(r: JobRunRow, now = Date.now()): JobRunDto {
     finishedAt: finished === null ? null : new Date(finished).toISOString(),
     ok: r.ok,
     hung: finished === null && now - started > RUN_HUNG_MINUTES * 60_000,
-    durationMs: finished === null ? null : Math.max(0, finished - started),
+    durationMs: finished === null || (reported && finished === started) ? null : Math.max(0, finished - started),
     stepCount: steps.length,
     failedSteps: steps.filter((s) => !s.ok).length,
     summary: r.summary,
@@ -654,6 +661,8 @@ export const HeartbeatBody = z.object({
   kind: z.enum(["backup", "backup:storage"], { error: "kind phải là backup hoặc backup:storage." }),
   ok: z.boolean({ error: "Thiếu ok (true/false)." }),
   summary: z.string().max(500, "summary tối đa 500 ký tự.").optional(),
+  /** Tổng thời gian cả lượt chạy (ms) nếu đo được — thiếu thì lịch sử hiện "—" (không bịa 0). */
+  durationMs: z.number().int().min(0).max(86_400_000).optional(),
   steps: z
     .array(
       z.object({
@@ -699,13 +708,20 @@ const scrubLines = (s: string, max: number) =>
     .slice(0, max);
 
 export async function recordHeartbeat(ctx: Pick<Ctx, "dbAs" | "requestId">, b: HeartbeatInput): Promise<{ id: string }> {
-  const steps = (b.steps ?? []).map((s) => ({ name: s.name, ok: s.ok, ms: s.ms ?? 0, ...(s.error ? { error: scrubSecrets(s.error).slice(0, 300) } : {}) }));
+  // Bước không kèm thời gian thì KHÔNG ghi ms (trước đây ghi 0 ⇒ lịch sử hiện "0 ms" như thể bước chạy tức thì)
+  const steps = (b.steps ?? []).map((s) => ({
+    name: s.name,
+    ok: s.ok,
+    ...(s.ms !== undefined ? { ms: s.ms } : {}),
+    ...(s.error ? { error: scrubSecrets(s.error).slice(0, 300) } : {}),
+  }));
   const summary = b.summary?.trim() ? scrubLines(b.summary, 500) : null;
+  // Nhịp tim đến SAU khi lượt sao lưu chạy xong: có durationMs thì lùi giờ bắt đầu lại đúng bằng đó; không có thì started_at = finished_at (= "chưa đo")
   const id = await ctx.dbAs("luuxa_worker", async (tx) =>
     (
       await tx.query<{ id: string }>(
-        "INSERT INTO job_runs (kind, started_at, finished_at, ok, steps, summary, request_id) VALUES ($1, now(), now(), $2, $3::jsonb, $4, $5) RETURNING id",
-        [b.kind, b.ok, JSON.stringify(steps), summary, ctx.requestId],
+        "INSERT INTO job_runs (kind, started_at, finished_at, ok, steps, summary, request_id) VALUES ($1, now() - make_interval(secs => $6::double precision / 1000.0), now(), $2, $3::jsonb, $4, $5) RETURNING id",
+        [b.kind, b.ok, JSON.stringify(steps), summary, ctx.requestId, b.durationMs ?? 0],
       )
     ).rows[0].id,
   );

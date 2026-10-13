@@ -222,6 +222,44 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       eq(st.watched, true, "đã từng có nhịp tim ⇒ bắt đầu xét quá hạn");
     });
 
+    await test("Nhịp tim: thời gian — không đo được thì KHÔNG ghi 0 (lịch sử hiện \"—\"); có durationMs/ms thì hiện đúng; lượt cũ lưu ms = 0 cũng hiện \"—\"", async () => {
+      await sql("DELETE FROM rate_limit_hits WHERE key = 'ops-heartbeat'");
+      const list = async () => (await admin.get("/api/v1/system/job-runs?kind=backup&limit=20")).json.items;
+      // (1) có thời gian: durationMs lùi giờ bắt đầu lại, ms từng bước giữ nguyên; bước không kèm ms ⇒ không ghi ms
+      const r = await hb({ kind: "backup", ok: true, summary: `thời gian ${tag}`, durationMs: 150_000, steps: [{ name: "pg_dump", ok: true, ms: 41000 }, { name: "kiểm tra", ok: true }] });
+      eq(r.status, 200);
+      const id1 = (await r.json()).id;
+      created.runs.push(id1);
+      const raw = (await sql("SELECT steps FROM job_runs WHERE id = $1", [id1])).rows[0].steps;
+      eq(raw[0].ms, 41000);
+      ok(!("ms" in raw[1]), `bước không kèm ms ⇒ không ghi ms: ${JSON.stringify(raw[1])}`);
+      const m1 = (await list()).find((x) => x.id === id1);
+      eq(m1.durationMs, 150000, "tổng thời gian = durationMs đã gửi");
+      eq(m1.steps[0].ms, 41000);
+      eq(m1.steps[1].ms, null, "bước không đo được ⇒ null (giao diện hiện —)");
+      // (2) không gửi thời gian nào ⇒ tổng và từng bước đều null, không phải 0
+      const r2 = await hb({ kind: "backup", ok: true, summary: `không đo ${tag}`, steps: [{ name: "pg_dump", ok: true }] });
+      const id2 = (await r2.json()).id;
+      created.runs.push(id2);
+      const m2 = (await list()).find((x) => x.id === id2);
+      eq(m2.durationMs, null, "không có durationMs ⇒ null");
+      eq(m2.steps[0].ms, null);
+      // (3) lượt cũ (trước khi sửa) đã lưu ms = 0 và started_at = finished_at ⇒ hiện null chứ không phải "0 ms"
+      const id3 = (
+        await sql(
+          "INSERT INTO job_runs (kind, started_at, finished_at, ok, steps, summary) VALUES ('backup', now() - interval '5 minutes', now() - interval '5 minutes', true, $1::jsonb, $2) RETURNING id",
+          [JSON.stringify([{ name: "pg_dump", ok: true, ms: 0 }]), `lượt cũ ${tag}`]
+        )
+      ).rows[0].id;
+      created.runs.push(id3);
+      const m3 = (await list()).find((x) => x.id === id3);
+      eq(m3.durationMs, null, "lượt cũ: tổng 0 ⇒ null");
+      eq(m3.steps[0].ms, null, "lượt cũ: ms 0 ⇒ null");
+      // (4) giá trị không hợp lệ bị từ chối
+      eq((await hb({ kind: "backup", ok: true, durationMs: -5 })).status, 400, "durationMs âm");
+      eq((await hb({ kind: "backup", ok: true, durationMs: 1.5 })).status, 400, "durationMs không nguyên");
+    });
+
     await test("Nhịp tim ok=false ⇒ Admin nhận cảnh báo (một lần/ngày), Trưởng nhà không; dải cảnh báo chuyển ĐỎ", async () => {
       await sql("DELETE FROM system_post_log WHERE key = $1", [`ops-alert:backup:storage:failed:${today}`]);
       const since = await dbNow();

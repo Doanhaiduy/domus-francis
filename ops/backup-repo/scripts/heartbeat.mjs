@@ -11,10 +11,12 @@
 //   JOB_STATUS            ${{ job.status }} — success ⇒ ok=true, còn lại (failure/cancelled) ⇒ ok=false
 //   STEPS_JSON            ${{ toJSON(steps) }} — kết quả từng bước có id
 //   STAMP, RUN_URL, OUT_DIR (thư mục chứa tệp .gpg để báo dung lượng), SUMMARY_EXTRA (một dòng thêm vào tóm tắt)
+//   GITHUB_TOKEN          (${{ github.token }}) — để đọc THỜI GIAN từng bước qua GitHub API; cần `permissions: actions: read`.
+//                         Thiếu/không đọc được ⇒ vẫn gửi nhịp tim nhưng KHÔNG kèm thời gian (lịch sử hiện "—", không bịa 0).
 //
 // Script này KHÔNG BAO GIỜ làm hỏng job (luôn thoát 0): lỗi gửi chỉ in cảnh báo ::warning::.
 // =====================================================================
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { readdirSync, statSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const env = (k) => (process.env[k] ?? "").trim();
@@ -46,6 +48,56 @@ function humanBytes(n) {
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 }
 
+/** id bước → tên hiển thị, đọc từ chính tệp workflow đang chạy ("- name: …" ngay trên "id: …"). Lỗi ⇒ bảng rỗng. */
+function stepNamesFromWorkflow() {
+  const out = new Map();
+  try {
+    const file = /(\.github\/workflows\/[^@]+)@/.exec(env("GITHUB_WORKFLOW_REF"))?.[1];
+    if (!file || !existsSync(file)) return out;
+    const re = /^[ \t]*-[ \t]+name:[ \t]*(.+?)[ \t]*\r?\n[ \t]+id:[ \t]*([A-Za-z0-9_-]+)[ \t]*\r?$/gm;
+    for (const m of readFileSync(file, "utf8").matchAll(re)) out.set(m[2], m[1].replace(/^(["'])(.*)\1$/, "$2"));
+  } catch {
+    // bỏ qua: không có thời gian từng bước
+  }
+  return out;
+}
+
+/**
+ * Thời gian THẬT của job đang chạy + từng bước (GitHub API: GET /actions/runs/{run}/attempts/{n}/jobs). Mốc của GitHub chỉ chính xác tới giây,
+ * nên bước dưới 1 giây không có ms (hiện "—") thay vì ghi 0. Trả về { jobMs, byName } hoặc null nếu không đọc được.
+ */
+async function githubTimings() {
+  const token = env("GITHUB_TOKEN");
+  const repo = env("GITHUB_REPOSITORY");
+  const runId = env("GITHUB_RUN_ID");
+  if (!token || !repo || !runId) return null;
+  try {
+    const api = (env("GITHUB_API_URL") || "https://api.github.com").replace(/\/+$/, "");
+    const res = await fetch(`${api}/repos/${repo}/actions/runs/${runId}/attempts/${env("GITHUB_RUN_ATTEMPT") || "1"}/jobs?per_page=30`, {
+      headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "luu-xa-backup-heartbeat" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      warn(`Không đọc được thời gian các bước từ GitHub (HTTP ${res.status}) — lịch sử sẽ hiện "—". Workflow cần quyền "actions: read".`);
+      return null;
+    }
+    const jobs = (await res.json()).jobs ?? [];
+    const job = jobs.find((j) => j.status === "in_progress") ?? (jobs.length === 1 ? jobs[0] : null);
+    if (!job) return null;
+    const at = (s) => (s ? Date.parse(s) : NaN);
+    const byName = new Map();
+    for (const s of job.steps ?? []) {
+      const ms = at(s.completed_at) - at(s.started_at);
+      if (Number.isFinite(ms) && ms >= 1000) byName.set(s.name, ms);
+    }
+    const jobMs = Date.now() - at(job.started_at);
+    return { jobMs: Number.isFinite(jobMs) && jobMs >= 1000 ? Math.round(jobMs) : null, byName };
+  } catch (e) {
+    warn(`Không đọc được thời gian các bước (${e?.name === "TimeoutError" ? "quá thời gian chờ" : "lỗi mạng"}) — lịch sử sẽ hiện "—".`);
+    return null;
+  }
+}
+
 async function main() {
   const appUrl = env("APP_URL").replace(/\/+$/, "");
   const secret = env("OPS_HEARTBEAT_SECRET");
@@ -72,6 +124,8 @@ async function main() {
   } catch {
     stepsCtx = {};
   }
+  const timings = await githubTimings();
+  const displayName = timings ? stepNamesFromWorkflow() : new Map();
   const steps = [];
   let skipped = 0;
   for (const [id, s] of Object.entries(stepsCtx)) {
@@ -80,7 +134,13 @@ async function main() {
       skipped++;
       continue;
     }
-    steps.push({ name: (LABEL[id] ?? id).slice(0, 80), ok: outcome === "success", ...(outcome !== "success" ? { error: `kết quả: ${outcome}` } : {}) });
+    const ms = timings?.byName.get(displayName.get(id) ?? "");
+    steps.push({
+      name: (LABEL[id] ?? id).slice(0, 80),
+      ok: outcome === "success",
+      ...(ms ? { ms: Math.round(ms) } : {}),
+      ...(outcome !== "success" ? { error: `kết quả: ${outcome}` } : {}),
+    });
   }
 
   const lines = [];
@@ -95,7 +155,7 @@ async function main() {
   if (env("RUN_URL")) lines.push(env("RUN_URL"));
   const summary = lines.join("\n").slice(0, 500);
 
-  const body = JSON.stringify({ kind, ok, summary: summary || undefined, steps: steps.slice(0, 20) });
+  const body = JSON.stringify({ kind, ok, summary: summary || undefined, durationMs: timings?.jobMs ?? undefined, steps: steps.slice(0, 20) });
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch(`${appUrl}/api/v1/public/ops-heartbeat`, {

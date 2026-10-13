@@ -25,6 +25,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read # chỉ để bước nhịp tim đọc thời gian từng bước của chính lượt chạy này
 
 jobs:
   backup:
@@ -272,6 +273,7 @@ jobs:
         env:
           APP_URL: ${{ vars.APP_URL }}
           OPS_HEARTBEAT_SECRET: ${{ secrets.OPS_HEARTBEAT_SECRET }}
+          GITHUB_TOKEN: ${{ github.token }}
           HEARTBEAT_KIND: backup
           JOB_STATUS: ${{ job.status }}
           STEPS_JSON: ${{ toJSON(steps) }}

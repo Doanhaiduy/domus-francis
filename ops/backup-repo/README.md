@@ -46,6 +46,8 @@ Sau mỗi lần chạy, `scripts/heartbeat.mjs` gửi `POST <APP_URL>/api/v1/pub
 - báo Admin ngay khi một lần sao lưu **thất bại** (mỗi ngày một lần), và mỗi sáng nếu **quá hạn**: CSDL > 36 giờ, tệp > 8 ngày không có lần đạt — chỉ bắt đầu xét sau khi đã nhận nhịp tim đầu tiên;
 - `/api/health?deep=1` trả 503 khi sao lưu CSDL quá hạn — gắn vào UptimeRobot / Better Stack để biết cả khi không ai mở ứng dụng.
 
+**Thời gian chạy:** script đọc thời gian thật của từng bước và cả lượt chạy qua GitHub API (`GITHUB_TOKEN` của chính lượt chạy + quyền `actions: read` đã khai trong workflow). GitHub chỉ ghi mốc chính xác tới giây nên bước dưới 1 giây hiện "—" trong *Cài đặt → Hệ thống* (không ghi "0 ms"). Không đọc được (thiếu quyền, lỗi mạng) thì nhịp tim vẫn gửi bình thường, chỉ không kèm thời gian.
+
 Thiếu `APP_URL` hoặc `OPS_HEARTBEAT_SECRET` thì bước này chỉ in nhắc, **không** làm hỏng sao lưu. Ứng dụng trả 404 khi chưa đặt biến `OPS_HEARTBEAT_SECRET` trên Vercel, 401 khi khóa không khớp.
 
 ## Khôi phục CSDL
