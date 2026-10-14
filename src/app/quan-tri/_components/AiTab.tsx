@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { mutate as globalMutate } from "swr";
 import { Sparkles, KeyRound, CheckCircle2, CircleSlash, PauseCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { ToggleListSkeleton } from "./TabSkeletons";
+import { ToggleListSkeleton } from "@/components/settings/TabSkeletons";
 import { errorMessage } from "@/lib/api";
 import { aiApi, refreshAi, useAiStatus, useAiUsage } from "@/lib/data/ai";
 import { SETTINGS_KEY, settingsApi } from "@/lib/data/settings";

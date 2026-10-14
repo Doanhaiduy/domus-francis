@@ -13,7 +13,7 @@ import { refreshStorageOverview, useStorageOverview, useStorageProviders } from 
 import { adviceFor, daysUntilFull, formatBytes, formatDaysLeft, growthPerDay, LEVEL_LABEL, levelOf, percentOf } from "@/lib/storage-monitor";
 import type { MonitorLevel, StorageOverviewDto } from "@/lib/types/storage-monitor";
 import { cn } from "@/lib/utils";
-import { FormCardsSkeleton } from "./TabSkeletons";
+import { FormCardsSkeleton } from "@/components/settings/TabSkeletons";
 import { Card, TablesCard, TrendCard, UploadsSection } from "./StorageStats";
 
 const LEVEL_STYLE: Record<MonitorLevel, { bar: string; chip: string; ring: string }> = {

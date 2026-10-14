@@ -15,9 +15,9 @@ Thành phần: Vercel (Next.js ở vùng `icn1` Seoul — cùng vùng Supabase, 
 
 - **Sống/sẵn sàng**: `GET /api/health` → 200 khi DB trả lời, 503 khi DB lỗi. **Sâu**: `GET /api/health?deep=1` → thêm 503 khi cron sáng/tối quá 30 giờ chưa chạy xong không lỗi, hoặc nhịp tim sao lưu quá 36 giờ (nếu đã từng có). Đặt HAI monitor UptimeRobot / Better Stack miễn phí (chu kỳ 5–15 phút, báo email): một cho `/api/health`, một cho `/api/health?deep=1`.
 - **Trong ứng dụng (Admin)**: Cài đặt → **Hệ thống** — lượt chạy tác vụ nền (`job_runs`, từng bước), nhật ký lỗi đã gộp (`error_events`: lỗi API 5xx, lỗi giao diện, lỗi cron, vi phạm CSP), kênh gửi (thông báo đẩy/email/Zalo), giao dịch ngân hàng chưa khớp, biến môi trường thiếu; dải cảnh báo đỏ dưới thanh tiêu đề khi cron/sao lưu có vấn đề. Mỗi sáng Admin nhận tóm tắt lỗi mới; cron lỗi ⇒ thông báo ngay (`system.ops_alert`).
-- **Mã lỗi**: người dùng thấy "(mã lỗi: xxxxxxxx)" trong thông báo lỗi — đó là 8 ký tự đầu `request_id`, tra ở nhật ký lỗi (Cài đặt → Hệ thống) hoặc log Vercel (Hobby chỉ giữ log ~1 giờ).
+- **Mã lỗi**: người dùng thấy "(mã lỗi: xxxxxxxx)" trong thông báo lỗi — đó là 8 ký tự đầu `request_id`, tra ở nhật ký lỗi (Quản trị → Hệ thống) hoặc log Vercel (Hobby chỉ giữ log ~1 giờ).
 - **Tốc độ**: header `Server-Timing` của mọi API (DevTools → Network → Timing: số vòng DB, thời gian DB); bật *Web Analytics* và *Speed Insights* trong Vercel Dashboard → dự án (mã đã nhúng sẵn).
-- **Tác vụ hằng ngày** (`/api/cron/daily`, 2 lần/ngày — sáng 07:00–07:59, tối 19:00–19:59 giờ VN): nhắc lễ/sự kiện/quỹ/sinh nhật/lịch trực/cơm, tin cho người quản lý, tóm tắt lỗi; lượt tối: dọn dẹp, đo dung lượng, kiểm toàn vẹn sổ cái, ẩn danh hồ sơ quá hạn lưu… Bước nào lỗi ⇒ trả 500 (Vercel → Cron Jobs hiện đỏ) + ghi `job_runs` + báo Admin. Thiếu `CRON_SECRET` ⇒ bị từ chối (503). Chạy tay/xem trước: Cài đặt → Tích hợp Zalo → Chạy thử.
+- **Tác vụ hằng ngày** (`/api/cron/daily`, 2 lần/ngày — sáng 07:00–07:59, tối 19:00–19:59 giờ VN): nhắc lễ/sự kiện/quỹ/sinh nhật/lịch trực/cơm, tin cho người quản lý, tóm tắt lỗi; lượt tối: dọn dẹp, đo dung lượng, kiểm toàn vẹn sổ cái, ẩn danh hồ sơ quá hạn lưu… Bước nào lỗi ⇒ trả 500 (Vercel → Cron Jobs hiện đỏ) + ghi `job_runs` + báo Admin. Thiếu `CRON_SECRET` ⇒ bị từ chối (503). Chạy tay/xem trước: Quản trị → Tích hợp Zalo → Chạy thử.
 - **CI**: `.github/workflows/ci.yml` chạy typecheck + build + dựng DB từ đầu cho mỗi lần push.
 
 ## 3. Sao lưu & khôi phục
@@ -77,7 +77,7 @@ pnpm db:backup -- --env production --with-storage   # ra thư mục backup/ (đ�
 | Quên mật khẩu không có email | `RESEND_API_KEY`, `EMAIL_FROM` đã đặt và tên miền đã xác minh ở Resend? Xem log Vercel |
 | Không nhận thông báo đẩy | `VAPID_*` đủ cả ba biến? Thiết bị đã bật ở Cài đặt → Thông báo? iOS cần “Thêm vào Màn hình chính” (iOS 16.4+) |
 | 503 ở `/api/health` | Supabase tạm ngưng/hết kết nối: xem Supabase Dashboard; `DATABASE_URL` phải dùng pooler cổng 6543 |
-| AI báo “chưa bật” | Cài đặt → Trợ lý AI (công tắc tổng + hạn mức), `GROQ_API_KEY`/`GEMINI_API_KEY` |
+| AI báo “chưa bật” | Quản trị → Trợ lý AI (công tắc tổng + hạn mức), `GROQ_API_KEY`/`GEMINI_API_KEY` |
 | Giao dịch ngân hàng không hiện | `BANK_WEBHOOK_SECRET` khớp phía SePay/Casso? Xem lịch sử gửi webhook ở dịch vụ đó (401 = sai khóa, 404 = chưa đặt biến, 422 = chưa có túi quỹ ngân hàng) |
 | Trang công khai trống | Chưa có bài đã đăng / album bật “công khai”; bài hẹn giờ chỉ hiện khi đến giờ |
 

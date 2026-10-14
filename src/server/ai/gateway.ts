@@ -71,9 +71,9 @@ async function budgetAlert(b: BudgetRow | undefined) {
     `ai-budget:${ym}:${level}`,
     level === 100 ? `Đã dùng hết ngân sách AI tháng ${mmYyyy}` : `Chi phí AI tháng ${mmYyyy} đã đạt ${Math.floor(pct)}% ngân sách`,
     level === 100
-      ? `Đã dùng ${money(used)} / ${money(limit)}: ${after}. Người dùng vẫn làm thủ công được. Tăng hạn mức ở Cài đặt → Trợ lý AI nếu cần.`
-      : `Đã dùng ${money(used)} / ${money(limit)} (ngưỡng cảnh báo ${b.alert_threshold_pct}%). Khi hết ngân sách, ${after}. Xem chi phí / tăng hạn mức ở Cài đặt → Trợ lý AI.`,
-    { link: "/cai-dat?tab=ai" },
+      ? `Đã dùng ${money(used)} / ${money(limit)}: ${after}. Người dùng vẫn làm thủ công được. Tăng hạn mức ở Quản trị → Trợ lý AI nếu cần.`
+      : `Đã dùng ${money(used)} / ${money(limit)} (ngưỡng cảnh báo ${b.alert_threshold_pct}%). Khi hết ngân sách, ${after}. Xem chi phí / tăng hạn mức ở Quản trị → Trợ lý AI.`,
+    { link: "/quan-tri?tab=ai" },
   );
 }
 

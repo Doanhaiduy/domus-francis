@@ -3,7 +3,7 @@
 //    hết hạn đơn đổi ca, đóng biểu quyết quá hạn, tạo trước phân vùng audit_logs; xóa khỏi kho các tệp đã quá purge_after.
 //  - nhắc lễ mỗi 30 phút, nạp Lời Chúa mỗi ngày.
 // Trên Vercel các việc này chạy trong 2 lượt Vercel Cron mỗi ngày (07:00 và 19:00 giờ VN — /api/cron/daily, xem src/server/cron/daily.ts);
-// lịch sử từng lượt chạy lưu ở bảng job_runs (Cài đặt → Hệ thống).
+// lịch sử từng lượt chạy lưu ở bảng job_runs (Quản trị → Hệ thống).
 export async function register() {
   // Điều kiện phải đúng dạng này để Next loại bỏ import khỏi bản build Edge (pg cần module Node)
   if (process.env.NEXT_RUNTIME === "nodejs") {

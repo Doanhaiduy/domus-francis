@@ -60,7 +60,7 @@ export const SurveyPatchSchema = z.object({ status: z.enum(["open", "closed"]) }
 export const SurveyVoteSchema = z.object({ optionIds: z.array(z.string().uuid()).max(10) });
 export const SurveyOptionSchema = z.object({ label: z.string().trim().min(2, "Tên món tối thiểu 2 ký tự.").max(120) });
 
-// Bật/tắt phân hệ Bếp & Cơm KHÔNG ở đây: làm ở Cài đặt → Phân hệ (một nguồn duy nhất, PUT /api/v1/ui/modules)
+// Bật/tắt phân hệ Bếp & Cơm KHÔNG ở đây: làm ở Quản trị → Phân hệ (một nguồn duy nhất, PUT /api/v1/ui/modules)
 export const MealSettingsSchema = z.object({
   lunchCutoff: zTime.optional(),
   dinnerCutoff: zTime.optional(),

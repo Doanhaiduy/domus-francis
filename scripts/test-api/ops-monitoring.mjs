@@ -1,4 +1,4 @@
-// Kiểm thử GIÁM SÁT & VẬN HÀNH (gói A): Cài đặt → Hệ thống (/api/v1/system/*), nhịp tim sao lưu (/api/v1/public/ops-heartbeat),
+// Kiểm thử GIÁM SÁT & VẬN HÀNH (gói A): Quản trị → Hệ thống (/api/v1/system/*), nhịp tim sao lưu (/api/v1/public/ops-heartbeat),
 // bước cron "ops-digest" (tóm tắt lỗi mới, nhắc giao dịch ngân hàng chưa khớp, sao lưu quá hạn), /api/health?deep=1 sau nhịp tim,
 // nhật ký hoạt động (lọc hành động + cột lý do + trang lớn cho xuất Excel), cảnh báo ngân sách AI + ngắt mạch AI lưu CSDL (db/app/1043).
 // Không có lưu lượng ra ngoài: AI dùng máy chủ GIẢ ở 127.0.0.1:3199 (AI_TEST_BASE_URL của máy chủ thử), Zalo trỏ loopback.
@@ -48,7 +48,7 @@ function startAiMock() {
 }
 
 export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig }) {
-  section("Giám sát & vận hành (Cài đặt → Hệ thống, nhịp tim sao lưu, ops-digest, nhật ký hoạt động, ngân sách AI)");
+  section("Giám sát & vận hành (Quản trị → Hệ thống, nhịp tim sao lưu, ops-digest, nhật ký hoạt động, ngân sách AI)");
 
   const sql = async (text, params) => {
     const db = new pg.Client(pgConfig());
@@ -267,7 +267,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       eq(r.status, 200);
       created.runs.push((await r.json()).id);
       const mine = await notes("viet.vu@luuxa.local", "system.ops_alert", since);
-      ok(mine.some((n) => /Sao lưu tệp.*THẤT BẠI/.test(n.title) && n.payload?.link === "/cai-dat?tab=system"), `Admin phải nhận cảnh báo: ${JSON.stringify(mine)}`);
+      ok(mine.some((n) => /Sao lưu tệp.*THẤT BẠI/.test(n.title) && n.payload?.link === "/quan-tri?tab=system"), `Admin phải nhận cảnh báo: ${JSON.stringify(mine)}`);
       eq((await notes("duc.tran@luuxa.local", "system.ops_alert", since)).length, 0, "Trưởng nhà không nhận");
       // lần thất bại thứ hai trong ngày ⇒ không báo lại
       const r2 = await hb({ kind: "backup:storage", ok: false, summary: `storage lần 2 ${tag}` });
@@ -328,7 +328,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const nr = (await sql("SELECT notified_at FROM error_events WHERE id = $1", [fresh])).rows[0];
       ok(nr.notified_at, "lỗi đã báo phải có notified_at");
       const dig = await notes("viet.vu@luuxa.local", "system.error_digest", since);
-      ok(dig.length === 1 && /lỗi hệ thống mới/.test(dig[0].title) && dig[0].payload?.link === "/cai-dat?tab=system", `Admin nhận đúng một bản tóm tắt: ${JSON.stringify(dig)}`);
+      ok(dig.length === 1 && /lỗi hệ thống mới/.test(dig[0].title) && dig[0].payload?.link === "/quan-tri?tab=system", `Admin nhận đúng một bản tóm tắt: ${JSON.stringify(dig)}`);
       eq((await notes("duc.tran@luuxa.local", "system.error_digest", since)).length, 0, "Trưởng nhà không nhận tóm tắt lỗi");
       const bankT = await notes("bao.pham@luuxa.local", "finance.bank_unmatched", since);
       ok(bankT.length === 1 && bankT[0].payload?.link === "/thu-chi", `Thủ quỹ nhận nhắc ngân hàng: ${JSON.stringify(bankT)}`);
@@ -433,7 +433,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
             await wait(300);
             got = (await notes("viet.vu@luuxa.local", "system.ops_alert", since)).filter((n) => /ngân sách/.test(n.title));
           }
-          ok(got.length === 1 && got[0].payload?.link === "/cai-dat?tab=ai", `Admin nhận cảnh báo ngân sách: ${JSON.stringify(got)}`);
+          ok(got.length === 1 && got[0].payload?.link === "/quan-tri?tab=ai", `Admin nhận cảnh báo ngân sách: ${JSON.stringify(got)}`);
           ok(/đạt \d+% ngân sách/.test(got[0].title), got[0].title);
           eq((await sql("SELECT count(*)::int AS n FROM system_post_log WHERE key = $1", [`ai-budget:${ym}:80`])).rows[0].n, 1);
           // lần sau cùng mức ⇒ không báo lại

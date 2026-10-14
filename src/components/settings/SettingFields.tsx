@@ -7,7 +7,7 @@ import { CustomInput, CustomTextarea, CustomTimePicker, CustomToggle } from "@/c
 import { AddressPicker } from "@/components/ui/GeoPicker";
 import { cn } from "@/lib/utils";
 import { feastToLabel, labelToFeast, type SettingDto } from "@/lib/types/settings";
-import type { SettingsDraft } from "./useSettingsDraft";
+import type { SettingsDraft } from "@/components/settings/useSettingsDraft";
 
 const vnd = (n: number) => `${n.toLocaleString("vi-VN")} đ`;
 /** Tên vai trò hệ thống cho giá trị mặc định dạng danh sách mã vai trò (vd. vai trò bắt buộc xác thực hai lớp). */

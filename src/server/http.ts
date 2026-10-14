@@ -267,7 +267,7 @@ export function api(opts: RouteOptions, handler: Handler) {
     } catch (e) {
       const err = toApiError(e);
       await track(err.status, err.code);
-      // Lỗi phía máy chủ (5xx) ⇒ nhật ký lỗi (Cài đặt → Hệ thống). Lỗi 4xx là lỗi nghiệp vụ/người dùng, không ghi.
+      // Lỗi phía máy chủ (5xx) ⇒ nhật ký lỗi (Quản trị → Hệ thống). Lỗi 4xx là lỗi nghiệp vụ/người dùng, không ghi.
       if (err.status >= 500) {
         void inBackground(
           recordErrorEvent({

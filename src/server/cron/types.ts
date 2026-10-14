@@ -51,7 +51,7 @@ export interface StepCtx {
   once(key: string): Promise<boolean>;
   /** Gửi một tin theo MẪU của loại tin Zalo (+ thông báo trong ứng dụng nếu có `o.app`), có chống gửi trùng theo `key`. */
   announce(key: string, event: ZaloEventKey, vars: Record<string, string | undefined | null>, o?: AnnounceOptions): Promise<void>;
-  /** Ghi chú hiện trong kết quả lượt chạy (Cài đặt → Hệ thống / Tích hợp Zalo → Chạy thử). */
+  /** Ghi chú hiện trong kết quả lượt chạy (Quản trị → Hệ thống / Tích hợp Zalo → Chạy thử). */
   note(msg: string): void;
   items: DailyItem[];
 }

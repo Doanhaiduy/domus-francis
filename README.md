@@ -20,7 +20,7 @@ học tập, lịch sự kiện & điểm danh bằng ảnh, xin phép, kỷ lu�
 | Phân quyền | **Row-Level Security trong PostgreSQL** | mỗi request: `SET LOCAL ROLE luuxa_app` + `app.current_user_id`; quyền giao diện đọc từ `role_permissions` |
 | CSDL | PostgreSQL 16 — DDL thiết kế 141 bảng (`db/migrations/01…52`) + 6 bản vá kiểm định (`kiem-dinh/sql/70…75`) + phần bổ sung ứng dụng (`db/app/90…10xx`) + dữ liệu nghiệp vụ (`db/data`) | migration tăng dần: `pnpm db:migrate` |
 | Tệp | Supabase Storage (staging/production) · `.local/storage` (local) | kiểm định dạng thật (magic bytes), xóa EXIF/GPS, ảnh thu nhỏ WebP, SHA-256, pHash; video ở Cloudinary/Supabase |
-| Giám sát | `job_runs` (lượt chạy cron), `error_events` (lỗi gộp), `/api/health?deep=1`, Cài đặt → Hệ thống / Dung lượng | Vercel Hobby chỉ giữ log ~1 giờ nên lỗi được lưu trong CSDL |
+| Giám sát | `job_runs` (lượt chạy cron), `error_events` (lỗi gộp), `/api/health?deep=1`, Quản trị → Hệ thống / Dung lượng | Vercel Hobby chỉ giữ log ~1 giờ nên lỗi được lưu trong CSDL |
 | Dữ liệu nhạy cảm | CCCD, SĐT phụ huynh mã hóa AES-256-GCM ở tầng ứng dụng | xem CCCD đầy đủ phải nêu lý do, có ghi nhật ký kiểm toán |
 
 Tài liệu nguồn: `TAI_LIEU_THIET_KE_BACKEND_PGSQL_LUU_XA_PHANXICO.md` (thiết kế) và `KIEM_DINH_DOC_LAP_THIET_KE_BACKEND.md` (kiểm định).

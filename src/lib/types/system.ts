@@ -1,4 +1,4 @@
-// DTO của Cài đặt → Hệ thống (chỉ Admin — quyền system.monitor) và dải cảnh báo vận hành (OpsBanner).
+// DTO của Quản trị → Hệ thống (chỉ Admin — quyền system.monitor) và dải cảnh báo vận hành (OpsBanner).
 // Nguồn: job_runs (lượt chạy cron / nhịp tim sao lưu), error_events (lỗi đã gộp) — db/app/1041; các bảng kênh gửi (notification_outbox,
 // push_subscriptions, zalo_message_log, bank_statement_lines, ai_jobs, ai_budgets) và ai_provider_state (db/app/1043).
 // Biến môi trường CHỈ trả CÓ/KHÔNG — không bao giờ trả giá trị.

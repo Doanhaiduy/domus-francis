@@ -22,7 +22,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Portal } from "@/components/ui/Portal";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/lib/store";
-import { RolesSkeleton } from "./TabSkeletons";
+import { RolesSkeleton } from "@/components/settings/TabSkeletons";
 import { fileUrl, errorMessage } from "@/lib/api";
 import { rbacApi, refreshRbac } from "@/lib/data/settings";
 import {

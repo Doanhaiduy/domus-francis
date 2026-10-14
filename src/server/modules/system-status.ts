@@ -35,7 +35,7 @@ import {
 } from "@/lib/types/system";
 
 // =====================================================================
-// Cài đặt → Hệ thống (CHỈ Admin — quyền system.monitor): tình trạng tác vụ nền (cron sáng/tối), nhịp tim sao lưu, nhật ký lỗi đã gộp,
+// Quản trị → Hệ thống (CHỈ Admin — quyền system.monitor): tình trạng tác vụ nền (cron sáng/tối), nhịp tim sao lưu, nhật ký lỗi đã gộp,
 // kênh gửi (thông báo đẩy, email, Zalo, ngân hàng, AI) và hạ tầng (phiên bản, vùng, phân vùng nhật ký kiểm toán, biến môi trường — CHỈ cờ có/không).
 //   • Tóm tắt cho dải cảnh báo (summary): MỘT vòng CSDL dưới RLS của luuxa_app (job_runs / error_events có chính sách đọc cho system.monitor).
 //   • Bản đầy đủ: kiểm quyền người gọi bằng luuxa_app TRƯỚC (kèm kiểm phiên đăng nhập), rồi mới đọc số liệu hệ thống bằng worker
@@ -306,7 +306,7 @@ export function envFlags(): EnvFlagDto[] {
 }
 
 // ---------------------------------------------------------------------
-// Bản đầy đủ (Cài đặt → Hệ thống)
+// Bản đầy đủ (Quản trị → Hệ thống)
 // ---------------------------------------------------------------------
 const AI_LABEL: Record<string, string> = { groq: "Groq", gemini: "Gemini", cloudflare: "Cloudflare" };
 
@@ -474,7 +474,7 @@ export async function getSystemStatus(ctx: Pick<Ctx, "db" | "dbAs">): Promise<Sy
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Cảnh báo phụ (vàng) chỉ hiện ở Cài đặt → Hệ thống — không đẩy lên dải cảnh báo chung. */
+/** Cảnh báo phụ (vàng) chỉ hiện ở Quản trị → Hệ thống — không đẩy lên dải cảnh báo chung. */
 function buildNotices(ch: ChannelsDto, inf: InfraDto): OpsIssue[] {
   const out: OpsIssue[] = [];
   if (inf.audit.defaultRows > 0) {
@@ -734,8 +734,8 @@ export async function recordHeartbeat(ctx: Pick<Ctx, "dbAs" | "requestId">, b: H
     await notifyAdminsOnce(
       `ops-alert:${b.kind}:failed:${today}`,
       b.kind === "backup" ? "Sao lưu CSDL hằng ngày THẤT BẠI" : "Sao lưu tệp (Storage) hằng tuần THẤT BẠI",
-      [summary, ...failed, "Xem chi tiết ở tab Actions của repo sao lưu; lịch sử ở Cài đặt → Hệ thống."].filter(Boolean).join("\n").slice(0, 900),
-      { link: "/cai-dat?tab=system" },
+      [summary, ...failed, "Xem chi tiết ở tab Actions của repo sao lưu; lịch sử ở Quản trị → Hệ thống."].filter(Boolean).join("\n").slice(0, 900),
+      { link: "/quan-tri?tab=system" },
     );
   }
   return { id };

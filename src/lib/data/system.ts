@@ -1,8 +1,9 @@
 "use client";
-// Hook dữ liệu Cài đặt → Hệ thống + dải cảnh báo vận hành (OpsBanner) — chỉ Admin (quyền system.monitor).
+// Hook dữ liệu Quản trị → Hệ thống + dải cảnh báo vận hành (OpsBanner) — chỉ Admin (quyền system.monitor).
 import useSWR, { mutate as globalMutate } from "swr";
 import { api, swrFetcher } from "../api";
 import type { ErrorEventDto, ErrorListDto, ErrorSource, ErrorStatus, JobRunDto, OpsSummaryDto, SystemStatusDto } from "../types/system";
+import { isAdminTab, settingsTabHref } from "../admin-tabs";
 
 export const SYSTEM_STATUS_KEY = "/api/v1/system/status";
 export const OPS_SUMMARY_KEY = `${SYSTEM_STATUS_KEY}?summary=1`;
@@ -60,16 +61,17 @@ export function useErrorEvents(f: ErrorFilter, enabled = true) {
 }
 
 /**
- * Chuyển tab của trang Cài đặt khi ĐANG ở /cai-dat (trang chỉ đọc ?tab= lúc mở nên liên kết cùng trang không đổi được tab).
- * Trang Cài đặt nghe sự kiện này; ở trang khác thì dùng liên kết thường /cai-dat?tab=<tab>.
+ * Chuyển tab của trang Cài đặt / Quản trị khi ĐANG ở đúng trang đó (trang chỉ đọc ?tab= lúc mở nên liên kết cùng trang không đổi được tab).
+ * Hai trang nghe sự kiện này; tab thuộc trang kia hoặc đang ở trang khác thì mở bằng liên kết thường (xem lib/admin-tabs.ts).
  */
 export const SETTINGS_TAB_EVENT = "luuxa:settings-tab";
 export function openSettingsTab(tab: string) {
   if (typeof window === "undefined") return;
-  if (window.location.pathname === "/cai-dat") {
+  const page = isAdminTab(tab) ? "/quan-tri" : "/cai-dat";
+  if (window.location.pathname === page) {
     window.dispatchEvent(new CustomEvent(SETTINGS_TAB_EVENT, { detail: tab }));
     window.scrollTo({ top: 0, behavior: "smooth" });
-  } else window.location.assign(`/cai-dat?tab=${encodeURIComponent(tab)}`);
+  } else window.location.assign(settingsTabHref(tab));
 }
 
 /** Làm mới mọi số liệu của tab Hệ thống + dải cảnh báo (sau khi đổi trạng thái lỗi). */

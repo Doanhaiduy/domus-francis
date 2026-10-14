@@ -74,8 +74,8 @@ export default function AiAcademicInsight({ scope }: { scope: Scope }) {
     return (
       <p className="text-[11px] text-gray-400">
         AI nhận xét học tập {scope === "house" ? "toàn nhà " : ""}chưa dùng được{reason ? ` (${reason.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())})` : ""} — bật trong{" "}
-        <Link href="/cai-dat?tab=ai" className="font-semibold text-violet-600 hover:underline">
-          Cài đặt → Trợ lý AI
+        <Link href="/quan-tri?tab=ai" className="font-semibold text-violet-600 hover:underline">
+          Quản trị → Trợ lý AI
         </Link>
         .
       </p>

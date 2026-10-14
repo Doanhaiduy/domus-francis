@@ -19,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { FormCardsSkeleton } from "./TabSkeletons";
+import { FormCardsSkeleton } from "@/components/settings/TabSkeletons";
 import { useSession } from "@/lib/session";
 import { ApiClientError, errorMessage } from "@/lib/api";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";

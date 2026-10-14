@@ -293,10 +293,10 @@ export default function BepComPage() {
           </div>
           {week.canToggleFeature ? (
             <Link
-              href="/cai-dat?tab=modules"
+              href="/quan-tri?tab=modules"
               className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs whitespace-nowrap"
             >
-              Bật lại ở Cài đặt → Phân hệ
+              Bật lại ở Quản trị → Phân hệ
             </Link>
           ) : (
             <Link href="/" className="self-start sm:self-auto px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs whitespace-nowrap">

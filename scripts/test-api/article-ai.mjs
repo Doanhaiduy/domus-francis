@@ -29,7 +29,7 @@ const RSS = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><
 
 /** Máy chủ giả: hành vi theo state; ghi lại mọi yêu cầu (kèm prompt) để kiểm. Xuất ra để scripts/e2e/article-ai-ui.mjs dùng lại. */
 export async function startMock() {
-  const state = { groq: "ok", gemini: "ok", cftext: "ok", cf: "ok", search: "ok", calls: [] };
+  const state = { groq: "ok", gemini: "ok", cftext: "ok", cf: "ok", search: "ok", judge: "all", calls: [] };
   const jpgKlein = await jpeg(1280, 800, { r: 120, g: 80, b: 200 });
   const jpgSchnell = await jpeg(1024, 1024, { r: 220, g: 160, b: 60 });
 
@@ -43,6 +43,8 @@ export async function startMock() {
         summary: "Một buổi tối yên tĩnh của anh em.",
         content: "Hôm nay 17/03 là ngày Bổn mạng của nhà. Hãy cùng nhau lần chuỗi. Có 120 người tham dự lúc 19h45. Gọi hotline 0912 345 678 ngay.\n\n> “Ngày nào cũng học, cũng đi làm thêm, tối về lần chuỗi thấy lòng nhẹ đi.” - Một anh em chia sẻ.\n\nNhiều anh em kể rằng mỗi tối đều thấy lòng nhẹ đi. Đây không chỉ là một buổi lần chuỗi, mà là một mối dây liên kết. Đó không phải là thói quen, mà còn là nhịp sống. Ánh nến chiếu lên tường. Ánh nến tỏa ra sân. Ánh nến rọi qua cửa. Ánh nến cháy suốt buổi. Ánh nến lay trong gió.\n\nCuối bài [cần bổ sung: tên cha hướng dẫn].",
       };
+    // Thẩm định tư liệu: "all" = giữ mọi mục được hỏi, "none" = coi mọi mục là lạc đề
+    if (user.includes("Chọn các mục nói trực tiếp về đề tài")) return { keep: state.judge === "none" ? [] : [...user.matchAll(/^\[(\d+)\] /gm)].map((m) => Number(m[1])) };
     // Biên tập viên ảnh: cố tình trả cả số đoạn không có, đoạn sát nhau và đoạn trùng để kiểm tra việc lọc ở máy chủ
     if (user.includes("Bạn là biên tập viên ảnh")) {
       const nums = [...user.matchAll(/^\[(\d+)\] /gm)].map((m) => Number(m[1]));
@@ -175,6 +177,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
   const reset = () => {
     mock.groq = mock.gemini = mock.cftext = mock.cf = "ok";
     mock.search = "ok";
+    mock.judge = "all";
     mock.calls.length = 0;
   };
   const cleanState = async () => {
@@ -375,6 +378,25 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       const wiki = o.sources.find((s) => s.kind === "wikipedia");
       ok(wiki && typeof wiki.noteIndex === "number" && /Lễ Các Đẳng/.test(o.notes[wiki.noteIndex]), "nguồn Wikipedia phải gắn đúng ý của nó: " + JSON.stringify(o.sources));
       ok(o.sources.filter((s) => s.kind === "web").every((s) => s.noteIndex === undefined), "nguồn web của Google không gắn với ý cụ thể");
+    });
+
+    await test("Tra cứu: AI thẩm định từng tin Vatican/Wikipedia — AI nói lạc đề ⇒ không đưa vào; AI không dùng được ⇒ bỏ cả hai loại (không giữ bừa), vẫn còn ý từ tìm kiếm web", async () => {
+      reset();
+      mock.judge = "none";
+      const r1 = await ai(head, "content.article_research", { topic: "Kinh Mân Côi lần chuỗi tháng mười", category: "chia-se" }, true);
+      eq(r1.status, 200, JSON.stringify(r1.json));
+      ok(!r1.json.output.notes.some((n) => /^(Vatican News|Wikipedia)/.test(n)) && !r1.json.output.sources.some((x) => x.kind === "vatican" || x.kind === "wikipedia"), "AI loại hết ⇒ không còn tin Vatican/Wikipedia: " + JSON.stringify(r1.json.output.notes));
+      ok(r1.json.output.notes.length >= 8, "ý từ tìm kiếm web vẫn còn");
+      const judged = lastText("groq");
+      ok(judged && /Chọn các mục nói trực tiếp về đề tài/.test(judged.user) && /LOẠI mục chỉ trùng vài từ chung/.test(judged.system ?? ""), "prompt thẩm định");
+      reset();
+      mock.groq = mock.gemini = mock.cftext = "down";
+      await sql("DELETE FROM ai_provider_state WHERE provider IN ('groq','gemini','cloudflare')");
+      const r2 = await ai(head, "content.article_research", { topic: "Kinh Mân Côi lần chuỗi tháng mười", category: "chia-se" }, true);
+      eq(r2.status, 200, JSON.stringify(r2.json));
+      ok(!r2.json.output.notes.some((n) => /^(Vatican News|Wikipedia)/.test(n)), "AI thẩm định hỏng ⇒ không giữ tin chưa được xác nhận: " + JSON.stringify(r2.json.output.notes));
+      ok(r2.json.output.notes.length >= 8, "ý từ tìm kiếm web vẫn còn");
+      await sql("DELETE FROM ai_provider_state WHERE provider IN ('groq','gemini','cloudflare')");
     });
 
     await test("Tra cứu chỉ lấy Wikipedia thuộc Công giáo: tìm 'Tòa Thánh' ra cả trang Cao Đài (đạo khác) ⇒ bị loại, trang Tòa Thánh (Công giáo) được giữ", async () => {

@@ -624,7 +624,7 @@ export default function EventFormModal({ open, onClose, categories, event, prese
                   checked={notifyAll}
                   onChange={setNotifyAll}
                 />
-                <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Cài đặt → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
+                <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Quản trị → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
               </div>
             )}
 

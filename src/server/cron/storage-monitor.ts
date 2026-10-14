@@ -62,8 +62,8 @@ export async function runStorageMonitor(today: string): Promise<string[]> {
     if (!first) continue;
     const pct = Math.round(c.percent ?? 0);
     const title = `${level === "critical" ? "🚨" : "⚠"} ${LABEL[c.metric]} đã dùng ${pct}%`;
-    const body = `${c.detail}. Mở Cài đặt → Dung lượng để xem dự báo ngày đầy và cách xử lý.`;
-    await W((tx) => tx.query("SELECT app.fn_notify_roles(ARRAY['admin'], 'system.storage_alert', $1, $2, $3::jsonb)", [title, body, JSON.stringify({ link: "/cai-dat?tab=storage" })]));
+    const body = `${c.detail}. Mở Quản trị → Dung lượng để xem dự báo ngày đầy và cách xử lý.`;
+    await W((tx) => tx.query("SELECT app.fn_notify_roles(ARRAY['admin'], 'system.storage_alert', $1, $2, $3::jsonb)", [title, body, JSON.stringify({ link: "/quan-tri?tab=storage" })]));
     notes.push(`${title} — đã báo Admin`);
   }
   return notes;

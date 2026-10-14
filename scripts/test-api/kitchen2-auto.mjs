@@ -1,5 +1,5 @@
 // Kiểm thử gói G — Bếp & Cơm (db/app/1051): "Luôn ăn, trừ khi báo vắng", đăng ký hộ cả nhà bỏ qua người có đơn vắng đã duyệt,
-// nhắc đăng ký cơm bằng cron sáng (chống trùng), chỉ MỘT công tắc bật/tắt phân hệ (Cài đặt → Phân hệ).
+// nhắc đăng ký cơm bằng cron sáng (chống trùng), chỉ MỘT công tắc bật/tắt phân hệ (Quản trị → Phân hệ).
 import pg from "pg";
 
 export async function run({ as, test, eq, ok, section, BASE, pgConfig }) {

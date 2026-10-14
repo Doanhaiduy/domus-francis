@@ -27,7 +27,7 @@ export function ModuleGate({ children }: { children: React.ReactNode }) {
           <span className="flex-1 min-w-0">
             Phân hệ <b>{st.module.label}</b> đang ẩn với thành viên (bảo trì). Bạn vẫn xem được vì có quyền quản trị.
           </span>
-          <Link href="/cai-dat?tab=modules" className="font-bold text-amber-800 underline shrink-0">
+          <Link href="/quan-tri?tab=modules" className="font-bold text-amber-800 underline shrink-0">
             Mở lại
           </Link>
         </div>

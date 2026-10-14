@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { User, Lock, Church, GraduationCap, Save, RotateCcw, AlertCircle, CheckCircle2, Camera, Loader2 } from "lucide-react";
 import { CustomDatePicker, CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
 import { uploadErrorMessage, useUploader } from "@/lib/use-uploader";
-import { ProfileSkeleton } from "./TabSkeletons";
+import { ProfileSkeleton } from "@/components/settings/TabSkeletons";
 import { JoinedMonthYear, MajorSelect, StudyYears } from "@/components/members/StudyFields";
 import { AppearanceCard } from "./AppearanceCard";
 import { AddressPicker, HometownPicker } from "@/components/ui/GeoPicker";

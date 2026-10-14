@@ -14,7 +14,7 @@ const Body = z.object({
 });
 
 /**
- * Lỗi phía trình duyệt báo về: ghi log (Vercel) + nhật ký lỗi đã gộp (error_events — Admin xem ở Cài đặt → Hệ thống).
+ * Lỗi phía trình duyệt báo về: ghi log (Vercel) + nhật ký lỗi đã gộp (error_events — Admin xem ở Quản trị → Hệ thống).
  * Giới hạn trong CSDL theo IP (20 lần / 10 phút) và toàn hệ thống (300 / giờ) — đúng cả khi chạy nhiều instance serverless.
  */
 export const POST = api({ auth: "public", csrf: false }, async (ctx) => {

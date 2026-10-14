@@ -134,7 +134,7 @@ export function problemResponse(err: ApiError, requestId: string, instance?: str
     type: `https://luuxa.local/problems/${err.code.toLowerCase()}`,
     title: TITLES[err.status] ?? "Lỗi",
     status: err.status,
-    // Lỗi 5xx: câu chung + mã lỗi ngắn (khớp với nhật ký lỗi ở Cài đặt → Hệ thống); lỗi khác: làm sạch câu chữ
+    // Lỗi 5xx: câu chung + mã lỗi ngắn (khớp với nhật ký lỗi ở Quản trị → Hệ thống); lỗi khác: làm sạch câu chữ
     detail: isServer ? `${err.message} (mã lỗi: ${requestId.slice(0, 8)})` : humanizeErrorMessage(err.message),
     code: err.code,
     instance,

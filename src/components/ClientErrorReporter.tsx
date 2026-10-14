@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 type Kind = "boundary" | "global" | "window" | "promise";
 
-/** Gửi một lỗi phía trình duyệt về máy chủ (nhật ký lỗi ở Cài đặt → Hệ thống). Không bao giờ ném lỗi; tối đa 10 lần mỗi lần mở trang. */
+/** Gửi một lỗi phía trình duyệt về máy chủ (nhật ký lỗi ở Quản trị → Hệ thống). Không bao giờ ném lỗi; tối đa 10 lần mỗi lần mở trang. */
 let sent = 0;
 const seen = new Set<string>();
 export function reportClientError(kind: Kind, message: string, stack?: string | null, digest?: string | null) {

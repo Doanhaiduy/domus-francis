@@ -87,7 +87,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Đổi mật khẩu", text: "Lần đầu hệ thống bắt buộc đặt mật khẩu mới (chưa đổi thì chưa dùng được ứng dụng): **ít nhất 8 ký tự, có cả chữ và số**, không trùng email." },
         ],
       },
-      { t: "callout", tone: "tip", title: "Quên mật khẩu?", text: "Ở trang đăng nhập bấm **Quên mật khẩu?**, nhập email — ứng dụng gửi đường dẫn đặt lại (có hiệu lực **30 phút**, dùng một lần). Nếu chưa nhận được thư hoặc nhà chưa cấu hình email, nhờ Admin/Trưởng nhà vào **Cài đặt → Tài khoản → Đặt lại mật khẩu** để nhận mật khẩu tạm." },
+      { t: "callout", tone: "tip", title: "Quên mật khẩu?", text: "Ở trang đăng nhập bấm **Quên mật khẩu?**, nhập email — ứng dụng gửi đường dẫn đặt lại (có hiệu lực **30 phút**, dùng một lần). Nếu chưa nhận được thư hoặc nhà chưa cấu hình email, nhờ Admin/Trưởng nhà vào **Quản trị → Tài khoản → Đặt lại mật khẩu** để nhận mật khẩu tạm." },
       { t: "heading", text: "Làm quen giao diện" },
       {
         t: "tabs",
@@ -306,7 +306,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Lưu 8 mã khôi phục", text: "Các mã chỉ hiện **một lần**; mỗi mã dùng được một lần khi mất điện thoại. Hãy chép hoặc tải về cất nơi an toàn." },
         ],
       },
-      { t: "callout", tone: "info", text: "Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản (rồi bật lại)." },
+      { t: "callout", tone: "info", text: "Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Quản trị → Tài khoản (rồi bật lại)." },
       { t: "heading", text: "Email đăng nhập & mật khẩu" },
       {
         t: "steps",
@@ -708,7 +708,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
                 ],
               },
               { t: "md", text: "**Nhập được 24 cột:** họ và tên, tên gọi, giới tính, số điện thoại, email, ẩn SĐT, ngày vào nhà (đủ ngày hoặc chỉ tháng/năm), phòng (theo mã hoặc tên), ngày sinh, số CCCD/CMND (lưu mã hóa), quê quán, địa chỉ thường trú, tình trạng học tập, trường, ngành, khóa, **năm nhập học, năm ra trường (niên khóa)**, mã sinh viên, họ tên và SĐT cha/mẹ, định mức quỹ riêng." },
-              { t: "callout", tone: "info", text: "Nhập hàng loạt **không** gồm thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), **ảnh đại diện** và **tài khoản đăng nhập** (cấp riêng ở Cài đặt → Tài khoản)." },
+              { t: "callout", tone: "info", text: "Nhập hàng loạt **không** gồm thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), **ảnh đại diện** và **tài khoản đăng nhập** (cấp riêng ở Quản trị → Tài khoản)." },
               { t: "callout", tone: "info", text: "Thông tin học vụ chỉ lưu khi dòng đó xác định được **Trường**. Cột riêng tư (ngày sinh, CCCD, quê quán, địa chỉ, cha/mẹ) cần quyền ghi thông tin riêng tư; ẩn SĐT, học vụ và định mức quỹ cần quyền sửa hồ sơ thành viên (Trưởng nhà và Admin có đủ) — thiếu quyền thì cột đó bị bỏ qua và hệ thống báo ngay ở màn hình kiểm tra." },
             ],
           },
@@ -730,7 +730,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Ủy quyền vai trò tạm thời (khi đi vắng)",
             blocks: [
-              { t: "path", items: ["Cài Đặt & Hướng dẫn", "Cài đặt", "Phân quyền & Vai trò", "Ủy quyền tạm thời"] },
+              { t: "path", items: ["Quản Trị Hệ Thống", "Phân quyền & Vai trò", "Ủy quyền tạm thời"] },
               { t: "md", text: "Trưởng nhà, Thủ quỹ hay trưởng ban đi vắng (về quê dịp Tết…) có thể **giao vai trò của mình** cho một thành viên có tài khoản: chọn **vai trò**, **người nhận**, **từ ngày – đến hết ngày** (tối đa **60 ngày**) và **lý do**. Người nhận được **thông báo** và có quyền của vai trò đó trong khoảng ngày; bạn vẫn giữ vai trò của mình. **Thu hồi sớm** bất cứ lúc nào (người có quyền gán vai trò cũng thu hồi hộ được). Không ủy quyền được vai trò **Admin**; bạn chỉ ủy quyền được vai trò mình **đang giữ**." },
             ],
           },
@@ -738,7 +738,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             title: "Đơn xin phép của anh em",
             blocks: [
               { t: "path", items: ["Lịch & Xin phép", "Xin phép", "Chờ tôi duyệt"] },
-              { t: "md", text: "Đơn mới gửi thông báo cho Trưởng nhà/Admin; số đơn chờ hiện ở thanh bên. Bấm **Duyệt** hoặc **Từ chối** (từ chối phải ghi lý do ≥ 5 ký tự, người xin sẽ thấy). Đơn **vắng sự kiện** được duyệt tự ghi điểm danh “có phép”. Bạn không duyệt được đơn của chính mình. Đơn về muộn / ngủ ngoài có ghi **người để cửa** và các lần **xin thêm giờ** (giờ về hiệu lực là giờ mới nhất); tin báo vào nhóm Zalo do hệ thống gửi — cần bật nhóm Zalo ở **Cài đặt → Zalo** (có thể tắt hoặc sửa hai mẫu tin “Đơn xin phép về muộn / ngủ ngoài” và “Xin thêm giờ về muộn / ngủ ngoài” ở đó)." },
+              { t: "md", text: "Đơn mới gửi thông báo cho Trưởng nhà/Admin; số đơn chờ hiện ở thanh bên. Bấm **Duyệt** hoặc **Từ chối** (từ chối phải ghi lý do ≥ 5 ký tự, người xin sẽ thấy). Đơn **vắng sự kiện** được duyệt tự ghi điểm danh “có phép”. Bạn không duyệt được đơn của chính mình. Đơn về muộn / ngủ ngoài có ghi **người để cửa** và các lần **xin thêm giờ** (giờ về hiệu lực là giờ mới nhất); tin báo vào nhóm Zalo do hệ thống gửi — cần bật nhóm Zalo ở **Quản trị → Tích hợp Zalo** (có thể tắt hoặc sửa hai mẫu tin “Đơn xin phép về muộn / ngủ ngoài” và “Xin thêm giờ về muộn / ngủ ngoài” ở đó)." },
             ],
           },
           {
@@ -798,7 +798,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               { t: "md", text: "Người ngoài điền biểu mẫu ở `/lien-he` → xuất hiện ở tab **Đăng ký tìm hiểu** (kèm thông báo và huy hiệu số đơn mới). Liên hệ rồi đổi trạng thái (Mới → Đã liên hệ → Đã đến thăm → Đã nhận / Không nhận / Rác) và ghi chú để cả nhóm theo dõi. Biểu mẫu có chống thư rác (ô bẫy, giới hạn 3 đơn/giờ mỗi địa chỉ). Quyền xử lý: `application.review`." },
               { t: "heading", text: "Giới thiệu, thư viện ảnh & ủng hộ" },
               { t: "md", text: "- **Giới thiệu**: viết ở **Cài đặt → Cấu hình chung → Nội dung trang công khai** (hỗ trợ ## tiêu đề, **đậm**, danh sách). Để trống thì dùng đoạn mặc định.\n- **Thư viện ảnh**: ở **Khoảnh Khắc → Sửa album** (người có quyền kiểm duyệt album) bật **“Hiện ở trang công khai”** — người ngoài xem được TOÀN BỘ ảnh album, nên chỉ bật khi những người trong ảnh đã đồng ý.\n- **Ủng hộ**: cũng ở Nội dung trang công khai — bật **Trang Ủng hộ** để hiện mã VietQR của tài khoản nhận quỹ (Thủ quỹ cài ở Thu chi) cùng lời nhắn." },
-              { t: "md", text: "Quyền đăng bài (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Cài đặt → Phân quyền & Vai trò." },
+              { t: "md", text: "Quyền đăng bài (`article.manage`) mặc định có ở Trưởng nhà, Admin và Trưởng ban Truyền thông; Admin chỉnh được ở Quản trị → Phân quyền & Vai trò." },
             ],
           },
           {
@@ -865,7 +865,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     audience: ["house_head", "admin"],
     blocks: [
       { t: "demo", name: "zalo-bubble", caption: "Tin bot gửi vào nhóm: tự động có dấu 🤖, tin do người bấm ghi “Thao tác bởi …”" },
-      { t: "path", label: "Mở ở", items: ["Cài Đặt", "Tích hợp Zalo"] },
+      { t: "path", label: "Mở ở", items: ["Quản Trị Hệ Thống", "Tích hợp Zalo"] },
       {
         t: "steps",
         title: "Thiết lập một lần",
@@ -911,7 +911,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Tài khoản",
             blocks: [
-              { t: "path", items: ["Cài Đặt", "Tài khoản"] },
+              { t: "path", items: ["Quản Trị Hệ Thống", "Tài khoản"] },
               { t: "md", text: "Danh sách anh em kèm trạng thái (Đang hoạt động / Bị khóa / Vô hiệu / Chưa có tài khoản), email, vai trò, lần đăng nhập cuối; lọc và tìm kiếm. Bấm **Quản lý** ở dòng của người đó:" },
               {
                 t: "table",
@@ -930,7 +930,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Vai trò & quyền",
             blocks: [
-              { t: "path", items: ["Cài Đặt", "Phân quyền & Vai trò"] },
+              { t: "path", items: ["Quản Trị Hệ Thống", "Phân quyền & Vai trò"] },
               { t: "md", text: "- Bốn vai trò hệ thống (Admin, Trưởng nhà, Thủ quỹ, Thành viên) không xóa được và bộ quyền cố định (**Admin luôn có toàn bộ quyền**).\n- **Thêm vai trò** cho các ban (ví dụ Trưởng ban Ẩm thực): đặt tên, mô tả, chọn quyền theo nhóm phân hệ (có ô tìm quyền), rồi gán cho người phụ trách ở tab Tài khoản.\n- **Sửa / Xóa** vai trò tự tạo. Vai trò còn lịch sử sẽ được lưu trữ, người đang giữ mất quyền ngay." },
               { t: "callout", tone: "warn", title: "Chống leo thang quyền", text: "Người đang giữ một vai trò chỉ được **bớt** quyền của vai trò đó, không tự thêm. Một số quyền quản trị (gán vai trò, quản lý tài khoản, xem CCCD, xem nhật ký hoạt động…) không cấp được cho vai trò tự tạo." },
             ],
@@ -968,7 +968,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "heading", text: "Nhật ký hoạt động (chỉ Admin)" },
-      { t: "path", items: ["Cài Đặt", "Nhật ký hoạt động"] },
+      { t: "path", items: ["Quản Trị Hệ Thống", "Nhật ký hoạt động"] },
       { t: "demo", name: "activity-log", caption: "Mỗi thao tác: ai, làm gì, kết quả, giờ, thiết bị" },
       {
         t: "cards",
@@ -981,11 +981,18 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       { t: "md", text: "Lọc theo **người dùng**, khoảng thời gian, phân hệ, kết quả hoặc tìm theo từ khóa. Nhật ký giữ **180 ngày**. Hồ sơ cá nhân nhạy cảm và điểm học tập chỉ Trưởng nhà xem được nên không hiện ở đây." },
       { t: "heading", text: "Theo dõi dung lượng (chỉ Admin)" },
-      { t: "path", items: ["Cài Đặt", "Dung lượng"] },
+      { t: "path", items: ["Quản Trị Hệ Thống", "Dung lượng"] },
       {
         t: "md",
         text: "Xem **% đã dùng** của gói miễn phí để biết trước khi đầy: **CSDL** (Supabase Database), **Supabase Storage** (ảnh, PDF, video nhỏ — đếm thật qua Storage API, gồm cả bản thu nhỏ) và **Cloudinary** (credits của video). Mỗi thẻ có dự báo ngày đầy (cần vài ngày dữ liệu) và gợi ý việc cần làm khi chạm ngưỡng. Bên dưới là thống kê **tệp tải lên**: bao nhiêu ảnh / video / PDF, theo ngày (7–90 ngày) và theo tháng, theo mục dùng, người tải nhiều nhất, tệp lớn nhất, tệp kẹt có thể dọn, và các bảng CSDL lớn nhất.\n\nHệ thống tự ghi số liệu mỗi sáng và **báo cho Admin** khi một chỉ số chạm ngưỡng cảnh báo (mặc định 70%) hoặc nguy hiểm (90%) — mỗi chỉ số tối đa một lần mỗi tuần. **Hạn mức gói** (mặc định CSDL 500 MB, Storage 1 GB) và hai ngưỡng sửa ngay ở cuối tab; nâng gói thì nhớ đổi hạn mức. Chưa theo dõi được băng thông (egress) của Supabase và mức dùng Vercel — xem ở trang Usage của họ.",
       },
+      { t: "heading", text: "Phiên bản & lịch sử cập nhật" },
+      { t: "path", items: ["Quản Trị Hệ Thống", "Phiên bản & cập nhật"] },
+      {
+        t: "md",
+        text: "Cho biết **phiên bản ứng dụng đang chạy** (dạng `1.7.0`), **thời điểm cập nhật** (giờ dựng bản này theo giờ Việt Nam), mã commit, môi trường (bản chính thức hay staging) và **lịch sử các lần cập nhật** — mới nhất ở trên, mỗi bản ghi rõ thêm gì, cải tiến gì, sửa lỗi gì.\n- Mỗi lần cập nhật ứng dụng đều **tăng số phiên bản**: sửa lỗi nhỏ tăng số cuối (1.7.**1**), thêm tính năng hoặc màn hình tăng số giữa (1.**8**.0), đổi lớn tăng số đầu (**2**.0.0).\n- Nếu máy chủ đã chạy bản mới hơn bản trình duyệt đang giữ, tab hiện nút **Tải lại trang** để dùng bản mới.",
+      },
+      { t: "callout", tone: "info", title: "Quản trị hệ thống là mục riêng", text: "Các việc quản trị (phân quyền, tài khoản, phân hệ, Zalo, Trợ lý AI, dung lượng, nhật ký, tình trạng hệ thống, phiên bản) nằm ở mục **Quản Trị Hệ Thống** trên thanh bên — chỉ người có quyền mới thấy. **Cài đặt** chỉ còn hồ sơ, bảo mật, thông báo của bạn và cấu hình của lưu xá (thông tin chung, định mức, danh mục, nhắc lịch). Liên kết cũ dạng Cài đặt → tab quản trị tự chuyển sang trang mới." },
       { t: "callout", tone: "info", title: "Admin có toàn quyền", text: "Admin có **mọi quyền** của hệ thống — và quyền thêm về sau cũng tự được cấp. Admin cũng được tính là Trưởng nhà + Thủ quỹ khi duyệt chi. Những điều vẫn giữ nguyên cho MỌI người, kể cả Admin: **không tự duyệt phiếu chi / đơn xin phép do chính mình lập** (cần người khác duyệt), và dữ liệu cần sự **đồng ý của thành viên** (hồ sơ Công giáo, chia sẻ bảng điểm…) chỉ xem được khi họ đã đồng ý. Mỗi lần xem CCCD đầy đủ đều phải nhập lý do và được ghi vào nhật ký." },
       {
         t: "accordion",
@@ -993,7 +1000,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Bảo mật tài khoản: 2 bước, quên mật khẩu, thông báo đẩy, email",
             blocks: [
-              { t: "md", text: "- **Xác thực 2 bước** (TOTP + 8 mã khôi phục) bắt buộc với vai trò quyền cao (Admin, Trưởng nhà, Thủ quỹ — cấu hình ở **Cài đặt → Cấu hình chung → Bảo mật đăng nhập**). Người mất điện thoại và mã khôi phục: **Cài đặt → Tài khoản → Quản lý → Gỡ xác thực 2 bước**.\n- **Quên mật khẩu** tự phục vụ qua email cần biến `RESEND_API_KEY` và `EMAIL_FROM` (tên miền đã xác minh ở Resend). Thiếu thì người dùng nhờ Admin đặt lại mật khẩu.\n- **Thông báo đẩy** cần `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (sinh bằng `pnpm env:keys`). Thiếu thì chỉ có thông báo trong ứng dụng.\n- Biến môi trường đặt ở **Vercel → Settings → Environment Variables** rồi **deploy lại**. Chi tiết và cách xoay khóa: file `VAN_HANH.md` trong mã nguồn." },
+              { t: "md", text: "- **Xác thực 2 bước** (TOTP + 8 mã khôi phục) bắt buộc với vai trò quyền cao (Admin, Trưởng nhà, Thủ quỹ — cấu hình ở **Cài đặt → Cấu hình chung → Bảo mật đăng nhập**). Người mất điện thoại và mã khôi phục: **Quản trị → Tài khoản → Quản lý → Gỡ xác thực 2 bước**.\n- **Quên mật khẩu** tự phục vụ qua email cần biến `RESEND_API_KEY` và `EMAIL_FROM` (tên miền đã xác minh ở Resend). Thiếu thì người dùng nhờ Admin đặt lại mật khẩu.\n- **Thông báo đẩy** cần `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (sinh bằng `pnpm env:keys`). Thiếu thì chỉ có thông báo trong ứng dụng.\n- Biến môi trường đặt ở **Vercel → Settings → Environment Variables** rồi **deploy lại**. Chi tiết và cách xoay khóa: file `VAN_HANH.md` trong mã nguồn." },
             ],
           },
           {
@@ -1055,10 +1062,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           { title: "Bấm nút báo “Không có quyền”", blocks: [{ t: "md", text: "Nhờ Admin kiểm tra vai trò của bạn ở Cài Đặt → Phân quyền & Vai trò." }] },
           { title: "Dữ liệu chưa cập nhật", blocks: [{ t: "md", text: "Tải lại trang (kéo xuống trên điện thoại hoặc `F5`)." }] },
           { title: "Quên mật khẩu", blocks: [{ t: "md", text: "Ở trang đăng nhập bấm **Quên mật khẩu?** để nhận email đặt lại (hiệu lực 30 phút). Chưa nhận được thư: kiểm tra mục Thư rác, hoặc nhờ Admin/Trưởng nhà đặt lại — bạn nhận mật khẩu tạm và đổi ngay khi đăng nhập." }] },
-          { title: "Mất điện thoại đang dùng xác thực 2 bước", blocks: [{ t: "md", text: "Đăng nhập bằng một **mã khôi phục** (đã lưu lúc bật 2 bước). Hết mã: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Cài đặt → Tài khoản, rồi bật lại và lưu bộ mã mới." }] },
+          { title: "Mất điện thoại đang dùng xác thực 2 bước", blocks: [{ t: "md", text: "Đăng nhập bằng một **mã khôi phục** (đã lưu lúc bật 2 bước). Hết mã: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Quản trị → Tài khoản, rồi bật lại và lưu bộ mã mới." }] },
           { title: "Không nhận được thông báo đẩy", blocks: [{ t: "md", text: "Vào **Cài đặt → Thông báo**: đã bật trên thiết bị này chưa, có đang trong giờ yên tĩnh không, nhóm thông báo có bị tắt không. iPhone cần **Thêm vào Màn hình chính** và mở ứng dụng từ biểu tượng đó. Thông báo do **chính bạn** tạo không gửi ngược lại cho bạn. Nếu trang báo máy chủ chưa bật thông báo đẩy thì nhờ Admin cấu hình. Xem đầy đủ ở mục **Cài ứng dụng & bật thông báo**." }] },
           { title: "Đổi email xong mà đăng nhập bằng email đó không được", blocks: [{ t: "md", text: "Rất có thể bạn đã sửa **Email liên hệ** trong Hồ sơ — email đó **không dùng để đăng nhập**. Hãy vẫn đăng nhập bằng email cũ, rồi vào **Cài đặt → Bảo mật → Đổi email đăng nhập** để đổi đúng email đăng nhập (cần mật khẩu hiện tại)." }] },
-          { title: "Muốn dùng AI", blocks: [{ t: "md", text: "Admin bật trong Cài đặt → Trợ lý AI; lần đầu dùng mỗi người cần bấm đồng ý." }] },
+          { title: "Muốn dùng AI", blocks: [{ t: "md", text: "Admin bật trong Quản trị → Trợ lý AI; lần đầu dùng mỗi người cần bấm đồng ý." }] },
           { title: "Tin Zalo đến muộn hoặc có hai tin gần nhau", blocks: [{ t: "md", text: "Cron gói miễn phí có thể lệch tới ~1 giờ. Hai tin gần nhau thường là hai loại tin khác nhau (vd. sự kiện và lịch nhắc). Admin xem từng tin trong **Tích hợp Zalo → Lịch & lịch sử**." }] },
         ],
       },

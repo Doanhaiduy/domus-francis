@@ -1,4 +1,4 @@
-// Lịch & lịch sử tin gửi nhóm Zalo (Cài đặt → Tích hợp Zalo). Xem db/app/1017_zalo_message_log.sql.
+// Lịch & lịch sử tin gửi nhóm Zalo (Quản trị → Tích hợp Zalo). Xem db/app/1017_zalo_message_log.sql.
 
 export type ZaloLogStatus = "sent" | "failed" | "skipped";
 

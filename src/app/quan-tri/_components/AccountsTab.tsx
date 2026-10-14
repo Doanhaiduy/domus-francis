@@ -22,7 +22,7 @@ import { CustomInput } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Portal } from "@/components/ui/Portal";
 import { useApp } from "@/lib/store";
-import { ListSkeleton } from "./TabSkeletons";
+import { ListSkeleton } from "@/components/settings/TabSkeletons";
 import { errorMessage, fileUrl } from "@/lib/api";
 import { accountsApi, refreshAccounts, useAccounts } from "@/lib/data/accounts";
 import {

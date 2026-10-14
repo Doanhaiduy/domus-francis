@@ -1,5 +1,5 @@
 // Mẫu tin nhắn gửi nhóm Zalo (dùng chung client + server). Mỗi loại tin có mẫu mặc định + danh sách biến {tên};
-// Trưởng nhà / Admin sửa mẫu ở Cài đặt → Tích hợp Zalo (lưu ở settings.integration.zalo.templates).
+// Trưởng nhà / Admin sửa mẫu ở Quản trị → Tích hợp Zalo (lưu ở settings.integration.zalo.templates).
 // Dòng nào chỉ gồm biến rỗng sẽ tự bị bỏ, nên mẫu không để lại dòng trống khi thiếu dữ liệu (vd. không có ghi chú).
 import type { ZaloEventKey } from "./types/settings";
 

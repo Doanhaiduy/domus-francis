@@ -58,7 +58,7 @@ import {
   type OutboxStatDto,
 } from "@/lib/types/system";
 import { cn } from "@/lib/utils";
-import { FormCardsSkeleton } from "./TabSkeletons";
+import { FormCardsSkeleton } from "@/components/settings/TabSkeletons";
 import { Card } from "./StorageStats";
 
 // ---------------------------------------------------------------------

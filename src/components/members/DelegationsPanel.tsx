@@ -1,6 +1,6 @@
 "use client";
 
-// Ủy quyền vai trò tạm thời (Cài đặt → Phân quyền): người giữ vai trò (Trưởng nhà, Thủ quỹ…) giao vai trò của mình cho một thành viên trong
+// Ủy quyền vai trò tạm thời (Quản trị → Phân quyền): người giữ vai trò (Trưởng nhà, Thủ quỹ…) giao vai trò của mình cho một thành viên trong
 // khoảng ngày (tối đa 60 ngày) kèm lý do, vd. "về quê dịp Tết". Người được ủy quyền có quyền của vai trò trong khoảng đó; thu hồi sớm bất cứ lúc nào.
 import React, { useMemo, useState } from "react";
 import { CalendarClock, Loader2, Plus, Undo2, UserRoundCog, X } from "lucide-react";

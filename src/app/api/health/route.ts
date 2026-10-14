@@ -29,6 +29,8 @@ export const GET = api({ auth: "public" }, async (ctx) => {
     dbLatencyMs: Date.now() - t0,
     env: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+    version: process.env.NEXT_PUBLIC_APP_VERSION ?? null,
+    builtAt: process.env.NEXT_PUBLIC_BUILD_TIME ?? null,
     time: new Date().toISOString(),
   };
   let ok = dbOk;

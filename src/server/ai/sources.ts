@@ -68,12 +68,11 @@ const STOP_VI = new Set(["bài", "viết", "về", "của", "cho", "các", "nh�
  */
 const GENERIC = new Set(["cau", "nguyen", "cong", "giao", "hoi", "duc", "thanh", "chua", "thien", "cha", "giam", "muc", "tin", "huu", "kinh", "gia", "dinh", "tam", "long", "dieu", "viec"]);
 /** Tập các từ (đã bỏ dấu, chữ thường) của một đoạn văn — để so khớp từ khóa theo từ nguyên vẹn. */
-const tokenSet = (s: string): Set<string> => new Set(fold(s).split(/[^a-z0-9]+/).filter(Boolean));
-export const keywordsOf = (q: string): string[] => {
-  const words = q.normalize("NFC").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3 && !STOP_VI.has(w));
-  return [...new Set(words.map((w) => fold(w)))].slice(0, 10);
-};
-const distinctive = (kw: string[]) => kw.filter((w) => !GENERIC.has(w));
+// So khớp CÓ DẤU: bỏ dấu thì "tĩnh tâm"/"tình tâm"/"tám", "hòa giải"/"giải" lẫn vào nhau và tin chẳng liên quan cũng trùng vài âm tiết
+const words = (s: string): string[] => s.normalize("NFC").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const tokenSet = (s: string): Set<string> => new Set(words(s));
+export const keywordsOf = (q: string): string[] => [...new Set(words(q).filter((w) => w.length >= 3 && !STOP_VI.has(w)))].slice(0, 10);
+const distinctive = (kw: string[]) => kw.filter((w) => !GENERIC.has(fold(w)));
 
 const feedCache = (globalThis as unknown as { __luuxaFeedCache?: { at: number; items: SourceItem[] } });
 

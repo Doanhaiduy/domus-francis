@@ -12,7 +12,7 @@ export type { DailyItem, DailyResult, DailySlot } from "./types";
 //   • slot "morning" (07:00–07:59 giờ VN): nhắc lễ, sự kiện, quỹ, sinh nhật, lịch trực, nhắc cơm, tin cho người quản lý…
 //   • slot "evening" (19:00–19:59 giờ VN): nhắc check-in đi lễ, nhắc lặp buổi tối, dọn dẹp, đo dung lượng, kiểm sổ cái…
 // Danh sách + thứ tự các bước: ./steps/index.ts. Mỗi bước có hạn giờ riêng; lỗi một bước không chặn bước sau.
-// Mỗi lượt chạy ghi vào job_runs (Cài đặt → Hệ thống); có bước lỗi ⇒ báo Admin (system.ops_alert, mỗi lượt/ngày một lần) và
+// Mỗi lượt chạy ghi vào job_runs (Quản trị → Hệ thống); có bước lỗi ⇒ báo Admin (system.ops_alert, mỗi lượt/ngày một lần) và
 // /api/cron/daily trả HTTP 500 (Vercel hiện lượt chạy lỗi).
 // Mọi tin đều có khóa chống gửi trùng (system_post_log) nên chạy lại / cron bắn hai lần không gửi trùng; tin Zalo gửi LỖI thì chạy lại sẽ thử gửi lại.
 // dry = true: chỉ liệt kê những tin SẼ gửi, không gửi và không ghi gì.
@@ -114,7 +114,7 @@ export async function runDailyJobs(slot: DailySlot, opts: { dry?: boolean; kind?
         `ops-alert:cron:${slot}:${today}`,
         `Tác vụ nền buổi ${slot === "morning" ? "sáng" : "tối"} có ${failed.length} bước lỗi`,
         failed.map((f) => `• ${f.name}: ${f.error}`).join("\n").slice(0, 900),
-        { link: "/cai-dat?tab=system" },
+        { link: "/quan-tri?tab=system" },
       );
     }
   }

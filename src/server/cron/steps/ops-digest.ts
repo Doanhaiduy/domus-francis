@@ -7,7 +7,7 @@ import type { CronStep, StepCtx } from "../types";
 // Bước cron "ops-digest" (buổi sáng) — gói A — Giám sát & vận hành. Mỗi việc chạy độc lập (một việc lỗi không chặn việc sau;
 // cuối bước ném lỗi tổng hợp để lượt chạy ghi nhận). Xem trước (dry) chỉ ghi chú, KHÔNG ghi gì.
 //   (a) Lỗi MỚI chưa báo (error_events: status new, notified_at NULL) ⇒ MỘT thông báo system.error_digest cho Admin mỗi ngày
-//       (số lỗi + 3 lỗi nhiều lần nhất, mở Cài đặt → Hệ thống) rồi đánh dấu notified_at. Hôm nay đã gửi ⇒ để dành cho bản ngày mai.
+//       (số lỗi + 3 lỗi nhiều lần nhất, mở Quản trị → Hệ thống) rồi đánh dấu notified_at. Hôm nay đã gửi ⇒ để dành cho bản ngày mai.
 //   (b) Giao dịch ngân hàng chưa khớp quá 7 ngày ⇒ nhắc Thủ quỹ + Trưởng nhà MỖI TUẦN một lần (finance.bank_unmatched, mở Thu chi).
 //   (c) Sao lưu quá hạn (CSDL > 36 giờ / tệp > 8 ngày không có nhịp tim đạt — chỉ khi đã từng có) ⇒ system.ops_alert cho Admin
 //       (CSDL: mỗi ngày một lần; tệp: mỗi tuần một lần). Lần sao lưu THẤT BẠI đã được báo ngay khi nhận nhịp tim.
@@ -28,7 +28,7 @@ export function isoWeek(day: string): string {
 }
 
 const dmy = (v: Date | string) => new Date(v).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
-const LINK = "/cai-dat?tab=system";
+const LINK = "/quan-tri?tab=system";
 
 /** (a) Tóm tắt lỗi mới cho Admin. */
 async function errorDigest(c: StepCtx) {
@@ -45,7 +45,7 @@ async function errorDigest(c: StepCtx) {
   const total = rows[0].total;
   const top = rows.slice(0, 3).map((r) => `• [${errorSourceLabel(r.source)}]${r.route ? ` ${r.route}` : ""}: ${r.message.slice(0, 140)} (×${r.count})`);
   const title = `${total} lỗi hệ thống mới cần xem`;
-  const body = [...top, total > 3 ? `… và ${total - 3} lỗi khác.` : "", "Xem và đánh dấu “Đã xem / Đã sửa” ở Cài đặt → Hệ thống."].filter(Boolean).join("\n");
+  const body = [...top, total > 3 ? `… và ${total - 3} lỗi khác.` : "", "Xem và đánh dấu “Đã xem / Đã sửa” ở Quản trị → Hệ thống."].filter(Boolean).join("\n");
   if (c.dry) {
     c.note(`(xem trước) sẽ gửi Admin tóm tắt ${total} lỗi mới`);
     return;
@@ -104,8 +104,8 @@ async function jobsStale(c: StepCtx) {
             : "Tác vụ buổi tối đã ngừng chạy";
     const body =
       kind === "cron:evening"
-        ? `${chk.status} ${last} Kiểm tra Vercel → Cron Jobs / Logs; xem chi tiết ở Cài đặt → Hệ thống.`
-        : `${chk.status} ${last} Kiểm tra tab Actions của repo sao lưu (secret, lịch chạy, lỗi) — xem Cài đặt → Hệ thống.`;
+        ? `${chk.status} ${last} Kiểm tra Vercel → Cron Jobs / Logs; xem chi tiết ở Quản trị → Hệ thống.`
+        : `${chk.status} ${last} Kiểm tra tab Actions của repo sao lưu (secret, lịch chạy, lỗi) — xem Quản trị → Hệ thống.`;
     if (c.dry) {
       c.note(`(xem trước) sẽ báo Admin: ${title}`);
       continue;

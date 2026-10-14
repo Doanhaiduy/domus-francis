@@ -11,7 +11,7 @@ import { SLOT_LABEL, WEEKDAY_SHORT, type ReminderDto, type ReminderSlot } from "
 import { CustomInput, CustomSelect, CustomTextarea, CustomToggle } from "@/components/ui/FormControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DialogShell, ErrorBox, btnGhost, btnPrimary } from "@/app/thu-chi/_components/dialogs";
-import { ListSkeleton } from "./TabSkeletons";
+import { ListSkeleton } from "@/components/settings/TabSkeletons";
 import { cn } from "@/lib/utils";
 
 function Editor({ open, onClose, item }: { open: boolean; onClose: () => void; item: ReminderDto | null }) {

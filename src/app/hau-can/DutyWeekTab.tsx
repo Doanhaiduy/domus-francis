@@ -229,7 +229,7 @@ function AssignModal({
         {list.length === 0 && <p className="py-6 text-center text-xs text-gray-400">Không có thành viên phù hợp.</p>}
       </div>
       <CustomTextarea label="Ghi chú cho người trực (tùy chọn)" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Quét sân, nhổ cỏ góc vườn, đổ rác trước 7h sáng…" maxLength={500} />
-      <CustomToggle checked={zalo} onChange={setZalo} label="Gửi lịch trực vào nhóm Zalo của nhà" description="Chỉ gửi khi đã bật tích hợp ở Cài đặt → Tích hợp Zalo" />
+      <CustomToggle checked={zalo} onChange={setZalo} label="Gửi lịch trực vào nhóm Zalo của nhà" description="Chỉ gửi khi đã bật tích hợp ở Quản trị → Tích hợp Zalo" />
       <ErrorBox error={error} />
     </DialogShell>
   );

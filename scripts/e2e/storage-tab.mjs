@@ -40,10 +40,10 @@ try {
   console.log("\nTrưởng nhà: không thấy tab");
   const hctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "vi-VN" });
   const hp = await login(hctx, HEAD);
-  await hp.goto(`${BASE}/cai-dat`, { waitUntil: "load", timeout: 90_000 });
-  await hp.waitForSelector("text=Phân quyền", { timeout: 60_000 });
+  await hp.goto(`${BASE}/quan-tri`, { waitUntil: "load", timeout: 90_000 });
+  await hp.waitForSelector("text=Phiên bản & cập nhật", { timeout: 60_000 }); // Trưởng nhà vào được Quản trị nhưng không có tab Dung lượng
   check((await tabBtn(hp).count()) === 0, "Trưởng nhà không có tab “Dung lượng”");
-  await hp.goto(`${BASE}/cai-dat?tab=storage`, { waitUntil: "load" });
+  await hp.goto(`${BASE}/quan-tri?tab=storage`, { waitUntil: "load" });
   await hp.waitForTimeout(1500);
   check((await hp.getByText("Hạn mức gói & ngưỡng cảnh báo").count()) === 0, "mở thẳng ?tab=storage cũng không hiện nội dung");
   await hctx.close();
@@ -54,7 +54,7 @@ try {
     const page = await login(ctx, ADMIN);
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(`${BASE}/cai-dat`, { waitUntil: "load", timeout: 90_000 });
+    await page.goto(`${BASE}/quan-tri`, { waitUntil: "load", timeout: 90_000 });
     await page.evaluate((s) => document.documentElement.classList.toggle("dark", s === "dark"), scheme);
     await tabBtn(page).waitFor({ timeout: 60_000 });
     await tabBtn(page).click();
@@ -84,7 +84,7 @@ try {
   console.log("\nAdmin: điện thoại 390px");
   const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: "vi-VN" });
   const mp = await login(mctx, ADMIN);
-  await mp.goto(`${BASE}/cai-dat?tab=storage`, { waitUntil: "load", timeout: 90_000 });
+  await mp.goto(`${BASE}/quan-tri?tab=storage`, { waitUntil: "load", timeout: 90_000 });
   await mp.getByText("Dung lượng & lưu trữ").waitFor({ timeout: 60_000 });
   await mp.waitForFunction(() => !document.body.innerText.includes("Đang đo…"), null, { timeout: 60_000 });
   await mp.waitForTimeout(600);

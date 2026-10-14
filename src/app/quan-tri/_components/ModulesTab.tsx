@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { LayoutPanelLeft, Wrench, Save, Undo2 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { ToggleListSkeleton } from "./TabSkeletons";
+import { ToggleListSkeleton } from "@/components/settings/TabSkeletons";
 import { errorMessage } from "@/lib/api";
 import { modulesApi, useModules } from "@/lib/data/modules";
 import { DEFAULT_MAINTENANCE_MESSAGE, TOGGLEABLE_MODULES, type DisabledModules } from "@/lib/modules";

@@ -49,8 +49,8 @@ export default function AiFinanceInsight({ month }: { month?: string }) {
     return (
       <p className="text-[11px] text-gray-400">
         AI nhận xét thu chi chưa dùng được{reason ? ` (${lowerFirst(reason.replace(/\.$/, ""))})` : ""} — bật trong{" "}
-        <Link href="/cai-dat?tab=ai" className="font-semibold text-violet-600 hover:underline">
-          Cài đặt → Trợ lý AI
+        <Link href="/quan-tri?tab=ai" className="font-semibold text-violet-600 hover:underline">
+          Quản trị → Trợ lý AI
         </Link>
         .
       </p>

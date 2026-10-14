@@ -23,6 +23,7 @@ import {
   Wrench as WrenchIcon,
   User,
   Newspaper,
+  ServerCog,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Menu, Transition } from "@headlessui/react";
@@ -35,6 +36,7 @@ import { useUnreadCount } from "@/lib/data/dashboard";
 import { useModules } from "@/lib/data/modules";
 import { useInbox } from "@/lib/data/inbox";
 import { groupPaths, inboxKindsFor, isInPath } from "@/lib/nav-groups";
+import { ADMIN_SECTION_PERMISSIONS } from "@/lib/admin-tabs";
 import { DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/modules";
 import { InboxBadge } from "./InboxBadge";
 
@@ -63,6 +65,8 @@ export const NAV_ITEMS: {
   { href: "/khoanh-khac", label: "Khoảnh Khắc", icon: Camera },
   { href: "/bai-viet", label: "Trang công khai", icon: Newspaper, requires: ["article.manage", "application.review"], isDividerBefore: true },
   { href: "/cai-dat", label: "Cài Đặt & Hướng dẫn", icon: Settings, paths: groupPaths("/cai-dat") },
+  // Phần kỹ thuật/vận hành (phân quyền, tài khoản, Zalo, AI, dung lượng, nhật ký, phiên bản) — tách khỏi Cài đặt; chỉ người có quyền quản trị thấy
+  { href: "/quan-tri", label: "Quản Trị Hệ Thống", icon: ServerCog, requires: [...ADMIN_SECTION_PERMISSIONS] },
 ];
 
 export const Sidebar: React.FC = () => {

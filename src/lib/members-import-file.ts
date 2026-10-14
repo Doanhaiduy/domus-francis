@@ -224,7 +224,7 @@ export async function downloadImportTemplate(refs: ImportTemplateRefs = {}) {
     note("• Trường, Phòng, Ngành, Tình trạng: xem sheet “Danh muc”. Tên trường/phòng phải trùng danh mục của lưu xá (hoặc gần giống); không khớp ⇒ bỏ qua phần đó và có cảnh báo. Thông tin học vụ chỉ lưu khi xác định được Trường."),
     note("• Mỗi số điện thoại, email, số CCCD chỉ dùng cho một người — dòng trùng với người đã có (hoặc trùng trong tệp) sẽ bị bỏ qua. Tối đa 300 dòng mỗi lần; hệ thống kiểm tra từng dòng và cho xem kết quả trước khi thêm."),
     note("• Cột riêng tư (Ngày sinh, CCCD, Quê quán, Địa chỉ, Cha/Mẹ) cần quyền ghi thông tin riêng tư; Ẩn SĐT, các cột Học vụ và Định mức quỹ riêng cần quyền sửa hồ sơ thành viên (Trưởng nhà và Admin có đủ). Thiếu quyền ⇒ cột đó bị bỏ qua và có thông báo."),
-    note("• KHÔNG nhập hàng loạt: thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), ảnh đại diện và tài khoản đăng nhập (cấp riêng ở Cài đặt → Tài khoản)."),
+    note("• KHÔNG nhập hàng loạt: thông tin Công giáo (tên thánh, giáo phận, giáo xứ, bí tích — cần chính thành viên đồng ý, thành viên tự điền ở Cài đặt → Hồ sơ), ảnh đại diện và tài khoản đăng nhập (cấp riêng ở Quản trị → Tài khoản)."),
     [],
     ["Cột", "Bắt buộc", "Ví dụ", "Giá trị chấp nhận / lưu ý"].map((t) => ({ value: t, fontWeight: "bold", backgroundColor: "#EDE9FE", bottomBorderStyle: "thin" })),
   ];

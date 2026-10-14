@@ -140,6 +140,8 @@ export const AI_LINKS: { href: string; label: string; hint: string }[] = [
     hint: "Người quản lý (Trưởng nhà, Admin): xử lý yêu cầu xem / sửa / xóa dữ liệu cá nhân của thành viên, phản hồi trong 72 giờ",
   },
   { href: "/cai-dat?tab=notifications", label: "Cài đặt → Thông báo", hint: "Cài ứng dụng ra màn hình chính, bật thông báo đẩy, giờ yên tĩnh" },
+  { href: "/quan-tri", label: "Quản trị hệ thống", hint: "Dành cho người quản trị: phân quyền & vai trò, tài khoản, phân hệ, tích hợp Zalo, Trợ lý AI, dung lượng, nhật ký hoạt động, tình trạng hệ thống" },
+  { href: "/quan-tri?tab=version", label: "Quản trị → Phiên bản & cập nhật", hint: "Phiên bản ứng dụng đang chạy, thời điểm cập nhật gần nhất, lịch sử các bản cập nhật" },
   { href: "/huong-dan", label: "Hướng dẫn sử dụng", hint: "Sách hướng dẫn đầy đủ theo từng vai trò" },
   { href: "/gop-y", label: "Góp ý về ứng dụng", hint: "Báo lỗi, đề xuất tính năng, góp ý cho người quản lý (có thể ẩn tên, đính ảnh chụp màn hình)" },
   { href: "/chinh-sach-bao-mat", label: "Chính sách bảo mật", hint: "Dữ liệu cá nhân nào được thu thập, dùng, bảo vệ, lưu bao lâu và quyền của bạn" },

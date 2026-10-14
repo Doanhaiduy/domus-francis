@@ -10,7 +10,7 @@ import { kitchenErrorText } from "@/lib/kitchen-format";
 import type { MealsWeekDto } from "@/lib/types/kitchen";
 import KitchenModal, { btnGhost, btnPrimary } from "./KitchenModal";
 
-/** Giờ chốt suất trưa/tối (Ban Ẩm thực). Bật/tắt phân hệ làm ở Cài đặt → Phân hệ (một nguồn duy nhất). */
+/** Giờ chốt suất trưa/tối (Ban Ẩm thực). Bật/tắt phân hệ làm ở Quản trị → Phân hệ (một nguồn duy nhất). */
 export default function MealSettingsModal({ open, week, onClose }: { open: boolean; week: MealsWeekDto; onClose: () => void }) {
   const { showToast } = useApp();
   const [lunch, setLunch] = useState("");
@@ -72,7 +72,7 @@ export default function MealSettingsModal({ open, week, onClose }: { open: boole
       )}
       <p className="text-[11px] text-gray-500 leading-relaxed">
         Muốn tạm hoãn hoặc bật lại cả phân hệ Bếp &amp; Cơm? Làm ở{" "}
-        <Link href="/cai-dat?tab=modules" className="font-bold text-primary hover:underline">Cài đặt → Phân hệ</Link>
+        <Link href="/quan-tri?tab=modules" className="font-bold text-primary hover:underline">Quản trị → Phân hệ</Link>
         {week.canToggleFeature ? "" : " (cần quyền Cài đặt hệ thống)"}.
       </p>
       {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">{error}</div>}

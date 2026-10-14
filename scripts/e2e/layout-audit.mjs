@@ -26,8 +26,8 @@ const DEFAULT_PAGES = [
   "/thu-chi?tab=so-quy", "/thu-chi?tab=bao-cao", "/thu-chi?tab=thong-ke", "/bao-cao", "/bep-com", "/hau-can", "/hau-can?tab=bao-hong", "/phung-vu", "/phung-vu?tab=checkin",
   "/phung-vu?tab=docs", "/thanh-vien", "/thanh-vien?tab=applications", "/thanh-vien?tab=former", "/thanh-vien?tab=data-requests", "/so-do-nha", "/ky-luat", "/hoc-tap",
   "/khoanh-khac", "/bai-viet", "/bai-viet?tab=faq", "/bai-viet?tab=inquiries", "/gop-y", "/huong-dan", "/khoi-tao",
-  "/cai-dat?tab=profile", "/cai-dat?tab=security", "/cai-dat?tab=notifications", "/cai-dat?tab=general", "/cai-dat?tab=categories", "/cai-dat?tab=academic", "/cai-dat?tab=roles",
-  "/cai-dat?tab=accounts", "/cai-dat?tab=zalo", "/cai-dat?tab=reminders", "/cai-dat?tab=ai", "/cai-dat?tab=modules", "/cai-dat?tab=activity", "/cai-dat?tab=storage", "/cai-dat?tab=system",
+  "/cai-dat?tab=profile", "/cai-dat?tab=security", "/cai-dat?tab=notifications", "/cai-dat?tab=general", "/cai-dat?tab=categories", "/cai-dat?tab=academic", "/quan-tri?tab=roles",
+  "/quan-tri?tab=accounts", "/quan-tri?tab=zalo", "/cai-dat?tab=reminders", "/quan-tri?tab=ai", "/quan-tri?tab=modules", "/quan-tri?tab=activity", "/quan-tri?tab=storage", "/quan-tri?tab=system",
 ];
 const PUBLIC_PAGES = ["/tin-tuc", "/gioi-thieu", "/lien-he", "/hoi-dap", "/thu-vien", "/ung-ho", "/vao-o", "/chinh-sach-bao-mat", "/dieu-khoan-su-dung", "/dang-nhap"];
 const PAGES = (get("--pages", [...DEFAULT_PAGES, ...PUBLIC_PAGES].join(",")) ?? "").split(",").map(normPage);

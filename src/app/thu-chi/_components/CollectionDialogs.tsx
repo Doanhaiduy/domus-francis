@@ -258,7 +258,7 @@ export function RemindDialog({
         <>
           <div className="p-3 rounded-2xl bg-surface-container-low/70 border border-purple-50 space-y-1">
             <CustomToggle checked={inApp} onChange={setInApp} label="Thông báo trong ứng dụng" description="Người chưa đóng nhận thông báo kèm số tiền còn thiếu và hạn nộp (không nhắc lại trong 1 giờ)" />
-            {!only && <CustomToggle checked={zalo} onChange={setZalo} label="Gửi vào nhóm Zalo của nhà" description="Danh sách người chưa đóng + tài khoản nhận quỹ (cần bật ở Cài đặt → Tích hợp Zalo; nếu chưa được, hệ thống đưa sẵn nội dung để bạn sao chép)" />}
+            {!only && <CustomToggle checked={zalo} onChange={setZalo} label="Gửi vào nhóm Zalo của nhà" description="Danh sách người chưa đóng + tài khoản nhận quỹ (cần bật ở Quản trị → Tích hợp Zalo; nếu chưa được, hệ thống đưa sẵn nội dung để bạn sao chép)" />}
           </div>
           <CustomTextarea label="Lời nhắn thêm (tùy chọn)" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={300} placeholder="Ví dụ: Anh em sớm hoàn tất trước Chúa Nhật để Thủ quỹ chốt sổ nhé" />
         </>

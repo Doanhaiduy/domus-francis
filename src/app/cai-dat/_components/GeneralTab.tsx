@@ -6,7 +6,7 @@ import { Building, Globe, Wallet, ShieldCheck, Sliders, ChevronDown, Lock } from
 import { CustomInput, CustomTimePicker, CustomToggle } from "@/components/ui/FormControls";
 import { cn } from "@/lib/utils";
 import type { RoleDto, SettingDto } from "@/lib/types/settings";
-import type { SettingsDraft } from "./useSettingsDraft";
+import type { SettingsDraft } from "@/components/settings/useSettingsDraft";
 import { isHiddenSetting, settingHelp, settingLabel } from "@/lib/settings-catalog";
 import {
   AddressSetting,
@@ -21,7 +21,7 @@ import {
   ToggleSetting,
   commonLock,
   formatSettingValue,
-} from "./SettingFields";
+} from "@/components/settings/SettingFields";
 
 export const ORG_KEYS = [
   "org.house_name",

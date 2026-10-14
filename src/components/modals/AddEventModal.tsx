@@ -175,7 +175,7 @@ export default function AddEventModal() {
 
             <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-100 space-y-1">
               <CustomToggle label="Báo cả nhà trong ứng dụng" description="Mỗi thành viên nhận một thông báo về sự kiện này" checked={notifyAll} onChange={setNotifyAll} />
-              <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Cài đặt → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
+              <CustomToggle label="Đăng vào nhóm Zalo" description="Cần bật ở Quản trị → Tích hợp Zalo" checked={notifyZalo} onChange={setNotifyZalo} />
             </div>
           </div>
 

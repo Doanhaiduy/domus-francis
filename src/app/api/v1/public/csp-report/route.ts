@@ -14,7 +14,7 @@ const done = () => new Response(null, { status: 204, headers: { "cache-control":
 /**
  * Trình duyệt gửi báo cáo vi phạm Content-Security-Policy-Report-Only (middleware đặt `report-uri` + `report-to` trỏ về đây).
  * Nhận cả `application/csp-report` (report-uri, Firefox/Safari) lẫn `application/reports+json` (Reporting API, Chrome/Edge).
- * Ghi vào nhật ký lỗi đã gộp (error_events, nguồn "csp" — Admin xem ở Cài đặt → Hệ thống). Giới hạn trong CSDL theo IP băm
+ * Ghi vào nhật ký lỗi đã gộp (error_events, nguồn "csp" — Admin xem ở Quản trị → Hệ thống). Giới hạn trong CSDL theo IP băm
  * (20 lần / 10 phút) và toàn hệ thống (300 / giờ); vượt thì lặng lẽ bỏ qua. Luôn trả 204 — không bao giờ làm phiền trình duyệt.
  * Route thường (không bọc api()): không đọc phiên, không ghi nhật ký hoạt động cho mỗi lần trình duyệt tự gửi báo cáo.
  */

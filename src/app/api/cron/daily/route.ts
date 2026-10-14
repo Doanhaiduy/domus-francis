@@ -10,7 +10,7 @@ export const maxDuration = 60;
 /**
  * Vercel Cron gọi (vercel.json → crons). Vercel tự gắn "Authorization: Bearer $CRON_SECRET" khi biến môi trường CRON_SECRET được đặt.
  * Chưa đặt CRON_SECRET ⇒ từ chối (tránh ai đó gọi bừa để kích hoạt gửi tin).
- * Có bước lỗi ⇒ trả 500 (lượt chạy hiện "lỗi" trong Vercel → Cron Jobs) — chi tiết ở Cài đặt → Hệ thống (job_runs).
+ * Có bước lỗi ⇒ trả 500 (lượt chạy hiện "lỗi" trong Vercel → Cron Jobs) — chi tiết ở Quản trị → Hệ thống (job_runs).
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -43,6 +43,6 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[cron] daily lỗi:", (e as Error).message);
     await recordErrorEvent({ source: "cron", route: `GET /api/cron/daily?slot=${slot}`, code: "CRON_FAILED", message: (e as Error).message });
-    return NextResponse.json({ ok: false, error: "Tác vụ hằng ngày lỗi — xem Cài đặt → Hệ thống." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Tác vụ hằng ngày lỗi — xem Quản trị → Hệ thống." }, { status: 500 });
   }
 }

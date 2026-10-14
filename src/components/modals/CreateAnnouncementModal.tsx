@@ -226,7 +226,7 @@ export default function CreateAnnouncementModal() {
 
           {(canPin || canNotify) && (
             <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3 space-y-2">
-              <CustomToggle checked={notifyZalo} onChange={setNotifyZalo} label="Đăng cả vào nhóm Zalo" description="Gửi tiêu đề + phần đầu nội dung vào nhóm Zalo của nhà (cần bật ở Cài đặt → Tích hợp Zalo)" />
+              <CustomToggle checked={notifyZalo} onChange={setNotifyZalo} label="Đăng cả vào nhóm Zalo" description="Gửi tiêu đề + phần đầu nội dung vào nhóm Zalo của nhà (cần bật ở Quản trị → Tích hợp Zalo)" />
               {canPin && (
                 <CustomToggle checked={pinned} onChange={setPinned} label="Ghim lên đầu bảng tin" description="Tự bỏ ghim sau 14 ngày" />
               )}

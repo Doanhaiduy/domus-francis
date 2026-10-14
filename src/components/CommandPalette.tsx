@@ -31,7 +31,10 @@ import {
   QrCode,
   Sun,
   UserRound,
+  ServerCog,
+  Rocket,
 } from "lucide-react";
+import { ADMIN_SECTION_PERMISSIONS } from "@/lib/admin-tabs";
 import { useApp } from "@/lib/store";
 import { useSession } from "@/lib/session";
 import { useModules } from "@/lib/data/modules";
@@ -72,12 +75,14 @@ export const CommandPalette: React.FC = () => {
     { label: "Quản lý Học tập & Điểm số", href: "/hoc-tap", icon: GraduationCap, category: "Điều hướng" },
     { label: "Sơ đồ nhà & Phòng ở", href: "/so-do-nha", icon: Building2, category: "Điều hướng" },
     { label: "Lưu Khoảnh Khắc & Kỷ niệm", href: "/khoanh-khac", icon: Camera, category: "Điều hướng" },
-    { label: "Cài đặt & Quản lý danh mục", href: "/cai-dat", icon: Settings, category: "Điều hướng" },
+    { label: "Cài đặt (hồ sơ, bảo mật, cấu hình lưu xá, danh mục)", href: "/cai-dat", icon: Settings, category: "Điều hướng" },
     { label: "Hồ sơ cá nhân (ảnh, tài khoản nhận tiền, đồng ý dữ liệu)", href: "/cai-dat?tab=profile", icon: UserRound, category: "Điều hướng" },
     { label: "Cài đặt thông báo (tắt từng loại, giờ yên tĩnh, cài ứng dụng)", href: "/cai-dat?tab=notifications", icon: BellRing, category: "Điều hướng" },
+    { label: "Quản trị hệ thống (phân quyền, tài khoản, Zalo, AI, dung lượng, nhật ký)", href: "/quan-tri", icon: ServerCog, category: "Điều hướng", perm: [...ADMIN_SECTION_PERMISSIONS] },
+    { label: "Phiên bản & lịch sử cập nhật của ứng dụng", href: "/quan-tri?tab=version", icon: Rocket, category: "Điều hướng", perm: [...ADMIN_SECTION_PERMISSIONS] },
     { label: "Hướng dẫn sử dụng", href: "/huong-dan", icon: BookOpen, category: "Điều hướng" },
     { label: "Góp ý về ứng dụng", href: "/gop-y", icon: MessageSquareHeart, category: "Điều hướng" },
-  ].filter((n) => !("perm" in n) || !n.perm || can(n.perm));
+  ].filter((n) => !("perm" in n) || !n.perm || [n.perm].flat().some((p) => can(p)));
 
   const go = (href: string) => {
     setCommandPaletteOpen(false);

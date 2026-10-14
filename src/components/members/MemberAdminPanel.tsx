@@ -234,7 +234,7 @@ export default function MemberAdminPanel({ member, canEdit, onEdit }: { member: 
               <p className="text-[11px] text-gray-500">
                 {isSelf
                   ? "Bạn không thể tự gán hoặc thu hồi vai trò của chính mình — nhờ Trưởng nhà hoặc Admin khác thực hiện."
-                  : "Gán/thu hồi có hiệu lực ngay; mọi thay đổi được ghi nhật ký kiểm toán. Thêm/sửa vai trò ở Cài đặt → Phân quyền & Vai trò."}
+                  : "Gán/thu hồi có hiệu lực ngay; mọi thay đổi được ghi nhật ký kiểm toán. Thêm/sửa vai trò ở Quản trị → Phân quyền & Vai trò."}
               </p>
               <div className="space-y-1.5 max-h-[60vh] overflow-y-auto custom-scroll">
                 {roles.assignable.map((r) => {

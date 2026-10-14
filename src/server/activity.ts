@@ -24,7 +24,7 @@ const SKIP_ROUTES = new Set([
   "POST /api/v1/notifications/read-all",
   "POST /api/v1/announcements/[id]/read",
   "POST /api/v1/announcements/read-all",
-  // Không phải thao tác của người dùng: trình duyệt tự báo lỗi giao diện (đã ghi vào error_events — Cài đặt → Hệ thống) / đếm lượt xem bài
+  // Không phải thao tác của người dùng: trình duyệt tự báo lỗi giao diện (đã ghi vào error_events — Quản trị → Hệ thống) / đếm lượt xem bài
   "POST /api/v1/public/client-error",
   "POST /api/v1/public/articles/[slug]/view",
 ]);

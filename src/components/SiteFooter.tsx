@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MapPin, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicOrgInfo } from "@/lib/types/articles";
+import { APP_VERSION } from "@/lib/version";
 
 // Chân trang dùng chung (không dùng hook ⇒ import được từ cả Server Component và Client Component).
 //   variant "full"    : trang công khai và trang đăng nhập — giới thiệu, liên hệ, liên kết, bản quyền.
@@ -70,7 +71,7 @@ export function SiteFooter({ org, variant = "full", className, donationEnabled =
             {feedbackHref && <Link href={feedbackHref} className="hover:text-primary transition">Góp ý</Link>}
             <LegalLinks newTab />
           </nav>
-          <p className="text-gray-400">{copyright}</p>
+          <p className="text-gray-400">{copyright}<span title="Phiên bản ứng dụng"> · v{APP_VERSION}</span></p>
         </div>
       </footer>
     );

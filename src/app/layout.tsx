@@ -69,7 +69,7 @@ export default function RootLayout({
           </SessionProvider>
         </ThemeProvider>
         <PwaRegister />
-        {/* Lỗi JS chưa bắt / promise bị từ chối ⇒ báo về nhật ký lỗi (Cài đặt → Hệ thống) */}
+        {/* Lỗi JS chưa bắt / promise bị từ chối ⇒ báo về nhật ký lỗi (Quản trị → Hệ thống) */}
         <ClientErrorReporter />
         {/* Hộp thoại trên điện thoại: tờ trượt từ đáy, kéo xuống để đóng */}
         <SheetEnhancer />

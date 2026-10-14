@@ -24,7 +24,7 @@ import {
   type AuditAction,
 } from "@/lib/types/activity";
 import { cn } from "@/lib/utils";
-import { ListSkeleton } from "./TabSkeletons";
+import { ListSkeleton } from "@/components/settings/TabSkeletons";
 
 type Sub = "actions" | "logins" | "changes";
 type Range = "today" | "7d" | "30d" | "all";
@@ -165,7 +165,7 @@ function ActionRow({ a }: { a: ActivityActionDto }) {
           <span className="text-xs font-bold text-gray-900">{a.label}</span>
           <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-primary text-[10px] font-bold">{a.areaLabel}</span>
           <ResultBadge ok={a.ok} text={a.ok ? "Thành công" : `Lỗi ${a.status}${a.errorCode ? ` · ${a.errorCode}` : ""}`} />
-          {/* Lỗi hệ thống: "mã lỗi" người dùng thấy = 8 ký tự đầu mã request — tra ở Cài đặt → Hệ thống → Nhật ký lỗi */}
+          {/* Lỗi hệ thống: "mã lỗi" người dùng thấy = 8 ký tự đầu mã request — tra ở Quản trị → Hệ thống → Nhật ký lỗi */}
           {a.status >= 500 && a.requestId && (
             <span className="text-[10px] text-gray-400" title="Mã lỗi người dùng thấy trong thông báo lỗi">
               mã lỗi <b className="font-mono text-gray-600">{a.requestId.slice(0, 8)}</b>

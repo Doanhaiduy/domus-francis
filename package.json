@@ -1,14 +1,16 @@
 {
   "name": "luu-xa-phanxico",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "private": true,
   "scripts": {
     "setup:local": "node --no-warnings scripts/setup-local.mjs",
     "setup:reset": "node --no-warnings scripts/setup-local.mjs --reset",
     "dev": "node scripts/db/pg.mjs start && next dev",
-    "build": "next build",
+    "build": "node scripts/check-version.mjs && next build",
     "start": "node scripts/db/pg.mjs start && next start",
     "typecheck": "tsc --noEmit",
+    "version:check": "node scripts/check-version.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
     "db:start": "node scripts/db/pg.mjs start",
     "db:stop": "node scripts/db/pg.mjs stop",
     "db:status": "node scripts/db/pg.mjs status",

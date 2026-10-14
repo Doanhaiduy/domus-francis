@@ -40,7 +40,7 @@ async function alertPrivilegedLockout(userId: string, identifier: string) {
     `lockout:${userId}:${hour}`,
     `Tài khoản quản lý bị khóa tạm: ${who.name ?? identifier}`,
     `Có người nhập sai mật khẩu ${MAX_FAILS_PER_ID} lần liên tiếp lúc ${vnTime()} nên tài khoản bị khóa ${LOCK_MINUTES} phút. Nếu không phải chính chủ, có thể ai đó đang dò mật khẩu — hãy đổi mật khẩu và bật xác thực 2 bước.`,
-    { type: "security.account_locked", link: "/cai-dat?tab=activity" },
+    { type: "security.account_locked", link: "/quan-tri?tab=activity" },
   );
 }
 
@@ -196,8 +196,8 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
           notifyAdminsOnce(
             `bruteforce:${hashKey("ip", meta.ip)}:${vnDay()}`,
             "Phát hiện dò mật khẩu",
-            `Một địa chỉ IP (${meta.ip}) đã đăng nhập sai ${fails.rows[0].by_ip} lần trong 15 phút và đang bị chặn tạm. Xem Cài đặt → Nhật ký hoạt động → Đăng nhập.`,
-            { type: "security.account_locked", link: "/cai-dat?tab=activity" },
+            `Một địa chỉ IP (${meta.ip}) đã đăng nhập sai ${fails.rows[0].by_ip} lần trong 15 phút và đang bị chặn tạm. Xem Quản trị → Nhật ký hoạt động → Đăng nhập.`,
+            { type: "security.account_locked", link: "/quan-tri?tab=activity" },
           ),
         );
       }
@@ -212,7 +212,7 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       return { ok: false, error: new ApiError(401, "BAD_CREDENTIALS", "Email/SĐT hoặc mật khẩu không đúng.") };
     }
     if (u.status === "locked") {
-      // Admin/người quản lý khóa thủ công (Cài đặt → Tài khoản) — khác với khóa tạm do nhập sai mật khẩu
+      // Admin/người quản lý khóa thủ công (Quản trị → Tài khoản) — khác với khóa tạm do nhập sai mật khẩu
       await attempt(u.id, false, "locked");
       return { ok: false, error: new ApiError(423, "LOCKED", "Tài khoản đã bị Admin/người quản lý khóa. Vui lòng liên hệ để được mở khóa.") };
     }

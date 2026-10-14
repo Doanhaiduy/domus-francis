@@ -293,7 +293,7 @@ export function DraftDialog({
     if (r) {
       setResearch(r.output);
       setPicked(r.output.notes.map(() => true));
-      setPickedSrc(r.output.sources.map((s) => s.noteIndex !== undefined));
+      setPickedSrc(r.output.sources.map(() => false)); // không tick sẵn: bài chỉ ghi nguồn mà người soạn đã tự mở và đối chiếu
     }
   };
 
@@ -473,8 +473,8 @@ export function DraftDialog({
                           onClick={() => {
                             const next = !picked[i];
                             setPicked((p) => p.map((v, j) => (j === i ? next : v)));
-                            // bỏ ý nào thì bỏ luôn nguồn gắn với ý đó (và ngược lại)
-                            setPickedSrc((ps) => ps.map((v, k) => (research.sources[k]?.noteIndex === i ? next : v)));
+                            // bỏ ý nào thì bỏ luôn nguồn gắn với ý đó
+                            if (!next) setPickedSrc((ps) => ps.map((v, k) => (research.sources[k]?.noteIndex === i ? false : v)));
                           }}
                           label={`Dùng ý ${i + 1}`}
                         />
@@ -485,7 +485,7 @@ export function DraftDialog({
                 )}
                 {research.sources.length > 0 && (
                   <div className="flex flex-col gap-1.5 pt-1">
-                    <p className="text-[11px] font-bold text-gray-600">Nguồn — tick nguồn bạn đã mở và đối chiếu, nguồn được tick sẽ ghi cuối bài</p>
+                    <p className="text-[11px] font-bold text-gray-600">Nguồn — mặc định KHÔNG ghi nguồn nào; chỉ tick nguồn bạn đã mở và đối chiếu, nguồn được tick sẽ ghi cuối bài</p>
                     <div className="flex flex-wrap gap-1.5">
                       {research.sources.map((s, i) => (
                         <span key={s.url} className={cn("inline-flex max-w-full items-center rounded-full border text-[11px] font-semibold", pickedSrc[i] ? "bg-violet-50 border-violet-300 text-violet-800" : "bg-white border-gray-200 text-gray-500")}>
@@ -770,7 +770,7 @@ export function AiAssistCard({ onDraft, onIdeas, empty }: { onDraft: () => void;
         </div>
       ) : (
         <p className="text-[11px] text-gray-500 leading-relaxed">
-          AI chưa dùng được{reason ? `: ${reason}` : ""} Bạn vẫn soạn bài bình thường; Admin có thể bật ở <b>Cài đặt → Trợ lý AI</b>.
+          AI chưa dùng được{reason ? `: ${reason}` : ""} Bạn vẫn soạn bài bình thường; Admin có thể bật ở <b>Quản trị → Trợ lý AI</b>.
         </p>
       )}
     </div>

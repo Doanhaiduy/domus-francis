@@ -3,7 +3,7 @@
 // Dải cảnh báo vận hành cho Admin (quyền system.monitor) ngay dưới thanh tiêu đề — gói A (Giám sát):
 //   • ĐỎ  : cron sáng/tối quá hạn, lượt gần nhất lỗi hoặc không chạy xong; sao lưu thất bại / quá hạn (khi đã từng có nhịp tim).
 //   • VÀNG: có lỗi hệ thống MỚI (chưa xem) trong 24 giờ qua.
-// Bấm mở Cài đặt → Hệ thống. Ẩn được đến hết ngày (localStorage, bọc try/catch) — xuất hiện vấn đề KHÁC thì hiện lại.
+// Bấm mở Quản trị → Hệ thống. Ẩn được đến hết ngày (localStorage, bọc try/catch) — xuất hiện vấn đề KHÁC thì hiện lại.
 // Dữ liệu: GET /api/v1/system/status?summary=1 (một vòng CSDL, 5 phút làm mới một lần). Không gọi API khi người dùng không có quyền.
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -62,9 +62,9 @@ export function OpsBanner() {
       >
         <AlertTriangle className={cn("w-4 h-4 shrink-0", red ? "text-rose-600" : "text-amber-600")} />
         <Link
-          href="/cai-dat?tab=system"
+          href="/quan-tri?tab=system"
           onClick={(e) => {
-            if (pathname === "/cai-dat") {
+            if (pathname === "/quan-tri") {
               e.preventDefault();
               openSettingsTab("system");
             }

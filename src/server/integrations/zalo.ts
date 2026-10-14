@@ -153,7 +153,7 @@ async function deliver(ctx: PostCtx, cfg: ZaloConfig, event: ZaloEventKey | null
     if (!ctx.userId) await logZaloMessage(ctx, { event, chatId: cfg.chatId || null, text, status: "skipped", error: reason });
     return { sent: false, reason };
   };
-  if (!cfg.enabled) return skip("Gửi tin nhóm Zalo đang tắt (Cài đặt → Tích hợp Zalo).");
+  if (!cfg.enabled) return skip("Gửi tin nhóm Zalo đang tắt (Quản trị → Tích hợp Zalo).");
   if (!cfg.tokenConfigured) return skip("Máy chủ chưa có ZALO_BOT_TOKEN.");
   if (!cfg.chatId) return skip("Chưa nhập mã nhóm Zalo (chat_id).");
   if (event && !zaloEventOn(cfg.events, event)) return skip(`Loại tin “${ZALO_EVENT_LABEL[event]}” đang tắt.`);
