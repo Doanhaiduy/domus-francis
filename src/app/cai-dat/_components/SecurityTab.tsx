@@ -12,6 +12,7 @@ import { refreshPeople } from "@/lib/data/members";
 import { openSettingsTab } from "@/lib/data/system";
 import { LEGAL_PATHS } from "@/content/legal";
 import { MfaCard, btnGhost, securityCard as card } from "@/components/security/MfaCard";
+import { TrustedDevicesCard } from "@/components/security/TrustedDevicesCard";
 
 /** Cài đặt → Bảo mật: xác thực 2 bước (ứng dụng Authenticator + mã khôi phục) và đổi mật khẩu. */
 export default function SecurityTab() {
@@ -31,6 +32,7 @@ export default function SecurityTab() {
         )}
 
         <MfaCard />
+        {enabled && <TrustedDevicesCard />}
 
         <div className={card}>
           <div className="flex items-center justify-between gap-3 flex-wrap">

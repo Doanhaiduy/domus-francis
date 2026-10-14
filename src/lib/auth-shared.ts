@@ -8,6 +8,8 @@ export const COOKIE = {
   access: SECURE ? "__Host-luuxa_at" : "luuxa_at",
   refresh: SECURE ? "__Secure-luuxa_rt" : "luuxa_rt",
   csrf: SECURE ? "__Host-luuxa_csrf" : "luuxa_csrf",
+  /** Thiết bị tin cậy 30 ngày ở bước xác thực 2 bước (token ngẫu nhiên; chỉ gửi tới /api/v1/auth) */
+  trusted: SECURE ? "__Secure-luuxa_td" : "luuxa_td",
 } as const;
 export const COOKIE_SECURE = SECURE;
 export const CSRF_HEADER = "x-csrf-token";
@@ -15,6 +17,8 @@ export const REFRESH_PATH = "/api/v1/auth";
 
 export const ACCESS_TTL_SECONDS = 15 * 60;
 export const REFRESH_TTL_SECONDS = 30 * 24 * 3600;
+/** Thời hạn "tin cậy thiết bị này" ở bước 2FA: cố định 30 ngày kể từ lúc tick, không tự gia hạn */
+export const TRUSTED_DEVICE_DAYS = 30;
 export const JWT_ISSUER = "luuxa-local";
 export const JWT_AUDIENCE = "luuxa-web";
 

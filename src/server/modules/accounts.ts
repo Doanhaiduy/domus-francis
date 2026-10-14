@@ -134,6 +134,7 @@ export async function resetUserPassword(ctx: Ctx, target: AccountTarget) {
         [userId, hash],
       ],
       ["UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'admin_revoked' WHERE user_id = $1 AND revoked_at IS NULL", [userId]],
+      ["UPDATE trusted_devices SET revoked_at = now(), revoked_reason = 'admin_revoked' WHERE user_id = $1 AND revoked_at IS NULL", [userId]],
     ]);
   });
   return { temporaryPassword: pw };

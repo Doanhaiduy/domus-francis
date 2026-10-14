@@ -208,8 +208,9 @@ export async function listPeriods(tx: Tx): Promise<PeriodsDto> {
         });
       }
     }
+    // Tổng của QUỸ NHÀ: quỹ riêng (chuyến đi / sự kiện) vẫn liệt kê ở danh sách để Thủ quỹ kiểm toán nhưng không cộng vào tổng
     const totals = fundsDto
-      ? fundsDto.reduce(
+      ? fundsDto.filter((f) => f.type !== "event").reduce(
           (a, f) => ({
             openingVnd: a.openingVnd + f.openingVnd,
             inVnd: a.inVnd + f.inVnd,

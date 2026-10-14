@@ -7,8 +7,8 @@
 import type { PublicOrgInfo } from "@/lib/types/articles";
 
 export const LEGAL_VERSION = "1.3";
-export const LEGAL_UPDATED = "13/10/2026";
-export const LEGAL_UPDATED_ISO = "2026-10-13";
+export const LEGAL_UPDATED = "14/10/2026";
+export const LEGAL_UPDATED_ISO = "2026-10-14";
 
 /** "1.2" ⇒ 102, "2.0" ⇒ 200 (consents.policy_version là số nguyên). */
 export function legalVersionNumber(v: string): number {

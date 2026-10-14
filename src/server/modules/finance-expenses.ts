@@ -25,6 +25,10 @@ const EXPENSE_SELECT = `
          -- Ký được theo đúng luật của trigger tg_expense_approval_rules (gồm chế độ ký chéo, Admin ký như Trưởng nhà/Thủ quỹ) — cùng hàm
          -- với hộp "Việc cần xử lý" (db/app/1044) nên nút Duyệt luôn khớp số việc
          CASE WHEN ev.status = 'pending_approval' THEN app.fn_expense_can_sign(ev.id) ELSE false END AS can_sign,
+         -- Quỹ riêng của sự kiện (db/app/1054): người phụ trách quỹ ghi chi được; tên quỹ lấy trực tiếp vì fn_fund_options không liệt kê quỹ riêng
+         app.fn_fund_is_event(ev.fund_id) AS is_event_fund,
+         app.fn_is_fund_manager(ev.fund_id) AS i_manage_fund,
+         (SELECT f.name FROM funds f WHERE f.id = ev.fund_id) AS fund_row_name,
          COALESCE((SELECT json_agg(json_build_object('fileId', ma.file_id, 'mime', sf.detected_mime) ORDER BY ma.position, ma.created_at)
                      FROM media_attachments ma LEFT JOIN storage_files sf ON sf.id = ma.file_id
                     WHERE ma.entity_type = 'expense_voucher' AND ma.entity_id = ev.id AND ma.purpose = 'receipt'), '[]'::json) AS receipts,
@@ -59,7 +63,8 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
     category: { id: r.category_id, code: r.category_code, name: r.category_name, color: r.category_color },
     expenseDate: r.expense_date,
     fundId: r.fund_id,
-    fundName: funds.get(r.fund_id) ?? null,
+    fundName: funds.get(r.fund_id) ?? r.fund_row_name ?? null,
+    isEventFund: !!r.is_event_fund,
     paidBy: r.paid_by_member_id ? { memberId: r.paid_by_member_id, name: r.paid_by_name ?? "—" } : null,
     payeeName: r.payee_name,
     invoiceNo: r.invoice_no,
@@ -87,7 +92,7 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
       // Ký duyệt được: hàm CSDL app.fn_expense_can_sign (BR-FIN-01/02/17 + ký chéo) — trước đây tự tính ở đây nên bỏ sót chế độ ký chéo
       approve: mayDecide && !!r.can_sign,
       reject: mayDecide,
-      pay: c.pay && status === "approved",
+      pay: (c.pay || (!!r.is_event_fund && !!r.i_manage_fund)) && status === "approved",
       cancel: (mine && OWNER_EDITABLE.includes(status)) || (c.approve && (status === "pending_approval" || status === "approved")),
       reverse: c.reverse && status === "paid",
       correct: c.correct && status !== "cancelled",
@@ -96,16 +101,21 @@ function toDto(r: Row, c: FinanceCaller, funds: Map<string, string>): ExpenseDto
   };
 }
 
-export async function listExpenses(tx: Tx, q: { from?: string; to?: string }): Promise<ExpenseDto[]> {
+/**
+ * Phiếu chi theo ngày chi. Mặc định chỉ phiếu của QUỸ NHÀ — phiếu của quỹ riêng (chuyến đi / sự kiện) không lẫn vào danh sách, tổng chi và
+ * báo cáo của quỹ nhà; truyền fundId để xem phiếu của đúng một quỹ (kể cả quỹ riêng).
+ */
+export async function listExpenses(tx: Tx, q: { from?: string; to?: string; fundId?: string }): Promise<ExpenseDto[]> {
   const c = await financeCaller(tx);
   const funds = await fundNames(tx, c);
   const rows = (
     await tx.query(
       `${EXPENSE_SELECT}
         WHERE ($1::date IS NULL OR ev.expense_date >= $1::date) AND ($2::date IS NULL OR ev.expense_date <= $2::date)
+          AND (CASE WHEN $3::uuid IS NULL THEN NOT app.fn_fund_is_event(ev.fund_id) ELSE ev.fund_id = $3::uuid END)
         ORDER BY ev.expense_date DESC, ev.created_at DESC
         LIMIT 1000`,
-      [q.from ?? null, q.to ?? null]
+      [q.from ?? null, q.to ?? null, q.fundId ?? null]
     )
   ).rows;
   return rows.map((r) => toDto(r, c, funds));

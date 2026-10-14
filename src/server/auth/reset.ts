@@ -6,6 +6,7 @@ import { hashPassword, passwordProblem } from "./password";
 import { normalizeIdentifier, notifyPasswordChanged, type ReqMeta } from "./session";
 import { inBackground, recordErrorEvent } from "../ops";
 import { randomToken, sha256Hex } from "./tokens";
+import { revokeAllTrustedDevicesTx } from "./trusted-device";
 
 // Đặt lại mật khẩu tự phục vụ qua email: yêu cầu → email chứa liên kết dùng một lần (30 phút) → đặt mật khẩu mới.
 // Chống dò tài khoản: luôn trả về cùng một kết quả dù email có tồn tại hay không. Chống spam: tối đa 3 yêu cầu/giờ/tài khoản, 10/giờ/IP.
@@ -84,6 +85,7 @@ export async function performPasswordReset(token: string, newPassword: string, m
     await tx.query("UPDATE users SET password_hash = $2, password_changed_at = now(), must_change_password = false, locked_until = NULL WHERE id = $1", [r.user_id, await hashPassword(newPassword)]);
     await tx.query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [r.user_id]);
     await tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'password_changed' WHERE user_id = $1 AND revoked_at IS NULL", [r.user_id]);
+    await revokeAllTrustedDevicesTx(tx, r.user_id, "password_changed");
     void inBackground(notifyPasswordChanged(r.user_id, "reset", meta));
   });
 }

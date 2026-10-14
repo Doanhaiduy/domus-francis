@@ -28,10 +28,12 @@ interface FormCardProps {
   expense?: ExpenseDto | ExpenseDetailDto | null;
   onClose: () => void;
   onSaved?: (e: ExpenseDetailDto) => void;
+  /** Lập phiếu cho đúng MỘT quỹ riêng (chuyến đi / sự kiện): không cho chọn túi quỹ khác — phiếu quỹ riêng không vào quỹ nhà */
+  fixedFund?: { id: string; name: string } | null;
 }
 
 /** Thẻ form lập/sửa phiếu chi (dùng cho modal toàn cục "addExpense" và modal sửa phiếu ở trang Thu Chi). */
-export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
+export function ExpenseFormCard({ expense, onClose, onSaved, fixedFund }: FormCardProps) {
   const { members, showToast } = useApp();
   const options = useFinanceOptions();
   const editing = !!expense;
@@ -42,7 +44,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   const [items, setItems] = useState<ItemDraft[]>(() => draftsFromItems(expense?.items ?? []));
   const [categoryId, setCategoryId] = useState(expense?.category.id ?? "");
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate ?? "");
-  const [fundId, setFundId] = useState(expense?.fundId ?? "");
+  const [fundId, setFundId] = useState(expense?.fundId ?? fixedFund?.id ?? "");
   // Mặc định "Quỹ chi trực tiếp"; chỉ chọn thành viên khác khi có người ứng tiền túi
   const [paidBy, setPaidBy] = useState<string>(expense?.paidBy?.memberId ?? NONE);
   const [note, setNote] = useState(expense?.note ?? "");
@@ -56,7 +58,7 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
   useEffect(() => {
     if (!options) return;
     if (!expenseDate) setExpenseDate(options.today);
-    if (!fundId && options.funds.length) setFundId(options.funds.find((f) => f.type === "cash")?.id ?? options.funds[0].id);
+    if (!fixedFund && !fundId && options.funds.length) setFundId(options.funds.find((f) => f.type === "cash")?.id ?? options.funds[0].id);
     if (!categoryId && options.categories.length) setCategoryId(options.categories[0].id);
   }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,12 +185,14 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
               />
               <span className="absolute right-3.5 top-3 text-xs font-bold text-gray-500">VNĐ</span>
             </div>
-            {dualMin !== null && amountVnd > 0 && (
+            {(dualMin !== null || !!fixedFund) && amountVnd > 0 && (
               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500">
                 <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                {amountVnd >= dualMin
+                {!fixedFund && dualMin !== null && amountVnd >= dualMin
                   ? `Từ ${formatVND(dualMin)}: cần 2 chữ ký (Trưởng nhà + Thủ quỹ; nếu một trong hai là người lập/người ứng tiền thì người còn lại ký).`
-                  : "Cần 1 chữ ký duyệt của người quản lý."}
+                  : fixedFund
+                    ? "Quỹ riêng chỉ cần 1 chữ ký của Trưởng nhà hoặc Thủ quỹ (Thủ quỹ tự ký khoản nhỏ; khoản lớn do Trưởng nhà ký)."
+                    : "Cần 1 chữ ký duyệt của người quản lý."}
               </p>
             )}
           </div>
@@ -216,7 +220,14 @@ export function ExpenseFormCard({ expense, onClose, onSaved }: FormCardProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <CustomDatePicker label="Ngày chi *" value={expenseDate} onChange={setExpenseDate} format="YYYY-MM-DD" />
-            <FundSelect label="Chi từ túi quỹ *" value={fundId} onChange={setFundId} funds={options?.funds ?? []} placeholder="Chọn túi quỹ" />
+            {fixedFund ? (
+              <div>
+                <span className="block text-[11px] font-bold text-gray-500 mb-1.5">Chi từ quỹ riêng</span>
+                <p className="px-3 py-2.5 rounded-xl border border-purple-100 bg-purple-50/60 text-xs font-bold text-primary truncate" title={fixedFund.name}>{fixedFund.name}</p>
+              </div>
+            ) : (
+              <FundSelect label="Chi từ túi quỹ *" value={fundId} onChange={setFundId} funds={options?.funds ?? []} placeholder="Chọn túi quỹ" />
+            )}
           </div>
 
           <CustomSelect label="Người ứng tiền / trực tiếp chi" value={paidBy} onChange={setPaidBy} options={payerOptions} placeholder="Chọn người ứng tiền" />

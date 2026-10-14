@@ -307,6 +307,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "callout", tone: "info", text: "Từ đó mỗi lần đăng nhập, sau mật khẩu bạn nhập thêm mã 6 số (hoặc một mã khôi phục). Mất cả điện thoại lẫn mã khôi phục: nhờ Admin **gỡ xác thực 2 bước** cho bạn ở Quản trị → Tài khoản (rồi bật lại)." },
+      { t: "heading", text: "Tin cậy thiết bị này trong 30 ngày" },
+      { t: "md", text: "Ở bước nhập mã khi đăng nhập có ô **“Tin cậy thiết bị này trong 30 ngày”**. Tick ô này thì **trong 30 ngày**, đăng nhập lại trên đúng thiết bị đó (vẫn nhập mật khẩu) **không bị hỏi mã 2 bước** nữa; hết 30 ngày sẽ hỏi lại.\n- Chỉ tick trên điện thoại / máy tính của **riêng bạn**, đừng tick ở máy dùng chung (quán net, máy trường…).\n- Xem và **thu hồi** từng thiết bị (hoặc tất cả) ở **Cài đặt → Bảo mật → Thiết bị tin cậy**. Bạn cũng được báo trong ứng dụng khi có thiết bị mới được tin cậy.\n- **Đổi hoặc đặt lại mật khẩu**, **tắt / gỡ xác thực 2 bước** sẽ tự thu hồi mọi thiết bị tin cậy.\n- Dùng trình duyệt khác, xóa cookie hoặc đăng nhập ở máy khác thì vẫn được hỏi mã như bình thường." },
       { t: "heading", text: "Email đăng nhập & mật khẩu" },
       {
         t: "steps",
@@ -408,6 +410,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         ],
       },
       { t: "callout", tone: "info", text: "Bạn chỉ thấy các khoản ủng hộ **của chính mình**." },
+      { t: "heading", text: "Quỹ riêng của chuyến đi / sự kiện" },
+      { t: "md", text: "Khi nhà đi hành hương hoặc tổ chức sự kiện chung với người ngoài, tiền được thu và chi trong một **quỹ riêng** (tách hẳn quỹ nhà). Nếu bạn có tên trong chuyến đi, vào **Thu Chi & Báo cáo → Thu chi → Quỹ riêng** để xem **phần của bạn**: mức phải đóng, đã đóng bao nhiêu và còn thiếu bao nhiêu. Bạn đưa tiền cho **người phụ trách quỹ** — họ ghi thu và bạn thấy cập nhật ngay. Khi chuyến đi kết thúc và quỹ được quyết toán, phần tiền dư được **hoàn lại theo tỷ lệ** hoặc chuyển về quỹ nhà; bạn nhận thông báo nếu được hoàn." },
       { t: "heading", text: "Tổng kết của riêng tôi" },
       { t: "md", text: "Vào **Thu Chi & Báo cáo → Báo cáo & tổng kết → Tổng kết của tôi**: chọn tháng/quý/năm để xem số buổi có mặt/vắng, xin phép, trực nhật, điểm thi đua, vi phạm, đóng quỹ, ủng hộ và GPA của **riêng bạn**; bấm **Tải PDF/Excel** để lưu lại." },
     ],
@@ -656,6 +660,14 @@ export const GUIDE_SECTIONS: GuideSection[] = [
               { t: "path", items: ["Thu Chi & Báo cáo", "Thu chi", "Ủng hộ"] },
               { t: "md", text: "Dùng cho khoản ủng hộ **tự nguyện** (khác khoản phải đóng định kỳ), của thành viên trong nhà **hoặc người ngoài** (ân nhân, khách).\n- **Ghi nhận ủng hộ**: chọn thành viên hoặc nhập tên người ngoài (có thể ghi “Ẩn danh”), số tiền, ngày, hình thức. Chọn **Đã nhận tiền** ⇒ khoản được **ghi vào sổ quỹ ngay** (nguồn “quyên góp”, không sửa/xóa được — sai thì dùng bút toán đảo). Chọn **Ghi nhận trước, chưa nhận tiền** ⇒ chỉ ghi lại (trạng thái “Đã ghi nhận — chờ nhận tiền”), chưa vào quỹ.\n- Thành viên tự báo **“Tôi đã ủng hộ”** ⇒ bạn nhận thông báo, đối chiếu sao kê rồi **Đã nhận tiền** (ghi sổ) hoặc **Chưa nhận được** (kèm lý do, thành viên sẽ thấy). Khoản đã ghi nhận trước, khi nhận được tiền thì bấm **Đã nhận tiền** để ghi sổ.\n- Đầu tab có số liệu: tổng đã nhận, số người ủng hộ (trong nhà / ngoài), số khoản chờ xác nhận, số khoản chờ nhận tiền. Lọc theo thời gian, trạng thái, tìm theo tên hoặc mã giao dịch.\n- Tổng ủng hộ và số người ủng hộ cũng nằm trong **Tổng kết thành viên** theo tháng/quý/năm." },
               { t: "callout", tone: "info", text: "Thủ quỹ, Trưởng nhà và Admin thấy mọi khoản ủng hộ; thành viên thường chỉ thấy khoản của mình." },
+            ],
+          },
+          {
+            title: "Quỹ riêng cho chuyến đi / sự kiện (người ngoài lưu xá)",
+            blocks: [
+              { t: "path", items: ["Thu Chi & Báo cáo", "Thu chi", "Quỹ riêng"] },
+              { t: "md", text: "Dùng cho hành hương, liên hoan chung với giáo xứ… khi cần **gom tiền riêng, chi riêng và quyết toán riêng** mà **không động tới quỹ nhà**. Mọi con số tổng của quỹ nhà (số dư, thu chi tháng, biểu đồ, báo cáo, trang minh bạch công khai) **không tính** quỹ riêng.\n- **Lập quỹ** (Trưởng nhà / Thủ quỹ): chọn sự kiện trong Lịch (hoặc tạo sự kiện mới), đặt 1–5 **người phụ trách** (vd. trưởng đoàn), mức đóng chung, thêm **thành viên** và **người ngoài** (họ tên, số điện thoại không bắt buộc — chỉ người phụ trách và người quản lý thấy số điện thoại).\n- **Người phụ trách** ghi thu, sửa danh sách tham gia, lập phiếu chi (kèm hóa đơn như quỹ nhà) và **ghi chi** khi giao tiền. Phiếu chi quỹ riêng chỉ cần **1 chữ ký** (Thủ quỹ ký khoản nhỏ, khoản lớn do Trưởng nhà ký; người lập không tự duyệt) — duyệt ở “Việc cần xử lý”.\n- **Thu nhầm**: hủy phiếu thu (bút toán đảo) rồi ghi lại. Quỹ không bao giờ âm: chi vượt thì thu thêm hoặc **Trưởng nhà bù từ quỹ nhà** (có lý do, ghi sổ cả hai quỹ).\n- **Đóng quỹ (quyết toán)**: xử lý hết phiếu chi chờ duyệt, rồi chọn **hoàn lại người đã đóng theo tỷ lệ** hoặc **chuyển phần dư về quỹ nhà** (ghi rõ nguồn). Quỹ đóng rồi không ghi thêm; **Xuất Excel** cho biên bản quyết toán (tổng kết, người đóng, phiếu thu, phiếu chi)." },
+              { t: "callout", tone: "info", text: "Phiếu chi của quỹ riêng không hiện trong danh sách chi của quỹ nhà; xem và xử lý ở màn hình của quỹ đó (người duyệt vẫn nhận thông báo / việc cần xử lý như thường)." },
             ],
           },
           {
@@ -1000,7 +1012,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             title: "Bảo mật tài khoản: 2 bước, quên mật khẩu, thông báo đẩy, email",
             blocks: [
-              { t: "md", text: "- **Xác thực 2 bước** (TOTP + 8 mã khôi phục) bắt buộc với vai trò quyền cao (Admin, Trưởng nhà, Thủ quỹ — cấu hình ở **Cài đặt → Cấu hình chung → Bảo mật đăng nhập**). Người mất điện thoại và mã khôi phục: **Quản trị → Tài khoản → Quản lý → Gỡ xác thực 2 bước**.\n- **Quên mật khẩu** tự phục vụ qua email cần biến `RESEND_API_KEY` và `EMAIL_FROM` (tên miền đã xác minh ở Resend). Thiếu thì người dùng nhờ Admin đặt lại mật khẩu.\n- **Thông báo đẩy** cần `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (sinh bằng `pnpm env:keys`). Thiếu thì chỉ có thông báo trong ứng dụng.\n- Biến môi trường đặt ở **Vercel → Settings → Environment Variables** rồi **deploy lại**. Chi tiết và cách xoay khóa: file `VAN_HANH.md` trong mã nguồn." },
+              { t: "md", text: "- **Xác thực 2 bước** (TOTP + 8 mã khôi phục) bắt buộc với vai trò quyền cao (Admin, Trưởng nhà, Thủ quỹ — cấu hình ở **Cài đặt → Cấu hình chung → Bảo mật đăng nhập**). Người dùng có thể tick **“Tin cậy thiết bị này trong 30 ngày”** ở bước nhập mã (bỏ qua mã trên đúng thiết bị đó; tự thu hồi khi đổi mật khẩu / tắt hoặc gỡ 2 bước). Người mất điện thoại và mã khôi phục: **Quản trị → Tài khoản → Quản lý → Gỡ xác thực 2 bước**.\n- **Quên mật khẩu** tự phục vụ qua email cần biến `RESEND_API_KEY` và `EMAIL_FROM` (tên miền đã xác minh ở Resend). Thiếu thì người dùng nhờ Admin đặt lại mật khẩu.\n- **Thông báo đẩy** cần `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (sinh bằng `pnpm env:keys`). Thiếu thì chỉ có thông báo trong ứng dụng.\n- Biến môi trường đặt ở **Vercel → Settings → Environment Variables** rồi **deploy lại**. Chi tiết và cách xoay khóa: file `VAN_HANH.md` trong mã nguồn." },
             ],
           },
           {

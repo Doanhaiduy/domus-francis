@@ -235,6 +235,8 @@ export interface ExpenseDto {
   expenseDate: string;
   fundId: string;
   fundName: string | null;
+  /** Phiếu của quỹ riêng (chuyến đi / sự kiện), không phải quỹ nhà */
+  isEventFund: boolean;
   paidBy: { memberId: string; name: string } | null;
   payeeName: string | null;
   invoiceNo: string | null;
@@ -502,8 +504,8 @@ export interface FinanceStatsDto {
 // Liên kết thẳng trong trang /thu-chi (?tab=…&plan=…&pay=…&expense=…&month=…)
 // ---------------------------------------------------------------------
 /** Tên tab ổn định (không dấu) — dùng trong đường dẫn thông báo, hộp "Việc cần xử lý", liên kết giữa các trang. */
-export type FinanceTab = "tong-quan" | "chi" | "dong-quy" | "ung-ho" | "so-quy" | "bao-cao" | "thong-ke";
-export const FINANCE_TABS: FinanceTab[] = ["tong-quan", "chi", "dong-quy", "ung-ho", "so-quy", "bao-cao", "thong-ke"];
+export type FinanceTab = "tong-quan" | "chi" | "dong-quy" | "ung-ho" | "quy-rieng" | "so-quy" | "bao-cao" | "thong-ke";
+export const FINANCE_TABS: FinanceTab[] = ["tong-quan", "chi", "dong-quy", "ung-ho", "quy-rieng", "so-quy", "bao-cao", "thong-ke"];
 /** Tên cũ / tên gọi khác vẫn mở đúng tab */
 export const FINANCE_TAB_ALIASES: Record<string, FinanceTab> = {
   "danh-sach": "chi",
@@ -513,6 +515,8 @@ export const FINANCE_TAB_ALIASES: Record<string, FinanceTab> = {
   "ma-tran": "dong-quy",
   "chot-so": "so-quy",
   "doi-soat": "so-quy",
+  "quy-su-kien": "quy-rieng",
+  "quy-chuyen-di": "quy-rieng",
 };
 /** Đường dẫn tới một phiếu chi (mở hộp chi tiết) */
 export const expenseLink = (id: string) => `/thu-chi?tab=chi&expense=${id}`;

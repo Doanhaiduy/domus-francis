@@ -32,6 +32,8 @@ export default function DangNhapPage() {
   // Tài khoản bật xác thực 2 bước: mật khẩu đúng thì chuyển sang nhập mã (token trung gian sống 5 phút)
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
+  // Tick "Tin cậy thiết bị này 30 ngày": đăng nhập lại trên thiết bị này trong 30 ngày không hỏi mã 2FA
+  const [trustDevice, setTrustDevice] = useState(false);
   // Đăng ký: BẮT BUỘC tick đồng ý Điều khoản sử dụng + Chính sách bảo mật (máy chủ lưu phiên bản + thời điểm làm bằng chứng)
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [caps, setCaps] = useState<AuthCapabilities>({ passwordReset: true, registrationOpen: true });
@@ -127,7 +129,7 @@ export default function DangNhapPage() {
     }
     startTransition(async () => {
       try {
-        const r = await api.post<{ pending: boolean }>("/api/v1/auth/mfa/verify", { mfaToken, code: mfaCode.trim() });
+        const r = await api.post<{ pending: boolean }>("/api/v1/auth/mfa/verify", { mfaToken, code: mfaCode.trim(), trustDevice });
         router.replace(r.pending ? "/cho-phe-duyet" : nextPath());
         router.refresh();
       } catch (err) {
@@ -170,10 +172,22 @@ export default function DangNhapPage() {
             maxLength={20}
             className="w-full px-4 py-3.5 rounded-xl border border-gray-200 text-center text-xl tracking-[0.35em] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
           />
+          <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/60 px-3.5 py-3 cursor-pointer select-none hover:border-purple-200 transition">
+            <input
+              type="checkbox"
+              checked={trustDevice}
+              onChange={(e) => setTrustDevice(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#5f3add]"
+            />
+            <span className="text-xs leading-relaxed">
+              <b className="text-gray-900">Tin cậy thiết bị này trong 30 ngày</b>
+              <span className="block text-gray-500 mt-0.5">Trong 30 ngày, đăng nhập lại trên thiết bị này sẽ không hỏi mã nữa. Chỉ chọn trên điện thoại / máy tính của riêng bạn, đừng chọn ở máy dùng chung.</span>
+            </span>
+          </label>
           <button type="submit" disabled={isPending} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#5f3add] to-[#7857f8] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
             {isPending ? "Đang kiểm tra…" : (<>Xác nhận <ArrowRight className="w-4 h-4" /></>)}
           </button>
-          <button type="button" onClick={() => { setMfaToken(null); setMfaCode(""); setError(null); }} className="text-xs font-semibold text-gray-400 hover:text-gray-700">← Quay lại đăng nhập</button>
+          <button type="button" onClick={() => { setMfaToken(null); setMfaCode(""); setTrustDevice(false); setError(null); }} className="text-xs font-semibold text-gray-400 hover:text-gray-700">← Quay lại đăng nhập</button>
         </form>
       </div>
     );

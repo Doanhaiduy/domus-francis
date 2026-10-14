@@ -35,7 +35,7 @@ export async function getOpeningBalances(tx: Tx): Promise<OpeningBalanceDto> {
               o.amount_vnd AS o_amount, o.entry_date::text AS o_date, o.description AS o_desc, o.posted_at AS o_posted,
               (SELECT COALESCE(m.display_name, m.full_name) FROM members m WHERE m.user_id = o.created_by LIMIT 1) AS o_by
          FROM v_fund_balances v
-         JOIN funds f ON f.id = v.fund_id AND f.is_active
+         JOIN funds f ON f.id = v.fund_id AND f.is_active AND f.fund_type <> 'event'
          LEFT JOIN LATERAL (SELECT le.amount_vnd, le.entry_date, le.description, le.posted_at, le.created_by
                               FROM ledger_entries le WHERE le.fund_id = v.fund_id AND le.source_type = 'opening_balance'
                              ORDER BY le.fund_seq LIMIT 1) o ON true

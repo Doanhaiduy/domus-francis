@@ -44,7 +44,8 @@ export function MfaCard({ gateMode = false }: { gateMode?: boolean }) {
   const [password, setPassword] = useState("");
 
   const required = !!session?.mfa.required;
-  const enabled = !!status?.enabled;
+  // Chưa tải xong trạng thái thì dùng trạng thái trong phiên (tránh nhấp nháy "Chưa bật" khi 2FA đang bật)
+  const enabled = status ? status.enabled : !!session?.mfa.enabled;
 
   const begin = async () => {
     setBusy(true);

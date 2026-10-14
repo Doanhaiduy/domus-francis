@@ -144,7 +144,7 @@ function lastMonthsFrom(res: QueryResult): FinanceMonthDto[] {
 }
 
 const FUND_BALANCES_SQL =
-  "SELECT fund_id, code, name, fund_type::text AS type, balance_vnd FROM v_fund_balances ORDER BY CASE fund_type WHEN 'cash' THEN 0 ELSE 1 END, code";
+  "SELECT fund_id, code, name, fund_type::text AS type, balance_vnd FROM v_fund_balances WHERE fund_type <> 'event' ORDER BY CASE fund_type WHEN 'cash' THEN 0 ELSE 1 END, code";
 
 function fundBalancesFrom(res: QueryResult): FundDto[] {
   return res.rows.map((r) => ({ id: r.fund_id, code: r.code, name: r.name, type: r.type, balanceVnd: Number(r.balance_vnd) }));
@@ -284,7 +284,7 @@ export async function getOverview(tx: Tx, q: { from?: string; to?: string; all?:
   const p1: SqlItem[] = [
     [FINANCE_CALLER_SQL],
     ["SELECT to_char(period_month, 'YYYY-MM') AS month, status::text AS status FROM financial_periods ORDER BY period_month"],
-    ["SELECT count(*)::int AS n FROM expense_vouchers WHERE status = 'pending_approval'"],
+    ["SELECT count(*)::int AS n FROM expense_vouchers WHERE status = 'pending_approval' AND NOT app.fn_fund_is_event(fund_id)"],
     ["SELECT key, value #>> '{}' AS v FROM settings WHERE key IN ('org.house_name', 'org.order_name')"],
     [SIGNATORIES_SQL],
   ];
@@ -381,7 +381,7 @@ export async function getDashboardSummary(tx: Tx): Promise<FinanceSummaryDto> {
   // Pha 1 — gộp quyền người gọi + số phiếu chờ duyệt + khoản của chính mình: 1 vòng mạng
   const [callerR, pendingR, mineR] = await batch(tx, [
     [FINANCE_CALLER_SQL],
-    ["SELECT count(*)::int AS n FROM expense_vouchers WHERE status = 'pending_approval'"],
+    ["SELECT count(*)::int AS n FROM expense_vouchers WHERE status = 'pending_approval' AND NOT app.fn_fund_is_event(fund_id)"],
     [MINE_SQL],
   ]);
   const c = financeCallerFrom(callerR);

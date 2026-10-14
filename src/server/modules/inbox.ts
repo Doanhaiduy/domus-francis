@@ -112,7 +112,7 @@ const KINDS: KindDef[] = [
                  COALESCE(sum(ev.amount_vnd), 0)::bigint AS total_vnd,
                  CASE WHEN count(*) = 1 THEN min(ev.id::text) END AS one_id
             FROM expense_vouchers ev
-           WHERE ${gate("expense_pay")} AND ev.status = 'approved'`,
+           WHERE ${gate("expense_pay")} AND ev.status = 'approved' AND NOT app.fn_fund_is_event(ev.fund_id)`,
     href: (r) => (r.one_id ? expenseLink(r.one_id) : INBOX_HREF.expenses),
     hint: (r) => join([`Cần chi ${vnd(r.total_vnd)}`, num(r.overdue) > 0 && `${r.overdue} phiếu chờ quá 3 ngày`]),
     digest: (o) => `${o} phiếu chi đã duyệt nhưng chưa chi quá 3 ngày`,

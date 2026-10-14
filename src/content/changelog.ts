@@ -31,6 +31,19 @@ export const CHANGE_LABEL: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.0",
+    date: "2026-10-14",
+    title: "Quỹ riêng cho chuyến đi / sự kiện và tin cậy thiết bị 30 ngày",
+    changes: [
+      { kind: "feat", text: "Quỹ riêng cho chuyến đi / sự kiện (Thu chi → tab Quỹ riêng): gom tiền, chi và quyết toán riêng cho một sự kiện — có cả người ngoài lưu xá — mà không động tới quỹ nhà. Mọi con số tổng của quỹ nhà (số dư, thu chi tháng, biểu đồ, báo cáo, trang minh bạch công khai) không tính quỹ riêng." },
+      { kind: "feat", text: "Người phụ trách quỹ (trưởng đoàn) ghi thu, sửa danh sách tham gia, lập phiếu chi và ghi chi trong đúng quỹ của mình; phiếu chi quỹ riêng chỉ cần 1 chữ ký của Trưởng nhà / Thủ quỹ và vẫn kèm hóa đơn." },
+      { kind: "feat", text: "Danh sách tham gia kèm mức phải đóng cho thành viên và người ngoài (họ tên, số điện thoại tùy chọn — chỉ người phụ trách và người quản lý thấy); thành viên có tên chỉ thấy phần của mình." },
+      { kind: "feat", text: "Đóng quỹ (quyết toán): hoàn lại người đã đóng theo tỷ lệ hoặc chuyển phần dư về quỹ nhà (ghi rõ nguồn); Trưởng nhà có thể bù từ quỹ nhà khi thiếu; xuất Excel biên bản quyết toán." },
+      { kind: "feat", text: "Xác thực 2 bước: ô “Tin cậy thiết bị này trong 30 ngày” ở bước nhập mã — đăng nhập lại trên đúng thiết bị đó (vẫn nhập mật khẩu) không hỏi mã nữa trong 30 ngày. Xem và thu hồi thiết bị tin cậy ở Cài đặt → Bảo mật; tự thu hồi khi đổi / đặt lại mật khẩu hoặc tắt / gỡ 2 bước; có thông báo khi thêm thiết bị tin cậy." },
+      { kind: "ops", text: "Migration 1054 (quỹ riêng) và 1055 (thiết bị tin cậy): chỉ thêm bảng / hàm, không đổi dữ liệu cũ. Cập nhật Chính sách bảo mật: cookie thiết bị tin cậy và dữ liệu người ngoài tham gia quỹ riêng." },
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-10-14",
     title: "Trang Quản trị hệ thống riêng + phiên bản & lịch sử cập nhật",

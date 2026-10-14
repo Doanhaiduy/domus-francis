@@ -5,6 +5,8 @@ import { ApiError } from "../errors";
 import { hashPassword, passwordProblem, verifyPassword } from "./password";
 import { randomToken, sha256Hex, signAccessToken } from "./tokens";
 import { hasMfa, verifySecondFactor } from "./mfa";
+import { deviceLabel } from "./device";
+import { createTrustedDevice, findTrustedDevice, notifyDeviceTrusted, revokeAllTrustedDevicesTx } from "./trusted-device";
 import { hashKey, inBackground, notifyAdminsOnce, rateLimit } from "../ops";
 import { LEGAL_CONSENT_VERSION } from "@/content/legal";
 import {
@@ -90,6 +92,8 @@ export interface ReqMeta {
   ip: string | null;
   userAgent: string | null;
   requestId: string;
+  /** Token "thiết bị tin cậy" đọc từ cookie của request đăng nhập (bỏ qua bước mã 2FA nếu hợp lệ) */
+  trustedTokens?: string[];
 }
 
 /** Chuẩn hóa định danh đăng nhập: email (thường hóa) hoặc SĐT Việt Nam → E.164. */
@@ -127,13 +131,6 @@ async function createSession(tx: Tx, userId: string, meta: ReqMeta) {
   return { sid, refresh };
 }
 
-function deviceLabel(ua: string | null): string | null {
-  if (!ua) return null;
-  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "Thiết bị";
-  const br = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Trình duyệt";
-  return `${br} · ${os}`;
-}
-
 /** Gắn cookie phiên vào response. */
 export async function setSessionCookies(res: NextResponse, a: { userId: string; sid: string; pending: boolean; refresh?: string }) {
   const at = await signAccessToken({ sub: a.userId, sid: a.sid, pnd: a.pending });
@@ -156,7 +153,7 @@ export function clearSessionCookies(res: NextResponse) {
 // Đăng nhập
 // ---------------------------------------------------------------------
 type LoginOutcome =
-  | { ok: true; mfa?: false; userId: string; sid: string; refresh: string; pending: boolean }
+  | { ok: true; mfa?: false; userId: string; sid: string; refresh: string; pending: boolean; trustedToken?: string; viaTrustedDevice?: boolean }
   /** Mật khẩu đúng nhưng tài khoản bật xác thực 2 bước: chưa tạo phiên — chờ mã ở /api/v1/auth/mfa/verify. */
   | { ok: true; mfa: true; userId: string }
   | { ok: false; error: ApiError };
@@ -232,10 +229,16 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
       await attempt(u.id, false, "disabled");
       return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản đã bị vô hiệu hóa. Liên hệ người quản lý nếu đây là nhầm lẫn.") };
     }
-    // Có xác thực 2 bước ⇒ dừng ở đây: ghi nhận bước mật khẩu đã đúng, phiên chỉ tạo sau khi nhập đúng mã
+    // Có xác thực 2 bước ⇒ dừng ở đây: ghi nhận bước mật khẩu đã đúng, phiên chỉ tạo sau khi nhập đúng mã.
+    // NGOẠI LỆ: thiết bị này đã được tin cậy 30 ngày (cookie hợp lệ, cùng tài khoản, còn hạn) ⇒ bỏ qua bước mã, đăng nhập như thường.
+    let viaTrustedDevice = false;
     if (await hasMfa(tx, u.id)) {
-      await attempt(u.id, true, null); // ràng buộc DB: lần thử thành công không có lý do thất bại
-      return { ok: true, mfa: true, userId: u.id };
+      if (meta.trustedTokens?.length && (await findTrustedDevice(tx, u.id, meta.trustedTokens, meta))) {
+        viaTrustedDevice = true;
+      } else {
+        await attempt(u.id, true, null); // ràng buộc DB: lần thử thành công không có lý do thất bại
+        return { ok: true, mfa: true, userId: u.id };
+      }
     }
     // Đăng nhập đúng: ghi lần thử + cập nhật người dùng + tạo phiên/refresh token + kiểm tra chờ duyệt ⇒ 1 vòng mạng
     const refresh = randomToken();
@@ -250,12 +253,15 @@ export async function login(identifier: string, password: string, meta: ReqMeta)
     ]);
     const sid = sess.rows[0].id as string;
     void inBackground(notifyNewDevice(u.id, sid, meta));
-    return { ok: true, userId: u.id, sid, refresh, pending: mem.rowCount === 0 };
+    return { ok: true, userId: u.id, sid, refresh, pending: mem.rowCount === 0, ...(viaTrustedDevice ? { viaTrustedDevice: true } : {}) };
   });
 }
 
-/** Bước 2 đăng nhập: mã TOTP/mã khôi phục đúng ⇒ tạo phiên như đăng nhập thường. */
-export async function completeMfaLogin(userId: string, code: string, meta: ReqMeta): Promise<LoginOutcome> {
+/**
+ * Bước 2 đăng nhập: mã TOTP/mã khôi phục đúng ⇒ tạo phiên như đăng nhập thường.
+ * trustDevice = người dùng tick "tin cậy thiết bị này 30 ngày" ⇒ cấp token thiết bị (nơi gọi đặt vào cookie).
+ */
+export async function completeMfaLogin(userId: string, code: string, meta: ReqMeta, trustDevice = false): Promise<LoginOutcome> {
   return withTx({ requestId: meta.requestId, ip: meta.ip }, "luuxa_auth", async (tx): Promise<LoginOutcome> => {
     const u = (await tx.query<{ status: string; locked: boolean }>("SELECT status::text, (locked_until IS NOT NULL AND locked_until > now()) AS locked FROM users WHERE id = $1 AND deleted_at IS NULL", [userId])).rows[0];
     if (!u || u.status === "disabled" || u.status === "locked") return { ok: false, error: new ApiError(403, "DISABLED", "Tài khoản không thể đăng nhập. Liên hệ người quản lý.") };
@@ -277,7 +283,12 @@ export async function completeMfaLogin(userId: string, code: string, meta: ReqMe
     await tx.query("UPDATE users SET last_login_at = now(), locked_until = NULL WHERE id = $1", [userId]);
     const sid = sess.rows[0].id as string;
     void inBackground(notifyNewDevice(userId, sid, meta));
-    return { ok: true, userId, sid, refresh, pending: mem.rowCount === 0 };
+    let trustedToken: string | undefined;
+    if (trustDevice) {
+      trustedToken = await createTrustedDevice(tx, userId, meta);
+      void inBackground(notifyDeviceTrusted(userId, meta));
+    }
+    return { ok: true, userId, sid, refresh, pending: mem.rowCount === 0, ...(trustedToken ? { trustedToken } : {}) };
   });
 }
 
@@ -458,6 +469,7 @@ export async function changePassword(userId: string, currentSid: string, current
       "UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'password_changed' WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL",
       [userId, currentSid]
     );
+    await revokeAllTrustedDevicesTx(tx, userId, "password_changed"); // mật khẩu đổi ⇒ mọi thiết bị tin cậy phải nhập lại mã 2FA
     void inBackground(notifyPasswordChanged(userId, "changed", meta));
   });
 }

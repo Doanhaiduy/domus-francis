@@ -6,6 +6,7 @@ import { ApiError } from "../errors";
 import { decryptPii, encryptPii, PII_KEY_VERSION } from "../pii";
 import { verifyPassword } from "./password";
 import { sha256Hex } from "./tokens";
+import { revokeAllTrustedDevicesTx } from "./trusted-device";
 import { newTotpSecret, otpauthUri, STEP_SECONDS, verifyTotp } from "./totp";
 import type { ReqMeta } from "./session";
 
@@ -68,6 +69,7 @@ export async function confirmEnroll(userId: string, code: string, meta: ReqMeta)
     if (!secret || verifyTotp(secret, code) === null) throw new ApiError(400, "BAD_CODE", "Mã không đúng hoặc đã hết hạn. Kiểm tra giờ trên điện thoại rồi nhập mã mới.");
     await tx.query("UPDATE user_mfa_factors SET confirmed_at = now() WHERE id = $1", [f.id]);
     await tx.query("DELETE FROM mfa_recovery_codes WHERE user_id = $1", [userId]);
+    await revokeAllTrustedDevicesTx(tx, userId, "mfa_reset"); // yếu tố mới ⇒ không còn thiết bị nào được coi là đã tin cậy
     const codes = newRecoveryCodes();
     for (const h of codes.hashes) await tx.query("INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES ($1, $2)", [userId, h]);
     return codes.plain;
@@ -81,6 +83,7 @@ export async function disableMfa(userId: string, password: string, meta: ReqMeta
     if (!u || !(await verifyPassword(u.password_hash, password))) throw new ApiError(400, "BAD_PASSWORD", "Mật khẩu không đúng.");
     await tx.query("DELETE FROM user_mfa_factors WHERE user_id = $1", [userId]);
     await tx.query("DELETE FROM mfa_recovery_codes WHERE user_id = $1", [userId]);
+    await revokeAllTrustedDevicesTx(tx, userId, "mfa_disabled");
   }, userId);
 }
 
@@ -89,6 +92,7 @@ export async function resetMfaForUser(targetUserId: string, meta: ReqMeta, actor
   await authTx(meta, async (tx) => {
     await tx.query("DELETE FROM user_mfa_factors WHERE user_id = $1", [targetUserId]);
     await tx.query("DELETE FROM mfa_recovery_codes WHERE user_id = $1", [targetUserId]);
+    await revokeAllTrustedDevicesTx(tx, targetUserId, "mfa_reset");
     // đăng xuất mọi phiên đang mở của người đó cho chắc
     await tx.query("UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'admin_revoked' WHERE user_id = $1 AND revoked_at IS NULL", [targetUserId]);
   }, actorUserId);

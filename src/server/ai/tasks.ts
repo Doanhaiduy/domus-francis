@@ -499,13 +499,13 @@ const financeInsightTask: TaskDef<"finance.monthly_insight"> = {
         ? [
             `SELECT ev.title, ev.amount_vnd, c.name AS category
                FROM expense_vouchers ev JOIN categories c ON c.id = ev.category_id
-              WHERE ev.status = 'paid' AND app.local_date(ev.paid_at) BETWEEN $1::date AND $2::date
+              WHERE ev.status = 'paid' AND NOT app.fn_fund_is_event(ev.fund_id) AND app.local_date(ev.paid_at) BETWEEN $1::date AND $2::date
               ORDER BY ev.amount_vnd DESC, ev.paid_at DESC LIMIT 3`,
             [curFrom, curTo],
           ]
         : null,
       p.exp_all && partial
-        ? ["SELECT count(*) FILTER (WHERE status = 'pending_approval')::int AS pending, count(*) FILTER (WHERE status = 'approved')::int AS approved FROM expense_vouchers"]
+        ? ["SELECT count(*) FILTER (WHERE status = 'pending_approval')::int AS pending, count(*) FILTER (WHERE status = 'approved')::int AS approved FROM expense_vouchers WHERE NOT app.fn_fund_is_event(fund_id)"]
         : null,
     ]);
     const cur = curR[0].s as FinSummary;

@@ -66,6 +66,8 @@ import ReceivingAccountCard from "@/components/finance/ReceivingAccountCard";
 import AiFinanceInsight from "@/components/ai/AiFinanceInsight";
 import PayQrDialog from "@/components/finance/PayQrDialog";
 import ExpenseDetailModal, { StatusBadge } from "./_components/ExpenseDetailModal";
+import EventFundsPanel from "./_components/EventFundsPanel";
+import { useEventFunds } from "@/lib/data/event-funds";
 import ContributionMatrix from "./_components/ContributionMatrix";
 import CollectionsCard, { defaultPlanOf } from "./_components/CollectionsCard";
 import { CellDialog, DuesCycleModal, PayModal, UtilityModal } from "./_components/ContributionDialogs";
@@ -122,6 +124,9 @@ function ThuChiContent() {
   const { can, session, isLoading: sessionLoading } = useSession();
   const searchParams = useSearchParams();
   const sp = searchParams.toString();
+  // Tab "Quỹ riêng" (quỹ của chuyến đi / sự kiện) chỉ hiện với người quản lý, người phụ trách hoặc người có tên trong một quỹ
+  const eventFundsList = useEventFunds().data;
+  const showEventFunds = !!eventFundsList && (eventFundsList.items.length > 0 || eventFundsList.canCreate);
   const today = useMemo(() => vnToday(), []);
   const current = today.slice(0, 7);
 
@@ -616,6 +621,7 @@ function ThuChiContent() {
             ["chi", `Danh sách chi tiêu (${expenses.length})`],
             ["dong-quy", "Ma trận đóng quỹ"],
             ["ung-ho", "Ủng hộ"],
+            ...(showEventFunds || activeTab === "quy-rieng" ? ([["quy-rieng", "Quỹ riêng"]] as [Tab, string][]) : []),
             ...(canSeeBooks ? ([["so-quy", "Sổ quỹ & chốt sổ"]] as [Tab, string][]) : []),
             ["bao-cao", "Báo cáo & Biểu đồ"],
             ["thong-ke", "Thống kê & Xuất file"],
@@ -1165,6 +1171,7 @@ function ThuChiContent() {
       {/* TAB: THỐNG KÊ THEO THÁNG / QUÝ / NĂM + XUẤT EXCEL / PDF */}
       {/* ========================================================================= */}
       {activeTab === "ung-ho" && <DonationsPanel />}
+      {activeTab === "quy-rieng" && <EventFundsPanel initialFundId={searchParams.get("fund")} />}
 
       {activeTab === "so-quy" &&
         (canSeeBooks ? (

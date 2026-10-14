@@ -56,6 +56,7 @@ async function send(
 }
 
 const VOUCHER_SQL = `SELECT ev.id, ev.voucher_no, ev.title, ev.amount_vnd, ev.status::text AS status, ev.required_approvals, ev.approval_round,
+        app.fn_fund_is_event(ev.fund_id) AS is_event_fund,
         ev.rejection_reason, ev.cancel_reason, ev.payment_method::text AS payment_method, ev.payee_name,
         rm.id AS requester_mid, COALESCE(rm.display_name, rm.full_name) AS requester_name,
         pm.id AS payee_mid, pm.user_id AS payee_uid, COALESCE(pm.display_name, pm.full_name) AS payee_name_member,
@@ -142,10 +143,14 @@ export function notifyExpense(ctx: NotifyCtx, voucherId: string, event: ExpenseE
             "finance.expense_decided",
             "finance.expense_decided",
             `Phiếu chi ${v.voucher_no} đã được duyệt`,
-            `“${v.title}” ${amount} đã đủ chữ ký — chờ Thủ quỹ ${payee ? "hoàn ứng" : "chi"}.`,
+            v.is_event_fund
+              ? `“${v.title}” ${amount} đã đủ chữ ký — người phụ trách quỹ ghi nhận đã chi khi giao tiền.`
+              : `“${v.title}” ${amount} đã đủ chữ ký — chờ Thủ quỹ ${payee ? "hoàn ứng" : "chi"}.`,
             link,
             entity
           );
+          // Quỹ riêng: người phụ trách (người lập phiếu) tự ghi chi — không báo Thủ quỹ "chờ chi"
+          if (v.is_event_fund) return sent;
           // Người ghi chi (Thủ quỹ…) — trừ người vừa duyệt và người đã được báo ở trên
           const payers = preferRoleHolders(
             (await tx.query<{ member_id: string; via_admin: boolean }>("SELECT member_id, via_admin FROM app.fn_members_with_permission('finance.expense.pay')")).rows,
