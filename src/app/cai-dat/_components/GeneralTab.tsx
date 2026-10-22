@@ -50,7 +50,6 @@ export const FINANCE_CONTROL_KEYS = [
   "finance.expense.dual_approval_min_vnd",
   "finance.expense.treasurer_solo_approve_max_vnd",
   "finance.expense.receipt_required_min_vnd",
-  "finance.utility.auto_expense_max_vnd",
   "finance.reminder.days_before_due",
   "finance.reminder.overdue_every_days",
   "finance.period.close_requires_reconciliation",
@@ -333,9 +332,6 @@ export default function GeneralTab({ draft, roles }: Props) {
                   )}
                   {shown("finance.expense.receipt_required_min_vnd") && (
                     <NumberSetting draft={draft} k="finance.expense.receipt_required_min_vnd" label="Bắt buộc ảnh hóa đơn từ mức" />
-                  )}
-                  {shown("finance.utility.auto_expense_max_vnd") && (
-                    <NumberSetting draft={draft} k="finance.utility.auto_expense_max_vnd" label="Điện nước: tổng tối đa được tự trừ quỹ" />
                   )}
                   {shown("finance.reminder.days_before_due") && (
                     <NumberSetting draft={draft} k="finance.reminder.days_before_due" label="Nhắc đóng quỹ trước hạn" suffix="ngày" />

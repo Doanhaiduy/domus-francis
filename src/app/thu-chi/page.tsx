@@ -1237,6 +1237,7 @@ function ThuChiContent() {
         amountVnd={payQrFor?.cell.remainingVnd ?? 0}
         content={payQrFor ? duesTransferContent(payQrFor.cell.planCode, payQrFor.row.fullName, payQrFor.row.name) : ""}
         subtitle={payQrFor ? `${payQrFor.cell.planName} · ${formatVND(payQrFor.cell.remainingVnd)}` : undefined}
+        planId={payQrFor?.cell.planId}
       />
       <QuickPayDialog target={quickPayFor} onClose={() => setQuickPayFor(null)} />
       {bulkPayOpen && plan && <BulkPayDialog plan={plan} rows={planRows} onClose={() => setBulkPayOpen(false)} />}

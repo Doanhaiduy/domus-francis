@@ -416,6 +416,14 @@ export async function run({ as, test, eq, ok, section, BASE, Client, pgConfig })
       eq((await sql("SELECT count(*)::int AS n FROM error_events WHERE source = 'csp'")).rows[0].n, before);
       eq((await cspPost("{hỏng", "application/csp-report")).status, 400);
     });
+    await test("Vi phạm do mã Zalo/ứng dụng bọc trình duyệt chèn (nguồn user-script, bị chặn 'null') → bỏ qua (mã lỗi 35c9d42b)", async () => {
+      const before = (await sql("SELECT count(*)::int AS n FROM error_events WHERE source = 'csp'")).rows[0].n;
+      const body = { "csp-report": { "document-uri": `${BASE}/dang-nhap`, "effective-directive": "frame-src", "blocked-uri": "null", disposition: "report", "source-file": "user-script" } };
+      eq((await cspPost(body, "application/csp-report")).status, 204);
+      const report = [{ type: "csp-violation", url: `${BASE}/dang-nhap`, body: { documentURL: `${BASE}/dang-nhap`, blockedURL: "null", effectiveDirective: "frame-src", sourceFile: "user-script", disposition: "report" } }];
+      eq((await cspPost(report, "application/reports+json")).status, 204);
+      eq((await sql("SELECT count(*)::int AS n FROM error_events WHERE source = 'csp'")).rows[0].n, before);
+    });
     await test("Giới hạn toàn hệ thống (300/giờ) chạm ngưỡng → vẫn 204 nhưng không ghi thêm", async () => {
       await sql("INSERT INTO rate_limit_hits (key) SELECT 'csp:all' FROM generate_series(1, 300)");
       const res = await cspPost({ "csp-report": { "document-uri": `${BASE}/gioi-thieu`, "effective-directive": "img-src", "blocked-uri": `https://limit-${host}/a.png` } }, "application/csp-report");

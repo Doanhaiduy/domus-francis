@@ -172,8 +172,8 @@ export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResult
   } else if (b.kind === "utility") {
     r = (
       await tx.query<{ r: Record<string, unknown> }>(
-        "SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5, $6::bigint, $7::boolean, $8::payment_method_t) AS r",
-        [`${b.month}-01`, b.billTotalVnd ?? null, b.dueDate ?? null, b.fundId ?? null, b.note ?? null, b.perPersonVnd ?? null, b.autoExpense ?? false, b.payMethod ?? "cash"]
+        "SELECT app.fn_create_utility_plan($1::date, $2::bigint, $3::date, $4::uuid, $5, $6::bigint, $7::boolean, 'cash'::payment_method_t, $8::uuid) AS r",
+        [`${b.month}-01`, b.billTotalVnd ?? null, b.dueDate ?? null, b.fundId ?? null, b.note ?? null, b.perPersonVnd ?? null, b.autoExpense ?? false, b.payeeMemberId ?? null]
       )
     ).rows[0].r;
   } else {
@@ -200,6 +200,7 @@ export async function createPlan(tx: Tx, b: PlanInput): Promise<CreatePlanResult
     expenseVoucherNo: r.expense_voucher_no ? String(r.expense_voucher_no) : null,
     expenseVnd: num("expense_vnd"),
     totalVnd: num("total_vnd"),
+    payeeMemberId: r.payee_member_id ? String(r.payee_member_id) : null,
   };
 }
 
@@ -296,14 +297,13 @@ export async function previewPlan(
     [
       `SELECT COALESCE($2::date, ($1::date + interval '1 month')::date + (LEAST(28, GREATEST(1, app.setting_int('finance.utility_due_day')::int)) - 1))::text AS due,
               (SELECT json_build_object('id', x.id, 'name', x.name) FROM contribution_plans x
-                WHERE x.fee_type = 'utility' AND x.status <> 'cancelled' AND x.period_month = $1::date LIMIT 1) AS existing,
-              app.setting_int('finance.utility.auto_expense_max_vnd')::bigint AS cap`,
+                WHERE x.fee_type = 'utility' AND x.status <> 'cancelled' AND x.period_month = $1::date LIMIT 1) AS existing`,
       [`${q.month}-01`, q.dueDate ?? null],
     ],
   ]);
   const c = financeCallerFrom(callerR);
   if (!c.planManage) throw forbidden("Bạn không có quyền lập kế hoạch thu tiền điện nước.");
-  const cfg = cfgR.rows[0] as { due: string; existing: { id: string; name: string } | null; cap: string | number | null };
+  const cfg = cfgR.rows[0] as { due: string; existing: { id: string; name: string } | null };
   const n = (await tx.query<{ n: number }>("SELECT app.fn_billable_member_count($1::date) AS n", [cfg.due])).rows[0].n;
   // Mỗi người cố định ⇒ tổng = mỗi người × số người (khớp app.fn_create_utility_plan); nhập tổng ⇒ chia đều, làm tròn lên 1.000đ
   const perPerson = q.perPersonVnd && q.perPersonVnd > 0 ? q.perPersonVnd : 0;
@@ -321,7 +321,6 @@ export async function previewPlan(
     billTotalVnd: bill,
     remainderVnd: Math.max(0, amount * n - bill),
     existing: cfg.existing,
-    autoExpenseMaxVnd: cfg.cap === null || cfg.cap === undefined ? null : Number(cfg.cap),
   };
 }
 

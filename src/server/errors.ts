@@ -65,6 +65,7 @@ const FRIENDLY_CONSTRAINT: Record<string, string> = {
   ex_laundry_bookings__no_overlap: "Khung giờ này vừa có người đặt. Vui lòng chọn khung khác.",
   ex_room_assignments__no_overlap: "Thành viên đang có phân phòng trùng thời gian.",
   ux_duty_checkins__evidence: "Ảnh minh chứng này đã được dùng cho lần check-in khác — hãy chụp ảnh mới.",
+  ck_contribution_payments__bank_ref: "Chuyển khoản cần có mã giao dịch ngân hàng (hoặc ghi “xác nhận thủ công”).",
   ux_discipline_rules__code: "Mã điều luật này đã có — hãy chọn mã khác.",
   ck_discipline_rules__code: "Mã điều luật chỉ gồm chữ không dấu, số, dấu . _ - (tối đa 20 ký tự).",
   ck_discipline_records__range: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu chấp hành.",

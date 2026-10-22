@@ -3,8 +3,6 @@
 
 import { randomUUID } from "node:crypto";
 
-const shiftMonth = (ym, n) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1)).toISOString().slice(0, 7);
-
 export async function run({ as, test, eq, ok, section }) {
   section("Ghi thu hàng loạt (khoản đã đóng từ trước)");
 
@@ -15,19 +13,27 @@ export async function run({ as, test, eq, ok, section }) {
   const detail = (r) => JSON.stringify(r.json);
   const options = (await treasurer.get("/api/v1/finance/options")).json;
   const today = options.today;
-  const current = today.slice(0, 7);
   const fund = options.funds.find((f) => f.type === "cash") ?? options.funds[0];
   const total = async () => (await head.get("/api/v1/finance/opening-balance")).json.totalVnd;
 
-  // Kế hoạch điện nước của một tháng còn trống trong 6 tháng gần nhất (có đủ khoản phải thu cho cả nhà)
+  // Khoản thu MỘT LẦN cho 6 thành viên (tiền điện nước không vào sổ quỹ nhà nên không dùng để thử số dư quỹ ở đây)
   let plan;
   let cells;
-  await test("Chuẩn bị: lập kế hoạch điện nước một tháng còn trống ⇒ cả nhà có khoản phải thu chưa đóng", async () => {
-    const existing = (await treasurer.get("/api/v1/finance/contribution-plans")).json;
-    const taken = new Set(existing.filter((p) => p.feeType === "utility").map((p) => p.month));
-    const month = [0, -1, -2, -3, -4, -5].map((n) => shiftMonth(current, n)).find((m) => !taken.has(m));
-    ok(month, "DB thử không còn tháng điện nước trống trong 6 tháng gần nhất");
-    const r = await treasurer.post("/api/v1/finance/contribution-plans", { kind: "utility", month, billTotalVnd: 1_200_000, note: "Kiểm thử ghi thu hàng loạt" });
+  await test("Chuẩn bị: lập khoản thu một lần cho 6 thành viên ⇒ có khoản phải thu chưa đóng", async () => {
+    const matrix0 = (await treasurer.get("/api/v1/finance/contributions?months=6")).json;
+    const people = matrix0.rows.slice(0, 6);
+    ok(people.length >= 6, "cần ít nhất 6 thành viên, có " + people.length);
+    const due = new Date(Date.parse(`${today}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
+    const r = await treasurer.post("/api/v1/finance/contribution-plans", {
+      kind: "onetime",
+      feeType: "other",
+      name: `Thu thử ghi thu hàng loạt ${Date.now().toString(36)}`,
+      amountVnd: 120_000,
+      dueDate: due,
+      members: people.map((p) => ({ memberId: p.memberId })),
+      fundId: fund.id,
+      note: "Kiểm thử ghi thu hàng loạt",
+    });
     eq(r.status, 201, detail(r));
     plan = r.json;
     const matrix = (await treasurer.get("/api/v1/finance/contributions?months=6")).json;

@@ -94,6 +94,9 @@ export interface ReceivingAccountDto {
   canEdit: boolean;
   updatedAt: string | null;
   updatedByName: string | null;
+  /** Khi hỏi theo kế hoạch (?planId=): thành viên nhận tiền của kế hoạch điện nước đó (null = tài khoản của nhà) */
+  payeeMemberId?: string | null;
+  payeeName?: string | null;
 }
 
 /** GET /api/v1/members/:id/payment-account — tài khoản nhận tiền của một thành viên. */
@@ -102,6 +105,16 @@ export interface MemberPaymentAccountDto {
   memberName: string;
   account: (BankAccountDto & { note: string | null; updatedAt: string }) | null;
   canEdit: boolean;
+}
+
+/** Một thành viên đã khai báo tài khoản nhận tiền (để chọn làm STK nhận tiền điện nước). */
+export interface PayeeOptionDto {
+  memberId: string;
+  name: string;
+  fullName: string;
+  bankName: string;
+  /** 4 số cuối STK */
+  accountLast4: string;
 }
 
 export interface FundOptionDto {
@@ -135,6 +148,8 @@ export interface FinanceOptionsDto {
   dues: { cycleMonths: number; amountVnd: number; graduatedAmountVnd: number; startMonth: number; dueDay: number };
   /** Hạn nộp tiền điện nước: ngày này của tháng sau tháng hóa đơn */
   utilityDueDay: number;
+  /** Thành viên đã khai báo tài khoản nhận tiền — chọn làm nơi nhận tiền điện nước (chỉ trả cho người lập được kế hoạch thu) */
+  payees: PayeeOptionDto[];
   /** Kỳ quỹ hiện tại và kỳ kế tiếp ('YYYY-MM') */
   currentCycle: { startMonth: string; endMonth: string };
   nextCycle: { startMonth: string; endMonth: string };
@@ -154,8 +169,6 @@ export interface PlanPreviewDto {
   remainderVnd: number;
   /** Kế hoạch còn hiệu lực trùng kỳ/tháng (lập sẽ bị từ chối) */
   existing: { id: string; name: string } | null;
-  /** Trần tổng hóa đơn được tự trừ quỹ khi lập kế hoạch điện nước (finance.utility.auto_expense_max_vnd); null nếu không đọc được */
-  autoExpenseMaxVnd?: number | null;
   /** Thống kê chi tiết theo phân loại thành viên (quỹ định kỳ) */
   breakdown?: {
     studyingCount: number;
@@ -185,11 +198,13 @@ export interface CreatePlanResultDto {
   splitCount: number | null;
   billTotalVnd: number | null;
   remainderVnd: number | null;
-  /** Phiếu chi tự lập khi chọn "Trừ quỹ ngay" (điện nước); null nếu không trừ quỹ tự động */
+  /** Phiếu chi tự lập (chỉ kế hoạch điện nước cũ lập trước 1.8.1 với "Trừ quỹ ngay"); kế hoạch mới luôn null */
   expenseVoucherNo: string | null;
   expenseVnd: number | null;
   /** Tổng phải thu (khoản thu một lần — có thể có mức riêng từng người); null với loại khác */
   totalVnd?: number | null;
+  /** Điện nước: thành viên nhận tiền (null = tài khoản nhận quỹ của nhà) */
+  payeeMemberId?: string | null;
 }
 
 export interface ReceiptDto {
@@ -316,9 +331,12 @@ export interface ContributionPlanDto {
   billTotalVnd: number | null;
   splitCount: number | null;
   note: string | null;
-  /** Phiếu chi tự lập khi kế hoạch điện nước được lập với "Trừ quỹ ngay" (số phiếu + số tiền đã trừ quỹ) */
+  /** Phiếu chi tự lập khi kế hoạch điện nước được lập với "Trừ quỹ ngay" (chỉ kế hoạch lập trước 1.8.1; nay không còn tự trừ quỹ) */
   expenseVoucherNo: string | null;
   expenseVnd: number | null;
+  /** Điện nước: thành viên nhận tiền (tài khoản trong member_payment_accounts); null = tài khoản nhận quỹ của nhà */
+  payeeMemberId: string | null;
+  payeeName: string | null;
   stats: PlanStatsDto;
 }
 

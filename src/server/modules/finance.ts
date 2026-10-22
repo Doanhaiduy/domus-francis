@@ -2,6 +2,7 @@ import "server-only";
 import type { QueryResult } from "pg";
 import { batch, type Tx } from "../db";
 import { ApiError, badRequest, forbidden } from "../errors";
+import { getMemberPaymentAccount } from "./payment-accounts";
 import {
   monthRangeLabel,
   planShortLabel,
@@ -162,7 +163,8 @@ function planSelectItem(c: FinanceCaller, where: string, params: unknown[] = [])
   return [
     `SELECT cp.id, cp.code, cp.name, cp.fee_type::text AS fee_type, to_char(cp.period_month, 'YYYY-MM') AS month,
               to_char(cp.period_end_month, 'YYYY-MM') AS end_month, cp.amount_vnd, cp.due_date::text AS due_date,
-              cp.status::text AS status, cp.fund_id, cp.bill_total_vnd, cp.split_count, cp.note,
+              cp.status::text AS status, cp.fund_id, cp.bill_total_vnd, cp.split_count, cp.note, cp.payee_member_id,
+              (SELECT m.display_name FROM members m WHERE m.id = cp.payee_member_id) AS payee_name,
               (SELECT ev.voucher_no FROM expense_vouchers ev WHERE ev.id = cp.expense_voucher_id) AS expense_voucher_no,
               (SELECT ev.amount_vnd FROM expense_vouchers ev WHERE ev.id = cp.expense_voucher_id) AS expense_vnd,
               count(ct.id) FILTER (WHERE ct.status NOT IN ('cancelled', 'waived'))::int AS total,
@@ -227,6 +229,8 @@ export function listPlansFrom(res: QueryResult, c: FinanceCaller): ContributionP
       note: r.note ?? null,
       expenseVoucherNo: r.expense_voucher_no ?? null,
       expenseVnd: r.expense_vnd === null || r.expense_vnd === undefined ? null : Number(r.expense_vnd),
+      payeeMemberId: r.payee_member_id ?? null,
+      payeeName: r.payee_name ?? null,
       stats: {
         totalCount: all ? r.total : null,
         paidCount: all ? r.paid : null,
@@ -455,6 +459,16 @@ export async function getOptions(tx: Tx): Promise<FinanceOptionsDto> {
       }))
     : [];
   funds.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "cash" ? -1 : 1));
+  // Người có thể nhận tiền điện nước = thành viên đã khai báo tài khoản nhận tiền (chỉ người lập được kế hoạch thu cần danh sách này)
+  const payees = c.planManage
+    ? (
+        await tx.query(
+          `SELECT m.id, m.display_name, m.full_name, a.bank_name, right(a.account_no, 4) AS last4
+             FROM member_payment_accounts a JOIN members m ON m.id = a.member_id
+            WHERE m.deleted_at IS NULL AND m.status = 'active' ORDER BY m.display_name`
+        )
+      ).rows.map((r) => ({ memberId: r.id, name: r.display_name, fullName: r.full_name, bankName: r.bank_name, accountLast4: r.last4 }))
+    : [];
   const categories = categoriesR.rows.map((r) => ({ id: r.id, code: r.code, name: r.name, color: r.color ?? "#6b7280", icon: r.icon ?? null }));
   const st = Object.fromEntries((settingsR.rows as { key: string; v: string }[]).map((r) => [r.key, r.v]));
   const num = (k: string) => (st[k] !== undefined && st[k] !== null && st[k] !== "" ? Number(st[k]) : null);
@@ -474,6 +488,7 @@ export async function getOptions(tx: Tx): Promise<FinanceOptionsDto> {
       dueDay: num("finance.dues_cycle_due_day") ?? 15,
     },
     utilityDueDay: num("finance.utility_due_day") ?? 10,
+    payees,
     currentCycle: { startMonth: cy.s, endMonth: cy.e },
     nextCycle: { startMonth: cy.ns, endMonth: cy.ne },
   };
@@ -550,6 +565,27 @@ export async function getReceivingAccount(tx: Tx): Promise<ReceivingAccountDto> 
     canEdit: !!r.can_edit,
     updatedAt: r.edited ? new Date(r.updated_at).toISOString() : null,
     updatedByName: r.edited ? (r.by_name ?? null) : null,
+  };
+}
+
+/**
+ * Tài khoản nhận tiền áp dụng cho MỘT kế hoạch thu: kế hoạch điện nước chọn nơi nhận (payee_member_id) ⇒ tài khoản của thành viên đó;
+ * còn lại ⇒ tài khoản nhận quỹ của nhà. Người đóng dùng để hiện đúng mã QR/STK.
+ */
+export async function getPlanReceivingAccount(tx: Tx, planId: string): Promise<ReceivingAccountDto> {
+  const p = (
+    await tx.query<{ payee_member_id: string | null }>("SELECT payee_member_id FROM contribution_plans WHERE id = $1::uuid", [planId])
+  ).rows[0];
+  if (!p?.payee_member_id) return { ...(await getReceivingAccount(tx)), payeeMemberId: null, payeeName: null };
+  const m = await getMemberPaymentAccount(tx, p.payee_member_id);
+  return {
+    account: m.account ? { bankBin: m.account.bankBin, bankName: m.account.bankName, accountNo: m.account.accountNo, accountName: m.account.accountName, qrFileId: m.account.qrFileId } : null,
+    legacyText: null,
+    canEdit: false,
+    updatedAt: m.account?.updatedAt ?? null,
+    updatedByName: null,
+    payeeMemberId: p.payee_member_id,
+    payeeName: m.memberName,
   };
 }
 

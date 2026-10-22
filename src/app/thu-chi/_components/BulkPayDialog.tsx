@@ -121,15 +121,21 @@ export function BulkPayDialog({ plan, rows, onClose }: { plan: ContributionPlanD
       z="z-[999]"
     >
       <form id="bulk-pay-form" onSubmit={submit} className="space-y-4">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] text-amber-900">
-          Mỗi người được ghi một phiếu thu và <b>cộng vào sổ quỹ</b>. Nếu số dư đầu kỳ bạn đã nhập <b>gồm sẵn</b> các khoản này thì <b>đừng ghi lại ở đây</b> (sẽ bị cộng đôi). Ghi nhầm thì vào chi tiết khoản → hủy phiếu thu.
-        </div>
+        {plan.feeType === "utility" ? (
+          <div className="rounded-xl border border-purple-100 bg-purple-50/60 px-3.5 py-2.5 text-[11px] text-purple-900">
+            Mỗi người được ghi một phiếu thu. Tiền điện nước <b>không cộng vào sổ quỹ nhà</b> — chỉ ghi nhận ai đã đóng. Ghi nhầm thì vào chi tiết khoản → hủy phiếu thu.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] text-amber-900">
+            Mỗi người được ghi một phiếu thu và <b>cộng vào sổ quỹ</b>. Nếu số dư đầu kỳ bạn đã nhập <b>gồm sẵn</b> các khoản này thì <b>đừng ghi lại ở đây</b> (sẽ bị cộng đôi). Ghi nhầm thì vào chi tiết khoản → hủy phiếu thu.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <CustomDatePicker label="Ngày đóng thực tế" format="YYYY-MM-DD" value={paidOn} onChange={(d) => d && setPaidOn(d)} required />
           <CustomSelect<PaymentMethod> label="Hình thức" value={method} onChange={setMethod} options={METHODS} />
         </div>
-        <FundSelect label="Nhận vào túi quỹ" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
+        {plan.feeType !== "utility" && <FundSelect label="Nhận vào túi quỹ" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />}
         <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} hint={method === "bank_transfer" ? "Chuyển khoản không có mã giao dịch thì hệ thống ghi “Đóng trước khi dùng hệ thống”." : undefined} />
 
         <div>

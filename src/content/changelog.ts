@@ -31,6 +31,18 @@ export const CHANGE_LABEL: Record<ChangeKind, string> = {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.1",
+    date: "2026-10-22",
+    title: "Sửa tiền điện nước: không đụng quỹ nhà, chọn STK, xác nhận không còn lỗi",
+    changes: [
+      { kind: "fix", text: "Tiền điện nước không còn tự trừ vào quỹ nhà (đã bỏ “Trừ quỹ ngay”) và tiền anh em đóng không được cộng vào quỹ nhà — hệ thống chỉ ghi nhận ai đã đóng. Số dư, thu chi và báo cáo của quỹ nhà không còn lẫn tiền điện nước." },
+      { kind: "feat", text: "Khi nhập tiền điện nước hằng tháng có thể chọn tài khoản nhận tiền (STK): mặc định là tài khoản quỹ Lưu Xá, hoặc tài khoản của một thành viên đã khai báo (vd. người ứng tiền trả hóa đơn). Anh em bấm nộp sẽ thấy đúng STK / mã QR của kế hoạch đó." },
+      { kind: "fix", text: "Thủ quỹ / Trưởng nhà / Admin xác nhận “Tôi đã đóng” được trở lại: trước đây thành viên báo chuyển khoản mà không ghi mã giao dịch thì lúc xác nhận hiện lỗi “Dữ liệu không thỏa ràng buộc nghiệp vụ”. Nay hệ thống tự ghi “xác nhận thủ công”." },
+      { kind: "improve", text: "Ghi thu: tiền điện nước ghi thu riêng, không gộp chung phiếu với khoản thu khác — hộp thoại tự bỏ chọn các khoản khác loại thay vì để báo lỗi; mô tả “không vào sổ quỹ nhà” hiện ở mọi chỗ ghi thu điện nước." },
+      { kind: "ops", text: "Nhật ký lỗi không còn ghi lỗi do trình duyệt trong Zalo tự chèn script vào trang đăng nhập (mã lỗi 5a4403dc, 35c9d42b) — đó không phải lỗi của ứng dụng." },
+    ],
+  },
+  {
     version: "1.8.0",
     date: "2026-10-14",
     title: "Quỹ riêng cho chuyến đi / sự kiện và tin cậy thiết bị 30 ngày",

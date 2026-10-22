@@ -122,10 +122,13 @@ export function useFinanceStats(granularity: StatsGranularity, count: number | u
 }
 
 /** Tài khoản nhận quỹ của nhà (STK + ảnh QR của Thủ quỹ). */
-export function useReceivingAccount(enabled = true) {
-  const { data, error, isLoading, mutate } = useSWR<ReceivingAccountDto>(enabled ? `${FINANCE_KEY}/receiving-account` : null, swrFetcher, {
-    revalidateOnFocus: false,
-  });
+export function useReceivingAccount(enabled = true, planId?: string | null) {
+  // Có planId ⇒ tài khoản áp dụng cho kế hoạch đó (điện nước có thể nhận tiền vào tài khoản của một thành viên)
+  const { data, error, isLoading, mutate } = useSWR<ReceivingAccountDto>(
+    enabled ? `${FINANCE_KEY}/receiving-account${planId ? `?planId=${planId}` : ""}` : null,
+    swrFetcher,
+    { revalidateOnFocus: false }
+  );
   return { receiving: data, error, isLoading, mutate };
 }
 
@@ -242,9 +245,8 @@ export const financeApi = {
           /** Nhập MỘT trong hai: tổng hóa đơn HOẶC số tiền mỗi người */
           billTotalVnd?: number;
           perPersonVnd?: number;
-          /** Trừ quỹ ngay: tự lập phiếu chi đã chi bằng tổng; anh em đóng thì cộng lại */
-          autoExpense?: boolean;
-          payMethod?: PaymentMethod;
+          /** Tài khoản nhận tiền (STK): id thành viên đã khai báo tài khoản; bỏ trống = tài khoản nhận quỹ của nhà */
+          payeeMemberId?: string | null;
           dueDate?: string;
           fundId?: string;
           note?: string | null;

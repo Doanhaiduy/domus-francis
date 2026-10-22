@@ -103,7 +103,9 @@ export function QuickPayDialog({ target, onClose }: { target: { row: Contributio
       </div>
       {method === "bank_transfer" && <CustomInput label="Mã giao dịch ngân hàng (nếu có)" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Để trống nếu chưa có — hệ thống ghi “xác nhận thủ công”" />}
       <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Nhận tại phòng 201" />
-      <p className="text-[11px] text-gray-500">Túi quỹ nhận: {fund ? fund.name : "—"}</p>
+      <p className="text-[11px] text-gray-500">
+        {cell?.feeType === "utility" ? "Tiền điện nước không cộng vào sổ quỹ nhà — chỉ ghi nhận anh em đã đóng." : `Túi quỹ nhận: ${fund ? fund.name : "—"}`}
+      </p>
       <ErrorBox error={error} />
     </DialogShell>
   );

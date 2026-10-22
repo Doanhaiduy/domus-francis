@@ -457,6 +457,7 @@ export function MyTodayCard() {
           amountVnd={payFor.remainingVnd}
           content={duesTransferContent(payFor.planCode, me.fullName, me.displayName)}
           subtitle={`${payFor.planName} · ${formatVND(payFor.remainingVnd)}`}
+          planId={payFor.planId}
         />
       )}
       {checkInFor && (

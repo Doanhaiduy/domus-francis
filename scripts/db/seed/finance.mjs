@@ -84,7 +84,9 @@ export async function seed(ctx) {
 
   // ---------------------------------------------------------------- 1. Số dư đầu kỳ (Trưởng nhà — finance.ledger.adjust)
   await ctx.as(head);
-  for (const [code, amount] of [["CASH", 6_850_000], ["BANK_MAIN", 2_500_000]]) {
+  // Tiền điện nước KHÔNG vào sổ quỹ nhà (db/app/1056) nên số dư đầu kỳ demo cộng thêm phần trước đây thu từ điện nước (≈ 2,4 triệu tiền mặt, ≈ 0,5 triệu chuyển khoản)
+  // để các phiếu chi demo vẫn đủ tiền (BR-FIN-07).
+  for (const [code, amount] of [["CASH", 9_200_000], ["BANK_MAIN", 3_000_000]]) {
     await q("SELECT app.fn_post_ledger_entry($1, $2::date, 'in', $3, 'opening_balance', $4)", [
       fund[code], opening, amount, `Số dư đầu kỳ chuyển sang từ sổ quỹ giấy (${code === "CASH" ? "tiền mặt Thủ quỹ giữ" : "tài khoản Techcombank"})`,
     ]);
@@ -131,14 +133,15 @@ export async function seed(ctx) {
   const dayAfter = (from, mockId, span = 12) => clampToday(addDays(maxIso(from, opening), (Number(mockId) * 3) % span));
 
   // Quỹ kỳ hiện tại: Lê Hoàng Long (3) và Đỗ Tuấn Kiệt (10) chưa đóng; Phan Bảo Nam (11) được giảm một nửa, chưa đóng phần còn lại;
-  // Lý Hữu Phước (12) mới đóng một nửa; Trưởng nhà (2) đóng gộp quỹ kỳ + điện nước tháng trước nữa trong một phiếu thu.
+  // Lý Hữu Phước (12) mới đóng một nửa; Trưởng nhà (2) đóng quỹ kỳ + điện nước tháng trước nữa (hai phiếu thu riêng: tiền điện nước không vào sổ quỹ nhà).
   for (const id of mockIds) {
     if (["3", "10", "11", "2"].includes(id)) continue;
     if (id === "12") await pay(id, [{ plan: dues, amount: Math.round(dues.amount / 2 / 1000) * 1000 }], dayAfter(dues.start, id, 20), "Đóng trước một nửa quỹ kỳ, hẹn đóng nốt");
     else await pay(id, [{ plan: dues }], dayAfter(dues.start, id, 20));
   }
   const afterOld = addMonths(utilOld.month, 1); // tiền điện nước tháng X thu từ đầu tháng X+1
-  await pay("2", [{ plan: dues }, { plan: utilOld }], dayAfter(afterOld, "2", 8), "Đóng gộp quỹ kỳ + tiền điện nước");
+  await pay("2", [{ plan: dues }], dayAfter(afterOld, "2", 8), "Đóng quỹ kỳ");
+  await pay("2", [{ plan: utilOld }], dayAfter(afterOld, "2", 8), "Đóng tiền điện nước");
   // Điện nước tháng trước nữa: đủ cả nhà trừ Đỗ Tuấn Kiệt (10) — đã quá hạn
   for (const id of mockIds) if (!["2", "10"].includes(id)) await pay(id, [{ plan: utilOld }], dayAfter(afterOld, id, 9));
   // Điện nước tháng trước (đang trong hạn): mới vài người nộp

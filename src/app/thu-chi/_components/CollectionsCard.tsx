@@ -351,9 +351,14 @@ export default function CollectionsCard({
                   · Hạn {dmy(plan.dueDate)}
                 </div>
                 {plan.note && <div className="text-[11px] text-gray-400 italic">{plan.note}</div>}
+                {plan.feeType === "utility" && (
+                  <div className="text-[11px] text-purple-700 font-semibold">
+                    {plan.payeeMemberId ? `Chuyển khoản cho ${plan.payeeName ?? "thành viên được chọn"}` : "Chuyển khoản vào tài khoản quỹ Lưu Xá"} · không đụng tới sổ quỹ nhà
+                  </div>
+                )}
                 {plan.expenseVoucherNo && (
                   <div className="text-[11px] text-emerald-700 font-semibold">
-                    Đã trừ quỹ {formatVND(plan.expenseVnd ?? 0)} (phiếu chi {plan.expenseVoucherNo}) — anh em đóng thì cộng lại quỹ
+                    Đã trừ quỹ {formatVND(plan.expenseVnd ?? 0)} (phiếu chi {plan.expenseVoucherNo}) — kế hoạch lập trước khi điện nước tách khỏi sổ quỹ nhà
                   </div>
                 )}
               </div>

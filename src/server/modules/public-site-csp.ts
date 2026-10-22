@@ -104,9 +104,20 @@ export function parseCspReports(body: unknown): CspViolation[] {
   return out;
 }
 
-/** Vi phạm do tiện ích trình duyệt / trang nội bộ của trình duyệt gây ra ⇒ bỏ qua. */
+/**
+ * Mã do ứng dụng bọc trình duyệt tự chèn vào trang (Zalo, Facebook… in-app browser, userscript): Chrome/WebKit ghi nguồn mã là
+ * "user-script" và nguồn bị chặn là "null" (khung ẩn do mã đó tạo). Không phải mã của ứng dụng mình.
+ */
+const NOISE_INJECTED = /^(user-script|null)$/i;
+
+/** Vi phạm do tiện ích trình duyệt / trang nội bộ của trình duyệt / mã được chèn từ ứng dụng bọc trình duyệt ⇒ bỏ qua. */
 export function isNoiseViolation(v: CspViolation): boolean {
-  return NOISE_SCHEME.test(v.blocked) || (!!v.source && NOISE_SCHEME.test(v.source));
+  return (
+    NOISE_SCHEME.test(v.blocked) ||
+    (!!v.source && NOISE_SCHEME.test(v.source)) ||
+    NOISE_INJECTED.test(v.blocked) ||
+    (!!v.source && NOISE_INJECTED.test(v.source))
+  );
 }
 
 /** Thông điệp ghi nhật ký (gộp theo chỉ thị + nguồn bị chặn + trang). */

@@ -85,7 +85,7 @@ export async function run({ as, test, eq, ok, section, BASE, Client }) {
   await test("Chuẩn bị: tìm một khoản phải thu còn nợ của một thành viên", async () => {
     const m = (await treasurer.get("/api/v1/finance/contributions?months=12")).json;
     for (const row of m.rows) {
-      const cell = Object.values(row.cells).find((c) => (c.status === "unpaid" || c.status === "partial") && c.remainingVnd >= 10000);
+      const cell = Object.values(row.cells).find((c) => (c.status === "unpaid" || c.status === "partial") && c.remainingVnd >= 10000 && c.feeType !== "utility"); // điện nước không vào sổ quỹ nên không ghép được bút toán (xem finance-utility)
       if (cell) {
         target = { row, cell };
         break;

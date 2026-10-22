@@ -295,5 +295,11 @@ export async function actOnBankLine(tx: Tx, id: string, b: BankLineAction): Prom
   });
   const entry = (await tx.query<{ ledger_entry_id: string }>("SELECT ledger_entry_id FROM contribution_payments WHERE id = $1", [paymentId])).rows[0]?.ledger_entry_id;
   if (entry) await tx.query("UPDATE bank_statement_lines SET match_status = 'matched', matched_ledger_entry_id = $2 WHERE id = $1 AND match_status = 'unmatched'", [id, entry]);
+  else
+    // Phiếu thu không có bút toán (tiền điện nước không vào sổ quỹ nhà) ⇒ dòng sao kê không ghép được bút toán nào: đóng bằng "bỏ qua" kèm lý do (không bị ghi thu lần nữa)
+    await tx.query("UPDATE bank_statement_lines SET match_status = 'ignored', ignore_reason = $2 WHERE id = $1 AND match_status = 'unmatched'", [
+      id,
+      "Đã ghi thu tiền điện nước (không vào sổ quỹ nhà)",
+    ]);
   return { paymentId };
 }

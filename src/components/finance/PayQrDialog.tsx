@@ -226,6 +226,7 @@ export default function PayQrDialog({
   content,
   title = "Nộp quỹ / chuyển khoản",
   subtitle,
+  planId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -234,13 +235,30 @@ export default function PayQrDialog({
   content: string;
   title?: string;
   subtitle?: React.ReactNode;
+  /** Kế hoạch đang nộp: kế hoạch điện nước có thể nhận tiền vào tài khoản của một thành viên (không phải tài khoản của nhà) */
+  planId?: string | null;
 }) {
-  const { receiving, isLoading } = useReceivingAccount(open);
+  const { receiving, isLoading } = useReceivingAccount(open, planId);
   const account = receiving?.account ?? null;
+  const payee = receiving?.payeeMemberId ? receiving.payeeName : null;
   return (
     <QrDialogShell open={open} onClose={onClose} title={title} subtitle={subtitle}>
-      {isLoading && !receiving && <div className="py-8 text-center text-xs text-gray-400">Đang tải tài khoản nhận quỹ…</div>}
-      {receiving && !account && (
+      {isLoading && !receiving && <div className="py-8 text-center text-xs text-gray-400">Đang tải tài khoản nhận tiền…</div>}
+      {payee && account && (
+        <p className="flex items-start gap-1.5 p-2.5 rounded-xl bg-purple-50/70 border border-purple-100 text-[11px] text-purple-900">
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary" />
+          <span>
+            Khoản này chuyển khoản cho <b>{payee}</b> (không phải tài khoản quỹ nhà) — đúng số tiền và nội dung bên dưới.
+          </span>
+        </p>
+      )}
+      {receiving && !account && payee && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 text-xs text-amber-900 space-y-1.5">
+          <p className="font-bold">{payee} chưa khai báo tài khoản nhận tiền.</p>
+          <p>Vui lòng đưa tiền mặt trực tiếp hoặc hỏi {payee} số tài khoản.</p>
+        </div>
+      )}
+      {receiving && !account && !payee && (
         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 text-xs text-amber-900 space-y-1.5">
           <p className="font-bold">Thủ quỹ chưa khai báo tài khoản nhận quỹ.</p>
           {receiving.legacyText ? (

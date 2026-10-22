@@ -80,17 +80,27 @@ export async function cancelClaim(tx: Tx, id: string) {
 export async function decideClaim(tx: Tx, id: string, approve: boolean, note: string | null): Promise<{ paymentId: string | null }> {
   let fundId: string | null = null;
   if (approve) {
-    const c = (await tx.query<{ method: string }>("SELECT method::text AS method FROM contribution_claims WHERE id = $1", [id])).rows[0];
-    if (!c) throw notFound("Không tìm thấy yêu cầu (hoặc bạn không có quyền xem).");
-    const want = c.method === "cash" ? "cash" : "bank";
-    const funds = (
-      await tx.query<{ id: string; type: string }>(
-        "SELECT id, fund_type::text AS type FROM funds WHERE is_active AND deleted_at IS NULL AND fund_type::text IN ('cash', 'bank') ORDER BY CASE fund_type::text WHEN $1 THEN 0 ELSE 1 END, code",
-        [want],
+    const c = (
+      await tx.query<{ method: string; fee_type: string }>(
+        `SELECT c.method::text AS method, cp.fee_type::text AS fee_type
+           FROM contribution_claims c JOIN contributions ct ON ct.id = c.contribution_id JOIN contribution_plans cp ON cp.id = ct.plan_id
+          WHERE c.id = $1`,
+        [id],
       )
-    ).rows;
-    fundId = funds[0]?.id ?? null;
-    if (!fundId) throw new ApiError(422, "NO_FUND", "Chưa có túi quỹ tiền mặt/ngân hàng để ghi thu.");
+    ).rows[0];
+    if (!c) throw notFound("Không tìm thấy yêu cầu (hoặc bạn không có quyền xem).");
+    // Tiền điện nước không vào sổ quỹ nhà ⇒ không cần túi quỹ (hàm DB dùng túi quỹ của kế hoạch)
+    if (c.fee_type !== "utility") {
+      const want = c.method === "cash" ? "cash" : "bank";
+      const funds = (
+        await tx.query<{ id: string; type: string }>(
+          "SELECT id, fund_type::text AS type FROM funds WHERE is_active AND deleted_at IS NULL AND fund_type::text IN ('cash', 'bank') ORDER BY CASE fund_type::text WHEN $1 THEN 0 ELSE 1 END, code",
+          [want],
+        )
+      ).rows;
+      fundId = funds[0]?.id ?? null;
+      if (!fundId) throw new ApiError(422, "NO_FUND", "Chưa có túi quỹ tiền mặt/ngân hàng để ghi thu.");
+    }
   }
   const r = await tx.query<{ id: string | null }>("SELECT app.fn_contribution_claim_decide($1, $2, $3, $4) AS id", [id, approve, fundId, note]);
   return { paymentId: r.rows[0].id };
@@ -267,6 +277,7 @@ export async function getFinanceStats(tx: Tx, g: StatsGranularity, countIn: numb
         `SELECT p.key, cp.fee_type::text AS fee_type, COALESCE(SUM(a.amount_vnd), 0)::bigint AS amount
            FROM unnest($1::text[], $2::date[], $3::date[]) AS p(key, f, t)
            JOIN contribution_payments pay ON pay.paid_on BETWEEN p.f AND p.t AND pay.voided_at IS NULL
+                AND pay.ledger_entry_id IS NOT NULL -- phiếu không vào sổ quỹ (tiền điện nước) không phải thu của quỹ nhà
            JOIN contribution_payment_allocations a ON a.payment_id = pay.id
            JOIN contributions ct ON ct.id = a.contribution_id
            JOIN contribution_plans cp ON cp.id = ct.plan_id

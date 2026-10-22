@@ -1,6 +1,6 @@
 {
   "name": "luu-xa-phanxico",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "scripts": {
     "setup:local": "node --no-warnings scripts/setup-local.mjs",

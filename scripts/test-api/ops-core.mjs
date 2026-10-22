@@ -41,6 +41,20 @@ export async function run({ test, eq, ok, section, BASE, pgConfig, Client }) {
     ok(!row.message.includes("anh.b@vidu.vn"), "email phải bị che");
   });
 
+  await test("Lỗi do script của ứng dụng bọc trình duyệt chèn vào trang (Zalo: zaloJSV2) không phải lỗi của ứng dụng ⇒ bỏ qua, không ghi error_events (mã lỗi 5a4403dc)", async () => {
+    await sql("DELETE FROM rate_limit_hits WHERE key LIKE 'client-error:%'");
+    const tag = `zaloJSV2${Math.random().toString(36).slice(2, 8).replace(/[0-9]/g, "q")}`;
+    const r = await fetch(`${BASE}/api/v1/public/client-error`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "window", message: `ReferenceError: Can't find variable: zaloJSV2 ${tag}`, path: "/dang-nhap" }),
+    });
+    eq(r.status, 200);
+    await wait(800);
+    eq((await sql("SELECT count(*)::int AS n FROM error_events WHERE message LIKE $1", [`%${tag}%`])).rows[0].n, 0);
+    await sql("DELETE FROM rate_limit_hits WHERE key LIKE 'client-error:%'");
+  });
+
   await test("Báo lỗi giao diện bị giới hạn theo IP (20 lần / 10 phút) — vượt thì bỏ qua (vẫn 200, dropped)", async () => {
     await sql("DELETE FROM rate_limit_hits WHERE key LIKE 'client-error:%'");
     let dropped = false;

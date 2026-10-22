@@ -128,10 +128,10 @@ const PlanBase = z.discriminatedUnion(
       /** Nhập MỘT trong hai: tổng hóa đơn cả nhà HOẶC số tiền mỗi người (hệ thống tự tính tổng = mỗi người × số người) */
       billTotalVnd: zAmount.optional(),
       perPersonVnd: zAmount.max(100_000_000, "Số tiền mỗi người tối đa 100.000.000đ.").optional(),
-      /** Trừ quỹ ngay: tự lập phiếu chi đã chi bằng tổng hóa đơn; anh em đóng thì cộng lại quỹ */
+      /** Đã bỏ (1.8.1): điện nước không còn tự trừ quỹ nhà — giữ ô này để bản giao diện cũ gửi true vẫn nhận lời giải thích rõ ràng từ CSDL */
       autoExpense: z.boolean().optional(),
-      /** Hình thức trả hóa đơn (chỉ dùng khi autoExpense) */
-      payMethod: zMethod.optional(),
+      /** Tài khoản nhận tiền (STK): id thành viên đã khai báo tài khoản nhận tiền; bỏ trống/null = tài khoản nhận quỹ của nhà */
+      payeeMemberId: zUuid.nullable().optional(),
       dueDate: zDate.optional(),
       fundId: zUuid.optional(),
       note: optText(500, "Ghi chú"),

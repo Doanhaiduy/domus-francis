@@ -7,7 +7,7 @@ import { useSession } from "@/lib/session";
 import { errorMessage } from "@/lib/api";
 import { formatVND } from "@/lib/utils";
 import { dmy, shiftMonth, vnToday } from "@/lib/finance-format";
-import { financeApi, newRequestId, refreshFinance, useContributionMatrix, useFinanceOptions, usePlanPreview } from "@/lib/data/finance";
+import { financeApi, newRequestId, refreshFinance, useContributionMatrix, useFinanceOptions, usePlanPreview, useReceivingAccount } from "@/lib/data/finance";
 import {
   CONTRIBUTION_STATUS_LABEL,
   PAYMENT_METHOD_LABEL,
@@ -16,7 +16,7 @@ import {
   type ContributionRowDto,
   type PaymentMethod,
 } from "@/lib/types/finance";
-import { CustomDatePicker, CustomInput, CustomSelect, CustomToggle } from "@/components/ui/FormControls";
+import { CustomDatePicker, CustomInput, CustomSelect } from "@/components/ui/FormControls";
 import { FundSelect } from "@/components/finance/FundSelect";
 import { DialogShell, ErrorBox, ReasonDialog, btnGhost, btnPrimary } from "./dialogs";
 
@@ -85,13 +85,20 @@ export function PayModal({ memberId, contributionId, onClose }: { memberId: stri
   }, [options, method]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = Object.values(amounts).reduce((a, b) => a + b, 0);
+  const isUtility = (id: string) => open.find((x) => x.contributionId === id)?.feeType === "utility";
+  // Tiền điện nước KHÔNG vào sổ quỹ nhà nên ghi thu riêng: chọn khoản khác loại với các khoản đang chọn thì thay lựa chọn
   const toggle = (c: ContributionCellDto) =>
     setAmounts((p) => {
-      const n = { ...p };
-      if (n[c.contributionId] !== undefined) delete n[c.contributionId];
-      else n[c.contributionId] = c.remainingVnd;
-      return n;
+      if (p[c.contributionId] !== undefined) {
+        const n = { ...p };
+        delete n[c.contributionId];
+        return n;
+      }
+      const sameKind = Object.fromEntries(Object.entries(p).filter(([id]) => isUtility(id) === (c.feeType === "utility")));
+      return { ...sameKind, [c.contributionId]: c.remainingVnd };
     });
+  const utilityOnly = Object.keys(amounts).length > 0 && Object.keys(amounts).every(isUtility);
+  const hasMixedKinds = open.some((c) => c.feeType === "utility") && open.some((c) => c.feeType !== "utility");
 
   const save = async () => {
     setError(null);
@@ -143,6 +150,9 @@ export function PayModal({ memberId, contributionId, onClose }: { memberId: stri
       {open.length > 0 && (
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1.5">Các khoản còn phải thu (chọn nhiều khoản = đóng gộp trong một phiếu thu)</label>
+          {hasMixedKinds && (
+            <p className="mb-1.5 text-[11px] text-gray-500">Tiền điện nước không vào sổ quỹ nhà nên ghi thu riêng — chọn khoản điện nước thì các khoản khác tự bỏ chọn (và ngược lại).</p>
+          )}
           <div className="space-y-1.5">
             {open.map((c) => {
               const on = amounts[c.contributionId] !== undefined;
@@ -186,14 +196,18 @@ export function PayModal({ memberId, contributionId, onClose }: { memberId: stri
         />
         <CustomDatePicker label="Ngày nhận tiền" value={paidOn} onChange={setPaidOn} format="YYYY-MM-DD" />
       </div>
-      <FundSelect label="Nhận vào túi quỹ" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
+      {utilityOnly ? (
+        <p className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-100 text-[11px] text-purple-900">Tiền điện nước chỉ ghi nhận ai đã đóng — không cộng vào sổ quỹ nhà.</p>
+      ) : (
+        <FundSelect label="Nhận vào túi quỹ" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
+      )}
       <CustomInput
         label={method === "bank_transfer" ? "Mã giao dịch ngân hàng *" : "Mã tham chiếu (nếu có)"}
         value={ref}
         onChange={(e) => setRef(e.target.value)}
         placeholder="Ví dụ: FT26277123456"
       />
-      <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Đóng gộp quỹ kỳ + điện nước" />
+      <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Đóng gộp 2 kỳ quỹ" />
       <ErrorBox error={error} />
     </DialogShell>
   );
@@ -618,13 +632,15 @@ export function DuesCycleModal({ open, onClose }: { open: boolean; onClose: () =
 
 // ---------------------------------------------------------------------
 // Nhập TIỀN ĐIỆN NƯỚC tháng: (1) mỗi người đóng cố định ⇒ tổng = mỗi người × số người, hoặc (2) tổng hóa đơn cả nhà ⇒ chia đều, làm tròn lên 1.000 đ.
-// Tùy chọn "Trừ quỹ ngay": tự lập phiếu chi đã chi bằng tổng; anh em đóng (ghi thu) thì cộng lại quỹ.
+// Tiền điện nước KHÔNG đụng sổ quỹ nhà (không trừ hóa đơn, không cộng tiền anh em đóng); chọn tài khoản nhận tiền (STK) —
+// mặc định là tài khoản nhận quỹ của nhà, hoặc tài khoản của một thành viên đã khai báo (vd. người ứng tiền trả hóa đơn).
 // ---------------------------------------------------------------------
-const PAY_METHOD_OPTIONS = (Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((k) => ({ value: k, label: PAYMENT_METHOD_LABEL[k] }));
+const HOUSE_PAYEE = "house";
 
 export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { showToast } = useApp();
   const options = useFinanceOptions(open);
+  const { receiving } = useReceivingAccount(open);
   const current = vnToday().slice(0, 7);
   const [month, setMonth] = useState(shiftMonth(current, -1));
   const [mode, setMode] = useState<"per_person" | "total">("per_person");
@@ -632,9 +648,7 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
   const [perPerson, setPerPerson] = useState(0);
   const [note, setNote] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [fundId, setFundId] = useState("");
-  const [autoExpense, setAutoExpense] = useState(true);
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  const [payee, setPayee] = useState(HOUSE_PAYEE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debounced, setDebounced] = useState({ total: 0, per: 0 });
@@ -646,14 +660,9 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
     setPerPerson(0);
     setNote("");
     setDueDate("");
-    setAutoExpense(true);
-    setPayMethod("cash");
+    setPayee(HOUSE_PAYEE);
     setError(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!open || !options) return;
-    setFundId(options.funds.find((f) => f.type === "cash")?.id ?? options.funds[0]?.id ?? "");
-  }, [open, options]);
   useEffect(() => {
     const t = setTimeout(() => setDebounced({ total, per: perPerson }), 350);
     return () => clearTimeout(t);
@@ -672,9 +681,11 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
   const months = Array.from({ length: 6 }, (_, i) => shiftMonth(current, -i));
   const entered = mode === "per_person" ? perPerson : total;
   const inSync = mode === "per_person" ? debounced.per === perPerson : debounced.total === total;
-  const expenseVnd = preview && inSync && entered > 0 ? preview.totalVnd : 0; // số sẽ trừ quỹ = tổng tính được
-  const maxAuto = preview?.autoExpenseMaxVnd ?? null;
-  const overCap = autoExpense && maxAuto !== null && expenseVnd > maxAuto;
+  const house = receiving?.account ?? null;
+  const payeeOptions = [
+    { value: HOUSE_PAYEE, label: house ? `Tài khoản quỹ Lưu Xá (mặc định) · ${house.bankName} ••${house.accountNo.slice(-4)}` : "Tài khoản quỹ Lưu Xá (mặc định)" },
+    ...(options?.payees ?? []).map((p) => ({ value: p.memberId, label: `${p.name} · ${p.bankName} ••${p.accountLast4}` })),
+  ];
 
   const save = async () => {
     if (entered <= 0) return setError(mode === "per_person" ? "Nhập số tiền mỗi người đóng." : "Nhập tổng tiền hóa đơn điện + nước của cả nhà.");
@@ -686,17 +697,12 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
         month,
         billTotalVnd: mode === "total" ? total : undefined,
         perPersonVnd: mode === "per_person" ? perPerson : undefined,
-        autoExpense,
-        payMethod: autoExpense ? payMethod : undefined,
+        payeeMemberId: payee === HOUSE_PAYEE ? null : payee,
         dueDate: dueDate || undefined,
-        fundId: fundId || undefined,
         note: note.trim() || null,
       });
       await refreshFinance();
-      showToast(
-        "success",
-        `Đã lập ${r.name}: ${r.generated} người × ${formatVND(r.amountVnd)}.${r.expenseVoucherNo ? ` Đã trừ quỹ ${formatVND(r.expenseVnd ?? 0)} (phiếu ${r.expenseVoucherNo}).` : ""}`
-      );
+      showToast("success", `Đã lập ${r.name}: ${r.generated} người × ${formatVND(r.amountVnd)}.`);
       onClose();
     } catch (e) {
       setError(errorMessage(e));
@@ -717,8 +723,8 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
           <button onClick={onClose} className={btnGhost}>
             Hủy bỏ
           </button>
-          <button disabled={busy || entered <= 0 || !!preview?.existing || preview?.splitCount === 0 || overCap} onClick={save} className={btnPrimary}>
-            {busy ? "Đang lập..." : autoExpense ? "Lập khoản thu + trừ quỹ" : "Lập khoản thu điện nước"}
+          <button disabled={busy || entered <= 0 || !!preview?.existing || preview?.splitCount === 0} onClick={save} className={btnPrimary}>
+            {busy ? "Đang lập..." : "Lập khoản thu điện nước"}
           </button>
         </>
       }
@@ -774,24 +780,21 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
       <CustomInput label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Điện 1.180.000 + nước 670.000" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <CustomDatePicker label="Hạn nộp" value={dueDate || preview?.dueDate || ""} onChange={setDueDate} format="YYYY-MM-DD" />
-        <FundSelect label="Túi quỹ nhận" value={fundId} onChange={setFundId} funds={options?.funds ?? []} />
+        <CustomSelect<string> label="Tài khoản nhận tiền (STK)" value={payee} onChange={setPayee} options={payeeOptions} />
       </div>
-
-      <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 space-y-3">
-        <CustomToggle
-          checked={autoExpense}
-          onChange={setAutoExpense}
-          label="Trừ quỹ ngay"
-          description="Tự lập phiếu chi “Điện, Nước & Internet” bằng tổng bên dưới: quỹ trừ trước, anh em đóng (ghi thu) thì cộng lại. Tắt nếu hóa đơn đã được trừ ở nơi khác (vd. trả từ trước khi dùng hệ thống) hoặc bạn muốn tự lập phiếu chi."
-        />
-        {autoExpense && <CustomSelect<PaymentMethod> label="Hình thức trả hóa đơn" value={payMethod} onChange={setPayMethod} options={PAY_METHOD_OPTIONS} />}
-        {overCap && (
-          <p className="flex items-start gap-1.5 p-2.5 rounded-xl bg-amber-50 text-[11px] text-amber-800">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            Tổng {formatVND(expenseVnd)} vượt mức tự trừ quỹ tối đa {formatVND(maxAuto ?? 0)} (Cài đặt → Quản lý quỹ). Hãy tắt “Trừ quỹ ngay” rồi lập phiếu chi thường để người quản lý duyệt.
-          </p>
-        )}
-      </div>
+      {payee === HOUSE_PAYEE && receiving && !house && (
+        <p className="flex items-start gap-1.5 p-2.5 rounded-xl bg-amber-50 text-[11px] text-amber-800">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          Nhà chưa khai báo tài khoản nhận quỹ — anh em sẽ không thấy số tài khoản để chuyển khoản. Khai báo ở Thu chi → Tài khoản nhận quỹ, hoặc chọn tài khoản của một thành viên.
+        </p>
+      )}
+      <p className="flex items-start gap-1.5 text-[11px] text-gray-500">
+        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+        <span>
+          Tiền điện nước <b>không trừ và không cộng vào quỹ nhà</b>: hệ thống chỉ ghi ai đã đóng. Anh em chuyển khoản vào tài khoản đã chọn; Thủ quỹ / Trưởng nhà / Admin xác nhận khi nhận được
+          tiền. Nếu quỹ nhà trả hóa đơn thì tự lập phiếu chi ở mục Chi.
+        </span>
+      </p>
 
       {preview && (
         <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 text-xs text-purple-900">
@@ -805,13 +808,7 @@ export function UtilityModal({ open, onClose }: { open: boolean; onClose: () => 
                 {mode === "total" && preview.remainderVnd > 0 && <span>, dư {formatVND(preview.remainderVnd)} (làm tròn lên 1.000 đ)</span>}
                 <span className="text-purple-700"> · hạn {dmy(preview.dueDate)}</span>
               </div>
-              {autoExpense ? (
-                <div className="text-purple-800">
-                  Quỹ <b>trừ {formatVND(preview.totalVnd)}</b> ngay; khi đủ {preview.splitCount} người đóng, quỹ <b>cộng lại {formatVND(preview.totalVnd)}</b>.
-                </div>
-              ) : (
-                <div className="text-purple-800">Chưa trừ quỹ — nhớ lập phiếu chi khi trả hóa đơn.</div>
-              )}
+              <div className="text-purple-800">Cần thu {formatVND(preview.totalVnd)} từ {preview.splitCount} người — không đụng tới số dư quỹ nhà.</div>
             </div>
           ) : (
             <div>

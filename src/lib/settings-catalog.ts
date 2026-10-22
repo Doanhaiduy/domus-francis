@@ -177,6 +177,7 @@ export const SETTING_CATALOG: Record<string, SettingCatalogEntry> = {
     help: "Bật thì mọi thành viên thấy tên người chưa đóng; tắt thì chỉ Thủ quỹ / người quản lý thấy, thành viên chỉ thấy số liệu tổng.",
   },
   "finance.utility.auto_expense_max_vnd": {
+    hidden: "Từ 1.8.1 tiền điện nước không còn tự trừ quỹ nhà (db/app/1056); khóa này không còn tác dụng.",
     label: "Điện nước: tổng tối đa được tự trừ quỹ",
     help: "Khi lập kế hoạch thu điện nước với “Trừ quỹ ngay”, hệ thống tự lập phiếu chi nếu tổng không vượt mức này. Lớn hơn phải lập phiếu chi thường để người quản lý duyệt.",
   },
